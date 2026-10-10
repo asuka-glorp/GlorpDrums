@@ -1,14 +1,5 @@
 /*
-    DrumKitView.h - the kit itself, drawn procedurally.
-
-    There is no drum artwork to ship, so the kit is built out of juce::Paths at
-    paint time: kick, snare, two rack toms, a floor tom, hi-hat, ride and crash,
-    plus stands. Each piece exposes an anchor point so a CalloutBox can draw its
-    dashed leader line to the right spot, and an impact animation so hitting it
-    does something.
-
-    Animations are driven from hits drained off the sampler's lock-free ring, so
-    the audio thread never touches a Component.
+    DrumKitView.h - the procedural hand-drawn comic drum kit view.
 */
 
 #pragma once
@@ -22,8 +13,6 @@
 namespace glorp
 {
 
-/// Identifies a piece of the drawn kit. Chosen to match DrumGizmo's usual
-/// instrument names so a callout can be matched to its shape.
 enum class KitPiece
 {
     kick, snare, tom1, tom2, tom3, floorTom, hihat, ride, crash, count
@@ -37,46 +26,58 @@ public:
 
     void setInstrumentNames (const std::vector<juce::String>& names);
 
-    /// Fires an impact on the piece that best matches `instrumentName`.
+    /// Fires an impact on the piece that best matches instrumentName.
     void triggerHit (const juce::String& instrumentName, float velocity);
+    void triggerHitForPiece (KitPiece piece, float velocity);
 
-    /// Centre of a piece, in this component's coordinates. Invalid pieces return
-    /// a point far off screen.
+    /// Anchor point in this component's coordinates for callout leader lines.
     juce::Point<float> anchorFor (KitPiece piece) const;
 
     /// Which piece an instrument name most likely refers to.
     static KitPiece pieceForName (const juce::String& name);
 
+    /// Fired when a piece is clicked to trigger sound and selection.
+    std::function<void (KitPiece, float velocity)> onPieceHit;
     std::function<void (KitPiece)> onPieceClicked;
+
+    KitPiece pieceAt (juce::Point<float> pos) const;
 
     void paint (juce::Graphics&) override;
     void resized() override;
     void timerCallback() override;
-    void mouseUp (const juce::MouseEvent&) override;
+    void mouseDown (const juce::MouseEvent&) override;
+    void mouseMove (const juce::MouseEvent&) override;
+    void mouseExit (const juce::MouseEvent&) override;
 
 private:
     struct Piece
     {
         juce::Rectangle<float> bounds;
         juce::Point<float> anchor;
-        float wobble = 0.0f;       ///< cymbal swing, radians
+        float wobble = 0.0f;
         float wobbleVelocity = 0.0f;
-        float squash = 0.0f;       ///< drum head scale pulse
-        float flash = 0.0f;        ///< impact strokes
+        float squash = 0.0f;
+        float flash = 0.0f;
         bool isCymbal = false;
     };
 
-    void drawKick (juce::Graphics&, const juce::Rectangle<float>&);
-    void drawTom (juce::Graphics&, const juce::Rectangle<float>&, bool);
-    void drawSnare (juce::Graphics&, const juce::Rectangle<float>&);
-    void drawCymbal (juce::Graphics&, const juce::Rectangle<float>&, float wobble);
-    void drawStand (juce::Graphics&, juce::Point<float> footCentre, juce::Point<float> top, float spread);
+    void drawFloorShadow (juce::Graphics& g, float cx, float cy, float w, float h);
+    void drawKick (juce::Graphics&, const juce::Rectangle<float>&, float pulse);
+    void drawTom (juce::Graphics&, const juce::Rectangle<float>&, bool rackMounted, float angle, float pulse);
+    void drawSnare (juce::Graphics&, const juce::Rectangle<float>&, float pulse);
+    void drawCymbal (juce::Graphics&, const juce::Rectangle<float>&, float wobble, float tiltAngle);
+    void drawHiHat (juce::Graphics&, const juce::Rectangle<float>&, float wobble);
+    void drawCymbalStand (juce::Graphics&, juce::Point<float> base, juce::Point<float> top, bool isBoom);
+    void drawSnareStand (juce::Graphics&, juce::Point<float> base, juce::Point<float> basket);
     void drawImpact (juce::Graphics&, const juce::Rectangle<float>&, float amount);
+    void drawCrossHatch (juce::Graphics& g, const juce::Rectangle<float>& r, float density);
+
     void layout();
 
     std::array<Piece, static_cast<size_t> (KitPiece::count)> pieces;
     std::vector<juce::String> instrumentNames;
 
+    KitPiece hoveredPiece = KitPiece::count;
     Theme theme = Theme::sketch();
     bool hasLayout = false;
 

@@ -42,17 +42,17 @@ struct Theme
     {
         Theme t;
         t.isDark = false;
-        t.background = juce::Colour (0xfff2efe6);
-        t.panel = juce::Colour (0xfffdf8);
-        t.panelEdge = juce::Colour (0xff1a1a1a);
-        t.ink = juce::Colour (0xff141414);
-        t.inkSoft = juce::Colour (0xff5d5a52);
-        t.accent = juce::Colour (0xffc8462c);
-        t.warning = juce::Colour (0xffb3491f);
-        t.shell = juce::Colour (0xfffbf7ee);
-        t.shellShade = juce::Colour (0xffe6e0d0);
-        t.cymbal = juce::Colour (0xfff3e6b8);
-        t.head = juce::Colour (0xfffaf6ec);
+        t.background = juce::Colour (0xffd8dbde);
+        t.panel = juce::Colour (0xffffffff);
+        t.panelEdge = juce::Colour (0xff121214);
+        t.ink = juce::Colour (0xff101012);
+        t.inkSoft = juce::Colour (0xff54575a);
+        t.accent = juce::Colour (0xfff09a1a);
+        t.warning = juce::Colour (0xffd03020);
+        t.shell = juce::Colour (0xfffcfdfe);
+        t.shellShade = juce::Colour (0xffc4c8cd);
+        t.cymbal = juce::Colour (0xfff8f9fa);
+        t.head = juce::Colour (0xffffffff);
         return t;
     }
 

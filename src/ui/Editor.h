@@ -1,9 +1,5 @@
 /*
-    Editor.h - the GlorpDrums window.
-
-    Layout follows the mockup: menu bar across the top, the drum kit in the middle
-    with callout boxes tethered to it, global knobs on the left, per-instrument
-    controls down the right, and the MIDI activity scope along the bottom.
+    Editor.h - GlorpDrums hand-drawn comic UI window.
 */
 
 #pragma once
@@ -21,7 +17,6 @@ namespace glorp
 {
 
 class Editor : public juce::Component,
-               public juce::MenuBarModel,
                public juce::Timer,
                private PluginProcessor::Listener
 {
@@ -33,53 +28,72 @@ public:
     void resized() override;
     void timerCallback() override;
 
-    // -- juce::MenuBarModel ------------------------------------------------
-    juce::StringArray getMenuBarNames() override;
-    juce::PopupMenu getMenuForIndex (int topLevelMenuIndex, const juce::String& menuName) override;
-    void menuItemSelected (int menuItemID, int topLevelMenuIndex) override {}
+    void selectInstrument (int index);
 
 private:
-    // -- PluginProcessor::Listener -----------------------------------------
     void kitChanged() override;
-    void parametersChanged() override {}
+    void parametersChanged() override;
 
-    // -- construction ------------------------------------------------------
-    void buildMenuBar();
-    void buildGlobalControls();
-    void buildInstrumentControls();
+    void buildHeaderMenu();
+    void buildControls();
     void rebuildCallouts();
-
     void updateCalloutLabels();
+    void bindInstrumentKnobs();
+
     juce::String noteLabelFor (int instrument) const;
     juce::String sampleLabelFor (int instrument) const;
 
-    void showKitMenu();
-    void showMapPresetMenu();
+    juce::PopupMenu buildFileMenu();
+    juce::PopupMenu buildPresetsMenu();
+    juce::PopupMenu buildMidiMenu();
+    juce::PopupMenu buildSettingsMenu();
+
     void showSampleMenu (int instrument, const juce::Point<int>& anchor);
     void armLearn (int instrument);
     void toggleAuto (int instrument);
-    void layoutCallouts (int rightColumnWidth);
-    juce::String themeName() const;
+
+    void drawLeaderArrows (juce::Graphics& g);
 
     PluginProcessor& processor;
 
-    juce::MenuBarComponent menuBar;
+    // Header buttons (hand-drawn text buttons)
+    class MenuButton : public juce::Button
+    {
+    public:
+        explicit MenuButton (const juce::String& name) : juce::Button (name) {}
+        void paintButton (juce::Graphics& g, bool isHover, bool isDown) override;
+    };
+
+    MenuButton fileButton { "FILE" };
+    MenuButton presetsButton { "PRESETS ▼" };
+    MenuButton midiButton { "MIDI" };
+    MenuButton settingsButton { "SETTINGS" };
+
     juce::Component kitArea;
     DrumKitView kitView;
     Scope scope;
 
     std::unique_ptr<juce::Drawable> logo;
-    juce::Image cachedBackground;
 
-    std::vector<std::unique_ptr<Knob>> globalKnobs;
-    std::vector<std::unique_ptr<Knob>> instrumentKnobs;   ///< 3 per instrument
+    // Bottom-Left 2x2 Knobs (Master + Selected Instrument)
+    std::unique_ptr<Knob> masterVolumeKnob;
+    std::unique_ptr<Knob> instPanKnob;
+    std::unique_ptr<Knob> instPitchKnob;
+    std::unique_ptr<Knob> instLevelKnob;
+
+    // Bottom-Right Controls
+    std::unique_ptr<Knob> attackKnob;
+    std::unique_ptr<Knob> decayKnob;
+    std::unique_ptr<juce::Slider> fader1;
+    std::unique_ptr<juce::Slider> fader2;
+
     std::vector<std::unique_ptr<CalloutBox>> callouts;
 
-    juce::StringArray menuNames { "FILE", "PRESETS", "MIDI", "SETTINGS" };
+    int selectedInstrumentIndex = 0;
+    int learningInstrument = -1;
+
     juce::String statusText;
     juce::String kitErrorText;
-
-    int learningInstrument = -1;
 
     Theme theme = Theme::sketch();
 

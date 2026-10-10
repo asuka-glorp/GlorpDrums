@@ -21,6 +21,9 @@ public:
     explicit Knob (const juce::String& label);
     ~Knob() override;
 
+    void setLabel (const juce::String& text) { labelText = text; repaint(); }
+    const juce::String& getLabel() const noexcept { return labelText; }
+
     void attachToParameter (juce::AudioProcessorParameter* parameter);
     void setDoubleClickReturnValue (bool enabled, double value);
     void setRange (double newMin, double newMax, double newInterval = 0.0);

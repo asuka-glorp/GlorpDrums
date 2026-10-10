@@ -61,6 +61,30 @@ PluginProcessor::PluginProcessor()
 
     sampler.setSampleRateAndBlock (44100.0, 512);
     refreshKitList();
+
+    if (settings.lastKitPath.isNotEmpty() && juce::File (settings.lastKitPath).existsAsFile())
+    {
+        loadKit (settings.lastKitPath);
+    }
+    else if (! kitList.empty())
+    {
+        for (const auto& entry : kitList)
+        {
+            if (entry.valid)
+            {
+                loadKit (juce::String (entry.drumkitPath));
+                break;
+            }
+        }
+    }
+
+    if (! sampler.isKitLoaded())
+    {
+        const auto localDemo = juce::File::getCurrentWorkingDirectory()
+                                   .getChildFile ("test/kits/GlorpDemoKit/drumkit.xml");
+        if (localDemo.existsAsFile())
+            loadKit (localDemo.getFullPathName());
+    }
 }
 
 PluginProcessor::~PluginProcessor()

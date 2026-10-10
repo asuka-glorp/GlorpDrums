@@ -6,24 +6,24 @@ namespace glorp
 CalloutBox::CalloutBox()
 {
     setOpaque (false);
-    setInterceptsMouseClicks (true, false);
+    setInterceptsMouseClicks (true, true);
 }
 
-void CalloutBox::setInstrumentName (const juce::String& n)
+void CalloutBox::setInstrumentName (const juce::String& name)
 {
-    instrumentName = n;
+    instrumentName = name;
     repaint();
 }
 
-void CalloutBox::setSampleName (const juce::String& n)
+void CalloutBox::setSampleName (const juce::String& name)
 {
-    sampleName = n;
+    sampleName = name;
     repaint();
 }
 
-void CalloutBox::setNoteLabel (const juce::String& n)
+void CalloutBox::setNoteLabel (const juce::String& label)
 {
-    noteLabel = n;
+    noteLabel = label;
     repaint();
 }
 
@@ -33,196 +33,131 @@ void CalloutBox::setAutoEnabled (bool enabled)
     repaint();
 }
 
-void CalloutBox::setAnchor (const juce::Point<float>& a)
+juce::Point<float> CalloutBox::getLeaderStartPoint (juce::Component* parent) const
 {
-    anchor = a;
-    repaint();
-}
-
-void CalloutBox::drawLeaderLine (juce::Graphics& g, const juce::Rectangle<float>& b)
-{
-    if (anchor.x < -50.0f)
-        return;
-
-    const auto parent = getParentComponent();
-
+    const auto b = getBounds().toFloat();
     if (parent == nullptr)
-        return;
+        return b.getCentre();
 
-    const auto target = parent->getLocalPoint (this, anchor);
+    // Attach to left or right edge depending on anchor position
+    if (anchor.x < b.getCentreX())
+        return { b.getX(), b.getCentreY() };
 
-    if (target.isFinite() && target.x > -50.0f)
-    {
-        juce::Point<float> from;
-
-        // Attach to whichever side of the box the target is nearest.
-        from.x = target.x < b.getCentreX() ? b.getX() : b.getRight();
-        from.y = b.getCentreY();
-
-        // Dashed, because a solid line would compete with the kit drawing.
-        juce::Path line;
-        line.startNewSubPath (from);
-        line.lineTo (target);
-
-        g.setColour (theme.ink.withAlpha (0.7f));
-        g.strokePath (line, juce::PathStrokeType (1.4f, juce::PathStrokeType::curved,
-                                                  juce::PathStrokeType::rounded));
-
-        // Dashes drawn manually: PathStrokeType cannot dash.
-        const auto delta = target - from;
-        const auto length = delta.getDistanceFromOrigin();
-        const auto direction = length > 0.001f ? delta / length : juce::Point<float> (1.0f, 0.0f);
-
-        constexpr float dash = 5.0f;
-        constexpr float gap = 4.0f;
-
-        for (float t = 0.0f; t < length; t += dash + gap)
-            g.drawLine (juce::Line<float> (from + direction * t,
-                                           from + direction * juce::jmin (length, t + dash)), 1.4f);
-
-        g.setColour (theme.ink.withAlpha (0.85f));
-        g.fillEllipse (target.x - 2.5f, target.y - 2.5f, 5.0f, 5.0f);
-    }
+    return { b.getRight(), b.getCentreY() };
 }
 
 void CalloutBox::paint (juce::Graphics& g)
 {
-    const auto b = getLocalBounds().toFloat().reduced (1.0f);
+    const auto b = getLocalBounds().toFloat().reduced (2.0f);
 
-    drawLeaderLine (g, b);
+    // 1. Box background & hand-drawn border
+    g.setColour (isSelected ? juce::Colour (0xfffffdf4) : theme.panel);
+    g.fillRect (b);
 
-    drawSketchRect (g, b, theme.panelEdge, 1.7f, 7);
+    // Outer sketch rect
+    const auto borderCol = isSelected ? theme.accent : theme.panelEdge;
+    drawSketchRect (g, b, borderCol, isSelected ? 2.4f : 1.7f, 7);
+
+    // Secondary inner border for hand-drawn comic look
+    drawSketchRect (g, b.reduced (2.0f), borderCol.withAlpha (isSelected ? 0.8f : 0.4f), 1.0f, 13);
+
+    auto content = b.reduced (4.0f);
+
+    // 2. Top Header: "SELECT"
+    const float titleH = 14.0f;
+    auto titleArea = content.removeFromTop (titleH);
+    g.setFont (uiFont (12.0f));
+    g.setColour (isSelected ? theme.accent : theme.inkSoft);
+    g.drawText ("SELECT", titleArea, juce::Justification::centredLeft, false);
+
+    content.removeFromTop (2.0f);
+
+    // 3. Dropdown Name Button: "[INSTRUMENT NAME ▲▼]"
+    const float selectH = juce::jmin (20.0f, content.getHeight() * 0.36f);
+    selectButtonBounds = content.removeFromTop (selectH);
 
     g.setColour (theme.panel);
-    g.fillRect (b.reduced (1.0f));
+    g.fillRect (selectButtonBounds);
+    drawSketchRect (g, selectButtonBounds, theme.ink, 1.3f, 9);
 
-    const auto titleHeight = juce::jmin (15.0f, b.getHeight() * 0.2f);
-    auto content = b.reduced (5.0f);
-    auto titleArea = content.removeFromTop (titleHeight);
-
-    g.setColour (muted ? theme.warning : theme.ink);
-    g.setFont (uiFont (titleHeight + 2.0f));
-    g.drawText (instrumentName, titleArea, juce::Justification::centredLeft, true);
-
-    // SELECT: the sample row, with up/down arrows.
-    const auto rowHeight = juce::jmin (22.0f, content.getHeight() * 0.34f);
-    auto row = content.removeFromTop (rowHeight).reduced (0.0f, 1.0f);
-
-    const auto labelWidth = row.getWidth() * 0.16f;
-
-    g.setColour (theme.inkSoft);
-    g.setFont (uiFont (rowHeight * 0.8f));
-    g.drawText ("SELECT", row.removeFromLeft (labelWidth), juce::Justification::centredLeft, false);
-
-    auto sampleBox = row.reduced (2.0f, 2.0f);
-
-    g.setColour (theme.panel);
-    g.fillRect (sampleBox);
-    drawSketchRect (g, sampleBox, theme.ink.withAlpha (0.75f), 1.3f, 3);
-
-    auto sampleText = sampleBox.reduced (5.0f, 0.0f);
+    const auto displayName = (sampleName.isNotEmpty() ? sampleName : instrumentName).toUpperCase();
+    g.setFont (uiFont (selectH * 0.72f));
     g.setColour (theme.ink);
-    g.setFont (uiFont (rowHeight * 0.75f));
-    g.drawText (sampleName, sampleText.withTrimmedRight (16.0f),
-                juce::Justification::centredLeft, true);
 
-    // The little up/down triangle pair.
-    auto arrows = sampleBox.reduced (0.0f, sampleBox.getHeight() * 0.28f)
-                        .withWidth (12.0f)
-                        .withX (sampleBox.getRight() - 14.0f);
+    auto textArea = selectButtonBounds.reduced (4.0f, 0.0f);
+    g.drawText (displayName, textArea.withTrimmedRight (16.0f), juce::Justification::centredLeft, true);
+    g.drawText ("▲▼", textArea.removeFromRight (14.0f), juce::Justification::centredRight, false);
 
-    juce::Path up, down;
-    up.addTriangle (arrows.getCentreX() - 4.0f, arrows.getCentreY() - 2.0f,
-                    arrows.getCentreX(), arrows.getCentreY() - 6.0f,
-                    arrows.getCentreX() + 4.0f, arrows.getCentreY() - 2.0f);
-    down.addTriangle (arrows.getCentreX() - 4.0f, arrows.getCentreY() + 3.0f,
-                      arrows.getCentreX(), arrows.getCentreY() + 7.0f,
-                      arrows.getCentreX() + 4.0f, arrows.getCentreY() + 3.0f);
+    content.removeFromTop (3.0f);
 
-    g.setColour (theme.ink);
-    g.fillPath (up);
-    g.fillPath (down);
+    // 4. Middle Row: [AUTO] [LEARN] buttons
+    const float btnH = juce::jmin (18.0f, content.getHeight() * 0.52f);
+    auto btnRow = content.removeFromTop (btnH);
+    const float btnW = (btnRow.getWidth() - 4.0f) * 0.5f;
 
-    // AUTO and LEARN side by side.
-    const auto buttonHeight = juce::jmin (rowHeight, content.getHeight() * 0.4f);
-    auto buttonRow = content.removeFromTop (buttonHeight).reduced (0.0f, 2.0f);
+    autoButtonBounds = btnRow.withWidth (btnW);
+    learnButtonBounds = btnRow.withTrimmedLeft (btnW + 4.0f);
 
-    const auto buttonWidth = (buttonRow.getWidth() - 6.0f) * 0.5f;
-
-    auto autoBox = buttonRow.removeFromLeft (buttonWidth);
-    auto learnBox = buttonRow.withTrimmedLeft (6.0f);
-
-    auto drawButton = [&] (juce::Rectangle<float> box, const juce::String& text,
-                           bool filled, bool armed, const juce::Colour& colour)
+    auto drawBtn = [&] (juce::Rectangle<float> rect, const juce::String& text, bool active)
     {
-        auto b2 = box.reduced (1.0f, 1.0f);
+        g.setColour (active ? theme.accent.withAlpha (0.35f) : theme.panel);
+        g.fillRect (rect);
+        drawSketchRect (g, rect, active ? theme.accent : theme.ink, 1.2f, 11);
 
-        g.setColour (armed ? colour.withAlpha (0.28f) : theme.panel);
-        g.fillRect (b2);
-        drawSketchRect (g, b2, armed ? colour : theme.ink.withAlpha (0.8f), 1.3f, 11);
-
-        g.setColour (armed ? colour : theme.ink);
-        g.setFont (uiFont (buttonHeight * 0.72f));
-        g.drawText (text, b2, juce::Justification::centred, false);
+        g.setColour (active ? theme.ink : theme.inkSoft);
+        g.setFont (uiFont (btnH * 0.70f));
+        g.drawText (text, rect, juce::Justification::centred, false);
     };
 
-    drawButton (autoBox, "AUTO", autoEnabled, autoEnabled, theme.accent);
-    drawButton (learnBox, "LEARN", false, learnArmed, theme.accent);
+    drawBtn (autoButtonBounds, "AUTO", autoEnabled);
+    drawBtn (learnButtonBounds, "LEARN", learnArmed);
 
-    // MIDI readout. Remembered so a click can be routed without recomputing.
-    midiRow = content;
-    if (midiRow.getHeight() > 9.0f)
+    content.removeFromTop (2.0f);
+
+    // 5. Bottom Row: MIDI readout
+    midiRowBounds = content;
+    if (midiRowBounds.getHeight() >= 8.0f)
     {
-        g.setColour (learnArmed ? theme.accent : theme.inkSoft);
-        g.setFont (uiFont (juce::jmin (15.0f, midiRow.getHeight())));
+        g.setColour (learnArmed ? theme.accent : (isSelected ? theme.ink : theme.inkSoft));
+        g.setFont (uiFont (juce::jmin (13.0f, midiRowBounds.getHeight() * 0.95f)));
         g.drawText (learnArmed ? "listening..." : ("MIDI: " + noteLabel),
-                    midiRow.reduced (2.0f, 0.0f), juce::Justification::centredLeft, true);
+                    midiRowBounds.reduced (2.0f, 0.0f), juce::Justification::centredLeft, true);
     }
+}
+
+void CalloutBox::mouseDown (const juce::MouseEvent&)
+{
+    if (onBoxClicked != nullptr)
+        onBoxClicked();
 }
 
 void CalloutBox::mouseUp (const juce::MouseEvent& e)
 {
-    const auto b = getLocalBounds().toFloat().reduced (1.0f);
-    const auto titleHeight = juce::jmin (15.0f, b.getHeight() * 0.2f);
-    const auto rowHeight = juce::jmin (22.0f, (b.getHeight() - titleHeight) * 0.34f);
-
-    auto y = b.getY() + 5.0f + titleHeight;
-
-    // SELECT row.
-    auto selectRow = juce::Rectangle<float> (b.getX() + 5.0f, y, b.getWidth() - 10.0f, rowHeight);
-
-    if (selectRow.contains (e.position))
+    if (selectButtonBounds.contains (e.position))
     {
-        if (onSelectClicked) onSelectClicked();
+        if (onSelectClicked != nullptr)
+            onSelectClicked();
         return;
     }
 
-    y += rowHeight;
-
-    // AUTO / LEARN row.
-    auto buttonHeight = juce::jmin (rowHeight, (b.getBottom() - 5.0f - y) * 0.4f);
-    auto buttonRow = juce::Rectangle<float> (b.getX() + 5.0f, y, b.getWidth() - 10.0f, buttonHeight);
-    const auto buttonWidth = (buttonRow.getWidth() - 6.0f) * 0.5f;
-
-    auto autoBox = buttonRow.withWidth (buttonWidth);
-    auto learnBox = buttonRow.withTrimmedLeft (buttonWidth + 6.0f).withTrimmedRight (0.0f);
-
-    if (autoBox.contains (e.position))
+    if (autoButtonBounds.contains (e.position))
     {
-        if (onAutoClicked) onAutoClicked();
+        if (onAutoClicked != nullptr)
+            onAutoClicked();
         return;
     }
 
-    if (learnBox.contains (e.position))
+    if (learnButtonBounds.contains (e.position))
     {
-        if (onLearnClicked) onLearnClicked();
+        if (onLearnClicked != nullptr)
+            onLearnClicked();
         return;
     }
 
-    // MIDI row.
-    if (midiRow.contains (e.position))
+    if (midiRowBounds.contains (e.position))
     {
-        if (onMidiLabelClicked) onMidiLabelClicked();
+        if (onMidiLabelClicked != nullptr)
+            onMidiLabelClicked();
         return;
     }
 }

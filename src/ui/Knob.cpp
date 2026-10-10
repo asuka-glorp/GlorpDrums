@@ -65,16 +65,17 @@ void Knob::paint (juce::Graphics& g)
 {
     auto bounds = getLocalBounds().toFloat().reduced (2.0f);
 
-    const auto labelHeight = juce::jmin (18.0f, bounds.getHeight() * 0.26f);
-    const auto knobArea = bounds.removeFromBottom (labelHeight + 2.0f).reduced (4.0f);
+    const auto labelHeight = juce::jmin (16.0f, bounds.getHeight() * 0.25f);
+    const auto labelArea = bounds.removeFromBottom (labelHeight);
+    const auto knobArea = bounds.reduced (3.0f);
 
     const auto centre = knobArea.getCentre();
-    const auto radius = juce::jmin (knobArea.getWidth(), knobArea.getHeight()) * 0.5f;
+    const auto radius = juce::jmin (knobArea.getWidth(), knobArea.getHeight()) * 0.44f;
 
     if (radius > 4.0f)
     {
         // Tick ring: short spokes around the outside, like the mockup.
-        g.setColour (theme.ink.withAlpha (0.45f));
+        g.setColour (theme.ink.withAlpha (0.50f));
 
         constexpr int numTicks = 11;
         constexpr float startAngle = 2.35f;
@@ -84,26 +85,26 @@ void Knob::paint (juce::Graphics& g)
         {
             const auto angle = startAngle + sweep * i / static_cast<float> (numTicks - 1);
             const auto inner = polarPoint (centre, angle, radius * 1.05f);
-            const auto outer = polarPoint (centre, angle, radius * 1.22f);
-            g.drawLine (juce::Line<float> (inner, outer), 1.0f);
+            const auto outer = polarPoint (centre, angle, radius * 1.25f);
+            g.drawLine (juce::Line<float> (inner, outer), 1.2f);
         }
 
         // Body.
         juce::Path body;
-        body.addEllipse (juce::Rectangle<float> (radius * 2.04f, radius * 2.04f).withCentre (centre));
+        body.addEllipse (juce::Rectangle<float> (radius * 2.0f, radius * 2.0f).withCentre (centre));
 
         g.setColour (theme.panel);
         g.fillPath (body);
         g.setColour (learnArmed ? theme.accent : theme.ink);
-        g.strokePath (body, juce::PathStrokeType (1.7f));
+        g.strokePath (body, juce::PathStrokeType (1.8f));
 
         // Pointer.
         const auto value = getDisplayValue();
         const auto pointerAngle = startAngle + sweep * value;
 
         juce::Path pointer;
-        pointer.startNewSubPath (polarPoint (centre, pointerAngle, radius * 0.22f));
-        pointer.lineTo (polarPoint (centre, pointerAngle, radius * 0.85f));
+        pointer.startNewSubPath (polarPoint (centre, pointerAngle, radius * 0.20f));
+        pointer.lineTo (polarPoint (centre, pointerAngle, radius * 0.88f));
 
         g.setColour (learnArmed ? theme.accent : theme.ink);
         g.strokePath (pointer, juce::PathStrokeType (2.4f, juce::PathStrokeType::curved,
@@ -115,20 +116,18 @@ void Knob::paint (juce::Graphics& g)
             juce::Path arc;
             arc.addCentredArc (centre.x, centre.y, radius * 1.12f, radius * 1.12f, 0.0f,
                                startAngle, startAngle + sweep * value, true);
-            g.setColour (theme.ink.withAlpha (0.5f));
-            g.strokePath (arc, juce::PathStrokeType (1.8f, juce::PathStrokeType::curved,
+            g.setColour (theme.ink.withAlpha (0.4f));
+            g.strokePath (arc, juce::PathStrokeType (1.6f, juce::PathStrokeType::curved,
                                                      juce::PathStrokeType::rounded));
         }
     }
 
-    auto text = bounds.withTrimmedBottom (2.0f);
-    auto font = uiFont (labelHeight);
-
+    auto font = uiFont (labelHeight * 0.95f);
     if (font.getHeight() > 8.0f)
     {
         g.setFont (font);
         g.setColour (theme.ink);
-        g.drawText (labelText, text, juce::Justification::centred, false);
+        g.drawText (labelText, labelArea, juce::Justification::centred, false);
     }
 }
 
