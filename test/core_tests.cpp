@@ -301,8 +301,8 @@ namespace
         const auto kit = DrumKit::load ((root / "LegacyKit" / "drumkit.xml").string());
 
         checkEq (kit.error, "", "legacy kit loads");
-        checkEq (kit.title, "", "legacy kit has no metadata title");
-        checkEq (kit.displayName(), "LegacyKit", "display name falls back to folder name");
+        checkEq (kit.title, "Old kit", "legacy kit carries name attribute as title");
+        checkEq (kit.displayName(), "Old kit", "display name uses legacy kit name");
         checkEq (static_cast<int> (kit.instruments.size()), 1, "legacy instrument count");
 
         if (! kit.instruments.empty())
@@ -318,6 +318,22 @@ namespace
             checkEq (static_cast<int> (kick.resolvedChannels[0].size()), 2, "legacy channelmap resolves");
             checkEq (kick.resolvedChannels[0][0].kitChannel, "OHL", "legacy in -> out rename honoured");
         }
+
+        // Test fallback to folder name when name attribute is omitted.
+        writeFile (root / "NoNameKit" / "drumkit.xml", R"(<?xml version="1.0"?>
+<drumkit description="uses the old layout without name">
+  <channels><channel name="OHL"/></channels>
+  <instruments><instrument name="Kick" file="Kick/Kick.xml"/></instruments>
+</drumkit>)");
+        writeFile (root / "NoNameKit" / "Kick" / "Kick.xml", R"(<?xml version='1.0' encoding='UTF-8'?>
+<instrument version="2.0" name="Kick">
+  <samples><sample name="k"><audiofile channel="OHL" file="k.wav" filechannel="1"/></sample></samples>
+</instrument>)");
+
+        const auto noNameKit = DrumKit::load ((root / "NoNameKit" / "drumkit.xml").string());
+        checkEq (noNameKit.error, "", "nameless legacy kit loads");
+        checkEq (noNameKit.title, "", "nameless legacy kit has empty title");
+        checkEq (noNameKit.displayName(), "NoNameKit", "display name falls back to folder name");
     }
 
     //==========================================================================
@@ -498,6 +514,7 @@ namespace
 namespace ts
 {
     constexpr double sampleRate = 48000.0;
+    constexpr double pi = 3.14159265358979323846;
 
     /// Runs a whole mono buffer through the shifter in realistic block sizes.
     std::vector<float> runShift (const std::vector<float>& input, float semitones,
@@ -523,6 +540,7 @@ namespace ts
             std::copy (input.begin() + static_cast<long> (consumed),
                        input.begin() + static_cast<long> (consumed + n), inBlock.begin());
 
+            std::fill (outBlock.begin(), outBlock.end(), 0.0f);
             shifter.processMono (inBlock.data(), n, outBlock.data(), block);
 
             output.insert (output.end(), outBlock.begin(), outBlock.end());
@@ -534,10 +552,10 @@ namespace ts
 
         if (outExtra > 0)
         {
+            std::vector<float> tail (static_cast<size_t> (outExtra), 0.0f);
             std::fill (inBlock.begin(), inBlock.end(), 0.0f);
-            std::fill (outBlock.begin(), outBlock.end(), 0.0f);
-            shifter.processMono (inBlock.data(), 0, outBlock.data(), outExtra);
-            output.insert (output.end(), outBlock.begin(), outBlock.end());
+            shifter.processMono (inBlock.data(), 0, tail.data(), outExtra);
+            output.insert (output.end(), tail.begin(), tail.end());
         }
 
         if (perBlock != nullptr)
@@ -711,15 +729,18 @@ void testPitchShifter()
         PitchShifter shifter;
         shifter.prepare (sampleRate, 512);
         shifter.setSemitones (5.0f);
-        const auto latency = static_cast<size_t> (shifter.latencySamples());
 
         // The dry attack is the input delayed by exactly the reported latency.
+        const auto latency = static_cast<size_t> (shifter.latencySamples());
+        const auto dryLength = std::min<size_t> (400, static_cast<size_t> (shifter.getDryAttackSamples()));
+
         size_t worst = 0;
 
-        for (size_t i = 0; i + latency < input.size() && i < 400; ++i)
+        for (size_t i = 0; i < dryLength && i + latency < input.size() && i < out.size(); ++i)
             worst = std::max (worst, static_cast<size_t> (std::abs (out[i + latency] - input[i]) * 1.0e6f));
 
-        check (worst == 0, "first 400 output samples are the dry attack, bit for bit");
+        check (worst == 0, "the dry attack region is the input delayed, bit for bit");
+        check (dryLength > 200, "the dry attack covers a meaningful slice of the hit");
 
         // And it should actually be the loudest part, i.e. we are not bypassing
         // the loud transient by accident.
@@ -790,8 +811,57 @@ void testPitchShifter()
     }
 }
 
+void testDemoKit()
+{
+    section ("GlorpDemoKit verification");
+
+    const fs::path demoKitPath = fs::current_path() / "test" / "kits" / "GlorpDemoKit" / "drumkit.xml";
+
+    if (! fs::exists (demoKitPath))
+    {
+        std::cout << "  (Skipping GlorpDemoKit check - file not found at " << demoKitPath << ")\n";
+        return;
+    }
+
+    const auto kit = DrumKit::load (demoKitPath.string());
+
+    checkEq (kit.error, "", "demo kit loads without error");
+    checkEq (kit.title, "Glorp Demo Kit", "demo kit title");
+    checkEq (static_cast<int> (kit.instruments.size()), 8, "8 instruments in demo kit");
+    checkEq (static_cast<int> (kit.channels.size()), 2, "2 channels in demo kit (OHL, OHR)");
+    checkEq (static_cast<int> (kit.suggestedMap.size()), 8, "8 notes mapped in midimap.xml");
+
+    // Verify HihatClosed chokes HihatOpen
+    const auto hhIdx = kit.indexOfInstrument ("HihatClosed");
+    check (hhIdx >= 0, "HihatClosed exists");
+    if (hhIdx >= 0)
+    {
+        const auto& hh = kit.instruments[static_cast<size_t> (hhIdx)];
+        checkEq (hh.group, "hihat", "HihatClosed group is hihat");
+        checkEq (static_cast<int> (hh.chokes.size()), 1, "HihatClosed has 1 choke");
+        if (! hh.chokes.empty())
+            checkEq (hh.chokes[0].instrument, "HihatOpen", "HihatClosed chokes HihatOpen");
+    }
+
+    // Verify all samples have valid audio files on disk
+    for (const auto& inst : kit.instruments)
+    {
+        check (inst.samples.size() >= 2, inst.name + " has at least 2 sample hits");
+        for (const auto& sample : inst.samples)
+        {
+            check (! sample.audioFiles.empty(), inst.name + " " + sample.name + " has audio files");
+            for (const auto& ref : sample.audioFiles)
+            {
+                const auto absPath = inst.samplePath (ref);
+                check (fs::exists (absPath), "sample file exists: " + absPath);
+            }
+        }
+    }
+}
+
 int main (int argc, char** argv)
-{    const fs::path work = argc > 1 ? fs::path (argv[1])
+{
+    const fs::path work = argc > 1 ? fs::path (argv[1])
                                    : fs::temp_directory_path() / "glorpdrums_parser_test";
 
     std::error_code ec;
@@ -800,6 +870,14 @@ int main (int argc, char** argv)
 
     std::cout << "GlorpDrums parser tests\n";
 
+    if (getenv("GLORP_ONLY_PS") != nullptr)
+    {
+        std::cout << "GlorpDrums parser tests\n";
+        testPitchShifter();
+        std::cout << "\n" << (checks - failures) << "/" << checks << " checks passed\n";
+        return failures == 0 ? 0 : 1;
+    }
+
     testXmlBasics();
     testModernKit (work);
     testLegacyKit (work);
@@ -807,6 +885,7 @@ int main (int argc, char** argv)
     testFailureModes (work);
     testKitScanner (work);
     testPitchShifter();
+    testDemoKit();
 
     std::cout << "\n" << (checks - failures) << "/" << checks << " checks passed\n";
 

@@ -166,16 +166,6 @@ void PitchShifter::prepare (double rate, int blockSize)
 
     prefixEnergy.assign (static_cast<size_t> (overlapSize + effectiveSearch + 2), 0.0f);
 
-    // Hann window, with its squared energies accumulated alongside the signal so
-    // the overlap-add can be normalised exactly. Without that normalisation,
-    // overlapping copies of a similar waveform sum to double amplitude and the
-    // hit audibly pumps.
-    window.assign (static_cast<size_t> (frameSize), 0.0f);
-
-    for (int i = 0; i < frameSize; ++i)
-        window[static_cast<size_t> (i)] =
-            static_cast<float> (0.5 - 0.5 * std::cos (2.0 * pi * i / (frameSize - 1)));
-
     inputRing.assign (static_cast<size_t> (nextPowerOfTwo (static_cast<int> (sampleRate * 8.0))), 0.0f);
     dryRing.assign (static_cast<size_t> (nextPowerOfTwo (latency * 4)), 0.0f);
 
@@ -195,7 +185,6 @@ void PitchShifter::reset()
     tiltState = 0.0f;
 
     fifoValue.clear();
-    fifoNorm.clear();
     fifoRead = 0;
 
     std::fill (inputRing.begin(), inputRing.end(), 0.0f);
@@ -212,8 +201,16 @@ void PitchShifter::setSemitones (float s)
     semitones = std::clamp (s, -maxSemitones, maxSemitones);
 
     pitchRatio = std::pow (2.0f, semitones / 12.0f);
-    analysisHop = static_cast<float> (hopSize) * pitchRatio;
-    resampleStep = 1.0 / static_cast<double> (pitchRatio);
+
+    // WSOLA leaves pitch alone and only changes duration, so it has to *stretch*
+    // by the ratio: each frame advances the output by hopSize while consuming
+    // hopSize/ratio of input, making the result ratio times longer.
+    analysisHop = static_cast<float> (hopSize) / pitchRatio;
+
+    // Reading the stretched signal as y[n] = x[n * step] scales frequency *by*
+    // `step`, so the step is the ratio itself. The duration it restores cancels
+    // the stretch exactly, leaving a net pitch shift with the original timing.
+    resampleStep = static_cast<double> (pitchRatio);
 
     // Upward shifts lose apparent snap, because every partial moves up while the
     // ear's brightness expectations stay anchored to where the sample was
@@ -246,7 +243,7 @@ float PitchShifter::readInput (int64_t position) const noexcept
     return inputRing[static_cast<size_t> (position & mask)];
 }
 
-int PitchShifter::searchBestOffset (int64_t nominalStart, int search) const
+int PitchShifter::searchBestOffset (int64_t nominalStart, int search)
 {
     const int o = overlapSize;
     const int uLength = o + search;
@@ -336,36 +333,31 @@ bool PitchShifter::runFrame()
 
     if (! havePrevious)
     {
-        // First frame: nothing to overlap with yet, so it all lands as-is. Only
-        // the first `overlapSize` samples are final; the rest get added to by the
-        // next frame.
+        // First frame: there is nothing to overlap with yet, so it lands as-is.
+        // Only its leading `overlapSize` samples are final; the rest get averaged
+        // with by the next frame.
         for (int i = 0; i < n; ++i)
-        {
-            const float w = window[static_cast<size_t> (i)];
-            fifoValue.push_back (readInput (frameStart + i) * w);
-            fifoNorm.push_back (w * w);
-        }
+            fifoValue.push_back (readInput (frameStart + i));
     }
     else
     {
+        if (fifoValue.size() < static_cast<size_t> (overlapSize))
+            return false;
+
         // The incoming frame's leading `overlapSize` samples land on top of the
-        // previous frame's tail, which is exactly the region the two share.
+        // previous frame's contribution over exactly the region the two share.
+        // Averaging rather than summing keeps the amplitude where it belongs:
+        // WSOLA's alignment means the two are near-identical there, so their mean
+        // is the signal.
         const auto tail = fifoValue.size() - static_cast<size_t> (overlapSize);
 
         for (int i = 0; i < overlapSize; ++i)
-        {
-            const float w = window[static_cast<size_t> (i)];
-            fifoValue[tail + static_cast<size_t> (i)] += readInput (frameStart + i) * w;
-            fifoNorm[tail + static_cast<size_t> (i)] += w * w;
-        }
+            fifoValue[tail + static_cast<size_t> (i)] =
+                (fifoValue[tail + static_cast<size_t> (i)] + readInput (frameStart + i)) * 0.5f;
 
         // The remaining `hopSize` samples extend the timeline.
         for (int i = overlapSize; i < n; ++i)
-        {
-            const float w = window[static_cast<size_t> (i)];
-            fifoValue.push_back (readInput (frameStart + i) * w);
-            fifoNorm.push_back (w * w);
-        }
+            fifoValue.push_back (readInput (frameStart + i));
     }
 
     previousFrameStart = frameStart;
@@ -433,10 +425,7 @@ void PitchShifter::processMono (const float* in, int numInSamples, float* out, i
         if (absolute < 0 || absolute >= fifoSize)
             return 0.0f;
 
-        const float numerator = fifoValue[static_cast<size_t> (absolute)];
-        const float denominator = fifoNorm[static_cast<size_t> (absolute)];
-
-        return denominator > 1.0e-6f ? numerator / denominator : 0.0f;
+        return fifoValue[static_cast<size_t> (absolute)];
     };
 
     for (int i = 0; i < numOutSamples; ++i)
@@ -485,11 +474,12 @@ void PitchShifter::processMono (const float* in, int numInSamples, float* out, i
         ++outputProduced;
     }
 
-    // Keep the FIFO bounded over a long sample.
-    if (fifoRead > 65536)
+    // Keep the FIFO bounded over a long sample. Never compact below a frame's
+    // worth of tail: runFrame overlap-adds onto the tail in place and would
+    // underflow the index if we did.
+    if (fifoRead > 65536 && fifoValue.size() - fifoRead > static_cast<size_t> (frameSize))
     {
         fifoValue.erase (fifoValue.begin(), fifoValue.begin() + static_cast<long> (fifoRead));
-        fifoNorm.erase (fifoNorm.begin(), fifoNorm.begin() + static_cast<long> (fifoRead));
         fifoRead = 0;
     }
 }

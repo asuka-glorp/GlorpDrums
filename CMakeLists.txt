@@ -18,10 +18,13 @@ option(GLORP_BUILD_TESTS       "Build the headless test suite" ON)
 # renegotiate it afterwards. VST3 *could* change at runtime, but keeping the two
 # formats identical matters more than the tidiness of unused buses.
 #
-# VST3 allows 64 buses, so this can safely go up. Rebuild with e.g.
-#   -DGLORP_MAX_INSTRUMENT_BUSES=8
-# for a leaner alternative if a host struggles.
-set(GLORP_MAX_INSTRUMENT_BUSES 16 CACHE STRING "Stereo output buses reserved for instruments")
+# 32 covers the largest kits in common use (CrocellKit_full has 27 instruments).
+# Instruments past this many share the final bus rather than being dropped, so a
+# bigger kit is never unplayable, just less separable.
+#
+# Rebuild with e.g. -DGLORP_MAX_INSTRUMENT_BUSES=8 for a leaner alternative if a
+# host struggles with many outputs.
+set(GLORP_MAX_INSTRUMENT_BUSES 32 CACHE STRING "Stereo output buses reserved for instruments")
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -35,6 +38,11 @@ endif()
 # JUCE
 #==================================================================================
 
+# Build requirements on Linux, listed here so a new machine is set up in one go:
+#   libX11-devel libXinerama-devel libXcursor-devel libXi-devel
+#   libXrandr-devel libXcomposite-devel alsa-lib-devel
+# JUCE's X11 code includes headers from the first three by name, so they are not
+# optional. Everything below builds against the real X11 feature set.
 add_subdirectory(libs/JUCE)
 
 #==================================================================================
@@ -42,13 +50,43 @@ add_subdirectory(libs/JUCE)
 #==================================================================================
 
 set(GLORP_PLUGIN_FORMATS "")
-if(GLORP_BUILD_VST3)       list(APPEND GLORP_PLUGIN_FORMATS VST3) endif()
-if(GLORP_BUILD_LV2)        list(APPEND GLORP_PLUGIN_FORMATS LV2)  endif()
-if(GLORP_BUILD_STANDALONE) list(APPEND GLORP_PLUGIN_FORMATS Standalone) endif()
+
+if(GLORP_BUILD_VST3)
+    list(APPEND GLORP_PLUGIN_FORMATS VST3)
+endif()
+
+if(GLORP_BUILD_LV2)
+    list(APPEND GLORP_PLUGIN_FORMATS LV2)
+endif()
+
+if(GLORP_BUILD_STANDALONE)
+    list(APPEND GLORP_PLUGIN_FORMATS Standalone)
+endif()
 
 if(NOT GLORP_PLUGIN_FORMATS)
     message(FATAL_ERROR "At least one of GLORP_BUILD_VST3 / GLORP_BUILD_LV2 / GLORP_BUILD_STANDALONE must be ON")
 endif()
+
+#==================================================================================
+# Bundled assets
+#==================================================================================
+
+# The logo and fonts, as a static library so the plugin binaries and the
+# standalone executable can share them. Defined before the plugin target links it.
+juce_add_binary_data(GlorpDrumsAssets
+    COMPANY_NAME  "GlorpDrums"
+    BINARY_NAME   "GlorpDrumsAssets"
+    HEADER_NAME   "GlorpDrumsAssets.h"
+    NAMESPACE     GlorpAssets
+    SOURCES
+        resources/logo.svg
+        resources/fonts/PatrickHand-Regular.ttf
+        resources/fonts/LilitaOne-Regular.ttf
+)
+
+#==================================================================================
+# Plugin target
+#==================================================================================
 
 juce_add_plugin(GlorpDrums
     PRODUCT_NAME            "GlorpDrums"
@@ -77,7 +115,7 @@ juce_generate_juce_header(GlorpDrums)
 
 target_sources(GlorpDrums PRIVATE
     src/plugin/PluginProcessor.cpp
-    src/plugin/PluginEditor.cpp
+    src/plugin/PluginEditor.h
     src/core/XmlLite.cpp
     src/core/DrumKit.cpp
     src/core/KitScanner.cpp
@@ -86,15 +124,18 @@ target_sources(GlorpDrums PRIVATE
     src/core/Sampler.cpp
     src/core/MidiMap.cpp
     src/core/Settings.cpp
+    src/ui/Editor.cpp
     src/ui/DrumKitView.cpp
     src/ui/CalloutBox.cpp
     src/ui/Knob.cpp
     src/ui/Scope.cpp
-    src/ui/Editor.cpp
-    src/ui/Theme.cpp
 )
 
-target_include_directories(GlorpDrums PRIVATE src src/core)
+# Bundled logo and fonts, as a static library so both the VST3/LV2 binaries and
+# the standalone executable can share them.
+target_link_libraries(GlorpDrums PRIVATE GlorpDrumsAssets)
+
+target_include_directories(GlorpDrums PRIVATE src src/core src/plugin src/ui)
 
 target_compile_definitions(GlorpDrums PRIVATE
     JUCE_WEB_BROWSER=0
@@ -120,44 +161,16 @@ if(GLORP_BUILD_STANDALONE)
     target_link_libraries(GlorpDrums PRIVATE juce::juce_audio_devices)
 endif()
 
-# The logo and fonts are needed by the editor.
-juce_add_binary_data(GlorpDrumsAssets
-    COMPANY_NAME "GlorpDrums"
-    BINARY_NAME  "GlorpDrumsAssets"
-    HEADER_NAME  "GlorpDrumsAssets.h"
-    NAMESPACE    GlorpAssets
-)
-target_sources(GlorpDrumsAssets
-    resources/logo.svg
-    resources/fonts/PatrickHand-Regular.ttf
-    resources/fonts/LilitaOne-Regular.ttf
-)
-target_include_directories(GlorpDrumsAssets PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
-
 #==================================================================================
-# Standalone app wrapper
+# Standalone
 #==================================================================================
+# The standalone executable comes from JUCE's own "Standalone" plugin format,
+# which already handles the audio device, MIDI input and window plumbing. Writing
+# our own would only mean maintaining something less well tested.
 
 if(GLORP_BUILD_STANDALONE)
-    juce_add_console_app(GlorpDrumsStandalone
-        PRODUCT_NAME "GlorpDrums"
-        COMPANY_NAME "GlorpDrums"
-        BUNDLE_ID    "org.glorpdrums.GlorpDrums.Standalone"
-    )
-
-    target_sources(GlorpDrumsStandalone PRIVATE src/plugin/Standalone.cpp)
-
-    target_link_libraries(GlorpDrumsStandalone
-        PRIVATE
-            GlorpDrums
-            GlorpDrumsAssets
-            juce::juce_audio_utils
-    )
-
-    target_compile_definitions(GlorpDrumsStandalone PRIVATE
-        JUCE_WEB_BROWSER=0
-        JUCE_USE_CURL=0
-    )
+    target_compile_definitions(GlorpDrums PRIVATE JUCE_ALSA=1 JUCE_JACK=0)
+    target_link_libraries(GlorpDrums PRIVATE juce::juce_audio_devices)
 endif()
 
 #==================================================================================

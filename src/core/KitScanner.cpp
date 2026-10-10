@@ -25,8 +25,14 @@ namespace
             || name == ".cache" || name == "node_modules";
     }
 
-    /// Case-insensitive match, used for drumkit.XML / DRUMKIT.xml variants.
-    bool isDrumkitFileName (const fs::path& p)
+    /** True for the two ways a drumkit manifest is named in the wild:
+          drumkit.xml                  (the modern convention)
+          <Anything>.xml               (kits that ship named variants)
+        The second form matters because plenty of established kits, CrocellKit
+        among them, have no drumkit.xml at all and instead offer tiny/small/
+        default/full variants picked by the user.
+    */
+    bool couldBeKitFileName (const fs::path& p)
     {
         if (! p.has_extension())
             return false;
@@ -35,11 +41,14 @@ namespace
         std::transform (ext.begin(), ext.end(), ext.begin(),
                         [] (unsigned char c) { return static_cast<char> (std::tolower (c)); });
 
+        if (ext != ".xml")
+            return false;
+
         auto stem = p.stem().string();
         std::transform (stem.begin(), stem.end(), stem.begin(),
                         [] (unsigned char c) { return static_cast<char> (std::tolower (c)); });
 
-        return stem == "drumkit" && ext == ".xml";
+        return stem == "drumkit" || stem.find ("kit") != std::string::npos;
     }
 
     std::string homeDirectory()
@@ -177,8 +186,11 @@ std::vector<std::string> KitScanner::findKitsUnder (const std::string& root, int
                     if (frame.depth < maxDepth && ! isJunkDirectory (entry.path()))
                         stack.push_back ({ entry.path(), frame.depth + 1 });
                 }
-                else if (entry.is_regular_file (entryEc) && isDrumkitFileName (entry.path()))
+                else if (entry.is_regular_file (entryEc) && couldBeKitFileName (entry.path()))
                 {
+                    // Not every .xml is a manifest. describe() rejects anything
+                    // whose root element is not <drumkit>, so instrument XMLs and
+                    // midimaps are filtered out cheaply rather than by filename.
                     found.push_back (fs::absolute (entry.path(), entryEc).lexically_normal().string());
                 }
             }
@@ -224,6 +236,32 @@ KitEntry KitScanner::describe (const std::string& drumkitPath, const std::string
         if (auto* meta = root->child ("metadata"))
             if (auto* title = meta->child ("title"); title != nullptr && ! title->text.empty())
                 entry.displayName = title->text;
+        else if (auto name = root->attribute ("name"); ! name.empty())
+            entry.displayName = name;
+
+        // Kits that ship named variants (CrocellKit_tiny.xml, _small, _default,
+        // _full) all share a title, so the filename is the only thing telling them
+        // apart. Without this the menu would list "CrocellKit" four times.
+        const auto stem = p.stem().string();
+
+        if (entry.displayName == stem)
+        {
+            entry.displayName = stem;
+        }
+        else if (stem.size() > entry.displayName.size()
+                 && stem.compare (0, entry.displayName.size(), entry.displayName) == 0)
+        {
+            auto suffix = stem.substr (entry.displayName.size());
+
+            while (! suffix.empty() && (suffix.front() == '_' || suffix.front() == '-' || suffix.front() == ' '))
+                suffix.erase (suffix.begin());
+
+            if (! suffix.empty())
+            {
+                entry.variant = suffix;
+                entry.displayName += "  (" + suffix + ")";
+            }
+        }
 
         if (auto* instruments = root->child ("instruments"))
         {
@@ -234,6 +272,8 @@ KitEntry KitScanner::describe (const std::string& drumkitPath, const std::string
             for (auto* i : instruments->childrenNamed ("instrument"))
                 if (i->hasAttribute ("file") && i->hasAttribute ("name"))
                     ++usable;
+
+            entry.instrumentCount = usable;
 
             if (usable == 0)
             {

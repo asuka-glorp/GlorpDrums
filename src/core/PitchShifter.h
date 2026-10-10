@@ -33,6 +33,7 @@
 
 #pragma once
 
+#include <cmath>
 #include <cstdint>
 #include <memory>
 #include <vector>
@@ -94,13 +95,14 @@ public:
     /// Tunables exposed for tests and for the tuning-quality regression checks.
     int getFrameSize() const noexcept { return frameSize; }
     int getHopSize() const noexcept { return hopSize; }
+    int getDryAttackSamples() const noexcept { return dryAttackSamples; }
     float getRatio() const noexcept { return pitchRatio; }
 
 private:
     bool runFrame();
     float readInput (int64_t position) const noexcept;
     float applyTilt (float x) noexcept;
-    int  searchBestOffset (int64_t nominalStart, int search) const;
+    int  searchBestOffset (int64_t nominalStart, int search);
 
     // -- configuration ----------------------------------------------------
     double sampleRate = 44100.0;
@@ -132,10 +134,12 @@ private:
     int64_t previousFrameStart = 0;
     bool    havePrevious = false;
 
-    // Overlap-added output, with the window-energy running alongside it so the
-    // sum can be normalised exactly.
+    // Overlap-added output. Overlapping regions hold the *average* of the two
+    // contributing frames rather than their sum: WSOLA aligns the waveform, so
+    // for similar frames the average reconstructs the original amplitude, and
+    // unlike a window-energy normalisation it never divides by a near-zero
+    // denominator in the one-frame-covered regions at the very start.
     std::vector<float> fifoValue;
-    std::vector<float> fifoNorm;
     size_t fifoRead = 0;
     int64_t outputProduced = 0;
 
@@ -144,7 +148,6 @@ private:
     float  tiltState = 0.0f;
 
     // -- scratch ----------------------------------------------------------
-    std::vector<float> window;
     std::vector<float> prefixEnergy;
     std::vector<float> scratchUre, scratchUim;
     std::vector<float> scratchVre, scratchVim;

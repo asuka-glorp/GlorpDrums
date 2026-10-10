@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<instrument version="2.0">
+  <metadata>
+    <title>HihatClosed</title>
+  </metadata>
+  <samples>
+    <sample name="1-HihatClosed" power="1.0">
+      <audiofile channel="OHL" file="samples/1-HihatClosed.wav" filechannel="1"/>
+      <audiofile channel="OHR" file="samples/1-HihatClosed.wav" filechannel="2"/>
+    </sample>
+    <sample name="2-HihatClosed" power="1.0">
+      <audiofile channel="OHL" file="samples/2-HihatClosed.wav" filechannel="1"/>
+      <audiofile channel="OHR" file="samples/2-HihatClosed.wav" filechannel="2"/>
+    </sample>
+  </samples>
+</instrument>

@@ -25,10 +25,13 @@ namespace glorp
 
 struct KitEntry
 {
-    std::string drumkitPath;   ///< absolute path to drumkit.xml
+    std::string drumkitPath;   ///< absolute path to the drumkit manifest
     std::string folderName;    ///< the kit's directory name
-    std::string displayName;   ///< title from metadata, or folderName
+    std::string displayName;   ///< title from metadata, or folder name
+    std::string variant;       ///< "tiny", "full", ... for kits that ship several
     std::string rootName;      ///< which scan root it came from, for grouping in the UI
+
+    int instrumentCount = 0;   ///< as declared by the manifest
 
     bool valid = true;
     std::string error;         ///< why it failed to parse, if it did
@@ -44,7 +47,10 @@ public:
     /// Expands ~ and makes the path absolute. Returns an empty string if unusable.
     static std::string resolvePath (const std::string& path);
 
-    /// Recursively finds every drumkit.xml beneath `root`, up to `maxDepth` levels.
+    /** Recursively finds every drumkit manifest beneath `root`, up to `maxDepth`
+        levels. Both `drumkit.xml` and the named-variant form are picked up;
+        anything whose root element is not <drumkit> is discarded by describe().
+    */
     static std::vector<std::string> findKitsUnder (const std::string& root, int maxDepth = 6);
 
     /// Scans all roots and returns entries sorted by root then name.

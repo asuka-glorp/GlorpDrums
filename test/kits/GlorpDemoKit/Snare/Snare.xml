@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<instrument version="2.0">
+  <metadata>
+    <title>Snare</title>
+  </metadata>
+  <samples>
+    <sample name="1-Snare" power="1.0">
+      <audiofile channel="OHL" file="samples/1-Snare.wav" filechannel="1"/>
+      <audiofile channel="OHR" file="samples/1-Snare.wav" filechannel="2"/>
+    </sample>
+    <sample name="2-Snare" power="1.0">
+      <audiofile channel="OHL" file="samples/2-Snare.wav" filechannel="1"/>
+      <audiofile channel="OHR" file="samples/2-Snare.wav" filechannel="2"/>
+    </sample>
+  </samples>
+</instrument>

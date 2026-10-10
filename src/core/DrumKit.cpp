@@ -308,6 +308,9 @@ DrumKit DrumKit::load (const std::string& drumkitXmlPath)
     kit.formatVersion = root->attribute ("version");
     kit.declaredSampleRate = root->attributeInt ("samplerate", 48000);
 
+    // Kits predating the metadata block carry their title as a plain attribute.
+    kit.title = root->attribute ("name");
+
     if (auto* meta = root->child ("metadata"))
     {
         if (auto* n = meta->child ("version"))   kit.version    = n->text;
@@ -394,11 +397,27 @@ DrumKit DrumKit::load (const std::string& drumkitXmlPath)
     if (kit.instruments.empty())
         kit.error = "drumkit contains no usable instruments";
 
-    // Optional companion midimap. Missing is normal, not an error.
-    const auto midimapPath = joinPath (kitDir, "midimap.xml");
+    // Optional companion midimap. Kits that ship named variants name the map to
+    // match, e.g. CrocellKit_full.xml alongside Midimap_full.xml, so try the
+    // variant-specific names before the plain one.
+    struct MidimapCandidate { const char* name; };
+    const auto stem = fs::path (drumkitXmlPath).stem().string();
+    const auto variant = stem.substr (0, stem.rfind ('_'));
 
-    if (fs::exists (midimapPath))
+    std::vector<std::string> midimapCandidates;
+
+    if (! variant.empty() && variant != stem)
+        for (const auto* prefix : { "Midimap_", "midimap_", "Midimap-", "midimap-" })
+            midimapCandidates.push_back (joinPath (kitDir, std::string (prefix) + variant + ".xml"));
+
+    midimapCandidates.push_back (joinPath (kitDir, "midimap.xml"));
+    midimapCandidates.push_back (joinPath (kitDir, "Midimap.xml"));
+
+    for (const auto& midimapPath : midimapCandidates)
     {
+        if (! fs::exists (midimapPath))
+            continue;
+
         std::string mapError;
         auto mapRoot = parseXmlFile (midimapPath, mapError);
 
@@ -412,11 +431,12 @@ DrumKit DrumKit::load (const std::string& drumkitXmlPath)
                 if (note >= 0 && note < 128 && ! instr.empty())
                     kit.suggestedMap[note] = instr;
             }
+
+            break;   // first match wins
         }
-        else if (! mapError.empty())
-        {
+
+        if (! mapError.empty())
             kit.warnings.push_back ("could not read '" + midimapPath + "': " + mapError);
-        }
     }
 
     // Warn about midimap entries that point at instruments which did not survive loading.

@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<drumkit samplerate="44100" version="2.1.0">
+  <metadata>
+    <version>1.0.0</version>
+    <title>Glorp Demo Kit</title>
+    <description>Lightweight demo kit for GlorpDrums</description>
+    <author>GlorpDrums</author>
+    <license>CC0</license>
+  </metadata>
+  <channels>
+    <channel name="OHL"><title>Overhead Left</title></channel>
+    <channel name="OHR"><title>Overhead Right</title></channel>
+  </channels>
+  <instruments>
+    <instrument name="Kick" file="Kick/Kick.xml">
+      <channelmap in="OHL" out="OHL" main="true"/>
+      <channelmap in="OHR" out="OHR" main="true"/>
+    </instrument>
+    <instrument name="Snare" file="Snare/Snare.xml">
+      <channelmap in="OHL" out="OHL" main="true"/>
+      <channelmap in="OHR" out="OHR" main="true"/>
+    </instrument>
+    <instrument name="HihatClosed" group="hihat" file="HihatClosed/HihatClosed.xml">
+      <chokes>
+        <choke instrument="HihatOpen" choketime="80"/>
+      </chokes>
+      <channelmap in="OHL" out="OHL" main="true"/>
+      <channelmap in="OHR" out="OHR" main="true"/>
+    </instrument>
+    <instrument name="HihatOpen" group="hihat" file="HihatOpen/HihatOpen.xml">
+      <channelmap in="OHL" out="OHL" main="true"/>
+      <channelmap in="OHR" out="OHR" main="true"/>
+    </instrument>
+    <instrument name="Tom1" file="Tom1/Tom1.xml">
+      <channelmap in="OHL" out="OHL" main="true"/>
+      <channelmap in="OHR" out="OHR" main="true"/>
+    </instrument>
+    <instrument name="Tom2" file="Tom2/Tom2.xml">
+      <channelmap in="OHL" out="OHL" main="true"/>
+      <channelmap in="OHR" out="OHR" main="true"/>
+    </instrument>
+    <instrument name="Crash" file="Crash/Crash.xml">
+      <channelmap in="OHL" out="OHL" main="true"/>
+      <channelmap in="OHR" out="OHR" main="true"/>
+    </instrument>
+    <instrument name="Ride" file="Ride/Ride.xml">
+      <channelmap in="OHL" out="OHL" main="true"/>
+      <channelmap in="OHR" out="OHR" main="true"/>
+    </instrument>
+  </instruments>
+</drumkit>
