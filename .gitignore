@@ -1,0 +1,9 @@
+build/
+libs/JUCE/
+*.o
+*.so
+*.a
+.cache/
+compile_commands.json
+CMakeUserPresets.json
+.vscode/
