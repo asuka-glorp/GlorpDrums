@@ -118,6 +118,24 @@ bool Sampler::loadKit (DrumKit kit, juce::String& error)
         resolved.push_back (std::move (runtime));
     }
 
+    for (size_t i = 0; i < kit.instruments.size() && i < resolved.size(); ++i)
+    {
+        for (const auto& chokeSpec : kit.instruments[i].chokes)
+        {
+            const auto targetStr = juce::String (chokeSpec.instrument);
+            for (size_t targetIdx = 0; targetIdx < resolved.size(); ++targetIdx)
+            {
+                if (resolved[targetIdx].name.equalsIgnoreCase (targetStr))
+                {
+                    resolved[i].chokeTargets.push_back ({
+                        static_cast<int> (targetIdx),
+                        chokeSpec.hasChokeTime ? chokeSpec.chokeTimeMs : 40.0f
+                    });
+                }
+            }
+        }
+    }
+
     if (resolved.empty())
     {
         error = "None of this kit's sample files could be read. Check the kit directory is still in place.";
@@ -135,6 +153,30 @@ bool Sampler::loadKit (DrumKit kit, juce::String& error)
 
     channelParams.assign (static_cast<size_t> (instrumentCount), ChannelParams {});
     roundRobinCursor.assign (static_cast<size_t> (instrumentCount), 0);
+    instrumentBuses.assign (static_cast<size_t> (instrumentCount), 0);
+
+    for (int i = 0; i < instrumentCount; ++i)
+    {
+        const auto n = instruments_[static_cast<size_t> (i)].name.toLowerCase();
+        if (n.contains ("kick") || n.contains ("kdrum"))
+            instrumentBuses[static_cast<size_t> (i)] = 0; // Bus 1: Ch 1-2
+        else if (n.contains ("snare") || n.contains ("rimclick") || n.contains ("rimshot"))
+            instrumentBuses[static_cast<size_t> (i)] = 1; // Bus 2: Ch 3-4
+        else if (n.contains ("hihat") || n.contains ("hh"))
+            instrumentBuses[static_cast<size_t> (i)] = 2; // Bus 3: Ch 5-6
+        else if (n.contains ("tom1") || n.contains ("hightom"))
+            instrumentBuses[static_cast<size_t> (i)] = 3; // Bus 4: Ch 7-8
+        else if (n.contains ("tom2") || n.contains ("midtom"))
+            instrumentBuses[static_cast<size_t> (i)] = 4; // Bus 5: Ch 9-10
+        else if (n.contains ("ftom") || n.contains ("floor"))
+            instrumentBuses[static_cast<size_t> (i)] = 5; // Bus 6: Ch 11-12
+        else if (n.contains ("ride"))
+            instrumentBuses[static_cast<size_t> (i)] = 6; // Bus 7: Ch 13-14
+        else if (n.contains ("crash") || n.contains ("cymbal") || n.contains ("splash") || n.contains ("china"))
+            instrumentBuses[static_cast<size_t> (i)] = 7; // Bus 8: Ch 15-16
+        else
+            instrumentBuses[static_cast<size_t> (i)] = std::min (i, 15);
+    }
 
     // A kit with more instruments than buses is a hard error, not a silent
     // truncation, so surface it rather than hiding some of the kit.
@@ -163,6 +205,7 @@ void Sampler::unloadKit()
     kitChannels_.clear();
     channelParams.clear();
     roundRobinCursor.clear();
+    instrumentBuses.clear();
     instrumentCount = 0;
     busCount = 0;
     kitTitle.clear();
@@ -279,18 +322,31 @@ void Sampler::setInstrumentParams (int index, const InstrumentParams& params)
 
     auto& p = channelParams[static_cast<size_t> (index)];
 
+    const float newPitch = std::clamp (params.pitchSemitones, -PitchShifter::maxSemitones, PitchShifter::maxSemitones);
+    const bool pitchChanged = (p.pitch != newPitch);
+    const bool soloChanged = (p.solo != params.solo || p.mute != params.mute);
+
     p.level = std::max (0.0f, params.level);
     p.pan = std::clamp (params.pan, -1.0f, 1.0f);
-    p.pitch = std::clamp (params.pitchSemitones, -PitchShifter::maxSemitones, PitchShifter::maxSemitones);
+    p.pitch = newPitch;
     p.spread = std::clamp (params.tuneSpread, 0.0f, 100.0f);
+    p.dynamics = std::clamp (params.dynamics, 0.0f, 1.0f);
     p.roundRobin = params.autoRoundRobin;
     p.selectedSample = params.selectedSample;
     p.mute = params.mute;
     p.solo = params.solo;
 
-    anySolo.store (anySolo.load() || params.solo, std::memory_order_relaxed);
-    recomputeSoloFlags();
-    recomputeLatency();
+    if (soloChanged)
+    {
+        bool currentAnySolo = false;
+        for (const auto& cp : channelParams)
+            if (cp.solo) { currentAnySolo = true; break; }
+        anySolo.store (currentAnySolo, std::memory_order_relaxed);
+        recomputeSoloFlags();
+    }
+
+    if (pitchChanged)
+        recomputeLatency();
 }
 
 InstrumentParams Sampler::getInstrumentParams (int index) const
@@ -306,12 +362,26 @@ InstrumentParams Sampler::getInstrumentParams (int index) const
     out.pan = p.pan;
     out.pitchSemitones = p.pitch;
     out.tuneSpread = p.spread;
+    out.dynamics = p.dynamics;
     out.autoRoundRobin = p.roundRobin;
     out.mute = p.mute;
     out.solo = p.solo;
     out.selectedSample = p.selectedSample;
 
     return out;
+}
+
+void Sampler::setInstrumentBus (int instrument, int busIndex)
+{
+    if (instrument >= 0 && instrument < static_cast<int> (instrumentBuses.size()))
+        instrumentBuses[static_cast<size_t> (instrument)] = std::clamp (busIndex, 0, 15);
+}
+
+int Sampler::getInstrumentBus (int instrument) const noexcept
+{
+    if (instrument >= 0 && instrument < static_cast<int> (instrumentBuses.size()))
+        return instrumentBuses[static_cast<size_t> (instrument)];
+    return 0;
 }
 
 void Sampler::setGlobalParams (const GlobalParams& p)
@@ -446,14 +516,35 @@ int Sampler::chooseHit (int instrumentIndex, float velocity)
     if (numHits <= 0)
         return 0;
 
-    const auto& p = channelParams[static_cast<size_t> (instrumentIndex)];
+    if (numHits == 1)
+        return 0;
 
-    if (! p.roundRobin)
-        return std::clamp (p.selectedSample, 0, numHits - 1);
-
-    // Velocity-aware matching: pick from samples whose recorded power is close to velocity
     const float vel = std::clamp (velocity, 0.05f, 1.0f);
 
+    // If hit at full velocity (mouse click or velocity >= 0.96), choose from top-power bracket
+    if (vel >= 0.96f)
+    {
+        float maxPower = 0.0f;
+        for (const auto& h : hits)
+            maxPower = std::max (maxPower, h.power);
+
+        std::vector<int> topCandidates;
+        for (int i = 0; i < numHits; ++i)
+        {
+            if (hits[static_cast<size_t> (i)].power >= maxPower * 0.88f)
+                topCandidates.push_back (i);
+        }
+
+        if (! topCandidates.empty())
+        {
+            auto& cursor = roundRobinCursor[static_cast<size_t> (instrumentIndex)];
+            const auto chosen = topCandidates[static_cast<size_t> (cursor % static_cast<int> (topCandidates.size()))];
+            cursor = (cursor + 1) % 10000;
+            return chosen;
+        }
+    }
+
+    // Velocity-aware matching: pick from samples whose recorded power is close to velocity
     float minDiff = 1000.0f;
     int closestIdx = 0;
 
@@ -467,9 +558,9 @@ int Sampler::chooseHit (int instrumentIndex, float velocity)
         }
     }
 
-    // Collect candidates within a reasonable power window around closest
+    // Collect candidates within a proportional power window around closest
     std::vector<int> candidates;
-    const float margin = std::max (0.15f, minDiff * 1.5f);
+    const float margin = std::max (0.12f, minDiff * 1.5f);
     for (int i = 0; i < numHits; ++i)
     {
         if (std::abs (hits[static_cast<size_t> (i)].power - vel) <= margin)
@@ -520,6 +611,12 @@ void Sampler::noteOn (int instrument, int note, float velocity, int64_t timeInSa
         }
     }
 
+    for (const auto& target : runtime.chokeTargets)
+    {
+        if (target.instrumentIndex >= 0 && target.instrumentIndex < instrumentCount)
+            chokeInstrument (target.instrumentIndex, static_cast<int64_t> (target.chokeTimeMs), timeInSamples);
+    }
+
     auto* voice = allocateVoice();
 
     if (voice == nullptr)
@@ -530,18 +627,28 @@ void Sampler::noteOn (int instrument, int note, float velocity, int64_t timeInSa
     if (p.muted)
         return;
 
-    const auto hitIndex = chooseHit (instrument, velocity);
+    // Dynamics knob: controls the velocity response curve and sample layer selection.
+    // At 0.5: natural 1:1 linear response.
+    // Below 0.5: compressed dynamics (softer hits are brought up, punchy and consistent).
+    // Above 0.5: expanded dynamics (exaggerated difference between soft and loud hits).
+    float effectiveVel = std::clamp (velocity, 0.0f, 1.0f);
+    if (std::abs (p.dynamics - 0.5f) > 0.01f)
+    {
+        const float dynExp = std::pow (2.0f, (p.dynamics - 0.5f) * 3.0f);
+        effectiveVel = std::pow (std::clamp (effectiveVel, 0.01f, 1.0f), dynExp);
+    }
+
+    const auto hitIndex = chooseHit (instrument, effectiveVel);
     const auto& hit = runtime.hits[static_cast<size_t> (hitIndex)];
 
     float pitch = p.pitch;
-    float level = velocityWithCurve (velocity, globals.velCurve);
+    float level = velocityWithCurve (effectiveVel, globals.velCurve);
 
-    // Humanise: a little velocity scatter and a touch of tuning drift, which is
-    // what stops repeated hits from sounding machine-gunned.
+    // Humanise & subtle random drift:
     if (globals.humanize > 0.0f)
     {
         level *= 1.0f + nextRandom() * 0.15f * globals.humanize;
-        pitch += nextRandom() * p.spread * globals.humanize;
+        pitch += nextRandom() * (p.spread + 1.5f * globals.humanize);
     }
     else if (p.spread > 0.0f)
     {

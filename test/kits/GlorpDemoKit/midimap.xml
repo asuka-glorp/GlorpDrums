@@ -1,11 +1,40 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <midimap>
+  <!-- Kick -->
   <map note="36" instr="Kick"/>
-  <map note="38" instr="Snare"/>
+  <map note="35" instr="Kick"/>
+
+  <!-- Snare -->
+  <map note="38" instr="SnareHead"/>
+  <map note="37" instr="RimClick"/>
+  <map note="40" instr="Rimshot"/>
+
+  <!-- Toms -->
+  <map note="48" instr="Tom1Head"/>
+  <map note="50" instr="Tom1Rim"/>
+  <map note="45" instr="Tom2Head"/>
+  <map note="47" instr="Tom2Rim"/>
+  <map note="41" instr="FTomHead"/>
+  <map note="43" instr="FTomRim"/>
+
+  <!-- Hi-hat -->
   <map note="42" instr="HihatClosed"/>
+  <map note="44" instr="HihatSemiOpen"/>
   <map note="46" instr="HihatOpen"/>
-  <map note="48" instr="Tom1"/>
-  <map note="45" instr="Tom2"/>
-  <map note="49" instr="Crash"/>
-  <map note="51" instr="Ride"/>
+
+  <!-- Crash 1 -->
+  <map note="49" instr="Crash1Edge"/>
+  <map note="55" instr="Crash1Bow"/>
+  <map note="54" instr="Crash1Choke"/>
+
+  <!-- Crash 2 -->
+  <map note="57" instr="Crash2Edge"/>
+  <map note="52" instr="Crash2Bow"/>
+  <map note="58" instr="Crash2Choke"/>
+
+  <!-- Ride -->
+  <map note="51" instr="RideBow"/>
+  <map note="53" instr="RideBell"/>
+  <map note="59" instr="RideEdge"/>
+  <map note="60" instr="RideChoke"/>
 </midimap>

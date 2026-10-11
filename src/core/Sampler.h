@@ -42,6 +42,7 @@ struct InstrumentParams
     float pan = 0.0f;               ///< -1 hard left .. +1 hard right
     float pitchSemitones = 0.0f;
     float tuneSpread = 0.0f;        ///< cents of random detune per hit
+    float dynamics = 0.0f;          ///< 0..1 per-zone velocity response & humanize
     bool  autoRoundRobin = false;   ///< "AUTO": cycle the instrument's samples
     bool  mute = false;
     bool  solo = false;
@@ -145,6 +146,9 @@ public:
     void setMultiOutMode (bool enabled) noexcept { multiOutMode.store (enabled); }
     bool isMultiOutMode() const noexcept { return multiOutMode.load(); }
 
+    void setInstrumentBus (int instrument, int busIndex);
+    int  getInstrumentBus (int instrument) const noexcept;
+
     // -- GUI event feed ----------------------------------------------------
 
     /// Pops the oldest hit, or returns false if there are none.
@@ -172,11 +176,18 @@ private:
         int64_t numFrames = 0;      ///< longest channel, i.e. when the round ends
     };
 
+    struct ChokeTarget
+    {
+        int instrumentIndex = -1;
+        float chokeTimeMs = 40.0f;
+    };
+
     struct InstrumentRuntime
     {
         std::vector<ResolvedHit> hits;
         juce::String group;
         juce::String name;
+        std::vector<ChokeTarget> chokeTargets;
     };
 
     /// Audio-thread-visible copy of InstrumentParams.
@@ -186,6 +197,7 @@ private:
         float pan = 0.0f;
         float pitch = 0.0f;
         float spread = 0.0f;
+        float dynamics = 0.5f;
         bool roundRobin = false;
         bool mute = false;        ///< as the user set it
         bool solo = false;
@@ -240,10 +252,15 @@ private:
     Voice* allocateVoice();
     int   chooseHit (int instrumentIndex, float velocity);
 
-    /// Which stereo output bus an instrument writes to. Instruments past the last
-    /// bus share the final one rather than being dropped.
+    /// Which stereo output bus an instrument writes to.
     int   busForInstrument (int instrument) const noexcept
     {
+        if (instrument >= 0 && instrument < static_cast<int> (instrumentBuses.size()))
+        {
+            const int b = instrumentBuses[static_cast<size_t> (instrument)];
+            if (b >= 0)
+                return busCount > 0 ? std::min (b, busCount - 1) : 0;
+        }
         return busCount > 0 ? std::min (instrument, busCount - 1) : 0;
     }
 
@@ -264,6 +281,7 @@ private:
     std::vector<ChannelParams> channelParams;
     GlobalSnapshot globals;
     std::vector<int> roundRobinCursor;
+    std::vector<int> instrumentBuses;
     int64_t sampleClock = 0;
     int currentBlockSize = 512;
     std::atomic<int> reportedLatency { 0 };

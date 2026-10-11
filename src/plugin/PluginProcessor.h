@@ -30,6 +30,9 @@ namespace glorp
 class PluginProcessor : public juce::AudioProcessor
 {
 public:
+    static constexpr int maxSupportedInstruments = 64;
+    static constexpr int maxOutputBuses = 16;
+
     PluginProcessor();
     ~PluginProcessor() override;
 
@@ -151,6 +154,8 @@ private:
     std::vector<juce::AudioParameterFloat*> instrumentLevelParams;
     std::vector<juce::AudioParameterFloat*> instrumentPanParams;
     std::vector<juce::AudioParameterFloat*> instrumentPitchParams;
+    std::vector<juce::AudioParameterFloat*> instrumentDynamicsParams;
+    std::vector<juce::AudioParameterChoice*> instrumentBusParams;
 
     juce::UndoManager* undoManager = nullptr;
 

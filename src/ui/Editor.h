@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include "CalloutBox.h"
 #include "DrumKitView.h"
 #include "Knob.h"
 #include "PluginProcessor.h"
@@ -27,8 +26,30 @@ public:
     void paint (juce::Graphics&) override;
     void resized() override;
     void timerCallback() override;
+    bool keyPressed (const juce::KeyPress&) override;
+    void mouseDown (const juce::MouseEvent&) override;
 
-    void selectInstrument (int index);
+    void selectInstrument (int samplerIndex);
+
+    struct ZoneInfo
+    {
+        int samplerIndex = 0;
+        juce::String zoneName;
+    };
+
+    struct LogicalInstrument
+    {
+        juce::String name;
+        KitPiece piece { KitPiece::count };
+        std::vector<ZoneInfo> zones;
+        int selectedZoneIndex = 0;
+        int outputBus = 0;
+    };
+
+    const std::vector<LogicalInstrument>& getLogicalInstruments() const noexcept { return logicalInstruments; }
+    void selectLogicalInstrument (int index);
+    void selectZone (int logicalIndex, int zoneIndex, bool triggerPreview = false);
+    int getActiveSamplerIndex() const;
 
 private:
     void kitChanged() override;
@@ -36,23 +57,20 @@ private:
 
     void buildHeaderMenu();
     void buildControls();
-    void rebuildCallouts();
-    void updateCalloutLabels();
+    void buildLogicalInstruments();
+    void rebuildZoneButtons();
+
     void bindInstrumentKnobs();
+    void updateInstrumentDisplay();
 
     juce::String noteLabelFor (int instrument) const;
-    juce::String sampleLabelFor (int instrument) const;
 
     juce::PopupMenu buildFileMenu();
     juce::PopupMenu buildPresetsMenu();
     juce::PopupMenu buildMidiMenu();
     juce::PopupMenu buildSettingsMenu();
 
-    void showSampleMenu (int instrument, const juce::Point<int>& anchor);
-    void armLearn (int instrument);
-    void toggleAuto (int instrument);
-
-    void drawLeaderArrows (juce::Graphics& g);
+    void armLearn (int samplerIndex);
 
     PluginProcessor& processor;
 
@@ -64,33 +82,80 @@ private:
         void paintButton (juce::Graphics& g, bool isHover, bool isDown) override;
     };
 
+    class InstrumentSelectorButton : public juce::Button
+    {
+    public:
+        InstrumentSelectorButton() : juce::Button ("instSelect") {}
+        void paintButton (juce::Graphics& g, bool isHover, bool isDown) override;
+        void setInstrumentName (const juce::String& name) { currentName = name; repaint(); }
+        const juce::String& getInstrumentName() const noexcept { return currentName; }
+    private:
+        juce::String currentName { "SNARE" };
+    };
+
+    class OutputBusButton : public juce::Button
+    {
+    public:
+        OutputBusButton() : juce::Button ("outBus") {}
+        void setBusIndex (int busIdx) { currentBus = busIdx; repaint(); }
+        int getBusIndex() const noexcept { return currentBus; }
+        void paintButton (juce::Graphics& g, bool isHover, bool isDown) override;
+    private:
+        int currentBus = 0;
+    };
+
+    class ZoneButton : public juce::Button
+    {
+    public:
+        ZoneButton (const juce::String& name, bool active);
+        void setActive (bool active);
+        bool getActive() const noexcept { return isActive; }
+        void paintButton (juce::Graphics& g, bool isHover, bool isDown) override;
+    private:
+        bool isActive = false;
+    };
+
+    class LearnButton : public juce::Button
+    {
+    public:
+        LearnButton() : juce::Button ("LEARN") {}
+        void setLearning (bool learning);
+        void paintButton (juce::Graphics& g, bool isHover, bool isDown) override;
+    private:
+        bool isLearning_ = false;
+    };
+
     MenuButton fileButton { "FILE" };
-    MenuButton presetsButton { "PRESETS ▼" };
+    MenuButton presetsButton { "PRESETS" };
     MenuButton midiButton { "MIDI" };
     MenuButton settingsButton { "SETTINGS" };
 
-    juce::Component kitArea;
     DrumKitView kitView;
     Scope scope;
 
     std::unique_ptr<juce::Drawable> logo;
 
-    // Bottom-Left 2x2 Knobs (Master + Selected Instrument)
-    std::unique_ptr<Knob> masterVolumeKnob;
+    // Left Panel: "INSTRUMENT SETTINGS"
+    InstrumentSelectorButton instSelectorButton;
+    OutputBusButton outBusButton;
+
+    std::vector<std::unique_ptr<ZoneButton>> zoneButtons;
+
+    std::unique_ptr<Knob> instVolumeKnob;
     std::unique_ptr<Knob> instPanKnob;
     std::unique_ptr<Knob> instPitchKnob;
-    std::unique_ptr<Knob> instLevelKnob;
+    std::unique_ptr<Knob> instDynamicsKnob;
 
-    // Bottom-Right Controls
-    std::unique_ptr<Knob> attackKnob;
-    std::unique_ptr<Knob> decayKnob;
-    std::unique_ptr<juce::Slider> fader1;
-    std::unique_ptr<juce::Slider> fader2;
+    LearnButton instLearnButton;
 
-    std::vector<std::unique_ptr<CalloutBox>> callouts;
+    // Bottom-Right: Master Volume Knob
+    std::unique_ptr<Knob> masterVolumeKnob;
 
-    int selectedInstrumentIndex = 0;
+    std::vector<LogicalInstrument> logicalInstruments;
+    int selectedLogicalIndex = 0;
     int learningInstrument = -1;
+
+    float leftPanelHeight = 440.0f;
 
     juce::String statusText;
     juce::String kitErrorText;

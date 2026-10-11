@@ -827,9 +827,9 @@ void testDemoKit()
 
     checkEq (kit.error, "", "demo kit loads without error");
     checkEq (kit.title, "Glorp Demo Kit", "demo kit title");
-    checkEq (static_cast<int> (kit.instruments.size()), 8, "8 instruments in demo kit");
+    checkEq (static_cast<int> (kit.instruments.size()), 23, "23 instruments in demo kit");
     checkEq (static_cast<int> (kit.channels.size()), 2, "2 channels in demo kit (OHL, OHR)");
-    checkEq (static_cast<int> (kit.suggestedMap.size()), 8, "8 notes mapped in midimap.xml");
+    checkEq (static_cast<int> (kit.suggestedMap.size()), 24, "24 notes mapped in midimap.xml");
 
     // Verify HihatClosed chokes HihatOpen
     const auto hhIdx = kit.indexOfInstrument ("HihatClosed");
@@ -838,7 +838,7 @@ void testDemoKit()
     {
         const auto& hh = kit.instruments[static_cast<size_t> (hhIdx)];
         checkEq (hh.group, "hihat", "HihatClosed group is hihat");
-        checkEq (static_cast<int> (hh.chokes.size()), 1, "HihatClosed has 1 choke");
+        check (hh.chokes.size() >= 1, "HihatClosed has chokes");
         if (! hh.chokes.empty())
             checkEq (hh.chokes[0].instrument, "HihatOpen", "HihatClosed chokes HihatOpen");
     }

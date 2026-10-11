@@ -136,6 +136,13 @@ inline std::unique_ptr<juce::Drawable> logoDrawable()
     return {};
 }
 
+inline juce::Image imageFromMemory (const char* data, int size)
+{
+    if (data == nullptr || size <= 0)
+        return {};
+    return juce::ImageFileFormat::loadFrom (data, static_cast<size_t> (size));
+}
+
 //==============================================================================
 /** Draws a rectangle outline with a hand-drawn wobble.
     A perfectly straight line is what makes a UI look like it came out of a

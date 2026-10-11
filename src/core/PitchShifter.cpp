@@ -168,6 +168,7 @@ void PitchShifter::prepare (double rate, int blockSize)
 
     inputRing.assign (static_cast<size_t> (nextPowerOfTwo (static_cast<int> (sampleRate * 8.0))), 0.0f);
     dryRing.assign (static_cast<size_t> (nextPowerOfTwo (latency * 4)), 0.0f);
+    fifoValue.reserve (16384);
 
     reset();
     setSemitones (semitones);

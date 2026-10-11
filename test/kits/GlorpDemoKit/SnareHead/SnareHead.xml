@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<instrument version="2.0">
+  <metadata>
+    <title>SnareHead</title>
+  </metadata>
+  <samples>
+    <sample name="v1_soft_rr1" power="0.25">
+      <audiofile channel="OHL" file="samples/v1_soft_rr1.wav" filechannel="1"/>
+      <audiofile channel="OHR" file="samples/v1_soft_rr1.wav" filechannel="2"/>
+    </sample>
+    <sample name="v1_soft_rr2" power="0.25">
+      <audiofile channel="OHL" file="samples/v1_soft_rr2.wav" filechannel="1"/>
+      <audiofile channel="OHR" file="samples/v1_soft_rr2.wav" filechannel="2"/>
+    </sample>
+    <sample name="v1_soft_rr3" power="0.25">
+      <audiofile channel="OHL" file="samples/v1_soft_rr3.wav" filechannel="1"/>
+      <audiofile channel="OHR" file="samples/v1_soft_rr3.wav" filechannel="2"/>
+    </sample>
+    <sample name="v2_med_rr1" power="0.50">
+      <audiofile channel="OHL" file="samples/v2_med_rr1.wav" filechannel="1"/>
+      <audiofile channel="OHR" file="samples/v2_med_rr1.wav" filechannel="2"/>
+    </sample>
+    <sample name="v2_med_rr2" power="0.50">
+      <audiofile channel="OHL" file="samples/v2_med_rr2.wav" filechannel="1"/>
+      <audiofile channel="OHR" file="samples/v2_med_rr2.wav" filechannel="2"/>
+    </sample>
+    <sample name="v2_med_rr3" power="0.50">
+      <audiofile channel="OHL" file="samples/v2_med_rr3.wav" filechannel="1"/>
+      <audiofile channel="OHR" file="samples/v2_med_rr3.wav" filechannel="2"/>
+    </sample>
+    <sample name="v3_hard_rr1" power="0.75">
+      <audiofile channel="OHL" file="samples/v3_hard_rr1.wav" filechannel="1"/>
+      <audiofile channel="OHR" file="samples/v3_hard_rr1.wav" filechannel="2"/>
+    </sample>
+    <sample name="v3_hard_rr2" power="0.75">
+      <audiofile channel="OHL" file="samples/v3_hard_rr2.wav" filechannel="1"/>
+      <audiofile channel="OHR" file="samples/v3_hard_rr2.wav" filechannel="2"/>
+    </sample>
+    <sample name="v3_hard_rr3" power="0.75">
+      <audiofile channel="OHL" file="samples/v3_hard_rr3.wav" filechannel="1"/>
+      <audiofile channel="OHR" file="samples/v3_hard_rr3.wav" filechannel="2"/>
+    </sample>
+    <sample name="v4_accent_rr1" power="1.00">
+      <audiofile channel="OHL" file="samples/v4_accent_rr1.wav" filechannel="1"/>
+      <audiofile channel="OHR" file="samples/v4_accent_rr1.wav" filechannel="2"/>
+    </sample>
+    <sample name="v4_accent_rr2" power="1.00">
+      <audiofile channel="OHL" file="samples/v4_accent_rr2.wav" filechannel="1"/>
+      <audiofile channel="OHR" file="samples/v4_accent_rr2.wav" filechannel="2"/>
+    </sample>
+    <sample name="v4_accent_rr3" power="1.00">
+      <audiofile channel="OHL" file="samples/v4_accent_rr3.wav" filechannel="1"/>
+      <audiofile channel="OHR" file="samples/v4_accent_rr3.wav" filechannel="2"/>
+    </sample>
+  </samples>
+</instrument>

@@ -43,7 +43,7 @@ namespace
 juce::AudioProcessor::BusesProperties PluginProcessor::createBusesProperties()
 {
     BusesProperties bp;
-    for (int i = 0; i < GLORP_MAX_INSTRUMENT_BUSES; ++i)
+    for (int i = 0; i < maxOutputBuses; ++i)
         bp = bp.withOutput ("Bus " + juce::String (i + 1), juce::AudioChannelSet::stereo(), i == 0);
     return bp;
 }
@@ -128,9 +128,10 @@ void PluginProcessor::createParameterLayout()
     velCurveParam    = makeFloat ("velocityCurve", "Velocity Curve",
                                   juce::NormalisableRange<float> (0.0f, 1.0f, 0.001f), 1.0f);
 
-    // Per-instrument parameters exist for every possible bus, whether or not the
-    // loaded kit fills them, so that automation and MIDI maps survive a kit change.
-    for (int i = 0; i < GLORP_MAX_INSTRUMENT_BUSES; ++i)
+    // Per-instrument parameters exist for up to maxSupportedInstruments so that
+    // any kit (including multi-zone and large kits like CrocellKit) can control
+    // every piece independently.
+    for (int i = 0; i < maxSupportedInstruments; ++i)
     {
         const auto prefix = "inst" + juce::String (i) + ".";
         const auto label = "Instrument " + juce::String (i + 1) + " ";
@@ -141,6 +142,17 @@ void PluginProcessor::createParameterLayout()
                                                   juce::NormalisableRange<float> (0.0f, 1.0f, 0.001f), 0.5f));
         instrumentPitchParams.push_back (makeFloat (prefix + "pitch", label + "Pitch",
                                                     juce::NormalisableRange<float> (0.0f, 1.0f, 0.001f), 0.5f));
+        instrumentDynamicsParams.push_back (makeFloat (prefix + "dynamics", label + "Dynamics",
+                                                       juce::NormalisableRange<float> (0.0f, 1.0f, 0.001f), 0.5f));
+
+        juce::StringArray busChoices;
+        for (int b = 0; b < maxOutputBuses; ++b)
+            busChoices.add ("Out " + juce::String (b * 2 + 1) + "/" + juce::String (b * 2 + 2));
+
+        auto busParam = std::make_unique<juce::AudioParameterChoice> (
+            juce::ParameterID (prefix + "bus", kVersionTag), label + "Output Bus", busChoices, std::min (i, maxOutputBuses - 1));
+        instrumentBusParams.push_back (busParam.get());
+        addParameter (busParam.release());
     }
 }
 
@@ -192,6 +204,10 @@ void PluginProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Midi
     globals.velCurve = velCurveParam != nullptr ? velCurveParam->get() : 1.0f;
     sampler.setGlobalParams (globals);
 
+    const int samplerLatency = sampler.latencySamples();
+    if (getLatencySamples() != samplerLatency)
+        setLatencySamples (samplerLatency);
+
     for (int i = 0; i < sampler.numInstruments() && i < static_cast<int> (instrumentLevelParams.size()); ++i)
     {
         auto params = sampler.getInstrumentParams (i);
@@ -201,7 +217,13 @@ void PluginProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Midi
         params.pitchSemitones = (instrumentPitchParams[static_cast<size_t> (i)]->get() - 0.5f)
                               * 2.0f * PitchShifter::maxSemitones;
 
+        if (i < static_cast<int> (instrumentDynamicsParams.size()))
+            params.dynamics = instrumentDynamicsParams[static_cast<size_t> (i)]->get();
+
         sampler.setInstrumentParams (i, params);
+
+        if (i < static_cast<int> (instrumentBusParams.size()))
+            sampler.setInstrumentBus (i, instrumentBusParams[static_cast<size_t> (i)]->getIndex());
     }
 
     // MIDI first, so hits scheduled inside this block are rendered by it.
@@ -304,7 +326,7 @@ bool PluginProcessor::parseControlId (const juce::String& controlId, int& instru
     instrumentIndex = prefix.substring (4).getIntValue();
     field = controlId.substring (dot + 1);
 
-    return instrumentIndex >= 0 && instrumentIndex < GLORP_MAX_INSTRUMENT_BUSES && field.isNotEmpty();
+    return instrumentIndex >= 0 && instrumentIndex < maxSupportedInstruments && field.isNotEmpty();
 }
 
 void PluginProcessor::applyControlValue (int instrumentIndex, const juce::String& field, float normalised)
@@ -334,6 +356,23 @@ void PluginProcessor::applyControlValue (int instrumentIndex, const juce::String
         if (instrumentIndex < static_cast<int> (instrumentPitchParams.size()))
             instrumentPitchParams[static_cast<size_t> (instrumentIndex)]
                 ->setValueNotifyingHost (std::clamp (normalised, 0.0f, 1.0f));
+    }
+    else if (field == "dynamics")
+    {
+        params.dynamics = std::clamp (normalised, 0.0f, 1.0f);
+
+        if (instrumentIndex < static_cast<int> (instrumentDynamicsParams.size()))
+            instrumentDynamicsParams[static_cast<size_t> (instrumentIndex)]
+                ->setValueNotifyingHost (std::clamp (normalised, 0.0f, 1.0f));
+    }
+    else if (field == "bus")
+    {
+        const int busIdx = static_cast<int> (normalised * 15.0f + 0.5f);
+        if (instrumentIndex < static_cast<int> (instrumentBusParams.size()))
+            instrumentBusParams[static_cast<size_t> (instrumentIndex)]
+                ->setValueNotifyingHost (busIdx / 15.0f);
+        sampler.setInstrumentBus (instrumentIndex, busIdx);
+        return;
     }
     else
     {
@@ -500,9 +539,10 @@ void PluginProcessor::loadKit (const juce::String& drumkitPath)
     // Reset per-instrument controls for the new kit.
     sampler.resetInstrumentParams();
 
-    for (auto* p : instrumentLevelParams) p->setValueNotifyingHost (0.5f);
-    for (auto* p : instrumentPanParams)   p->setValueNotifyingHost (0.5f);
-    for (auto* p : instrumentPitchParams) p->setValueNotifyingHost (0.5f);
+    for (auto* p : instrumentLevelParams)    p->setValueNotifyingHost (0.5f);
+    for (auto* p : instrumentPanParams)      p->setValueNotifyingHost (0.5f);
+    for (auto* p : instrumentPitchParams)    p->setValueNotifyingHost (0.5f);
+    for (auto* p : instrumentDynamicsParams) p->setValueNotifyingHost (0.5f);
 
     listeners.call (&Listener::kitChanged);
 }

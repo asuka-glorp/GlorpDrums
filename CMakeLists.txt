@@ -82,6 +82,16 @@ juce_add_binary_data(GlorpDrumsAssets
         resources/logo.svg
         resources/fonts/PatrickHand-Regular.ttf
         resources/fonts/LilitaOne-Regular.ttf
+        assets/kick.png
+        assets/snare.png
+        assets/hihat.png
+        assets/tom_1.png
+        assets/tom_2.png
+        assets/f_tom.png
+        assets/crash_1.png
+        assets/crash_2.png
+        assets/ride.png
+        assets/logo.png
 )
 
 #==================================================================================
@@ -192,6 +202,18 @@ if(GLORP_BUILD_TESTS)
     target_include_directories(glorp_core_tests PRIVATE src/core)
     target_link_libraries(glorp_core_tests PRIVATE juce::juce_recommended_warning_flags)
     add_test(NAME core COMMAND glorp_core_tests)
+
+    add_executable(test_editor test/test_editor.cpp)
+    target_include_directories(test_editor PRIVATE src src/core src/plugin src/ui)
+    target_link_libraries(test_editor PRIVATE GlorpDrums GlorpDrumsAssets juce::juce_audio_utils juce::juce_audio_processors juce::juce_recommended_warning_flags)
+
+    add_executable(test_zones_knobs test/test_zones_knobs.cpp)
+    target_include_directories(test_zones_knobs PRIVATE src src/core src/plugin src/ui)
+    target_link_libraries(test_zones_knobs PRIVATE GlorpDrums GlorpDrumsAssets juce::juce_audio_utils juce::juce_audio_processors juce::juce_recommended_warning_flags)
+
+    add_executable(diagnose_crocell_knobs test/diagnose_crocell_knobs.cpp)
+    target_include_directories(diagnose_crocell_knobs PRIVATE src src/core src/plugin src/ui)
+    target_link_libraries(diagnose_crocell_knobs PRIVATE GlorpDrums GlorpDrumsAssets juce::juce_audio_utils juce::juce_audio_processors juce::juce_recommended_warning_flags)
 endif()
 
 #==================================================================================

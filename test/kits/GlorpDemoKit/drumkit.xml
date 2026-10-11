@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <drumkit samplerate="44100" version="2.1.0">
   <metadata>
-    <version>1.0.0</version>
+    <version>2.0.0</version>
     <title>Glorp Demo Kit</title>
-    <description>Lightweight demo kit for GlorpDrums</description>
+    <description>Realistic physical-modeling multi-zone drum kit for GlorpDrums</description>
     <author>GlorpDrums</author>
     <license>CC0</license>
   </metadata>
@@ -12,17 +12,57 @@
     <channel name="OHR"><title>Overhead Right</title></channel>
   </channels>
   <instruments>
+    <instrument name="SnareHead" file="SnareHead/SnareHead.xml">
+      <channelmap in="OHL" out="OHL" main="true"/>
+      <channelmap in="OHR" out="OHR" main="true"/>
+    </instrument>
+    <instrument name="RimClick" file="RimClick/RimClick.xml">
+      <channelmap in="OHL" out="OHL" main="true"/>
+      <channelmap in="OHR" out="OHR" main="true"/>
+    </instrument>
+    <instrument name="Rimshot" file="Rimshot/Rimshot.xml">
+      <channelmap in="OHL" out="OHL" main="true"/>
+      <channelmap in="OHR" out="OHR" main="true"/>
+    </instrument>
     <instrument name="Kick" file="Kick/Kick.xml">
       <channelmap in="OHL" out="OHL" main="true"/>
       <channelmap in="OHR" out="OHR" main="true"/>
     </instrument>
-    <instrument name="Snare" file="Snare/Snare.xml">
+    <instrument name="Tom1Head" file="Tom1Head/Tom1Head.xml">
+      <channelmap in="OHL" out="OHL" main="true"/>
+      <channelmap in="OHR" out="OHR" main="true"/>
+    </instrument>
+    <instrument name="Tom1Rim" file="Tom1Rim/Tom1Rim.xml">
+      <channelmap in="OHL" out="OHL" main="true"/>
+      <channelmap in="OHR" out="OHR" main="true"/>
+    </instrument>
+    <instrument name="Tom2Head" file="Tom2Head/Tom2Head.xml">
+      <channelmap in="OHL" out="OHL" main="true"/>
+      <channelmap in="OHR" out="OHR" main="true"/>
+    </instrument>
+    <instrument name="Tom2Rim" file="Tom2Rim/Tom2Rim.xml">
+      <channelmap in="OHL" out="OHL" main="true"/>
+      <channelmap in="OHR" out="OHR" main="true"/>
+    </instrument>
+    <instrument name="FTomHead" file="FTomHead/FTomHead.xml">
+      <channelmap in="OHL" out="OHL" main="true"/>
+      <channelmap in="OHR" out="OHR" main="true"/>
+    </instrument>
+    <instrument name="FTomRim" file="FTomRim/FTomRim.xml">
       <channelmap in="OHL" out="OHL" main="true"/>
       <channelmap in="OHR" out="OHR" main="true"/>
     </instrument>
     <instrument name="HihatClosed" group="hihat" file="HihatClosed/HihatClosed.xml">
       <chokes>
-        <choke instrument="HihatOpen" choketime="80"/>
+        <choke instrument="HihatOpen" choketime="40"/>
+        <choke instrument="HihatSemiOpen" choketime="40"/>
+      </chokes>
+      <channelmap in="OHL" out="OHL" main="true"/>
+      <channelmap in="OHR" out="OHR" main="true"/>
+    </instrument>
+    <instrument name="HihatSemiOpen" group="hihat" file="HihatSemiOpen/HihatSemiOpen.xml">
+      <chokes>
+        <choke instrument="HihatOpen" choketime="40"/>
       </chokes>
       <channelmap in="OHL" out="OHL" main="true"/>
       <channelmap in="OHR" out="OHR" main="true"/>
@@ -31,19 +71,56 @@
       <channelmap in="OHL" out="OHL" main="true"/>
       <channelmap in="OHR" out="OHR" main="true"/>
     </instrument>
-    <instrument name="Tom1" file="Tom1/Tom1.xml">
+    <instrument name="Crash1Edge" file="Crash1Edge/Crash1Edge.xml">
       <channelmap in="OHL" out="OHL" main="true"/>
       <channelmap in="OHR" out="OHR" main="true"/>
     </instrument>
-    <instrument name="Tom2" file="Tom2/Tom2.xml">
+    <instrument name="Crash1Bow" file="Crash1Bow/Crash1Bow.xml">
       <channelmap in="OHL" out="OHL" main="true"/>
       <channelmap in="OHR" out="OHR" main="true"/>
     </instrument>
-    <instrument name="Crash" file="Crash/Crash.xml">
+    <instrument name="Crash1Choke" file="Crash1Choke/Crash1Choke.xml">
+      <chokes>
+        <choke instrument="Crash1Edge" choketime="40"/>
+        <choke instrument="Crash1Bow" choketime="40"/>
+      </chokes>
       <channelmap in="OHL" out="OHL" main="true"/>
       <channelmap in="OHR" out="OHR" main="true"/>
     </instrument>
-    <instrument name="Ride" file="Ride/Ride.xml">
+    <instrument name="Crash2Edge" file="Crash2Edge/Crash2Edge.xml">
+      <channelmap in="OHL" out="OHL" main="true"/>
+      <channelmap in="OHR" out="OHR" main="true"/>
+    </instrument>
+    <instrument name="Crash2Bow" file="Crash2Bow/Crash2Bow.xml">
+      <channelmap in="OHL" out="OHL" main="true"/>
+      <channelmap in="OHR" out="OHR" main="true"/>
+    </instrument>
+    <instrument name="Crash2Choke" file="Crash2Choke/Crash2Choke.xml">
+      <chokes>
+        <choke instrument="Crash2Edge" choketime="40"/>
+        <choke instrument="Crash2Bow" choketime="40"/>
+      </chokes>
+      <channelmap in="OHL" out="OHL" main="true"/>
+      <channelmap in="OHR" out="OHR" main="true"/>
+    </instrument>
+    <instrument name="RideBow" file="RideBow/RideBow.xml">
+      <channelmap in="OHL" out="OHL" main="true"/>
+      <channelmap in="OHR" out="OHR" main="true"/>
+    </instrument>
+    <instrument name="RideBell" file="RideBell/RideBell.xml">
+      <channelmap in="OHL" out="OHL" main="true"/>
+      <channelmap in="OHR" out="OHR" main="true"/>
+    </instrument>
+    <instrument name="RideEdge" file="RideEdge/RideEdge.xml">
+      <channelmap in="OHL" out="OHL" main="true"/>
+      <channelmap in="OHR" out="OHR" main="true"/>
+    </instrument>
+    <instrument name="RideChoke" file="RideChoke/RideChoke.xml">
+      <chokes>
+        <choke instrument="RideBow" choketime="40"/>
+        <choke instrument="RideBell" choketime="40"/>
+        <choke instrument="RideEdge" choketime="40"/>
+      </chokes>
       <channelmap in="OHL" out="OHL" main="true"/>
       <channelmap in="OHR" out="OHR" main="true"/>
     </instrument>
