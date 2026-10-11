@@ -402,16 +402,43 @@ DrumKit DrumKit::load (const std::string& drumkitXmlPath)
     // variant-specific names before the plain one.
     struct MidimapCandidate { const char* name; };
     const auto stem = fs::path (drumkitXmlPath).stem().string();
-    const auto variant = stem.substr (0, stem.rfind ('_'));
+    const auto lastSep = stem.find_last_of ("_-");
+    const auto suffix = (lastSep != std::string::npos && lastSep + 1 < stem.size())
+                            ? stem.substr (lastSep + 1)
+                            : std::string();
+    const auto prefix = (lastSep != std::string::npos) ? stem.substr (0, lastSep) : std::string();
 
     std::vector<std::string> midimapCandidates;
 
-    if (! variant.empty() && variant != stem)
-        for (const auto* prefix : { "Midimap_", "midimap_", "Midimap-", "midimap-" })
-            midimapCandidates.push_back (joinPath (kitDir, std::string (prefix) + variant + ".xml"));
+    // Suffix candidates (e.g. CrocellKit_full.xml -> Midimap_full.xml)
+    if (! suffix.empty())
+        for (const auto* pfx : { "Midimap_", "midimap_", "Midimap-", "midimap-" })
+            midimapCandidates.push_back (joinPath (kitDir, std::string (pfx) + suffix + ".xml"));
+
+    // Prefix candidates (e.g. CrocellKit_full.xml -> Midimap_CrocellKit.xml)
+    if (! prefix.empty())
+        for (const auto* pfx : { "Midimap_", "midimap_", "Midimap-", "midimap-" })
+            midimapCandidates.push_back (joinPath (kitDir, std::string (pfx) + prefix + ".xml"));
 
     midimapCandidates.push_back (joinPath (kitDir, "midimap.xml"));
     midimapCandidates.push_back (joinPath (kitDir, "Midimap.xml"));
+
+    // Also check any XML in kit directory containing "midimap"
+    std::error_code dirEc;
+    for (const auto& entry : fs::directory_iterator (fs::path (kitDir), dirEc))
+    {
+        if (! entry.is_regular_file())
+            continue;
+        auto p = entry.path();
+        if (p.extension() == ".xml")
+        {
+            auto pstem = p.stem().string();
+            std::string lowerStem = pstem;
+            for (auto& c : lowerStem) c = static_cast<char> (std::tolower (static_cast<unsigned char> (c)));
+            if (lowerStem.find ("midimap") != std::string::npos)
+                midimapCandidates.push_back (p.string());
+        }
+    }
 
     for (const auto& midimapPath : midimapCandidates)
     {

@@ -348,10 +348,8 @@ void Sampler::resolveInstrumentChannels (const Instrument& instrument, Instrumen
         hit.power = instrument.samples[s].power;
 
         const auto channelCount = sources.size();
-
-        // Keep a steady perceived level whether an instrument has one channel or
-        // eight, so swapping kits does not change how loud everything is.
-        const auto normalisation = 1.0f / std::sqrt (static_cast<float> (channelCount));
+        const float kitGainFactor = (channelCount <= 2) ? 1.0f : 3.2f;
+        const auto normalisation = (1.0f / std::sqrt (static_cast<float> (channelCount))) * kitGainFactor;
 
         for (size_t c = 0; c < channelCount; ++c)
         {
@@ -370,15 +368,24 @@ void Sampler::resolveInstrumentChannels (const Instrument& instrument, Instrumen
                 channelRef.gainL = normalisation;
                 channelRef.gainR = normalisation;
             }
-            else if (c % 2 == 0)
-            {
-                channelRef.gainL = normalisation;
-                channelRef.gainR = 0.0f;
-            }
             else
             {
-                channelRef.gainL = 0.0f;
-                channelRef.gainR = normalisation;
+                const auto chName = juce::String (ref.channel).toLowerCase();
+                if (chName.contains ("left") || chName.endsWith ("l") || chName.contains ("_l") || chName.contains (".l"))
+                {
+                    channelRef.gainL = normalisation * 1.414f;
+                    channelRef.gainR = 0.0f;
+                }
+                else if (chName.contains ("right") || chName.endsWith ("r") || chName.contains ("_r") || chName.contains (".r"))
+                {
+                    channelRef.gainL = 0.0f;
+                    channelRef.gainR = normalisation * 1.414f;
+                }
+                else
+                {
+                    channelRef.gainL = normalisation;
+                    channelRef.gainR = normalisation;
+                }
             }
 
             hit.channels.push_back (std::move (channelRef));
@@ -428,12 +435,13 @@ Sampler::Voice* Sampler::allocateVoice()
     return best;
 }
 
-int Sampler::chooseHit (int instrumentIndex)
+int Sampler::chooseHit (int instrumentIndex, float velocity)
 {
     if (instrumentIndex < 0 || instrumentIndex >= instrumentCount)
         return 0;
 
-    const auto numHits = static_cast<int> (instruments_[static_cast<size_t> (instrumentIndex)].hits.size());
+    const auto& hits = instruments_[static_cast<size_t> (instrumentIndex)].hits;
+    const auto numHits = static_cast<int> (hits.size());
 
     if (numHits <= 0)
         return 0;
@@ -443,9 +451,37 @@ int Sampler::chooseHit (int instrumentIndex)
     if (! p.roundRobin)
         return std::clamp (p.selectedSample, 0, numHits - 1);
 
+    // Velocity-aware matching: pick from samples whose recorded power is close to velocity
+    const float vel = std::clamp (velocity, 0.05f, 1.0f);
+
+    float minDiff = 1000.0f;
+    int closestIdx = 0;
+
+    for (int i = 0; i < numHits; ++i)
+    {
+        const float diff = std::abs (hits[static_cast<size_t> (i)].power - vel);
+        if (diff < minDiff)
+        {
+            minDiff = diff;
+            closestIdx = i;
+        }
+    }
+
+    // Collect candidates within a reasonable power window around closest
+    std::vector<int> candidates;
+    const float margin = std::max (0.15f, minDiff * 1.5f);
+    for (int i = 0; i < numHits; ++i)
+    {
+        if (std::abs (hits[static_cast<size_t> (i)].power - vel) <= margin)
+            candidates.push_back (i);
+    }
+
+    if (candidates.empty())
+        candidates.push_back (closestIdx);
+
     auto& cursor = roundRobinCursor[static_cast<size_t> (instrumentIndex)];
-    const auto chosen = cursor % numHits;
-    cursor = (cursor + 1) % numHits;
+    const auto chosen = candidates[static_cast<size_t> (cursor % static_cast<int> (candidates.size()))];
+    cursor = (cursor + 1) % 10000;
 
     return chosen;
 }
@@ -494,7 +530,7 @@ void Sampler::noteOn (int instrument, int note, float velocity, int64_t timeInSa
     if (p.muted)
         return;
 
-    const auto hitIndex = chooseHit (instrument);
+    const auto hitIndex = chooseHit (instrument, velocity);
     const auto& hit = runtime.hits[static_cast<size_t> (hitIndex)];
 
     float pitch = p.pitch;
@@ -684,12 +720,11 @@ void Sampler::render (float* const* output, int numOutputChannels, int numSample
             continue;
         }
 
-        const auto bus = busForInstrument (v.instrument);
-
-        if (bus < 0 || bus >= totalBuses)
+        int targetBus = 0;
+        if (multiOutMode.load() && totalBuses > 1)
         {
-            v.active = false;
-            continue;
+            const auto b = busForInstrument (v.instrument);
+            targetBus = (b >= 0 && b < totalBuses) ? b : 0;
         }
 
         const auto& runtime = instruments_[static_cast<size_t> (v.instrument)];
@@ -737,6 +772,8 @@ void Sampler::render (float* const* output, int numOutputChannels, int numSample
         std::fill (v.mixL.begin(), v.mixL.begin() + numSamples, 0.0f);
         std::fill (v.mixR.begin(), v.mixR.begin() + numSamples, 0.0f);
 
+        int maxRead = 0;
+
         for (const auto& channelRef : hit.channels)
         {
             const auto remaining = hit.numFrames - v.position;
@@ -749,6 +786,8 @@ void Sampler::render (float* const* output, int numOutputChannels, int numSample
             if (toRead <= 0)
                 continue;
 
+            maxRead = std::max (maxRead, toRead);
+
             v.channelScratch.assign (static_cast<size_t> (toRead), 0.0f);
             channelRef.handle.read (v.position, toRead, channelRef.channel, v.channelScratch.data());
 
@@ -760,6 +799,10 @@ void Sampler::render (float* const* output, int numOutputChannels, int numSample
                 for (int i = 0; i < toRead; ++i)
                     v.mixR[static_cast<size_t> (i)] += v.channelScratch[static_cast<size_t> (i)] * channelRef.gainR;
         }
+
+        v.position += maxRead;
+        if (v.position >= hit.numFrames)
+            v.active = false;
 
         // 2. Tune, if this voice is shifted. At zero the shifter is a bit-exact
         //    bypass, so the common case costs nothing.
@@ -781,8 +824,8 @@ void Sampler::render (float* const* output, int numOutputChannels, int numSample
         const auto gainL = v.velocity * p.level * panL * masterGainL;
         const auto gainR = v.velocity * p.level * panR * masterGainR;
 
-        float* destL = output[bus * 2];
-        float* destR = output[bus * 2 + 1];
+        float* destL = output[targetBus * 2];
+        float* destR = output[targetBus * 2 + 1];
 
         const auto first = static_cast<size_t> (std::min<int64_t> (v.startSkip, numSamples));
         v.startSkip = std::max<int64_t> (0, v.startSkip - numSamples);

@@ -80,10 +80,19 @@ PluginProcessor::PluginProcessor()
 
     if (! sampler.isKitLoaded())
     {
-        const auto localDemo = juce::File::getCurrentWorkingDirectory()
-                                   .getChildFile ("test/kits/GlorpDemoKit/drumkit.xml");
-        if (localDemo.existsAsFile())
-            loadKit (localDemo.getFullPathName());
+        const auto homeDemo = juce::File::getSpecialLocation (juce::File::userHomeDirectory)
+                                  .getChildFile (".config/GlorpDrums/kits/GlorpDemoKit/drumkit.xml");
+        if (homeDemo.existsAsFile())
+        {
+            loadKit (homeDemo.getFullPathName());
+        }
+        else
+        {
+            const auto localDemo = juce::File::getCurrentWorkingDirectory()
+                                       .getChildFile ("test/kits/GlorpDemoKit/drumkit.xml");
+            if (localDemo.existsAsFile())
+                loadKit (localDemo.getFullPathName());
+        }
     }
 }
 
@@ -426,6 +435,65 @@ void PluginProcessor::loadKit (const juce::String& drumkitPath)
                         midiMap.assignNote (note, i);
 
             break;
+        }
+    }
+
+    // Ensure every instrument in the kit has a playable MIDI note assigned
+    for (int i = 0; i < sampler.numInstruments(); ++i)
+    {
+        if (midiMap.noteForInstrument (i) >= 0)
+            continue;
+
+        const auto name = sampler.instrumentName (i).toLowerCase();
+        int defaultNote = -1;
+
+        if (name.contains ("kick") || name.contains ("bdrum") || name.contains ("kdrum") || name.contains ("bd"))
+            defaultNote = (name.contains ("2") || name.contains ("l")) ? 35 : 36;
+        else if (name.contains ("snare") || name.contains ("sd"))
+        {
+            if (name.contains ("rimshot")) defaultNote = 40;
+            else if (name.contains ("rim")) defaultNote = 37;
+            else if (name.contains ("rest")) defaultNote = 39;
+            else defaultNote = 38;
+        }
+        else if (name.contains ("hat") || name.contains ("hh"))
+        {
+            if (name.contains ("open")) defaultNote = 46;
+            else if (name.contains ("pedal")) defaultNote = 44;
+            else if (name.contains ("semi")) defaultNote = 80;
+            else defaultNote = 42;
+        }
+        else if (name.contains ("tom1") || name.contains ("racktom1") || name.contains ("hightom"))
+            defaultNote = 48;
+        else if (name.contains ("tom2") || name.contains ("racktom2") || name.contains ("midtom"))
+            defaultNote = 47;
+        else if (name.contains ("ftom1") || name.contains ("floortom1") || name.contains ("floor1"))
+            defaultNote = 43;
+        else if (name.contains ("ftom") || name.contains ("floor"))
+            defaultNote = 41;
+        else if (name.contains ("ride"))
+            defaultNote = name.contains ("bell") ? 53 : 51;
+        else if (name.contains ("splash"))
+            defaultNote = name.contains ("r") ? 58 : 55;
+        else if (name.contains ("china"))
+            defaultNote = name.contains ("r") ? 52 : 54;
+        else if (name.contains ("crash"))
+            defaultNote = name.contains ("r") ? 57 : 49;
+
+        if (defaultNote >= 0 && midiMap.instrumentForNote (defaultNote) < 0)
+        {
+            midiMap.assignNote (defaultNote, i);
+        }
+        else
+        {
+            for (int note = 35; note <= 81; ++note)
+            {
+                if (midiMap.instrumentForNote (note) < 0)
+                {
+                    midiMap.assignNote (note, i);
+                    break;
+                }
+            }
         }
     }
 

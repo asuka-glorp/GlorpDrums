@@ -28,19 +28,23 @@ KitPiece DrumKitView::pieceForName (const juce::String& name)
 {
     const auto n = name.toLowerCase();
 
-    if (n.contains ("kick") || n.contains ("bdrum") || n.contains ("bd"))
+    if (n.contains ("kick") || n.contains ("kdrum") || n.contains ("bassdrum")
+        || n.contains ("bdrum") || n.contains ("bd"))
         return KitPiece::kick;
 
-    if (n.contains ("snare") || n.contains ("sd"))
+    if (n.contains ("snare") || n.contains ("sd") || n.contains ("snr"))
         return KitPiece::snare;
 
-    if (n.contains ("floor") || n.contains ("ftom"))
+    if (n.contains ("floor") || n.contains ("ftom") || n.contains ("floortom"))
         return KitPiece::floorTom;
 
-    if (n.contains ("tom1") || n.contains ("tom 1") || n.contains ("racktom1") || n.contains ("hightom"))
+    if (n.contains ("tom1") || n.contains ("tom 1") || n.contains ("racktom1")
+        || n.contains ("hightom") || n.contains ("smalltom")
+        || (n.contains ("tom") && ! n.contains ("floor") && ! n.contains ("tom2") && ! n.contains ("tom3")))
         return KitPiece::tom1;
 
-    if (n.contains ("tom2") || n.contains ("tom 2") || n.contains ("racktom2") || n.contains ("midtom"))
+    if (n.contains ("tom2") || n.contains ("tom 2") || n.contains ("racktom2")
+        || n.contains ("midtom") || n.contains ("mediumtom"))
         return KitPiece::tom2;
 
     if (n.contains ("tom3") || n.contains ("tom 3") || n.contains ("lowtom"))
@@ -49,11 +53,11 @@ KitPiece DrumKitView::pieceForName (const juce::String& name)
     if (n.contains ("ride") || n.contains ("bell"))
         return KitPiece::ride;
 
-    if (n.contains ("crash") || n.contains ("china") || n.contains ("splash"))
+    if (n.contains ("crash") || n.contains ("china") || n.contains ("splash") || n.contains ("cymbal"))
         return KitPiece::crash;
 
     if (n.contains ("hihat") || n.contains ("hi-hat") || n.contains ("hh")
-        || n.contains ("hatclosed") || n.contains ("hatopen"))
+        || n.contains ("hatclosed") || n.contains ("hatopen") || n.contains ("hat"))
         return KitPiece::hihat;
 
     return KitPiece::count;
@@ -450,7 +454,8 @@ void DrumKitView::drawTom (juce::Graphics& g, const juce::Rectangle<float>& r, b
     juce::Path shell;
     shell.startNewSubPath (centre.x - w * 0.5f, centre.y - h * 0.5f + ellipseH * 0.5f);
     shell.lineTo (centre.x - w * 0.5f, centre.y + h * 0.5f - ellipseH * 0.5f);
-    shell.addArc (centre.x - w * 0.5f, centre.y + h * 0.5f - ellipseH, w, ellipseH, 0.0f, static_cast<float> (pi), false);
+    shell.quadraticTo (centre.x, centre.y + h * 0.5f + ellipseH * 0.5f,
+                       centre.x + w * 0.5f, centre.y + h * 0.5f - ellipseH * 0.5f);
     shell.lineTo (centre.x + w * 0.5f, centre.y - h * 0.5f + ellipseH * 0.5f);
     shell.closeSubPath();
     shell.applyTransform (rot);
@@ -459,10 +464,18 @@ void DrumKitView::drawTom (juce::Graphics& g, const juce::Rectangle<float>& r, b
     g.fillPath (shell);
 
     // Shell side cross-hatching
-    drawCrossHatch (g, juce::Rectangle<float> (centre.x + w * 0.1f, centre.y - h * 0.2f, w * 0.4f, h * 0.6f), 0.6f);
+    drawCrossHatch (g, juce::Rectangle<float> (centre.x + w * 0.05f, centre.y - h * 0.2f, w * 0.42f, h * 0.6f), 0.6f);
 
     g.setColour (theme.ink);
     g.strokePath (shell, juce::PathStrokeType (1.8f));
+
+    // Bottom hoop rim
+    juce::Path bottomRim;
+    bottomRim.startNewSubPath (centre.x - w * 0.5f, centre.y + h * 0.5f - ellipseH * 0.5f);
+    bottomRim.quadraticTo (centre.x, centre.y + h * 0.5f + ellipseH * 0.5f,
+                           centre.x + w * 0.5f, centre.y + h * 0.5f - ellipseH * 0.5f);
+    bottomRim.applyTransform (rot);
+    g.strokePath (bottomRim, juce::PathStrokeType (2.2f));
 
     // Top batter head ellipse
     juce::Path topHead;
@@ -472,17 +485,17 @@ void DrumKitView::drawTom (juce::Graphics& g, const juce::Rectangle<float>& r, b
     g.setColour (theme.head);
     g.fillPath (topHead);
     g.setColour (theme.ink);
-    g.strokePath (topHead, juce::PathStrokeType (2.0f));
+    g.strokePath (topHead, juce::PathStrokeType (2.2f));
 
     // Hoops & Tension Rods / Lugs
     for (int i = 0; i < 4; ++i)
     {
-        const float lx = centre.x - w * 0.40f + i * (w * 0.80f / 3.0f);
+        const float lx = centre.x - w * 0.38f + i * (w * 0.76f / 3.0f);
         juce::Path lug;
         lug.startNewSubPath (lx, centre.y - h * 0.5f + ellipseH * 0.8f);
-        lug.lineTo (lx, centre.y + h * 0.5f - ellipseH * 0.6f);
+        lug.lineTo (lx, centre.y + h * 0.5f - ellipseH * 0.4f);
         lug.applyTransform (rot);
-        g.strokePath (lug, juce::PathStrokeType (1.4f));
+        g.strokePath (lug, juce::PathStrokeType (1.5f));
 
         // Chrome lug casing
         juce::Path casing;
@@ -527,7 +540,8 @@ void DrumKitView::drawSnare (juce::Graphics& g, const juce::Rectangle<float>& r,
     juce::Path shell;
     shell.startNewSubPath (centre.x - w * 0.5f, centre.y - h * 0.5f + ellipseH * 0.5f);
     shell.lineTo (centre.x - w * 0.5f, centre.y + h * 0.5f - ellipseH * 0.5f);
-    shell.addArc (centre.x - w * 0.5f, centre.y + h * 0.5f - ellipseH, w, ellipseH, 0.0f, static_cast<float> (pi), false);
+    shell.quadraticTo (centre.x, centre.y + h * 0.5f + ellipseH * 0.5f,
+                       centre.x + w * 0.5f, centre.y + h * 0.5f - ellipseH * 0.5f);
     shell.lineTo (centre.x + w * 0.5f, centre.y - h * 0.5f + ellipseH * 0.5f);
     shell.closeSubPath();
 
@@ -536,6 +550,13 @@ void DrumKitView::drawSnare (juce::Graphics& g, const juce::Rectangle<float>& r,
     drawCrossHatch (g, juce::Rectangle<float> (centre.x, centre.y - h * 0.2f, w * 0.48f, h * 0.5f), 0.6f);
     g.setColour (theme.ink);
     g.strokePath (shell, juce::PathStrokeType (1.8f));
+
+    // Bottom hoop rim
+    juce::Path bottomRim;
+    bottomRim.startNewSubPath (centre.x - w * 0.5f, centre.y + h * 0.5f - ellipseH * 0.5f);
+    bottomRim.quadraticTo (centre.x, centre.y + h * 0.5f + ellipseH * 0.5f,
+                           centre.x + w * 0.5f, centre.y + h * 0.5f - ellipseH * 0.5f);
+    g.strokePath (bottomRim, juce::PathStrokeType (2.2f));
 
     // Top batter head
     juce::Path topHead;

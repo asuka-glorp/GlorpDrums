@@ -141,6 +141,10 @@ public:
     /// Sample position at the end of the last rendered block, for the scope.
     int64_t currentSamplePosition() const noexcept { return sampleClock; }
 
+    /// Multi-out routing mode. When false (default), all instruments mix to stereo Bus 0.
+    void setMultiOutMode (bool enabled) noexcept { multiOutMode.store (enabled); }
+    bool isMultiOutMode() const noexcept { return multiOutMode.load(); }
+
     // -- GUI event feed ----------------------------------------------------
 
     /// Pops the oldest hit, or returns false if there are none.
@@ -234,7 +238,7 @@ private:
     };
 
     Voice* allocateVoice();
-    int   chooseHit (int instrumentIndex);
+    int   chooseHit (int instrumentIndex, float velocity);
 
     /// Which stereo output bus an instrument writes to. Instruments past the last
     /// bus share the final one rather than being dropped.
@@ -266,6 +270,7 @@ private:
 
     std::atomic<bool> kitLoaded { false };
     std::atomic<bool> anySolo { false };
+    std::atomic<bool> multiOutMode { false };
     std::atomic<int> nextVoiceIndex { 0 };
     std::atomic<uint32_t> randomState { 0x12345678u };
 

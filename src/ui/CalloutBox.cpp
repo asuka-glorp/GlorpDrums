@@ -33,13 +33,18 @@ void CalloutBox::setAutoEnabled (bool enabled)
     repaint();
 }
 
-juce::Point<float> CalloutBox::getLeaderStartPoint (juce::Component* parent) const
+juce::Point<float> CalloutBox::getLeaderStartPoint (juce::Component* /*parent*/) const
 {
     const auto b = getBounds().toFloat();
-    if (parent == nullptr)
-        return b.getCentre();
 
-    // Attach to left or right edge depending on anchor position
+    if (std::abs (anchor.x - b.getCentreX()) < b.getWidth() * 0.35f)
+    {
+        if (anchor.y > b.getCentreY())
+            return { b.getCentreX(), b.getBottom() };
+        else
+            return { b.getCentreX(), b.getY() };
+    }
+
     if (anchor.x < b.getCentreX())
         return { b.getX(), b.getCentreY() };
 

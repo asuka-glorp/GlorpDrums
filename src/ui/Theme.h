@@ -42,16 +42,16 @@ struct Theme
     {
         Theme t;
         t.isDark = false;
-        t.background = juce::Colour (0xffd8dbde);
-        t.panel = juce::Colour (0xffffffff);
-        t.panelEdge = juce::Colour (0xff121214);
-        t.ink = juce::Colour (0xff101012);
-        t.inkSoft = juce::Colour (0xff54575a);
-        t.accent = juce::Colour (0xfff09a1a);
+        t.background = juce::Colour (0xffe2e5e2);
+        t.panel = juce::Colour (0xfffcfdfc);
+        t.panelEdge = juce::Colour (0xff111215);
+        t.ink = juce::Colour (0xff101114);
+        t.inkSoft = juce::Colour (0xff4b4e54);
+        t.accent = juce::Colour (0xffea8c16);
         t.warning = juce::Colour (0xffd03020);
-        t.shell = juce::Colour (0xfffcfdfe);
-        t.shellShade = juce::Colour (0xffc4c8cd);
-        t.cymbal = juce::Colour (0xfff8f9fa);
+        t.shell = juce::Colour (0xfff9fafb);
+        t.shellShade = juce::Colour (0xffcbd0d6);
+        t.cymbal = juce::Colour (0xfff4f5f6);
         t.head = juce::Colour (0xffffffff);
         return t;
     }
@@ -78,16 +78,7 @@ struct Theme
 };
 
 //==============================================================================
-/** Loads one of the bundled fonts.
-    JUCE's CMake binary-data target only emits raw symbols, so the typeface is
-    built straight from the embedded bytes rather than unpacked to a file.
-    Both faces are cached, because FreeType is not cheap to construct and every
-    repaint asks for a font.
-
-    The symbol names come from JUCE replacing '.' and ' ' with '_' and then
-    dropping anything else that is not alphanumeric, so the '-' in
-    "PatrickHand-Regular.ttf" simply disappears.
-*/
+/** Loads one of the bundled fonts. */
 inline juce::Typeface::Ptr uiTypeface()
 {
     static const juce::Typeface::Ptr face = juce::Typeface::createSystemTypefaceFor (
@@ -106,7 +97,7 @@ inline juce::Typeface::Ptr displayTypeface()
 
 inline juce::Font uiFont (float height)
 {
-    const auto size = juce::jmax (6.0f, height * 0.72f);
+    const auto size = juce::jmax (9.0f, height);
 
     if (auto face = uiTypeface())
     {
@@ -120,7 +111,7 @@ inline juce::Font uiFont (float height)
 
 inline juce::Font displayFont (float height)
 {
-    const auto size = juce::jmax (8.0f, height * 0.62f);
+    const auto size = juce::jmax (11.0f, height);
 
     if (auto face = displayTypeface())
     {
@@ -174,9 +165,9 @@ inline void drawSketchRect (juce::Graphics& g, juce::Rectangle<float> r, const j
             switch (edge)
             {
                 case 0: return r.getX() + t * r.getWidth();
-                case 1: return r.getRight() + t * r.getHeight();
+                case 1: return r.getY() + t * r.getHeight();
                 case 2: return r.getRight() - t * r.getWidth();
-                default: return r.getY() - t * r.getHeight();
+                default: return r.getBottom() - t * r.getHeight();
             }
         };
 

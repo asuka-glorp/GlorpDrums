@@ -38,36 +38,55 @@ void Scope::controllerReceived (int cc, int value)
 
 void Scope::paint (juce::Graphics& g)
 {
-    auto b = getLocalBounds().toFloat();
+    auto b = getLocalBounds().toFloat().reduced (1.0f);
     g.setColour (theme.panel);
     g.fillRect (b);
-    drawSketchRect (g, b.reduced (0.5f), theme.ink.withAlpha (0.8f), 1.4f, 5);
+    drawSketchRect (g, b, theme.panelEdge, 1.4f, 5);
 
-    // Baseline.
-    g.setColour (theme.inkSoft.withAlpha (0.35f));
-    g.drawLine (b.getX() + 2.0f, b.getCentreY(), b.getRight() - 2.0f, b.getCentreY(), 1.0f);
+    // Header label: "MIDI Activity" (matching mockup)
+    g.setFont (uiFont (14.0f));
+    g.setColour (theme.ink);
+    g.drawText ("MIDI Activity", b.getX() + 10.0f, b.getY() + 4.0f, 180.0f, 18.0f,
+                juce::Justification::centredLeft, false);
+
+    // Waveform strip area
+    const float midY = b.getY() + b.getHeight() * 0.62f;
+
+    // Baseline
+    g.setColour (theme.ink.withAlpha (0.25f));
+    g.drawLine (b.getX() + 6.0f, midY, b.getRight() - 6.0f, midY, 1.0f);
 
     const auto span = static_cast<float> (maxMarkers);
-    const auto step = b.getWidth() / span;
+    const auto step = (b.getWidth() - 20.0f) / span;
+    const float startX = b.getX() + 10.0f;
 
-    // Newest markers at the right, as in the mockup.
+    juce::Path wave;
+    wave.startNewSubPath (startX, midY);
+
     for (int i = 0; i < maxMarkers; ++i)
     {
         const auto& m = markers[(writeIndex + i) % maxMarkers];
-        const auto age = static_cast<float> (writeIndex + i < maxMarkers ? writeIndex + i : i);
+        const float x = startX + i * step;
 
-        const auto x = b.getX() + step * (static_cast<float> (i) - 1.0f);
-        const auto amplitude = b.getHeight() * 0.42f * m.level;
-        const auto fade = 0.35f + 0.65f * (static_cast<float> (i) / static_cast<float> (maxMarkers));
+        // Either actual marker level or subtle idle sketch ripples
+        float amp = m.level * (b.getHeight() * 0.40f);
+        if (amp < 2.0f)
+        {
+            // Subtle idle hand-drawn heartbeat ripples
+            amp = ((i % 4 == 0) ? 2.5f : ((i % 4 == 2) ? -2.0f : 0.0f));
+        }
 
-        juce::ignoreUnused (age);
+        const float y1 = midY - amp;
+        const float y2 = midY + amp * 0.5f;
 
-        g.setColour (theme.ink.withAlpha (0.85f * fade));
-
-        // A little scribble rather than a bar, so it reads as a waveform.
-        g.drawLine (x, b.getCentreY() - amplitude, x + step * 0.6f, b.getCentreY(), 1.2f);
-        g.drawLine (x + step * 0.6f, b.getCentreY(), x + step * 0.9f, b.getCentreY() + amplitude * 0.6f, 1.2f);
+        wave.lineTo (x + step * 0.3f, y1);
+        wave.lineTo (x + step * 0.7f, y2);
+        wave.lineTo (x + step, midY);
     }
+
+    g.setColour (theme.ink.withAlpha (0.85f));
+    g.strokePath (wave, juce::PathStrokeType (1.4f, juce::PathStrokeType::curved,
+                                              juce::PathStrokeType::rounded));
 }
 
 } // namespace glorp

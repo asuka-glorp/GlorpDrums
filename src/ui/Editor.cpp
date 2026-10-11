@@ -6,17 +6,17 @@ namespace glorp
 //==============================================================================
 void Editor::MenuButton::paintButton (juce::Graphics& g, bool isHover, bool isDown)
 {
-    auto b = getLocalBounds().toFloat().reduced (1.0f);
+    auto b = getLocalBounds().toFloat().reduced (2.0f);
 
     if (isHover || isDown)
     {
-        g.setColour (juce::Colour (0xff101012).withAlpha (isDown ? 0.16f : 0.08f));
+        g.setColour (juce::Colour (0xffea8c16).withAlpha (isDown ? 0.24f : 0.12f));
         g.fillRoundedRectangle (b, 4.0f);
-        drawSketchRect (g, b, juce::Colour (0xff101012), 1.3f, 7);
+        drawSketchRect (g, b, juce::Colour (0xffea8c16), 1.5f, 7);
     }
 
-    g.setFont (uiFont (17.0f));
-    g.setColour (juce::Colour (0xff101012));
+    g.setFont (displayFont (19.0f));
+    g.setColour (isHover ? juce::Colour (0xffea8c16) : juce::Colour (0xff111215));
     g.drawText (getName(), b, juce::Justification::centred, false);
 }
 
@@ -88,36 +88,37 @@ void Editor::buildHeaderMenu()
     addAndMakeVisible (midiButton);
     addAndMakeVisible (settingsButton);
 
-    fileButton.onClick = [this]
+    auto showMenu = [this] (juce::PopupMenu& m, juce::Component* target)
+    {
+        juce::PopupMenu::Options opts;
+        opts = opts.withTargetComponent (target);
+        if (! juce::JUCEApplicationBase::isStandaloneApp())
+            opts = opts.withParentComponent (this);
+        m.showMenuAsync (opts);
+    };
+
+    fileButton.onClick = [this, showMenu]
     {
         auto menu = buildFileMenu();
-        menu.showMenuAsync (juce::PopupMenu::Options()
-                                .withTargetComponent (&fileButton)
-                                .withParentComponent (this));
+        showMenu (menu, &fileButton);
     };
 
-    presetsButton.onClick = [this]
+    presetsButton.onClick = [this, showMenu]
     {
         auto menu = buildPresetsMenu();
-        menu.showMenuAsync (juce::PopupMenu::Options()
-                                .withTargetComponent (&presetsButton)
-                                .withParentComponent (this));
+        showMenu (menu, &presetsButton);
     };
 
-    midiButton.onClick = [this]
+    midiButton.onClick = [this, showMenu]
     {
         auto menu = buildMidiMenu();
-        menu.showMenuAsync (juce::PopupMenu::Options()
-                                .withTargetComponent (&midiButton)
-                                .withParentComponent (this));
+        showMenu (menu, &midiButton);
     };
 
-    settingsButton.onClick = [this]
+    settingsButton.onClick = [this, showMenu]
     {
         auto menu = buildSettingsMenu();
-        menu.showMenuAsync (juce::PopupMenu::Options()
-                                .withTargetComponent (&settingsButton)
-                                .withParentComponent (this));
+        showMenu (menu, &settingsButton);
     };
 }
 
@@ -125,13 +126,28 @@ juce::PopupMenu Editor::buildFileMenu()
 {
     juce::PopupMenu menu;
 
+    menu.addItem ("Load DrumKit (.xml)...", [this]
+    {
+        auto chooser = std::make_shared<juce::FileChooser> ("Select DrumKit XML File",
+            juce::File::getSpecialLocation (juce::File::userHomeDirectory),
+            "*.xml");
+
+        chooser->launchAsync (juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
+            [this, chooser] (const juce::FileChooser& fc)
+            {
+                const auto chosen = fc.getResult();
+                if (chosen.existsAsFile())
+                    processor.loadKit (chosen.getFullPathName());
+            });
+    });
+
+    menu.addSeparator();
+
     // Discovered drumkits list
     const auto& kitList = processor.getKitList();
     if (! kitList.empty())
     {
         juce::PopupMenu kitsSubmenu;
-        int id = 1;
-
         for (const auto& entry : kitList)
         {
             if (! entry.valid)
@@ -144,11 +160,9 @@ juce::PopupMenu Editor::buildFileMenu()
             {
                 processor.loadKit (path);
             });
-            ++id;
         }
 
         menu.addSubMenu ("Drum Kits", kitsSubmenu);
-        menu.addSeparator();
     }
 
     // Recent kits
@@ -165,7 +179,6 @@ juce::PopupMenu Editor::buildFileMenu()
             recentMenu.addItem (label, [this, recent] { processor.loadKit (recent); });
         }
         menu.addSubMenu ("Recent Kits", recentMenu);
-        menu.addSeparator();
     }
 
     menu.addItem ("Refresh Kit List", [this]
@@ -175,7 +188,7 @@ juce::PopupMenu Editor::buildFileMenu()
         repaint();
     });
 
-    menu.addItem ("Choose Kit Folder...", [this]
+    menu.addItem ("Add Kit Folder...", [this]
     {
         auto chooser = std::make_shared<juce::FileChooser> ("Select DrumKit Folder",
             juce::File::getSpecialLocation (juce::File::userMusicDirectory),
@@ -193,6 +206,16 @@ juce::PopupMenu Editor::buildFileMenu()
                     rebuildCallouts();
                 }
             });
+    });
+
+    menu.addSeparator();
+
+    const bool multiOut = processor.getSampler().isMultiOutMode();
+    menu.addItem ("Multi-Output Mode (16 Stems)", true, multiOut, [this, multiOut]
+    {
+        processor.getSampler().setMultiOutMode (! multiOut);
+        statusText = (! multiOut) ? "Multi-out mode active (16 stereo buses)" : "Stereo mix mode active (all to 1-2)";
+        repaint();
     });
 
     menu.addSeparator();
@@ -607,48 +630,55 @@ void Editor::resized()
     const int w = b.getWidth();
     const int h = b.getHeight();
 
-    // 1. Header menu buttons in top right
-    const int menuY = 10;
-    const int menuH = 28;
-    const int menuBtnW = 84;
-    int curX = w - 40 - menuBtnW;
+    // 1. Header menu buttons placed cleanly in top right section (matching mockup)
+    const int menuY = 16;
+    const int menuH = 30;
+    const int fileW = 75;
+    const int presetsW = 125;
+    const int midiW = 75;
+    const int settingsW = 100;
+    const int gap = 20;
 
-    settingsButton.setBounds (curX, menuY, menuBtnW, menuH);
-    curX -= (menuBtnW + 6);
-    midiButton.setBounds (curX, menuY, menuBtnW, menuH);
-    curX -= (menuBtnW + 18);
-    presetsButton.setBounds (curX, menuY, menuBtnW + 12, menuH);
-    curX -= (menuBtnW + 6);
-    fileButton.setBounds (curX, menuY, menuBtnW, menuH);
+    const int totalMenuW = fileW + gap + presetsW + gap + midiW + gap + settingsW;
+    int curX = w - 45 - totalMenuW;
+    fileButton.setBounds (curX, menuY, fileW, menuH);
+    curX += fileW + gap;
+    presetsButton.setBounds (curX, menuY, presetsW, menuH);
+    curX += presetsW + gap;
+    midiButton.setBounds (curX, menuY, midiW, menuH);
+    curX += midiW + gap;
+    settingsButton.setBounds (curX, menuY, settingsW, menuH);
 
     // 2. Central drum kit & callouts area
     const int kitAreaY = 56;
-    const int bottomH = 148;
+    const int bottomH = 175;
     const int kitAreaH = h - kitAreaY - bottomH;
 
     kitArea.setBounds (12, kitAreaY, w - 24, kitAreaH);
     kitView.setBounds (kitArea.getLocalBounds());
 
-    // Position the 7 Callout Boxes around the kit (matching Image 2 mockup)
+    // Position the Callout Boxes around the kit (matching mockup)
     const float kw = static_cast<float> (kitArea.getWidth());
     const float kh = static_cast<float> (kitArea.getHeight());
-    const float boxW = juce::jlimit (120.0f, 150.0f, kw * 0.16f);
-    const float boxH = juce::jlimit (70.0f, 85.0f, kh * 0.20f);
+    const float boxW = juce::jlimit (145.0f, 170.0f, kw * 0.155f);
+    const float boxH = juce::jlimit (82.0f, 94.0f, kh * 0.18f);
 
     struct BoxPos { float xRatio; float yRatio; KitPiece piece; };
     const BoxPos positions[] = {
-        { 0.04f, 0.22f, KitPiece::snare },      // 0: Snare (Top Left)
-        { 0.06f, 0.50f, KitPiece::kick },       // 1: Kick Alt (Mid Left)
-        { 0.44f, 0.05f, KitPiece::tom1 },       // 2: High Tom (Top Mid)
-        { 0.78f, 0.08f, KitPiece::crash },      // 3: Crash/Ride (Top Right)
-        { 0.80f, 0.35f, KitPiece::hihat },      // 4: Hi-Hat (Mid Right)
-        { 0.78f, 0.62f, KitPiece::floorTom },   // 5: Floor Tom (Lower Right)
-        { 0.44f, 0.76f, KitPiece::kick }        // 6: Main Kick (Bottom Mid)
+        { 0.03f, 0.22f, KitPiece::snare },      // 0: Snare (Top Left)
+        { 0.04f, 0.52f, KitPiece::kick },       // 1: Kick Alt (Mid Left)
+        { 0.36f, 0.03f, KitPiece::tom1 },       // 2: High Tom (Top Mid-Left)
+        { 0.52f, 0.03f, KitPiece::tom2 },       // 3: Mid Tom (Top Mid-Right)
+        { 0.77f, 0.05f, KitPiece::crash },      // 4: Crash (Top Right)
+        { 0.79f, 0.34f, KitPiece::hihat },      // 5: Hi-Hat (Mid Right)
+        { 0.77f, 0.63f, KitPiece::floorTom },   // 6: Floor Tom (Lower Right)
+        { 0.42f, 0.78f, KitPiece::kick }        // 7: Main Kick (Bottom Mid)
     };
+    constexpr size_t numPositions = sizeof (positions) / sizeof (positions[0]);
 
     for (size_t i = 0; i < callouts.size(); ++i)
     {
-        const auto& pos = positions[i % 7];
+        const auto& pos = positions[i % numPositions];
         const auto bx = kw * pos.xRatio;
         const auto by = kh * pos.yRatio;
 
@@ -660,43 +690,45 @@ void Editor::resized()
     }
 
     // 3. Bottom controls
-    const int bottomY = h - bottomH + 8;
+    const int bottomY = h - bottomH + 6;
 
     // Bottom-Left 4 Knobs (2x2 grid)
     const int kSize = 64;
-    const int kLeft = 28;
-    const int kTop = bottomY + 18;
+    const int kLeft = 32;
+    const int kTop1 = bottomY + 28;
+    const int kTop2 = bottomY + 98;
 
-    masterVolumeKnob->setBounds (kLeft, kTop, kSize, kSize);
-    instPanKnob->setBounds (kLeft + kSize + 14, kTop, kSize, kSize);
-    instPitchKnob->setBounds (kLeft, kTop + kSize + 2, kSize, kSize);
-    instLevelKnob->setBounds (kLeft + kSize + 14, kTop + kSize + 2, kSize, kSize);
+    masterVolumeKnob->setBounds (kLeft, kTop1, kSize, kSize);
+    instPanKnob->setBounds (kLeft + kSize + 16, kTop1, kSize, kSize);
+    instPitchKnob->setBounds (kLeft, kTop2, kSize, kSize);
+    instLevelKnob->setBounds (kLeft + kSize + 16, kTop2, kSize, kSize);
 
     // Bottom-Center MIDI Activity Panel
-    const int scopeX = kLeft + (kSize * 2) + 38;
+    const int scopeX = kLeft + (kSize * 2) + 36;
     const int scopeW = w - scopeX - 250;
-    scope.setBounds (scopeX, bottomY + 8, scopeW, bottomH - 24);
+    scope.setBounds (scopeX, bottomY + 6, scopeW, bottomH - 16);
 
     // Bottom-Right Controls
-    const int rightX = scopeX + scopeW + 18;
-    fader1->setBounds (rightX, bottomY + 10, 22, 60);
-    fader2->setBounds (rightX + 28, bottomY + 10, 22, 60);
+    const int rightX = scopeX + scopeW + 16;
+    fader1->setBounds (rightX, bottomY + 14, 22, 68);
+    fader2->setBounds (rightX + 28, bottomY + 14, 22, 68);
 
-    attackKnob->setBounds (rightX + 70, bottomY + 68, kSize, kSize);
-    decayKnob->setBounds (rightX + 70 + kSize + 10, bottomY + 68, kSize, kSize);
+    attackKnob->setBounds (rightX + 70, bottomY + 86, kSize, kSize);
+    decayKnob->setBounds (rightX + 70 + kSize + 12, bottomY + 86, kSize, kSize);
 }
 
 //==============================================================================
 void Editor::drawLeaderArrows (juce::Graphics& g)
 {
     g.setColour (theme.ink.withAlpha (0.75f));
+    const auto offset = kitArea.getPosition().toFloat();
 
     for (const auto& box : callouts)
     {
-        const auto start = box->getLeaderStartPoint (&kitArea);
-        const auto target = box->getAnchor();
+        const auto start = box->getLeaderStartPoint (&kitArea) + offset;
+        const auto target = box->getAnchor() + offset;
 
-        if (target.x <= 0.0f || target.y <= 0.0f)
+        if (target.x <= offset.x || target.y <= offset.y)
             continue;
 
         const auto delta = target - start;
@@ -741,36 +773,18 @@ void Editor::paint (juce::Graphics& g)
     g.fillAll (theme.background);
 
     // 2. Hand-drawn outer window border
-    drawSketchRect (g, b.reduced (4.0f), theme.panelEdge, 2.2f, 1);
-    drawSketchRect (g, b.reduced (6.5f), theme.panelEdge.withAlpha (0.4f), 1.0f, 3);
-
-    // Window controls in top right (_ □ ✕)
-    const float winBtnY = 12.0f;
-    const float winBtnX = b.getRight() - 65.0f;
-    g.setColour (theme.ink);
-    drawSketchRect (g, juce::Rectangle<float> (winBtnX, winBtnY, 14.0f, 12.0f), theme.ink, 1.2f, 4);
-    g.drawLine (winBtnX + 2.0f, winBtnY + 8.0f, winBtnX + 12.0f, winBtnY + 8.0f, 1.4f); // _
-
-    drawSketchRect (g, juce::Rectangle<float> (winBtnX + 18.0f, winBtnY, 14.0f, 12.0f), theme.ink, 1.2f, 5); // □
-    drawSketchRect (g, juce::Rectangle<float> (winBtnX + 36.0f, winBtnY, 14.0f, 12.0f), theme.ink, 1.2f, 6);
-    g.drawLine (winBtnX + 39.0f, winBtnY + 2.0f, winBtnX + 47.0f, winBtnY + 10.0f, 1.4f); // ✕
-    g.drawLine (winBtnX + 47.0f, winBtnY + 2.0f, winBtnX + 39.0f, winBtnY + 10.0f, 1.4f);
-
-    // Mini Glorp cat in top left window frame corner
-    g.fillEllipse (12.0f, 10.0f, 10.0f, 8.0f);
-    g.drawLine (13.0f, 10.0f, 11.0f, 5.0f, 1.4f);
-    g.drawLine (19.0f, 10.0f, 21.0f, 5.0f, 1.4f);
+    drawSketchRect (g, b.reduced (3.0f), theme.panelEdge, 2.0f, 1);
 
     // 3. Glorp Logo & Wordmark
     if (logo != nullptr)
     {
-        auto logoTarget = juce::Rectangle<float> (28.0f, 14.0f, 44.0f, 36.0f);
+        auto logoTarget = juce::Rectangle<float> (28.0f, 12.0f, 44.0f, 38.0f);
         logo->drawWithin (g, logoTarget, juce::RectanglePlacement::xLeft | juce::RectanglePlacement::yMid, 1.0f);
     }
 
     g.setFont (displayFont (36.0f));
     g.setColour (theme.ink);
-    g.drawText ("GlorpDrums", juce::Rectangle<float> (76.0f, 12.0f, 240.0f, 38.0f),
+    g.drawText ("GlorpDrums", juce::Rectangle<float> (78.0f, 12.0f, 240.0f, 38.0f),
                 juce::Justification::centredLeft, false);
 
     // 4. Dashed Leader Arrows connecting callouts to drums
@@ -784,7 +798,7 @@ void Editor::paint (juce::Graphics& g)
         : "DRUM INSTRUMENT";
 
     auto badgeArea = juce::Rectangle<float> (static_cast<float> (kLeft),
-                                             static_cast<float> (kTop - 20),
+                                             static_cast<float> (kTop - 22),
                                              static_cast<float> (instPanKnob->getRight() - kLeft),
                                              18.0f);
 
@@ -808,7 +822,7 @@ void Editor::paint (juce::Graphics& g)
         auto mr = juce::Rectangle<float> (meterX + ch * 16.0f, meterY, meterW, meterH);
         g.setColour (theme.panel);
         g.fillRect (mr);
-        drawSketchRect (g, mr, theme.ink, 1.2f, 15 + ch);
+        drawSketchRect (g, mr, theme.ink, 1.2f, static_cast<unsigned> (15 + ch));
 
         // Crosshatch meter fill
         for (float y = mr.getBottom() - 4.0f; y > mr.getY() + 10.0f; y -= 4.0f)
