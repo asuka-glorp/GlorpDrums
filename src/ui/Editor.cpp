@@ -219,10 +219,11 @@ Editor::Editor (PluginProcessor& p)
                 const auto note = processor.getMidiMap().noteForInstrument (samplerIdx);
                 const int midiNote = (note >= 0) ? note : 36;
 
+                const auto instName = processor.getSampler().instrumentName (samplerIdx);
                 processor.getSampler().noteOn (samplerIdx, midiNote, velocity,
                                                processor.getSampler().currentSamplePosition());
 
-                scope.noteReceived (midiNote, static_cast<int> (velocity * 127.0f));
+                scope.hitReceived (instName, piece, midiNote, velocity);
             }
 
             kitView.triggerHitForPiece (piece, velocity);
@@ -908,7 +909,7 @@ void Editor::selectZone (int logicalIndex, int zoneIndex, bool triggerPreview)
         const int midiNote = (note >= 0) ? note : 36;
         processor.getSampler().noteOn (samplerIdx, midiNote, 1.0f,
                                        processor.getSampler().currentSamplePosition());
-        scope.noteReceived (midiNote, 127);
+        scope.hitReceived (inst.name, inst.piece, midiNote, 1.0f);
 
         if (inst.piece != KitPiece::count)
             kitView.triggerHitForPiece (inst.piece, 1.0f);
@@ -1056,11 +1057,11 @@ void Editor::timerCallback()
 
     while (sampler.popHit (event))
     {
-        kitView.triggerHit (processor.getSampler().instrumentName (event.instrumentIndex),
-                            event.velocity);
+        const auto instName = processor.getSampler().instrumentName (event.instrumentIndex);
+        kitView.triggerHit (instName, event.velocity);
 
-        if (event.note >= 0)
-            scope.noteReceived (event.note, static_cast<int> (event.velocity * 127.0f));
+        const auto piece = DrumKitView::pieceForName (instName);
+        scope.hitReceived (instName, piece, event.note, event.velocity);
 
         anyHit = true;
     }

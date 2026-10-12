@@ -233,6 +233,62 @@ int main()
             png.writeImageToStream (imageEditMode, fosEdit);
             std::cout << "Saved WYSIWYG snapshot to: " << outEditFile.getFullPathName().toStdString() << std::endl;
         }
+
+        // 6. Test Scope 6-Lane Drum Rhythm Ribbon with simultaneous hits
+        std::cout << "Testing Scope 6-Lane Drum Rhythm Ribbon..." << std::endl;
+        for (auto* child : pluginEditor->getChildren())
+        {
+            if (auto* ed = dynamic_cast<glorp::Editor*> (child))
+            {
+                for (auto* edChild : ed->getChildren())
+                {
+                    if (auto* kv = dynamic_cast<glorp::DrumKitView*> (edChild))
+                        kv->setEditMode (false);
+
+                    if (auto* sc = dynamic_cast<glorp::Scope*> (edChild))
+                    {
+                        const double t = juce::Time::getMillisecondCounterHiRes() * 0.001;
+
+                        // 1. Simultaneous chord: Kick + Snare Rimshot + Hi-Hat Closed (Downbeat 1)
+                        sc->hitReceived ("Kick", glorp::KitPiece::kick, 36, 110.0f / 127.0f, t);
+                        sc->hitReceived ("Rimshot", glorp::KitPiece::snare, 40, 122.0f / 127.0f, t);
+                        sc->hitReceived ("HihatClosed", glorp::KitPiece::hihat, 42, 75.0f / 127.0f, t);
+
+                        // 2. Offbeat Hi-Hat ticks & Snare Ghost note
+                        sc->hitReceived ("HihatClosed", glorp::KitPiece::hihat, 42, 65.0f / 127.0f, t - 0.35);
+                        sc->hitReceived ("SnareHead", glorp::KitPiece::snare, 38, 38.0f / 127.0f, t - 0.70);
+                        sc->hitReceived ("HihatClosed", glorp::KitPiece::hihat, 42, 70.0f / 127.0f, t - 1.05);
+
+                        // 3. Tom fill: Tom 1, Tom 2, Floor Tom
+                        sc->hitReceived ("Tom1Head", glorp::KitPiece::tom1, 48, 85.0f / 127.0f, t - 1.40);
+                        sc->hitReceived ("Tom2Head", glorp::KitPiece::tom2, 45, 96.0f / 127.0f, t - 1.65);
+                        sc->hitReceived ("FTomHead", glorp::KitPiece::floorTom, 41, 118.0f / 127.0f, t - 1.90);
+
+                        // 4. Simultaneous Crash 1 + Kick accent
+                        sc->hitReceived ("Crash1Edge", glorp::KitPiece::crash1, 49, 126.0f / 127.0f, t - 2.30);
+                        sc->hitReceived ("Kick", glorp::KitPiece::kick, 36, 115.0f / 127.0f, t - 2.30);
+
+                        // 5. Crash 2 & Ride hits
+                        sc->hitReceived ("Crash2Bow", glorp::KitPiece::crash2, 89, 90.0f / 127.0f, t - 2.70);
+                        sc->hitReceived ("RideBell", glorp::KitPiece::ride, 53, 98.0f / 127.0f, t - 3.00);
+
+                        // 6. ETC / Aux Cowbell
+                        sc->hitReceived ("Cowbell", glorp::KitPiece::count, 56, 105.0f / 127.0f, t - 3.25);
+                    }
+                }
+            }
+        }
+
+        auto imageScope = pluginEditor->createComponentSnapshot (pluginEditor->getLocalBounds());
+        juce::File outScopeFile ("/home/servandoc/Documents/DEV/GlorpDrums/test/editor_snapshot_scope.png");
+        outScopeFile.deleteFile();
+        juce::FileOutputStream fosScope (outScopeFile);
+        if (fosScope.openedOk())
+        {
+            juce::PNGImageFormat png;
+            png.writeImageToStream (imageScope, fosScope);
+            std::cout << "Saved Scope snapshot to: " << outScopeFile.getFullPathName().toStdString() << std::endl;
+        }
     }
 
     return 0;
