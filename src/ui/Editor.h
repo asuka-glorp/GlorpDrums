@@ -71,6 +71,7 @@ private:
     juce::PopupMenu buildSettingsMenu();
 
     void armLearn (int samplerIndex);
+    void promptLoadKitFile();
 
     PluginProcessor& processor;
 
@@ -91,6 +92,17 @@ private:
         const juce::String& getInstrumentName() const noexcept { return currentName; }
     private:
         juce::String currentName { "SNARE" };
+    };
+
+    class KitSelectorButton : public juce::Button
+    {
+    public:
+        KitSelectorButton() : juce::Button ("kitSelect") {}
+        void paintButton (juce::Graphics& g, bool isHover, bool isDown) override;
+        void setKitName (const juce::String& name) { currentName = name; repaint(); }
+        const juce::String& getKitName() const noexcept { return currentName; }
+    private:
+        juce::String currentName { "NO KIT LOADED" };
     };
 
     class OutputBusButton : public juce::Button
@@ -130,6 +142,7 @@ private:
     MenuButton midiButton { "MIDI" };
     MenuButton settingsButton { "SETTINGS" };
 
+    KitSelectorButton kitSelectorButton;
     DrumKitView kitView;
     Scope scope;
 

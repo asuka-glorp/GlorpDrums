@@ -56,6 +56,41 @@ void Editor::InstrumentSelectorButton::paintButton (juce::Graphics& g, bool isHo
     g.drawText (currentName.toUpperCase(), textArea, juce::Justification::centred, true);
 }
 
+void Editor::KitSelectorButton::paintButton (juce::Graphics& g, bool isHover, bool /*isDown*/)
+{
+    auto b = getLocalBounds().toFloat().reduced (1.0f);
+
+    // Inner paper background
+    g.setColour (juce::Colour (0xfffcfdfc));
+    g.fillRoundedRectangle (b, 4.0f);
+
+    // Sketched border with orange hover accent
+    const auto borderCol = isHover ? juce::Colour (0xffea8c16) : juce::Colour (0xff111215);
+    drawSketchRect (g, b, borderCol, isHover ? 1.8f : 1.4f, 11);
+
+    // Small comic "KIT:" label on left
+    g.setFont (displayFont (12.0f));
+    g.setColour (juce::Colour (0xff70747c));
+    g.drawText ("KIT:", juce::Rectangle<float> (b.getX() + 10.0f, b.getY(), 32.0f, b.getHeight()),
+                juce::Justification::centredLeft, false);
+
+    // Down chevron on right
+    juce::Path chevron;
+    const float cx = b.getRight() - 14.0f;
+    const float cy = b.getCentreY();
+    chevron.startNewSubPath (cx - 4.0f, cy - 2.0f);
+    chevron.lineTo (cx, cy + 2.5f);
+    chevron.lineTo (cx + 4.0f, cy - 2.0f);
+    g.setColour (isHover ? juce::Colour (0xffea8c16) : juce::Colour (0xff111215));
+    g.strokePath (chevron, juce::PathStrokeType (1.5f));
+
+    // Kit title text in center
+    auto textArea = b.withTrimmedLeft (44.0f).withTrimmedRight (24.0f);
+    g.setFont (displayFont (15.0f));
+    g.setColour (isHover ? juce::Colour (0xffea8c16) : juce::Colour (0xff111215));
+    g.drawText (currentName.toUpperCase(), textArea, juce::Justification::centred, true);
+}
+
 void Editor::OutputBusButton::paintButton (juce::Graphics& g, bool isHover, bool /*isDown*/)
 {
     auto b = getLocalBounds().toFloat().reduced (1.0f);
@@ -291,23 +326,28 @@ void Editor::buildHeaderMenu()
     };
 }
 
+void Editor::promptLoadKitFile()
+{
+    auto chooser = std::make_shared<juce::FileChooser> ("Select DrumKit XML File",
+        juce::File::getSpecialLocation (juce::File::userHomeDirectory),
+        "*.xml");
+
+    chooser->launchAsync (juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
+        [this, chooser] (const juce::FileChooser& fc)
+        {
+            const auto chosen = fc.getResult();
+            if (chosen.existsAsFile())
+                processor.loadKit (chosen.getFullPathName());
+        });
+}
+
 juce::PopupMenu Editor::buildFileMenu()
 {
     juce::PopupMenu menu;
 
     menu.addItem ("Load DrumKit (.xml)...", [this]
     {
-        auto chooser = std::make_shared<juce::FileChooser> ("Select DrumKit XML File",
-            juce::File::getSpecialLocation (juce::File::userHomeDirectory),
-            "*.xml");
-
-        chooser->launchAsync (juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
-            [this, chooser] (const juce::FileChooser& fc)
-            {
-                const auto chosen = fc.getResult();
-                if (chosen.existsAsFile())
-                    processor.loadKit (chosen.getFullPathName());
-            });
+        promptLoadKitFile();
     });
 
     menu.addSeparator();
@@ -495,6 +535,51 @@ void Editor::buildControls()
 
         juce::PopupMenu::Options opts;
         opts = opts.withTargetComponent (&instSelectorButton)
+                   .withParentComponent (this);
+        menu.showMenuAsync (opts);
+    };
+
+    // Kit Selector Dropdown Button (centered above drum kit graphic)
+    addAndMakeVisible (kitSelectorButton);
+    kitSelectorButton.onClick = [this]
+    {
+        juce::PopupMenu menu;
+        const auto& kitList = processor.getKitList();
+        const auto currentPath = processor.getCurrentKitPath();
+
+        menu.addSectionHeader ("AVAILABLE KITS");
+        bool hasKits = false;
+        for (const auto& entry : kitList)
+        {
+            if (! entry.valid)
+                continue;
+
+            hasKits = true;
+            const juce::String path (entry.drumkitPath);
+            const bool isCurrent = (path == currentPath);
+            menu.addItem (entry.displayName, true, isCurrent, [this, path]
+            {
+                processor.loadKit (path);
+            });
+        }
+
+        if (! hasKits)
+            menu.addItem ("(No kits found in scan folders)", false, false, nullptr);
+
+        menu.addSeparator();
+        menu.addItem ("Browse for DrumKit (.xml)...", [this]
+        {
+            promptLoadKitFile();
+        });
+
+        menu.addItem ("Rescan Kit Folders", [this]
+        {
+            processor.refreshKitList();
+            kitChanged();
+        });
+
+        juce::PopupMenu::Options opts;
+        opts = opts.withTargetComponent (&kitSelectorButton)
                    .withParentComponent (this);
         menu.showMenuAsync (opts);
     };
@@ -922,6 +1007,17 @@ void Editor::kitChanged()
 {
     kitErrorText = processor.getLastKitError();
 
+    juce::String title = processor.getSampler().kitTitleString();
+    if (title.isEmpty())
+    {
+        const auto p = processor.getCurrentKitPath();
+        if (p.isNotEmpty())
+            title = juce::File (p).getParentDirectory().getFileName();
+        else
+            title = "GLORP DEMO KIT";
+    }
+    kitSelectorButton.setKitName (title);
+
     buildLogicalInstruments();
 
     std::vector<juce::String> names;
@@ -1094,10 +1190,15 @@ void Editor::resized()
 
     leftPanelHeight = static_cast<float> ((noteRowY + learnH + 12) - panelY);
 
-    // 4. Central drum kit view
+    // 4. Central drum kit view with kit dropdown placed above it
     const int kitX = panelX + panelW + 16;
-    const int kitY = 64;
     const int kitW = w - kitX - 20;
+
+    const int kitDropW = std::min (340, kitW - 20);
+    const int kitDropX = kitX + (kitW - kitDropW) / 2;
+    kitSelectorButton.setBounds (kitDropX, 52, kitDropW, 28);
+
+    const int kitY = 84;
     const int kitH = bottomY - kitY - 8;
     kitView.setBounds (kitX, kitY, kitW, kitH);
 }

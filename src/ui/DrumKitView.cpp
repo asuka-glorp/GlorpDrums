@@ -296,6 +296,9 @@ KitPiece DrumKitView::pieceForName (const juce::String& name)
         || n.contains ("midtom") || n.contains ("mediumtom"))
         return KitPiece::tom2;
 
+    if (n.contains ("cowbell"))
+        return KitPiece::count;
+
     if (n.contains ("ride") || n.contains ("bell"))
         return KitPiece::ride;
 

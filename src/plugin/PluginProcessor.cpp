@@ -60,6 +60,7 @@ PluginProcessor::PluginProcessor()
     };
 
     sampler.setSampleRateAndBlock (44100.0, 512);
+    sampler.setMultiOutMode (true);
     refreshKitList();
 
     if (settings.lastKitPath.isNotEmpty() && juce::File (settings.lastKitPath).existsAsFile())
@@ -181,6 +182,27 @@ double PluginProcessor::getTailLengthSeconds() const
 {
     // Long enough for a ring-out to finish once the tuner has flushed.
     return 4.0;
+}
+
+bool PluginProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
+{
+    // GlorpDrums has no audio inputs
+    if (! layouts.getMainInputChannelSet().isDisabled())
+        return false;
+
+    // Main output bus (Bus 1) must be stereo
+    if (layouts.getMainOutputChannelSet() != juce::AudioChannelSet::stereo())
+        return false;
+
+    // Additional output buses (Buses 2..16) must be stereo or disabled
+    for (int i = 1; i < layouts.outputBuses.size(); ++i)
+    {
+        const auto& set = layouts.outputBuses[i];
+        if (! set.isDisabled() && set != juce::AudioChannelSet::stereo())
+            return false;
+    }
+
+    return true;
 }
 
 //==============================================================================

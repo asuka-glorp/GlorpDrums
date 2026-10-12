@@ -214,6 +214,10 @@ if(GLORP_BUILD_TESTS)
     add_executable(diagnose_crocell_knobs test/diagnose_crocell_knobs.cpp)
     target_include_directories(diagnose_crocell_knobs PRIVATE src src/core src/plugin src/ui)
     target_link_libraries(diagnose_crocell_knobs PRIVATE GlorpDrums GlorpDrumsAssets juce::juce_audio_utils juce::juce_audio_processors juce::juce_recommended_warning_flags)
+
+    add_executable(verify_fixes test/verify_fixes.cpp)
+    target_include_directories(verify_fixes PRIVATE src src/core src/plugin src/ui)
+    target_link_libraries(verify_fixes PRIVATE GlorpDrums GlorpDrumsAssets juce::juce_audio_utils juce::juce_audio_processors juce::juce_recommended_warning_flags)
 endif()
 
 #==================================================================================

@@ -288,7 +288,7 @@ private:
 
     std::atomic<bool> kitLoaded { false };
     std::atomic<bool> anySolo { false };
-    std::atomic<bool> multiOutMode { false };
+    std::atomic<bool> multiOutMode { true };
     std::atomic<int> nextVoiceIndex { 0 };
     std::atomic<uint32_t> randomState { 0x12345678u };
 
