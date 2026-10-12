@@ -242,6 +242,8 @@ void DrumKitView::setEditMode (bool enabled)
         selectedPiece = KitPiece::count;
         isDraggingPiece = false;
         isResizingPiece = false;
+        toastAlpha = 0.0f;
+        toastText = {};
     }
     repaint();
 }

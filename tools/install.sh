@@ -2,7 +2,12 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-BUILD_DIR="${SCRIPT_DIR}/build/cmake/GlorpDrums_artefacts/Release"
+
+if [ -d "${SCRIPT_DIR}/build/GlorpDrums_artefacts/Release" ]; then
+    BUILD_DIR="${SCRIPT_DIR}/build/GlorpDrums_artefacts/Release"
+else
+    BUILD_DIR="${SCRIPT_DIR}/build/cmake/GlorpDrums_artefacts/Release"
+fi
 
 echo "=== Installing GlorpDrums ==="
 
