@@ -34,6 +34,8 @@ struct MicStripParams
     bool  mute = false;
     bool  solo = false;
     bool  phaseInvert = false;     ///< flip polarity (-1x)
+    int   outputBus = 0;           ///< 0 = Master 1/2, 1 = Out 3/4, 2 = Out 5/6 ...
+    bool  sendToMaster = false;    ///< when routed to aux bus, also send to master
 
     // FX rack settings
     bool  fxEnabled = true;

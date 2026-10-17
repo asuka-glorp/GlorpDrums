@@ -168,6 +168,9 @@ public:
     void setMicStripParams (int index, const MicStripParams& params);
     MicStripParams getMicStripParams (int index) const;
 
+    void setMicOutputBus (int index, int bus);
+    int  getMicOutputBus (int index) const;
+
     void setMasterStripParams (const MasterStripParams& params);
     MasterStripParams getMasterStripParams() const;
 

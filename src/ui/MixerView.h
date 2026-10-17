@@ -151,6 +151,7 @@ private:
         HandButton fxBtn    { "FX", true };
         HandButton soloBtn  { "S", true };
         HandButton muteBtn  { "M", true };
+        HandButton busBtn   { "M 1/2" };
 
         // Fader & Meter bounds
         juce::Rectangle<float> faderTrackBounds;

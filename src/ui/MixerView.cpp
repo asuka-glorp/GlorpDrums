@@ -84,29 +84,29 @@ MixerView::HandButton::HandButton (const juce::String& name, bool isToggle)
 void MixerView::HandButton::paintButton (juce::Graphics& g, bool isHover, bool isDown)
 {
     const auto r = getLocalBounds().toFloat().reduced (1.0f);
-    const auto ink = juce::Colour (0xff11141a);
+    const auto ink = juce::Colour (0xff111215);
 
     // Comic offset drop shadow
-    g.setColour (ink.withAlpha (0.4f));
+    g.setColour (ink.withAlpha (0.35f));
     g.fillRoundedRectangle (r.translated (2.0f, 2.0f), 4.0f);
 
     juce::Colour bg;
     if (active)
         bg = activeColour;
     else if (isDown)
-        bg = juce::Colour (0xff252b36);
+        bg = juce::Colour (0xffe5e9dc);
     else if (isHover)
-        bg = juce::Colour (0xff323a48);
+        bg = juce::Colour (0xfff4f6ee);
     else
-        bg = juce::Colour (0xff1c212a);
+        bg = juce::Colour (0xfffcfdfc);
 
     g.setColour (bg);
     g.fillRoundedRectangle (r, 4.0f);
 
-    g.setColour (active ? ink : (isHover ? juce::Colour (0xfff0f3f6) : juce::Colour (0xff8892a0)));
-    g.drawRoundedRectangle (r, 4.0f, active ? 2.0f : 1.2f);
+    drawSketchRect (g, r, ink, active ? 2.0f : 1.4f);
 
-    g.setColour (active ? ink : (isHover ? juce::Colours::white : juce::Colour (0xffd0d6de)));
+    const bool whiteText = (active && (activeColour == juce::Colour (0xffe74c3c) || activeColour == juce::Colour (0xff111215)));
+    g.setColour (whiteText ? juce::Colours::white : ink);
     g.setFont (displayFont (std::min (r.getHeight() * 0.58f, 13.0f)));
     g.drawText (getButtonText(), r, juce::Justification::centred, false);
 }
@@ -155,6 +155,24 @@ MixerView::ChannelStripComponent::ChannelStripComponent (MixerView& o, PluginPro
     };
     addAndMakeVisible (muteBtn);
 
+    busBtn.onClick = [this]() {
+        juce::PopupMenu menu;
+        const int currentBus = processor.getSampler().getMicOutputBus (channelIndex_);
+        for (int b = 0; b < 16; ++b)
+        {
+            const juce::String busLabel = (b == 0) ? "Out 1/2 (Master Mix)"
+                                                   : ("Out " + juce::String (b * 2 + 1) + "/" + juce::String (b * 2 + 2));
+            menu.addItem (busLabel, true, b == currentBus, [this, b]() {
+                processor.getSampler().setMicOutputBus (channelIndex_, b);
+                updateFromState();
+            });
+        }
+        juce::PopupMenu::Options opts;
+        opts = opts.withTargetComponent (&busBtn).withParentComponent (&owner);
+        menu.showMenuAsync (opts);
+    };
+    addAndMakeVisible (busBtn);
+
     updateFromState();
 }
 
@@ -170,23 +188,29 @@ void MixerView::ChannelStripComponent::updateFromState()
                           || std::abs (params.eqMidGainDb) > 0.5f
                           || std::abs (params.eqHighGainDb) > 0.5f;
     fxBtn.setActive (fxActive);
+
+    const int b = processor.getSampler().getMicOutputBus (channelIndex_);
+    busBtn.setButtonText (b == 0 ? "M 1/2" : (juce::String (b * 2 + 1) + "/" + juce::String (b * 2 + 2)));
+    busBtn.activeColour = (b == 0) ? juce::Colour (0xffea8c16) : juce::Colour (0xff3498db);
+    busBtn.setActive (b > 0);
+
     repaint();
 }
 
 void MixerView::ChannelStripComponent::resized()
 {
     const auto r = getLocalBounds().toFloat();
-    phaseBtn.setBounds (r.getX() + 6.0f, 40.0f, (r.getWidth() - 16.0f) * 0.48f, 22.0f);
-    fxBtn.setBounds (r.getX() + 8.0f + (r.getWidth() - 16.0f) * 0.48f, 40.0f, (r.getWidth() - 16.0f) * 0.48f, 22.0f);
+    phaseBtn.setBounds (r.getX() + 6.0f, 38.0f, (r.getWidth() - 16.0f) * 0.48f, 22.0f);
+    fxBtn.setBounds (r.getX() + 8.0f + (r.getWidth() - 16.0f) * 0.48f, 38.0f, (r.getWidth() - 16.0f) * 0.48f, 22.0f);
 
-    panBarBounds = juce::Rectangle<float> (r.getX() + 8.0f, 68.0f, r.getWidth() - 16.0f, 18.0f);
+    panBarBounds = juce::Rectangle<float> (r.getX() + 8.0f, 64.0f, r.getWidth() - 16.0f, 18.0f);
 
-    soloBtn.setBounds (r.getX() + 6.0f, 92.0f, (r.getWidth() - 16.0f) * 0.48f, 22.0f);
-    muteBtn.setBounds (r.getX() + 8.0f + (r.getWidth() - 16.0f) * 0.48f, 92.0f, (r.getWidth() - 16.0f) * 0.48f, 22.0f);
+    soloBtn.setBounds (r.getX() + 6.0f, 86.0f, (r.getWidth() - 16.0f) * 0.48f, 22.0f);
+    muteBtn.setBounds (r.getX() + 8.0f + (r.getWidth() - 16.0f) * 0.48f, 86.0f, (r.getWidth() - 16.0f) * 0.48f, 22.0f);
 
-    // Fader & Meter area: height from y=122 to bottom - 30px
-    const float faderTop = 122.0f;
-    const float faderBottom = r.getBottom() - 32.0f;
+    // Fader & Meter area: height from y=112 to bottom - 56px
+    const float faderTop = 112.0f;
+    const float faderBottom = r.getBottom() - 56.0f;
     const float faderH = faderBottom - faderTop;
 
     faderTrackBounds = juce::Rectangle<float> (r.getX() + 14.0f, faderTop, 24.0f, faderH);
@@ -196,6 +220,8 @@ void MixerView::ChannelStripComponent::resized()
     const float norm = gainToNormalized (params.level);
     const float thumbY = faderTrackBounds.getBottom() - norm * faderTrackBounds.getHeight() - 10.0f;
     faderThumbBounds = juce::Rectangle<float> (faderTrackBounds.getX() - 4.0f, thumbY, faderTrackBounds.getWidth() + 8.0f, 20.0f);
+
+    busBtn.setBounds (r.getX() + 6.0f, r.getBottom() - 26.0f, r.getWidth() - 12.0f, 22.0f);
 }
 
 void MixerView::ChannelStripComponent::paint (juce::Graphics& g)
@@ -204,69 +230,69 @@ void MixerView::ChannelStripComponent::paint (juce::Graphics& g)
     const auto name = processor.getSampler().micStripTitle (channelIndex_);
     const auto accent = getMicColor (name);
     const auto params = processor.getSampler().getMicStripParams (channelIndex_);
+    const auto ink = juce::Colour (0xff111215);
 
-    // Strip background
-    g.setColour (juce::Colour (0xff141820));
+    // Comic offset drop shadow
+    g.setColour (ink.withAlpha (0.32f));
+    g.fillRoundedRectangle (r.translated (3.0f, 3.0f), 6.0f);
+
+    // Strip background: hand-drawn sketchbook paper
+    g.setColour (juce::Colour (0xfffcfdfc));
     g.fillRoundedRectangle (r, 6.0f);
 
-    // Subtle drop border
-    g.setColour (juce::Colour (0xff252b38));
-    g.drawRoundedRectangle (r, 6.0f, 1.5f);
+    // Sketched ink border
+    drawSketchRect (g, r, ink, 1.8f, channelIndex_ * 7 + 13);
 
     // Top Channel Badge
-    auto badgeR = juce::Rectangle<float> (r.getX() + 4.0f, r.getY() + 4.0f, r.getWidth() - 8.0f, 28.0f);
-    g.setColour (accent.withAlpha (0.22f));
-    g.fillRoundedRectangle (badgeR, 4.0f);
+    auto badgeR = juce::Rectangle<float> (r.getX() + 4.0f, r.getY() + 4.0f, r.getWidth() - 8.0f, 26.0f);
     g.setColour (accent);
-    g.drawRoundedRectangle (badgeR, 4.0f, 1.5f);
+    g.fillRoundedRectangle (badgeR, 4.0f);
+    drawSketchRect (g, badgeR, ink, 1.5f, channelIndex_ * 11 + 3);
 
     g.setColour (juce::Colours::white);
     g.setFont (displayFont (11.0f));
     g.drawFittedText (name.toUpperCase(), badgeR.reduced (2.0f).toNearestInt(), juce::Justification::centred, 1);
 
-    // Pan Bar
-    g.setColour (juce::Colour (0xff0f131a));
+    // Pan Bar: warm paper slot with ink border
+    g.setColour (juce::Colour (0xfff5f3ec));
     g.fillRoundedRectangle (panBarBounds, 3.0f);
-    g.setColour (juce::Colour (0xff323a48));
-    g.drawRoundedRectangle (panBarBounds, 3.0f, 1.0f);
+    drawSketchRect (g, panBarBounds, ink, 1.2f, 99);
 
     const float centerX = panBarBounds.getCentreX();
     const float panOffset = params.pan * (panBarBounds.getWidth() * 0.45f);
     if (std::abs (params.pan) > 0.02f)
     {
-        g.setColour (juce::Colour (0xff3498db));
+        g.setColour (juce::Colour (0xffea8c16)); // comic warm amber
         if (params.pan > 0.0f)
             g.fillRect (centerX, panBarBounds.getY() + 2.0f, panOffset, panBarBounds.getHeight() - 4.0f);
         else
             g.fillRect (centerX + panOffset, panBarBounds.getY() + 2.0f, -panOffset, panBarBounds.getHeight() - 4.0f);
     }
     // Center tick
-    g.setColour (juce::Colour (0xff636e72));
+    g.setColour (ink);
     g.drawVerticalLine (static_cast<int> (centerX), panBarBounds.getY(), panBarBounds.getBottom());
 
-    g.setColour (juce::Colour (0xffc0c8d4));
+    g.setColour (ink);
     g.setFont (displayFont (9.0f));
     juce::String panStr = "C";
     if (params.pan < -0.05f) panStr = "L" + juce::String (static_cast<int> (-params.pan * 100.0f));
     else if (params.pan > 0.05f) panStr = "R" + juce::String (static_cast<int> (params.pan * 100.0f));
     g.drawText (panStr, panBarBounds, juce::Justification::centred, false);
 
-    // Fader Track
-    g.setColour (juce::Colour (0xff0a0d12));
+    // Fader Track: sketched vertical slot
+    g.setColour (juce::Colour (0xffede8dc));
     g.fillRoundedRectangle (faderTrackBounds, 4.0f);
-    g.setColour (juce::Colour (0xff28313e));
-    g.drawRoundedRectangle (faderTrackBounds, 4.0f, 1.0f);
+    drawSketchRect (g, faderTrackBounds, ink, 1.4f, 101);
 
     // 0dB Tick mark
     const float zeroY = faderTrackBounds.getBottom() - 0.75f * faderTrackBounds.getHeight();
-    g.setColour (juce::Colour (0xff8892a0));
-    g.drawHorizontalLine (static_cast<int> (zeroY), faderTrackBounds.getX() - 3.0f, faderTrackBounds.getX());
+    g.setColour (ink);
+    g.drawHorizontalLine (static_cast<int> (zeroY), faderTrackBounds.getX() - 4.0f, faderTrackBounds.getX());
 
-    // LED Meter
-    g.setColour (juce::Colour (0xff080b0f));
+    // LED Meter: retro comic meter capsule
+    g.setColour (juce::Colour (0xfff0eee6));
     g.fillRoundedRectangle (meterBounds, 3.0f);
-    g.setColour (juce::Colour (0xff202632));
-    g.drawRoundedRectangle (meterBounds, 3.0f, 1.0f);
+    drawSketchRect (g, meterBounds, ink, 1.3f, 202);
 
     const float peakL = processor.getSampler().getMicPeakL (channelIndex_);
     const float rmsL  = processor.getSampler().getMicRmsL  (channelIndex_);
@@ -278,56 +304,59 @@ void MixerView::ChannelStripComponent::paint (juce::Graphics& g)
     const float meterX = meterBounds.getX() + 2.0f;
     const float meterY = meterBounds.getY() + 2.0f;
 
-    // Draw active RMS meter bar
+    // Draw active RMS meter bar in discrete comic segments
     if (normRms > 0.01f)
     {
-        const float fillH = normRms * meterH;
-        juce::ColourGradient grad (juce::Colour (0xff2ecc71), meterX, meterY + meterH,
-                                   juce::Colour (0xffe74c3c), meterX, meterY, false);
-        grad.addColour (0.70, juce::Colour (0xfff1c40f));
-        g.setGradientFill (grad);
-        g.fillRect (meterX, meterY + meterH - fillH, meterW, fillH);
+        constexpr int numSegs = 16;
+        const int activeSegs = std::clamp (static_cast<int> (normRms * numSegs), 1, numSegs);
+        const float segH = meterH / numSegs;
+
+        for (int s = 0; s < activeSegs; ++s)
+        {
+            const float sy = meterY + meterH - (s + 1) * segH;
+            juce::Colour segCol = juce::Colour (0xff2ecc71); // Green
+            if (s >= 13) segCol = juce::Colour (0xffe74c3c); // Red peak
+            else if (s >= 10) segCol = juce::Colour (0xfff1c40f); // Amber / Yellow
+
+            g.setColour (segCol);
+            g.fillRoundedRectangle (meterX, sy + 0.5f, meterW, segH - 1.0f, 1.0f);
+        }
     }
 
     // Peak hold line
     if (normPeak > 0.02f)
     {
         const float peakY = meterY + meterH - normPeak * meterH;
-        g.setColour (normPeak >= 0.98f ? juce::Colour (0xffff0055) : juce::Colours::white);
+        g.setColour (normPeak >= 0.98f ? juce::Colour (0xffe74c3c) : ink);
         g.fillRect (meterX, peakY - 1.0f, meterW, 2.0f);
     }
 
-    // Fader Thumb
+    // Fader Thumb: hand-drawn beveled paper cap with ink border & drop shadow
     const float normGain = gainToNormalized (params.level);
     const float thumbY = faderTrackBounds.getBottom() - normGain * faderTrackBounds.getHeight() - 10.0f;
     auto thumbR = juce::Rectangle<float> (faderTrackBounds.getX() - 5.0f, thumbY, faderTrackBounds.getWidth() + 10.0f, 20.0f);
 
     // Drop shadow
-    g.setColour (juce::Colour (0x66000000));
+    g.setColour (ink.withAlpha (0.4f));
     g.fillRoundedRectangle (thumbR.translated (2.0f, 2.0f), 3.0f);
 
     // Thumb cap
-    juce::ColourGradient thumbGrad (juce::Colour (0xff3a4454), thumbR.getX(), thumbR.getY(),
-                                    juce::Colour (0xff1f242e), thumbR.getX(), thumbR.getBottom(), false);
-    g.setGradientFill (thumbGrad);
+    g.setColour (juce::Colour (0xffffffff));
     g.fillRoundedRectangle (thumbR, 3.0f);
+    drawSketchRect (g, thumbR, ink, 1.8f, 55);
 
-    g.setColour (juce::Colour (0xff606c7e));
-    g.drawRoundedRectangle (thumbR, 3.0f, 1.2f);
-
-    // Center indicator line
+    // Center indicator stripe
     g.setColour (accent);
-    g.fillRect (thumbR.getX() + 2.0f, thumbR.getCentreY() - 1.0f, thumbR.getWidth() - 4.0f, 2.0f);
+    g.fillRect (thumbR.getX() + 2.0f, thumbR.getCentreY() - 1.5f, thumbR.getWidth() - 4.0f, 3.0f);
 
     // Numeric dB Display
-    auto dbRect = juce::Rectangle<float> (r.getX() + 4.0f, r.getBottom() - 26.0f, r.getWidth() - 8.0f, 20.0f);
-    g.setColour (juce::Colour (0xff0a0d12));
+    auto dbRect = juce::Rectangle<float> (r.getX() + 4.0f, r.getBottom() - 50.0f, r.getWidth() - 8.0f, 18.0f);
+    g.setColour (juce::Colour (0xfff5f3ec));
     g.fillRoundedRectangle (dbRect, 3.0f);
-    g.setColour (juce::Colour (0xff222a36));
-    g.drawRoundedRectangle (dbRect, 3.0f, 1.0f);
+    drawSketchRect (g, dbRect, ink, 1.2f, 77);
 
-    g.setColour (params.level > 1.0f ? juce::Colour (0xffff6b81) : juce::Colour (0xffd0d6de));
-    g.setFont (displayFont (10.0f));
+    g.setColour (params.level > 1.0f ? juce::Colour (0xffd03020) : ink);
+    g.setFont (displayFont (9.5f));
     g.drawText (formatDb (params.level), dbRect, juce::Justification::centred, false);
 }
 
@@ -440,61 +469,64 @@ void MixerView::MasterStripComponent::paint (juce::Graphics& g)
 {
     const auto r = getLocalBounds().toFloat().reduced (2.0f);
     const auto params = processor.getSampler().getMasterStripParams();
+    const auto ink = juce::Colour (0xff101114);
 
-    g.setColour (juce::Colour (0xff12161f));
+    // Drop shadow
+    g.setColour (ink.withAlpha (0.25f));
+    g.fillRoundedRectangle (r.translated (3.0f, 3.0f), 6.0f);
+
+    // Master Paper Panel
+    g.setColour (juce::Colour (0xfffcfdfc));
     g.fillRoundedRectangle (r, 6.0f);
-    g.setColour (juce::Colour (0xffe74c3c)); // Red master border
-    g.drawRoundedRectangle (r, 6.0f, 2.0f);
+    drawSketchRect (g, r, ink, 2.0f, 90);
 
-    // Master Header Badge
+    // Master Header Badge: Gold/Amber warm comic pill
     auto badgeR = juce::Rectangle<float> (r.getX() + 4.0f, r.getY() + 4.0f, r.getWidth() - 8.0f, 28.0f);
-    g.setColour (juce::Colour (0x33e74c3c));
+    g.setColour (ink.withAlpha (0.25f));
+    g.fillRoundedRectangle (badgeR.translated (1.5f, 1.5f), 4.0f);
+    g.setColour (juce::Colour (0xffffeaa7)); // warm golden comic pill
     g.fillRoundedRectangle (badgeR, 4.0f);
-    g.setColour (juce::Colour (0xffe74c3c));
-    g.drawRoundedRectangle (badgeR, 4.0f, 1.5f);
+    drawSketchRect (g, badgeR, ink, 1.5f, 91);
 
-    g.setColour (juce::Colours::white);
-    g.setFont (displayFont (12.0f));
+    g.setColour (ink);
+    g.setFont (displayFont (12.5f));
     g.drawText ("MASTER BUS", badgeR, juce::Justification::centred, false);
 
     // Master Pan Bar
-    g.setColour (juce::Colour (0xff0a0d12));
+    g.setColour (juce::Colour (0xffedebe4));
     g.fillRoundedRectangle (panBarBounds, 3.0f);
-    g.setColour (juce::Colour (0xff323a48));
-    g.drawRoundedRectangle (panBarBounds, 3.0f, 1.0f);
+    drawSketchRect (g, panBarBounds, ink, 1.2f, 92);
 
     const float centerX = panBarBounds.getCentreX();
     const float panOffset = params.pan * (panBarBounds.getWidth() * 0.45f);
     if (std::abs (params.pan) > 0.02f)
     {
-        g.setColour (juce::Colour (0xffe74c3c));
+        g.setColour (juce::Colour (0xffea8c16)); // Warm orange accent
         if (params.pan > 0.0f)
             g.fillRect (centerX, panBarBounds.getY() + 2.0f, panOffset, panBarBounds.getHeight() - 4.0f);
         else
             g.fillRect (centerX + panOffset, panBarBounds.getY() + 2.0f, -panOffset, panBarBounds.getHeight() - 4.0f);
     }
-    g.setColour (juce::Colour (0xff636e72));
+    g.setColour (ink);
     g.drawVerticalLine (static_cast<int> (centerX), panBarBounds.getY(), panBarBounds.getBottom());
 
-    // Fader Track
-    g.setColour (juce::Colour (0xff0a0d12));
+    // Fader Track: paper trough
+    g.setColour (juce::Colour (0xffedebe4));
     g.fillRoundedRectangle (faderTrackBounds, 4.0f);
-    g.setColour (juce::Colour (0xff28313e));
-    g.drawRoundedRectangle (faderTrackBounds, 4.0f, 1.0f);
+    drawSketchRect (g, faderTrackBounds, ink, 1.2f, 93);
 
     // 0dB mark
     const float zeroY = faderTrackBounds.getBottom() - 0.75f * faderTrackBounds.getHeight();
-    g.setColour (juce::Colour (0xff8892a0));
+    g.setColour (ink.withAlpha (0.6f));
     g.drawHorizontalLine (static_cast<int> (zeroY), faderTrackBounds.getX() - 3.0f, faderTrackBounds.getX());
 
-    // Dual meters
+    // Dual meters (L and R) with discrete comic segments
     for (int ch = 0; ch < 2; ++ch)
     {
         const auto mR = (ch == 0 ? meterLBounds : meterRBounds);
-        g.setColour (juce::Colour (0xff080b0f));
+        g.setColour (juce::Colour (0xffedebe4));
         g.fillRoundedRectangle (mR, 2.0f);
-        g.setColour (juce::Colour (0xff202632));
-        g.drawRoundedRectangle (mR, 2.0f, 1.0f);
+        drawSketchRect (g, mR, ink, 1.0f, 94 + ch);
 
         const float peak = (ch == 0 ? processor.getSampler().getMasterPeakL() : processor.getSampler().getMasterPeakR());
         const float rms  = (ch == 0 ? processor.getSampler().getMasterRmsL()  : processor.getSampler().getMasterRmsR());
@@ -508,46 +540,53 @@ void MixerView::MasterStripComponent::paint (juce::Graphics& g)
 
         if (normRms > 0.01f)
         {
-            const float fillH = normRms * mH;
-            juce::ColourGradient grad (juce::Colour (0xff2ecc71), mX, mY + mH,
-                                       juce::Colour (0xffe74c3c), mX, mY, false);
-            grad.addColour (0.70, juce::Colour (0xfff1c40f));
-            g.setGradientFill (grad);
-            g.fillRect (mX, mY + mH - fillH, mW, fillH);
+            constexpr int numSegs = 16;
+            const int activeSegs = std::clamp (static_cast<int> (normRms * numSegs), 1, numSegs);
+            const float segH = mH / numSegs;
+
+            for (int s = 0; s < activeSegs; ++s)
+            {
+                const float sy = mY + mH - (s + 1) * segH;
+                juce::Colour segCol = juce::Colour (0xff2ecc71); // Green
+                if (s >= 13) segCol = juce::Colour (0xffe74c3c); // Red peak
+                else if (s >= 10) segCol = juce::Colour (0xfff1c40f); // Amber / Yellow
+
+                g.setColour (segCol);
+                g.fillRoundedRectangle (mX, sy + 0.5f, mW, segH - 1.0f, 1.0f);
+            }
         }
 
         if (normPeak > 0.02f)
         {
             const float peakY = mY + mH - normPeak * mH;
-            g.setColour (normPeak >= 0.98f ? juce::Colour (0xffff0055) : juce::Colours::white);
+            g.setColour (normPeak >= 0.98f ? juce::Colour (0xffe74c3c) : ink);
             g.fillRect (mX, peakY - 1.0f, mW, 2.0f);
         }
     }
 
-    // Master Fader Cap
+    // Master Fader Cap: clean paper cap with ink border & crimson stripe
     const float normGain = gainToNormalized (params.level);
     const float thumbY = faderTrackBounds.getBottom() - normGain * faderTrackBounds.getHeight() - 10.0f;
     auto thumbR = juce::Rectangle<float> (faderTrackBounds.getX() - 4.0f, thumbY, faderTrackBounds.getWidth() + 8.0f, 20.0f);
 
-    g.setColour (juce::Colour (0x66000000));
+    g.setColour (ink.withAlpha (0.4f));
     g.fillRoundedRectangle (thumbR.translated (2.0f, 2.0f), 3.0f);
 
-    juce::ColourGradient thumbGrad (juce::Colour (0xff4a1218), thumbR.getX(), thumbR.getY(),
-                                    juce::Colour (0xff1f0c0f), thumbR.getX(), thumbR.getBottom(), false);
-    g.setGradientFill (thumbGrad);
+    g.setColour (juce::Colour (0xffffffff));
     g.fillRoundedRectangle (thumbR, 3.0f);
+    drawSketchRect (g, thumbR, ink, 1.8f, 97);
+
+    // Crimson master stripe
     g.setColour (juce::Colour (0xffe74c3c));
-    g.drawRoundedRectangle (thumbR, 3.0f, 1.2f);
-    g.fillRect (thumbR.getX() + 2.0f, thumbR.getCentreY() - 1.0f, thumbR.getWidth() - 4.0f, 2.0f);
+    g.fillRect (thumbR.getX() + 2.0f, thumbR.getCentreY() - 1.5f, thumbR.getWidth() - 4.0f, 3.0f);
 
     // Master dB display
     auto dbRect = juce::Rectangle<float> (r.getX() + 6.0f, r.getBottom() - 26.0f, r.getWidth() - 12.0f, 20.0f);
-    g.setColour (juce::Colour (0xff0a0d12));
+    g.setColour (juce::Colour (0xfff5f3ec));
     g.fillRoundedRectangle (dbRect, 3.0f);
-    g.setColour (juce::Colour (0xff323a48));
-    g.drawRoundedRectangle (dbRect, 3.0f, 1.0f);
+    drawSketchRect (g, dbRect, ink, 1.2f, 98);
 
-    g.setColour (params.level > 1.0f ? juce::Colour (0xffff6b81) : juce::Colour (0xffd0d6de));
+    g.setColour (params.level > 1.0f ? juce::Colour (0xffd03020) : ink);
     g.setFont (displayFont (10.0f));
     g.drawText (formatDb (params.level), dbRect, juce::Justification::centred, false);
 }
@@ -764,31 +803,36 @@ void MixerView::ChannelFXPopup::resized()
 void MixerView::ChannelFXPopup::paint (juce::Graphics& g)
 {
     const auto r = getLocalBounds().toFloat().reduced (2.0f);
+    const auto ink = juce::Colour (0xff101114);
 
     // Backdrop shadow
-    g.setColour (juce::Colour (0x99000000));
+    g.setColour (ink.withAlpha (0.35f));
     g.fillRoundedRectangle (r.translated (4.0f, 4.0f), 8.0f);
 
-    // Container body
-    g.setColour (juce::Colour (0xff171c26));
+    // Paper sketchbook card
+    g.setColour (juce::Colour (0xfffcfdfc));
     g.fillRoundedRectangle (r, 8.0f);
-    g.setColour (juce::Colour (0xfff39c12)); // Warm gold border
-    g.drawRoundedRectangle (r, 8.0f, 2.0f);
+    drawSketchRect (g, r, ink, 2.2f, 101);
 
-    // Header
+    // Header banner
+    auto headerR = juce::Rectangle<float> (r.getX() + 4.0f, r.getY() + 4.0f, r.getWidth() - 8.0f, 32.0f);
+    g.setColour (juce::Colour (0xffffeaa7)); // Golden banner
+    g.fillRoundedRectangle (headerR, 6.0f);
+    drawSketchRect (g, headerR, ink, 1.4f, 102);
+
     const auto name = currentChannel >= 0 ? processor.getSampler().micStripTitle (currentChannel) : "";
-    g.setColour (juce::Colours::white);
-    g.setFont (displayFont (15.0f));
+    g.setColour (ink);
+    g.setFont (displayFont (16.0f));
     g.drawText ("CHANNEL FX RACK: " + name.toUpperCase(), 24, 14, getWidth() - 120, 24, juce::Justification::left, false);
 
     // Dividing lines
-    g.setColour (juce::Colour (0xff252c3c));
+    g.setColour (ink.withAlpha (0.25f));
     g.drawHorizontalLine (112, 20.0f, getWidth() - 20.0f);
     g.drawHorizontalLine (186, 20.0f, getWidth() - 20.0f);
 
     // Section labels
-    g.setColour (juce::Colour (0xff8892a0));
-    g.setFont (displayFont (11.0f));
+    g.setColour (ink);
+    g.setFont (displayFont (11.5f));
     g.drawText ("3-BAND EQ", 24, 78, 90, 20, juce::Justification::left, false);
     g.drawText ("VCA COMP", 24, 152, 90, 20, juce::Justification::left, false);
     g.drawText ("TAPE & TRANSIENT", 24, 214, 96, 20, juce::Justification::left, false);
@@ -886,16 +930,24 @@ void MixerView::MasterFXPopup::resized()
 void MixerView::MasterFXPopup::paint (juce::Graphics& g)
 {
     const auto r = getLocalBounds().toFloat().reduced (2.0f);
+    const auto ink = juce::Colour (0xff101114);
 
-    g.setColour (juce::Colour (0x99000000));
+    // Backdrop shadow
+    g.setColour (ink.withAlpha (0.35f));
     g.fillRoundedRectangle (r.translated (4.0f, 4.0f), 8.0f);
 
-    g.setColour (juce::Colour (0xff171c26));
+    // Paper card
+    g.setColour (juce::Colour (0xfffcfdfc));
     g.fillRoundedRectangle (r, 8.0f);
-    g.setColour (juce::Colour (0xff9b59b6)); // Purple border
-    g.drawRoundedRectangle (r, 8.0f, 2.0f);
+    drawSketchRect (g, r, ink, 2.2f, 103);
 
-    g.setColour (juce::Colours::white);
+    // Header banner
+    auto headerR = juce::Rectangle<float> (r.getX() + 4.0f, r.getY() + 4.0f, r.getWidth() - 8.0f, 32.0f);
+    g.setColour (juce::Colour (0xffdfe6e9)); // Soft paper banner
+    g.fillRoundedRectangle (headerR, 6.0f);
+    drawSketchRect (g, headerR, ink, 1.4f, 104);
+
+    g.setColour (ink);
     g.setFont (displayFont (15.0f));
     g.drawText ("MASTER REVERB & DYNAMICS", 24, 14, getWidth() - 120, 24, juce::Justification::left, false);
 }
@@ -1116,11 +1168,13 @@ void MixerView::resized()
 
 void MixerView::paint (juce::Graphics& g)
 {
-    g.fillAll (juce::Colour (0xff0f1218));
+    // Warm paper desk background matching the plugin theme
+    g.fillAll (juce::Colour (0xffe2e5e2));
 
     // Preset label
-    g.setColour (juce::Colour (0xff8892a0));
-    g.setFont (displayFont (11.0f));
+    const auto ink = juce::Colour (0xff101114);
+    g.setColour (ink);
+    g.setFont (displayFont (12.0f));
     g.drawText ("ACTIVE PRESET: " + activePresetName.toUpperCase(),
                 getWidth() - 280, 14, 160, 20, juce::Justification::right, false);
 }

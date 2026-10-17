@@ -218,22 +218,25 @@ void Editor::VelocityCurvePreview::mouseDown (const juce::MouseEvent& /*e*/)
 
 void Editor::VelocityCurvePreview::paint (juce::Graphics& g)
 {
-    auto b = getLocalBounds().toFloat().reduced (1.0f);
+    auto b = getLocalBounds().toFloat().reduced (2.0f);
+    const auto ink = juce::Colour (0xff111215);
 
-    // Deep tech/navy viewport background (DrumGizmo style)
-    const auto bgCol = juce::Colour (0xff101721);
-    const auto borderCol = juce::Colour (0xff26374a);
-    g.setColour (bgCol);
-    g.fillRoundedRectangle (b, 4.0f);
+    // Comic drop shadow
+    g.setColour (ink.withAlpha (0.35f));
+    g.fillRoundedRectangle (b.translated (3.0f, 3.0f), 5.0f);
 
-    g.setColour (borderCol);
-    g.drawRoundedRectangle (b, 4.0f, 1.2f);
+    // Hand-drawn sketchbook paper viewport background
+    g.setColour (juce::Colour (0xfffcfdfc));
+    g.fillRoundedRectangle (b, 5.0f);
+
+    // Sketched ink border
+    drawSketchRect (g, b, ink, 2.0f, 42);
 
     // Plot area margins: left for 'out', bottom for 'in'
-    const float labelMarginL = 16.0f;
-    const float labelMarginB = 14.0f;
-    const float padR = 8.0f;
-    const float padT = 8.0f;
+    const float labelMarginL = 18.0f;
+    const float labelMarginB = 16.0f;
+    const float padR = 10.0f;
+    const float padT = 10.0f;
 
     const auto plotArea = juce::Rectangle<float> (
         b.getX() + labelMarginL,
@@ -242,15 +245,19 @@ void Editor::VelocityCurvePreview::paint (juce::Graphics& g)
         std::max (10.0f, b.getHeight() - padT - labelMarginB)
     );
 
-    // Faint grid lines at 25%, 50%, 75%
-    g.setColour (juce::Colour (0x1f4ea8de));
+    // Warm pencil graph paper background
+    g.setColour (juce::Colour (0xfff5f3ec));
+    g.fillRect (plotArea);
+
+    // Pencil grid lines at 25%, 50%, 75%
+    g.setColour (juce::Colour (0x444b4e54));
     for (int step = 1; step <= 3; ++step)
     {
         const float frac = step * 0.25f;
         const float gx = plotArea.getX() + frac * plotArea.getWidth();
         const float gy = plotArea.getY() + frac * plotArea.getHeight();
 
-        static constexpr float dashLengths[] = { 2.0f, 2.0f };
+        static constexpr float dashLengths[] = { 3.0f, 2.0f };
         g.drawDashedLine (juce::Line<float> (gx, plotArea.getY(), gx, plotArea.getBottom()),
                           dashLengths, 2, 0.8f);
         g.drawDashedLine (juce::Line<float> (plotArea.getX(), gy, plotArea.getRight(), gy),
@@ -258,20 +265,19 @@ void Editor::VelocityCurvePreview::paint (juce::Graphics& g)
     }
 
     // Border around plot area
-    g.setColour (juce::Colour (0x285b92e5));
-    g.drawRect (plotArea, 1.0f);
+    drawSketchRect (g, plotArea, ink, 1.2f, 88);
 
-    // Axis labels: "out" on left, "in" on bottom
-    g.setFont (uiFont (9.0f));
-    g.setColour (juce::Colour (0x9989b4d8));
+    // Axis labels: "OUT" on left, "IN" on bottom in comic font
+    g.setFont (displayFont (9.5f));
+    g.setColour (ink);
 
-    // "out" stacked vertically
+    // "OUT" stacked vertically
     const auto leftLabelArea = juce::Rectangle<float> (b.getX() + 2.0f, plotArea.getY(), labelMarginL - 4.0f, plotArea.getHeight());
-    g.drawFittedText ("o\nu\nt", leftLabelArea.toNearestInt(), juce::Justification::centred, 3);
+    g.drawFittedText ("O\nU\nT", leftLabelArea.toNearestInt(), juce::Justification::centred, 3);
 
-    // "in" centered along bottom
+    // "IN" centered along bottom
     const auto bottomLabelArea = juce::Rectangle<float> (plotArea.getX(), plotArea.getBottom() + 1.0f, plotArea.getWidth(), labelMarginB - 2.0f);
-    g.drawText ("in", bottomLabelArea, juce::Justification::centred, false);
+    g.drawText ("IN", bottomLabelArea, juce::Justification::centred, false);
 
     // Plot response curve: y = f(x)
     juce::Path curvePath;
@@ -306,23 +312,23 @@ void Editor::VelocityCurvePreview::paint (juce::Graphics& g)
             curvePath.lineTo (px, py);
     }
 
-    // Faint neon underglow
-    g.setColour (juce::Colour (0x332ecc71));
-    g.strokePath (curvePath, juce::PathStrokeType (3.5f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+    // Bold comic ink outline under the curve
+    g.setColour (ink);
+    g.strokePath (curvePath, juce::PathStrokeType (3.8f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
 
-    // Crisp neon curve stroke (DrumGizmo green)
-    g.setColour (juce::Colour (0xff39e75f));
-    g.strokePath (curvePath, juce::PathStrokeType (2.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+    // Vibrant comic curve stroke
+    g.setColour (juce::Colour (0xffea8c16));
+    g.strokePath (curvePath, juce::PathStrokeType (2.2f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
 
-    // Anchor points (DrumGizmo style: Green start, Yellow mid, Red end)
+    // Anchor points: hand-drawn comic dots with ink outlines
     auto drawDot = [&] (float xNorm, float yNorm, juce::Colour col)
     {
         const float dotX = plotArea.getX() + xNorm * plotArea.getWidth();
         const float dotY = plotArea.getBottom() - yNorm * plotArea.getHeight();
+        g.setColour (ink);
+        g.fillEllipse (dotX - 3.5f, dotY - 3.5f, 7.0f, 7.0f);
         g.setColour (col);
-        g.fillEllipse (dotX - 2.5f, dotY - 2.5f, 5.0f, 5.0f);
-        g.setColour (juce::Colours::white.withAlpha (0.6f));
-        g.drawEllipse (dotX - 2.5f, dotY - 2.5f, 5.0f, 5.0f, 0.8f);
+        g.fillEllipse (dotX - 2.0f, dotY - 2.0f, 4.0f, 4.0f);
     };
 
     float midY = 0.5f;
@@ -335,9 +341,9 @@ void Editor::VelocityCurvePreview::paint (juce::Graphics& g)
         default:                         midY = 0.5f; break;
     }
 
-    drawDot (0.0f, 0.0f, juce::Colour (0xff22c55e)); // Green origin
-    drawDot (0.5f, midY, juce::Colour (0xfffacc15)); // Yellow midpoint
-    drawDot (1.0f, 1.0f, juce::Colour (0xffef4444)); // Red peak
+    drawDot (0.0f, 0.0f, juce::Colour (0xff2ecc71)); // Comic Green origin
+    drawDot (0.5f, midY, juce::Colour (0xfff1c40f)); // Comic Yellow midpoint
+    drawDot (1.0f, 1.0f, juce::Colour (0xffe74c3c)); // Comic Red peak
 }
 
 //==============================================================================

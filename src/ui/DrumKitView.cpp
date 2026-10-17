@@ -356,9 +356,9 @@ KitPiece DrumKitView::pieceAt (juce::Point<float> pos) const
     const KitPiece order[] = {
         KitPiece::floorTom,
         KitPiece::crash2,
-        KitPiece::ride,
         KitPiece::tom2,
         KitPiece::tom1,
+        KitPiece::ride,
         KitPiece::snare,
         KitPiece::hihat,
         KitPiece::crash1,

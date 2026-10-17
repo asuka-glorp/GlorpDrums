@@ -381,6 +381,19 @@ MicStripParams Sampler::getMicStripParams (int index) const
     return {};
 }
 
+void Sampler::setMicOutputBus (int index, int bus)
+{
+    if (index >= 0 && index < static_cast<int> (micChannels.size()))
+        micChannels[static_cast<size_t> (index)]->params.outputBus = std::clamp (bus, 0, 15);
+}
+
+int Sampler::getMicOutputBus (int index) const
+{
+    if (index >= 0 && index < static_cast<int> (micChannels.size()))
+        return micChannels[static_cast<size_t> (index)]->params.outputBus;
+    return 0;
+}
+
 void Sampler::setMasterStripParams (const MasterStripParams& params)
 {
     masterStripParams = params;
@@ -866,8 +879,8 @@ void Sampler::triggerVoice (int instrument, int note, float velocity, int64_t ti
     if (runtime.hits.empty())
         return;
 
-    // Choke instruments sharing the same group
-    if (runtime.group.isNotEmpty())
+    // Choke instruments sharing the same group (hi-hats share "hihat"; cymbals must never cross-choke other cymbals)
+    if (runtime.group.isNotEmpty() && ! runtime.group.equalsIgnoreCase ("cymbals"))
     {
         for (int i = 0; i < instrumentCount; ++i)
         {
@@ -1388,19 +1401,18 @@ void Sampler::render (float* const* output, int numOutputChannels, int numSample
             state.rmsL.store (blkRmsL, std::memory_order_relaxed);
             state.rmsR.store (blkRmsR, std::memory_order_relaxed);
 
-            // Sum into stereo Master bus (output[0], output[1])
-            juce::FloatVectorOperations::add (output[0], sL, numSamples);
-            juce::FloatVectorOperations::add (output[1], sR, numSamples);
-
-            // Multi-out stem bus routing
-            if (multiOutMode.load() && totalBuses > 1)
+            // Output bus routing
+            const int targetBus = (totalBuses > 1) ? std::clamp (p.outputBus, 0, totalBuses - 1) : 0;
+            if (targetBus == 0 || ! multiOutMode.load() || p.sendToMaster)
             {
-                int targetBus = std::min (m % totalBuses, totalBuses - 1);
-                if (targetBus > 0)
-                {
-                    juce::FloatVectorOperations::add (output[targetBus * 2], sL, numSamples);
-                    juce::FloatVectorOperations::add (output[targetBus * 2 + 1], sR, numSamples);
-                }
+                juce::FloatVectorOperations::add (output[0], sL, numSamples);
+                juce::FloatVectorOperations::add (output[1], sR, numSamples);
+            }
+
+            if (multiOutMode.load() && totalBuses > 1 && targetBus > 0)
+            {
+                juce::FloatVectorOperations::add (output[targetBus * 2],     sL, numSamples);
+                juce::FloatVectorOperations::add (output[targetBus * 2 + 1], sR, numSamples);
             }
         }
 
