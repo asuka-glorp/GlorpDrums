@@ -532,12 +532,25 @@ void PluginProcessor::loadKit (const juce::String& drumkitPath)
     settings.pushRecentKit (drumkitPath);
     settings.saveIfChanged();
 
+    const auto stripName = [] (const juce::String& s)
+    {
+        return s.toLowerCase().removeCharacters (" .-_/\\");
+    };
+
     // Seed the note map from the kit's own midimap, then fall back to General
     // MIDI so something sensible is playable immediately.
     for (const auto& [note, instrumentName] : suggestedMap)
+    {
+        const auto targetStripped = stripName (instrumentName);
         for (int i = 0; i < sampler.numInstruments(); ++i)
-            if (sampler.instrumentName (i).toLowerCase() == juce::String (instrumentName).toLowerCase())
+        {
+            if (stripName (sampler.instrumentName (i)) == targetStripped)
+            {
                 midiMap.assignNote (note, i);
+                break;
+            }
+        }
+    }
 
     if (midiMap.noteAssignments().empty())
     {
@@ -547,9 +560,17 @@ void PluginProcessor::loadKit (const juce::String& drumkitPath)
                 continue;
 
             for (const auto& [note, instrumentName] : preset.noteToInstrumentName)
+            {
+                const auto targetStripped = stripName (instrumentName);
                 for (int i = 0; i < sampler.numInstruments(); ++i)
-                    if (sampler.instrumentName (i).toLowerCase() == instrumentName.toLowerCase())
+                {
+                    if (stripName (sampler.instrumentName (i)) == targetStripped)
+                    {
                         midiMap.assignNote (note, i);
+                        break;
+                    }
+                }
+            }
 
             break;
         }
@@ -569,33 +590,50 @@ void PluginProcessor::loadKit (const juce::String& drumkitPath)
         else if (name.contains ("snare") || name.contains ("sd"))
         {
             if (name.contains ("rimshot")) defaultNote = 40;
+            else if (name.contains ("rimclick") || name.contains ("sidestick") || name.contains ("cross")) defaultNote = 37;
             else if (name.contains ("rim")) defaultNote = 37;
-            else if (name.contains ("rest")) defaultNote = 39;
+            else if (name.contains ("edge")) defaultNote = 39;
+            else if (name.contains ("muted") || name.contains ("muff")) defaultNote = 33;
+            else if (name.contains ("fat")) defaultNote = 29;
             else defaultNote = 38;
         }
         else if (name.contains ("hat") || name.contains ("hh"))
         {
-            if (name.contains ("open")) defaultNote = 46;
-            else if (name.contains ("pedal")) defaultNote = 44;
+            if (name.contains ("splash") || name.contains ("spl")) defaultNote = 63;
+            else if (name.contains ("pedal") || name.contains ("foot")) defaultNote = 44;
+            else if (name.contains ("open1") || name.contains ("op1")) defaultNote = 23;
+            else if (name.contains ("open2") || name.contains ("op2")) defaultNote = 31;
+            else if (name.contains ("open3") || name.contains ("op3")) defaultNote = 34;
+            else if (name.contains ("open4") || name.contains ("op4")) defaultNote = 30;
             else if (name.contains ("semi")) defaultNote = 80;
+            else if (name.contains ("open")) defaultNote = name.contains ("edge") ? 26 : 46;
+            else if (name.contains ("closed") || name.contains ("close")) defaultNote = name.contains ("edge") ? 22 : 42;
             else defaultNote = 42;
         }
-        else if (name.contains ("tom1") || name.contains ("racktom1") || name.contains ("hightom"))
-            defaultNote = 48;
-        else if (name.contains ("tom2") || name.contains ("racktom2") || name.contains ("midtom"))
-            defaultNote = 47;
-        else if (name.contains ("ftom1") || name.contains ("floortom1") || name.contains ("floor1"))
-            defaultNote = 43;
-        else if (name.contains ("ftom") || name.contains ("floor"))
-            defaultNote = 41;
+        else if (name.contains ("tom2") || name.contains ("tom 2") || name.contains ("racktom2") || name.contains ("midtom") || name.contains ("tom13"))
+            defaultNote = name.contains ("rim") ? 60 : 47;
+        else if (name.contains ("tom3") || name.contains ("tom 3") || name.contains ("lowtom") || name.contains ("tom14"))
+            defaultNote = name.contains ("rim") ? 62 : 45;
+        else if (name.contains ("ftom2") || name.contains ("floor2") || name.contains ("tom18"))
+            defaultNote = name.contains ("rim") ? 65 : 41;
+        else if (name.contains ("ftom") || name.contains ("floor") || name.contains ("tom16"))
+            defaultNote = name.contains ("rim") ? 58 : 43;
+        else if (name.contains ("tom1") || name.contains ("tom 1") || name.contains ("racktom1") || name.contains ("hightom") || name.contains ("tom10") || name.contains ("tom12") || name.contains ("tom"))
+            defaultNote = name.contains ("rim") ? 50 : 48;
         else if (name.contains ("ride"))
-            defaultNote = name.contains ("bell") ? 53 : 51;
+            defaultNote = name.contains ("bell") ? 53 : (name.contains ("edge") ? 59 : 51);
         else if (name.contains ("splash"))
-            defaultNote = name.contains ("r") ? 58 : 55;
+            defaultNote = 55;
         else if (name.contains ("china"))
-            defaultNote = name.contains ("r") ? 52 : 54;
+            defaultNote = 52;
+        else if (name.contains ("crash2") || name.contains ("crash 2"))
+            defaultNote = name.contains ("edge") ? 52 : 57;
+        else if (name.contains ("crash3") || name.contains ("crash 3"))
+            defaultNote = name.contains ("edge") ? 54 : 56;
         else if (name.contains ("crash"))
-            defaultNote = name.contains ("r") ? 57 : 49;
+            defaultNote = name.contains ("edge") ? 55 : 49;
+        else if (name.contains ("cowbell"))
+            defaultNote = name.contains ("muff") ? 32 : (name.contains ("hi") ? 33 : 31);
 
         if (defaultNote >= 0 && midiMap.instrumentForNote (defaultNote) < 0)
         {

@@ -61,33 +61,59 @@ def map_channel_to_mic(channel_name: str) -> str:
 
 PIECE_RULES = [
     # (Regex pattern, Piece Name, Piece ID, Graphic, Bus, ChokeGroup)
-    (r'^(?:kick|kdrum)', 'Kick', 'kick', 'kick', 0, 'none'),
+    (r'^(?:kick|kdrum|bassdrum|bdrum)', 'Kick', 'kick', 'kick', 0, 'none'),
     (r'^(?:snare|rimclick|rimshot|crossstick|sidestick)', 'Snare', 'snare', 'snare', 1, 'none'),
     (r'^(?:hihat|hh)', 'Hihat', 'hihat', 'hihat', 2, 'hihat'),
-    (r'^(?:tom1|rack1|hitom)', 'Tom 1', 'tom1', 'tom1', 3, 'none'),
-    (r'^(?:tom2|rack2|midtom)', 'Tom 2', 'tom2', 'tom2', 3, 'none'),
-    (r'^(?:tom3|ftom|floor|lowtom)', 'Floor Tom', 'ftom', 'ftom', 3, 'none'),
+    (r'^(?:tom\s*2(?![\d])|tom2(?![\d])|rack\s*2|rack2|midtom|tom\s*13|tom13)', 'Tom 2', 'tom2', 'tom2', 3, 'none'),
+    (r'^(?:tom\s*3(?![\d])|tom3(?![\d])|rack\s*3|rack3|lowtom|tom\s*14|tom14)', 'Tom 3', 'tom3', 'ftom', 3, 'none'),
+    (r'^(?:tom\s*16|tom16|tom\s*18|tom18|ftom|floor|lowfloortom)', 'Floor Tom', 'ftom', 'ftom', 3, 'none'),
+    (r'^(?:tom\s*1(?![\d])|tom1(?![\d])|rack\s*1|rack1|hitom|tom\s*10|tom10|tom\s*12|tom12)', 'Tom 1', 'tom1', 'tom1', 3, 'none'),
+    (r'^(?:ride\s*2|ride2|avedis)', 'Ride 2', 'ride2', 'ride', 5, 'none'),
     (r'^(?:ride)', 'Ride', 'ride', 'ride', 5, 'none'),
-    (r'^(?:crash1|crashl|crash_l)', 'Crash 1', 'crash1', 'crash1', 4, 'cymbals'),
-    (r'^(?:crash2|crashr|crash_r)', 'Crash 2', 'crash2', 'crash2', 4, 'cymbals'),
-    (r'^(?:crash)', 'Crash', 'crash1', 'crash1', 4, 'cymbals'),
+    (r'^(?:crash\s*1|crash1|crashl|crash_l|sabian\s*16)', 'Crash 1', 'crash1', 'crash1', 4, 'cymbals'),
+    (r'^(?:crash\s*2|crash2|crashr|crash_r|istanbul|xist|efx)', 'Crash 2', 'crash2', 'crash2', 4, 'cymbals'),
+    (r'^(?:crash\s*3|crash3)', 'Crash 3', 'crash3', 'crash2', 4, 'cymbals'),
+    (r'^(?:crash)', 'Crash 1', 'crash1', 'crash1', 4, 'cymbals'),
     (r'^(?:cowbell)', 'Cowbell', 'cowbell', 'cowbell', 6, 'none'),
 ]
 
 ZONE_RULES = [
-    (r'head|main|center', 'head'),
+    # Graduated Hi-hat zones (must come before generic open/closed/edge)
+    (r'open\s*1\s*bow|op\s*1\s*bow', 'open1-bow'),
+    (r'open\s*1\s*(?:edge|edg)|op\s*1\s*(?:edge|edg)', 'open1-edge'),
+    (r'open\s*2\s*bow|op\s*2\s*bow', 'open2-bow'),
+    (r'open\s*2\s*(?:edge|edg)|op\s*2\s*(?:edge|edg)', 'open2-edge'),
+    (r'open\s*3\s*bow|op\s*3\s*bow', 'open3-bow'),
+    (r'open\s*3\s*(?:edge|edg)|op\s*3\s*(?:edge|edg)', 'open3-edge'),
+    (r'open\s*4\s*bow|op\s*4\s*bow', 'open4-bow'),
+    (r'open\s*4\s*(?:edge|edg)|op\s*4\s*(?:edge|edg)', 'open4-edge'),
+    (r'open\s*(?:edge|edg)|op\s*(?:edge|edg)', 'open-edge'),
+    (r'closed\s*(?:edge|edg)|clo\s*(?:edge|edg)', 'closed-edge'),
+    (r'full\s*op|open', 'open'),
+    (r'semi\s*open|semi', 'semiopen'),
+    (r'closed|clo\b|close\b', 'closed'),
+    (r'splash|footsplash|spl\b', 'splash'),
+    (r'slammed|slam', 'slammed'),
+    (r'pedal|foot|ped\b', 'pedal'),
+
+    # Snare & Tom specific zones
     (r'rimshot|shot', 'rimshot'),
-    (r'rimclick|click|sidestick|cross', 'rimclick'),
+    (r'rimclick|sidestick|crossstick|cross|click', 'rimclick'),
+    (r'muted|muff', 'muted'),
+    (r'fat', 'fat'),
     (r'rim', 'rim'),
-    (r'closed|close', 'closed'),
-    (r'semiopen|semi', 'semiopen'),
-    (r'open', 'open'),
-    (r'pedal|foot', 'pedal'),
-    (r'bow', 'bow'),
+
+    # Cymbal specific zones
     (r'bell', 'bell'),
-    (r'edge', 'edge'),
+    (r'edge|edg', 'edge'),
+    (r'bow', 'bow'),
     (r'choke', 'choke'),
-    (r'muff', 'muff'),
+
+    # Percussion specific zones
+    (r'hi\b|high', 'hi'),
+
+    # Generic head
+    (r'head|main|center|ctr', 'head'),
 ]
 
 DEFAULT_NOTES = {
@@ -95,29 +121,54 @@ DEFAULT_NOTES = {
     ('snare', 'head'): 38,
     ('snare', 'rimclick'): 37,
     ('snare', 'rimshot'): 40,
+    ('snare', 'edge'): 39,
     ('snare', 'rim'): 37,
+    ('snare', 'muted'): 33,
+    ('snare', 'fat'): 29,
     ('hihat', 'closed'): 42,
-    ('hihat', 'semiopen'): 44,
+    ('hihat', 'closed-edge'): 22,
+    ('hihat', 'open1-bow'): 23,
+    ('hihat', 'open1-edge'): 24,
+    ('hihat', 'open2-bow'): 31,
+    ('hihat', 'open2-edge'): 32,
+    ('hihat', 'open3-bow'): 34,
+    ('hihat', 'open3-edge'): 27,
+    ('hihat', 'open4-bow'): 30,
+    ('hihat', 'open4-edge'): 25,
     ('hihat', 'open'): 46,
+    ('hihat', 'open-edge'): 26,
     ('hihat', 'pedal'): 44,
+    ('hihat', 'splash'): 63,
+    ('hihat', 'slammed'): 61,
+    ('hihat', 'semiopen'): 80,
     ('tom1', 'head'): 48,
     ('tom1', 'rim'): 50,
-    ('tom2', 'head'): 45,
-    ('tom2', 'rim'): 47,
-    ('ftom', 'head'): 41,
-    ('ftom', 'rim'): 43,
+    ('tom2', 'head'): 47,
+    ('tom2', 'rim'): 60,
+    ('tom3', 'head'): 45,
+    ('tom3', 'rim'): 62,
+    ('ftom', 'head'): 43,
+    ('ftom', 'rim'): 58,
+    ('ftom2', 'head'): 41,
+    ('ftom2', 'rim'): 65,
     ('ride', 'bow'): 51,
     ('ride', 'bell'): 53,
     ('ride', 'edge'): 59,
     ('ride', 'choke'): 60,
-    ('crash1', 'edge'): 49,
-    ('crash1', 'bow'): 55,
+    ('ride2', 'bow'): 28,
+    ('ride2', 'bell'): 29,
+    ('ride2', 'edge'): 60,
+    ('crash1', 'edge'): 55,
+    ('crash1', 'bow'): 49,
     ('crash1', 'choke'): 54,
-    ('crash2', 'edge'): 57,
-    ('crash2', 'bow'): 52,
+    ('crash2', 'edge'): 52,
+    ('crash2', 'bow'): 57,
     ('crash2', 'choke'): 58,
-    ('cowbell', 'head'): 56,
-    ('cowbell', 'muff'): 58,
+    ('crash3', 'bow'): 56,
+    ('crash3', 'edge'): 54,
+    ('cowbell', 'head'): 31,
+    ('cowbell', 'muted'): 32,
+    ('cowbell', 'hi'): 33,
 }
 
 
@@ -342,8 +393,15 @@ def build_glorpkit_tree(kit_data: dict) -> dict:
                     'power': power,
                 })
 
-        piece['zones'][z_name] = {
-            'name': z_name,
+        # Ensure unique zone name within piece so articulations never overwrite each other
+        zone_key = z_name
+        count = 2
+        while zone_key in piece['zones']:
+            zone_key = f"{z_name}_{count}"
+            count += 1
+
+        piece['zones'][zone_key] = {
+            'name': zone_key,
             'graphic': z_graphic,
             'note': note,
             'samples': zone_samples,

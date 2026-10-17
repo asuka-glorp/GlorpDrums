@@ -423,9 +423,9 @@ DrumKit DrumKit::loadNativeGlorpKit (GlorpKitReader& reader, const std::string& 
 
             // Suggested MIDI note
             if (zoneSpec.note >= 0)
-                kit.suggestedMap[zoneSpec.note] = inst.name;
+                kit.suggestedMap[zoneSpec.note] = inst.displayName;
             if (zoneSpec.altNote >= 0)
-                kit.suggestedMap[zoneSpec.altNote] = inst.name;
+                kit.suggestedMap[zoneSpec.altNote] = inst.displayName;
 
             ZoneItem zi;
             zi.name = zoneSpec.name;

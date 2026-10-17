@@ -276,6 +276,29 @@ std::vector<MapPreset> MidiMap::availablePresets()
             { 36, "Kick" }, { 37, "Clap" }, { 38, "Snare" }, { 42, "HihatClosed" },
             { 46, "HihatOpen" }, { 45, "Tom1" }, { 47, "Tom2" }, { 48, "Tom3" },
             { 43, "FloorTom" }, { 49, "Crash" }, { 51, "Ride" } } },
+
+        { "ReaperDrummer", {
+            { 36, "Kick" },
+            { 38, "SnareHead" }, { 40, "Rimshot" }, { 37, "RimClick" },
+            { 39, "SnareEdge" }, { 33, "SnareMuted" }, { 29, "SnareFat" },
+            { 42, "HihatClosed" }, { 22, "HihatClosedEdge" },
+            { 23, "HihatOpen1Bow" }, { 24, "HihatOpen1Edge" },
+            { 31, "HihatOpen2Bow" }, { 32, "HihatOpen2Edge" },
+            { 34, "HihatOpen3Bow" }, { 27, "HihatOpen3Edge" },
+            { 30, "HihatOpen4Bow" }, { 25, "HihatOpen4Edge" },
+            { 46, "HihatOpen" }, { 26, "HihatOpenEdge" },
+            { 44, "HihatPedal" }, { 61, "HihatSlammed" }, { 63, "HihatSplash" },
+            { 48, "Tom1Head" }, { 50, "Tom1Rim" },
+            { 47, "Tom2Head" }, { 60, "Tom2Rim" },
+            { 45, "Tom3Head" }, { 62, "Tom3Rim" },
+            { 43, "FTomHead" }, { 58, "FTomRim" },
+            { 41, "FTom2Head" }, { 65, "FTom2Rim" },
+            { 49, "Crash1Bow" }, { 55, "Crash1Edge" },
+            { 57, "Crash2Bow" }, { 52, "Crash2Edge" },
+            { 56, "Crash3Bow" }, { 54, "Crash3Edge" },
+            { 51, "RideBow" }, { 53, "RideBell" }, { 59, "RideEdge" },
+            { 28, "Ride2Bow" }, { 29, "Ride2Bell" }, { 60, "Ride2Edge" },
+            { 31, "Cowbell" }, { 32, "CowbellMuff" }, { 33, "CowbellHi" } } },
     };
 
     for (const auto& b : builtIns)
@@ -419,10 +442,16 @@ void MidiMap::applyPreset (const MapPreset& preset, const std::vector<juce::Stri
     auto matchInstrument = [&] (const juce::String& target) -> int
     {
         const auto lower = target.toLowerCase();
+        const auto stripName = [] (const juce::String& s)
+        {
+            return s.toLowerCase().removeCharacters (" .-_/\\");
+        };
 
-        // 1. Exact match (case-insensitive)
+        const auto targetStripped = stripName (target);
+
+        // 1. Exact match (case-insensitive or normalized-stripped)
         for (size_t i = 0; i < kitInstrumentNames.size(); ++i)
-            if (kitInstrumentNames[i].equalsIgnoreCase (target))
+            if (kitInstrumentNames[i].equalsIgnoreCase (target) || stripName (kitInstrumentNames[i]) == targetStripped)
                 return static_cast<int> (i);
 
         // 2. Multi-zone snare pieces
@@ -593,14 +622,14 @@ void MidiMap::applyPreset (const MapPreset& preset, const std::vector<juce::Stri
             for (size_t i = 0; i < kitInstrumentNames.size(); ++i)
             {
                 const auto n = kitInstrumentNames[i].toLowerCase();
-                if (n.contains ("crash1") || (n.contains ("crash") && ! n.contains ("2") && ! n.contains ("r")))
+                if (n.contains ("crash1") || n.contains ("crash 1") || (n.contains ("crash") && ! n.contains ("2") && ! n.contains ("crashr") && ! n.contains ("right")))
                 {
                     if (wantsEdge && n.contains ("edge")) return static_cast<int> (i);
                     if (! wantsEdge && (n.contains ("bow") || (! n.contains ("edge") && ! n.contains ("choke")))) return static_cast<int> (i);
                 }
             }
             for (size_t i = 0; i < kitInstrumentNames.size(); ++i)
-                if (kitInstrumentNames[i].toLowerCase().contains ("crash"))
+                if (kitInstrumentNames[i].toLowerCase().contains ("crash") && ! kitInstrumentNames[i].toLowerCase().contains ("2"))
                     return static_cast<int> (i);
         }
         else if (lower.startsWith ("crash2"))
@@ -609,7 +638,7 @@ void MidiMap::applyPreset (const MapPreset& preset, const std::vector<juce::Stri
             for (size_t i = 0; i < kitInstrumentNames.size(); ++i)
             {
                 const auto n = kitInstrumentNames[i].toLowerCase();
-                if (n.contains ("crash2") || n.contains ("crashr"))
+                if (n.contains ("crash2") || n.contains ("crash 2") || n.contains ("crashr") || n.contains ("china") || n.contains ("splash"))
                 {
                     if (wantsEdge && n.contains ("edge")) return static_cast<int> (i);
                     if (! wantsEdge && (n.contains ("bow") || (! n.contains ("edge") && ! n.contains ("choke")))) return static_cast<int> (i);

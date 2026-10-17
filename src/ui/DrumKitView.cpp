@@ -286,17 +286,26 @@ KitPiece DrumKitView::pieceForName (const juce::String& name)
         || n.contains ("rimclick") || n.contains ("rimshot") || n.contains ("crosstick"))
         return KitPiece::snare;
 
-    if (n.contains ("floor") || n.contains ("ftom") || n.contains ("floortom"))
+    // Check Tom 2 first (so "tom 2" or "tom2" or "tom13" never gets stolen by "tom")
+    if (n.contains ("tom2") || n.contains ("tom 2") || n.contains ("racktom2")
+        || n.contains ("rack 2") || n.contains ("midtom") || n.contains ("mediumtom")
+        || n.contains ("tom13") || n.contains ("tom 13"))
+        return KitPiece::tom2;
+
+    // Check Floor Tom ("floor", "ftom", "tom3", "tom 3", "tom14", "tom16", "tom18", etc.)
+    if (n.contains ("floor") || n.contains ("ftom") || n.contains ("floortom")
+        || n.contains ("tom3") || n.contains ("tom 3") || n.contains ("racktom3")
+        || n.contains ("lowtom") || n.contains ("tom16") || n.contains ("tom 16")
+        || n.contains ("tom18") || n.contains ("tom 18") || n.contains ("tom14") || n.contains ("tom 14"))
         return KitPiece::floorTom;
 
+    // Check Tom 1
     if (n.contains ("tom1") || n.contains ("tom 1") || n.contains ("racktom1")
-        || n.contains ("hightom") || n.contains ("smalltom")
-        || (n.contains ("tom") && ! n.contains ("floor") && ! n.contains ("tom2") && ! n.contains ("tom3")))
+        || n.contains ("rack 1") || n.contains ("hightom") || n.contains ("smalltom")
+        || n.contains ("tom10") || n.contains ("tom 10")
+        || n.contains ("tom12") || n.contains ("tom 12")
+        || (n.contains ("tom") && ! n.contains ("cowbell")))
         return KitPiece::tom1;
-
-    if (n.contains ("tom2") || n.contains ("tom 2") || n.contains ("racktom2")
-        || n.contains ("midtom") || n.contains ("mediumtom"))
-        return KitPiece::tom2;
 
     if (n.contains ("cowbell"))
         return KitPiece::count;

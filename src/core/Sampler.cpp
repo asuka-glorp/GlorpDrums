@@ -153,19 +153,40 @@ bool Sampler::loadKit (DrumKit kit, juce::String& error)
 
     // Identify hi-hat articulation indices for continuous pedal control
     hiHat = {};
+    cc4Active.store (false);
     for (int i = 0; i < instrumentCount; ++i)
     {
         const auto n = instruments_[static_cast<size_t> (i)].name.toLowerCase();
         if (n.contains ("hat") || n.contains ("hh") || instruments_[static_cast<size_t> (i)].group.equalsIgnoreCase ("hihat"))
         {
-            if (n.contains ("pedal") || n.contains ("foot"))
+            if (n.contains ("splash") || n.contains ("spl"))
+                hiHat.splash = i;
+            else if (n.contains ("pedal") || n.contains ("foot"))
                 hiHat.pedal = i;
+            else if (n.contains ("open1") || n.contains ("op1") || n.contains ("op 1"))
+                hiHat.open1 = i;
+            else if (n.contains ("open2") || n.contains ("op2") || n.contains ("op 2"))
+                hiHat.open2 = i;
+            else if (n.contains ("open3") || n.contains ("op3") || n.contains ("op 3"))
+                hiHat.open3 = i;
+            else if (n.contains ("open4") || n.contains ("op4") || n.contains ("op 4"))
+                hiHat.open4 = i;
             else if (n.contains ("semi"))
                 hiHat.semiOpen = i;
-            else if (n.contains ("open"))
-                hiHat.open = i;
-            else if (n.contains ("closed") || n.contains ("close"))
-                hiHat.closed = i;
+            else if (n.contains ("closed") || n.contains ("close") || n.contains ("clo"))
+            {
+                if (n.contains ("edge") || n.contains ("edg"))
+                    hiHat.closedEdge = i;
+                else
+                    hiHat.closed = i;
+            }
+            else if (n.contains ("open") || n.contains ("op"))
+            {
+                if (n.contains ("edge") || n.contains ("edg"))
+                    hiHat.openEdge = i;
+                else
+                    hiHat.open = i;
+            }
         }
     }
 
@@ -245,6 +266,7 @@ void Sampler::unloadKit()
 
     anySolo.store (false);
     hiHat = {};
+    cc4Active.store (false);
     sampleCache.trim();
 }
 
@@ -613,16 +635,52 @@ void Sampler::noteOn (int instrument, int note, float velocity, int64_t timeInSa
     if (instrument < 0 || instrument >= instrumentCount)
         return;
 
-    // E-drum continuous hi-hat articulation selection based on pedal CC#4
-    if (note >= 0 && (instrument == hiHat.closed || instrument == hiHat.semiOpen || instrument == hiHat.open))
+    // E-drum continuous hi-hat articulation selection based on pedal CC#4.
+    // This ONLY applies when CC#4 has been actively received (e-drum pedal connected)
+    // AND the incoming note is an open/variable hi-hat trigger (e.g. e-drum pad hit).
+    // Direct discrete notes (such as keyboard / DAW MIDI tracks triggering closed hat note 42,
+    // pedal note 44, splash note 63, or specific open stages) must play their exact mapped zone.
+    if (cc4Active.load (std::memory_order_relaxed))
     {
-        const float pedal = hiHatPedal.load (std::memory_order_relaxed);
-        if (pedal >= 0.70f && hiHat.closed >= 0)
-            instrument = hiHat.closed;
-        else if (pedal >= 0.30f && hiHat.semiOpen >= 0)
-            instrument = hiHat.semiOpen;
-        else if (hiHat.open >= 0)
-            instrument = hiHat.open;
+        const bool isVariableHiHatHit = (instrument == hiHat.open || instrument == hiHat.openEdge
+                                         || (instrument == hiHat.closed && (note == 46 || note < 0)));
+
+        if (isVariableHiHatHit)
+        {
+            const float pedal = hiHatPedal.load (std::memory_order_relaxed);
+            const bool wantsEdge = (instrument == hiHat.openEdge || instrument == hiHat.closedEdge);
+
+            if (pedal >= 0.85f)
+            {
+                if (wantsEdge && hiHat.closedEdge >= 0)
+                    instrument = hiHat.closedEdge;
+                else if (hiHat.closed >= 0)
+                    instrument = hiHat.closed;
+            }
+            else if (pedal >= 0.65f)
+            {
+                if (hiHat.open1 >= 0) instrument = hiHat.open1;
+                else if (hiHat.semiOpen >= 0) instrument = hiHat.semiOpen;
+                else if (hiHat.closed >= 0) instrument = hiHat.closed;
+            }
+            else if (pedal >= 0.45f)
+            {
+                if (hiHat.open2 >= 0) instrument = hiHat.open2;
+                else if (hiHat.semiOpen >= 0) instrument = hiHat.semiOpen;
+            }
+            else if (pedal >= 0.25f)
+            {
+                if (hiHat.open3 >= 0) instrument = hiHat.open3;
+                else if (hiHat.open >= 0) instrument = hiHat.open;
+            }
+            else
+            {
+                if (wantsEdge && hiHat.openEdge >= 0)
+                    instrument = hiHat.openEdge;
+                else if (hiHat.open >= 0)
+                    instrument = hiHat.open;
+            }
+        }
     }
 
     const auto& runtime = instruments_[static_cast<size_t> (instrument)];
@@ -779,15 +837,19 @@ void Sampler::allNotesOff()
 void Sampler::setHiHatPedal (float pedalValue) noexcept
 {
     const float clamped = std::clamp (pedalValue, 0.0f, 1.0f);
+    cc4Active.store (true, std::memory_order_relaxed);
     const float prev = hiHatPedal.exchange (clamped, std::memory_order_relaxed);
 
     // Choke open hi-hats when pedal moves from open towards closed
     if (prev < 0.55f && clamped >= 0.60f)
     {
-        if (hiHat.open >= 0)
-            chokeInstrument (hiHat.open, 30, sampleClock);
-        if (hiHat.semiOpen >= 0)
-            chokeInstrument (hiHat.semiOpen, 30, sampleClock);
+        if (hiHat.open >= 0) chokeInstrument (hiHat.open, 30, sampleClock);
+        if (hiHat.openEdge >= 0) chokeInstrument (hiHat.openEdge, 30, sampleClock);
+        if (hiHat.open1 >= 0) chokeInstrument (hiHat.open1, 30, sampleClock);
+        if (hiHat.open2 >= 0) chokeInstrument (hiHat.open2, 30, sampleClock);
+        if (hiHat.open3 >= 0) chokeInstrument (hiHat.open3, 30, sampleClock);
+        if (hiHat.open4 >= 0) chokeInstrument (hiHat.open4, 30, sampleClock);
+        if (hiHat.semiOpen >= 0) chokeInstrument (hiHat.semiOpen, 30, sampleClock);
 
         // Firm downward foot stomp: trigger pedal chick
         if (clamped - prev > 0.30f && clamped >= 0.80f)

@@ -805,6 +805,8 @@ void Editor::buildLogicalInstruments()
             li.piece = DrumKitView::pieceForName (p.name);
             if (li.piece == KitPiece::count)
                 li.piece = DrumKitView::pieceForName (p.id);
+            if (li.piece == KitPiece::count)
+                li.piece = DrumKitView::pieceForName (p.graphic);
             li.outputBus = p.outputBus;
             for (const auto& z : p.zones)
                 li.zones.push_back ({ z.samplerIndex, juce::String (z.name) });

@@ -129,6 +129,7 @@ public:
     /// Continuous hi-hat pedal control (0.0 = fully open, 1.0 = fully closed / tight).
     void setHiHatPedal (float pedalValue) noexcept;
     float getHiHatPedal() const noexcept { return hiHatPedal.load (std::memory_order_relaxed); }
+    void resetHiHatCC4() noexcept { cc4Active.store (false, std::memory_order_relaxed); }
 
     /// Snare positional sensing (0.0 = edge, 1.0 = center).
     void setSnarePosition (float pos) noexcept { snarePosition.store (pos, std::memory_order_relaxed); }
@@ -309,12 +310,20 @@ private:
     struct HiHatIndices
     {
         int closed = -1;
+        int closedEdge = -1;
         int semiOpen = -1;
         int open = -1;
+        int openEdge = -1;
+        int open1 = -1;
+        int open2 = -1;
+        int open3 = -1;
+        int open4 = -1;
         int pedal = -1;
+        int splash = -1;
     } hiHat;
 
     std::atomic<float> hiHatPedal { 0.0f };    ///< 0 = open, 1 = closed
+    std::atomic<bool>  cc4Active { false };    ///< true once an e-drum pedal sends CC#4
     std::atomic<float> snarePosition { 0.5f }; ///< 0 = edge, 1 = center
 
     static constexpr int hitRingSize = 512;
