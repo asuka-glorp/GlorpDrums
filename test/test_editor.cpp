@@ -17,9 +17,9 @@ int main()
     pluginEditor->setSize (1180, 860);
     std::cout << "Editor created. Bounds: " << pluginEditor->getBounds().toString().toStdString() << std::endl;
     std::cout << "Proc current kit: " << proc.getCurrentKitPath().toStdString() << std::endl;
-    std::cout << "Proc instruments count: " << proc.getSampler().numInstruments() << std::endl;
-    for (int i = 0; i < proc.getSampler().numInstruments(); ++i)
-        std::cout << "  Inst " << i << ": " << proc.getSampler().instrumentName(i).toStdString() << std::endl;
+    std::cout << "Proc scanned kit count: " << proc.getKitList().size() << std::endl;
+    for (const auto& entry : proc.getKitList())
+        std::cout << "  Kit: " << entry.displayName << " | valid=" << entry.valid << " | path=" << entry.drumkitPath << " | error=" << entry.error << std::endl;
 
     // 1. Take snapshot of default idle state
     {
@@ -288,6 +288,50 @@ int main()
             juce::PNGImageFormat png;
             png.writeImageToStream (imageScope, fosScope);
             std::cout << "Saved Scope snapshot to: " << outScopeFile.getFullPathName().toStdString() << std::endl;
+        }
+    }
+
+    // 6. Capture E-Drum Wizard overlay snapshot
+    {
+        for (auto* child : pluginEditor->getChildren())
+        {
+            if (auto* ed = dynamic_cast<glorp::Editor*> (child))
+            {
+                ed->openEDrumWizard();
+                break;
+            }
+        }
+
+        auto imageWizard = pluginEditor->createComponentSnapshot (pluginEditor->getLocalBounds());
+        juce::File outWizardFile ("/home/servandoc/Documents/DEV/GlorpDrums/docs/edrum_wizard_screenshot.png");
+        outWizardFile.deleteFile();
+        juce::FileOutputStream fosWizard (outWizardFile);
+        if (fosWizard.openedOk())
+        {
+            juce::PNGImageFormat png;
+            png.writeImageToStream (imageWizard, fosWizard);
+            std::cout << "Saved E-Drum Wizard snapshot to: " << outWizardFile.getFullPathName().toStdString() << std::endl;
+        }
+    }
+
+    // Update main docs/screenshot.png with latest UI
+    {
+        // Re-create idle editor for clean main screenshot
+        glorp::PluginProcessor cleanProc;
+        auto cleanEditor = cleanProc.createEditorIfNeeded();
+        if (cleanEditor)
+        {
+            cleanEditor->setSize (1180, 860);
+            auto cleanImage = cleanEditor->createComponentSnapshot (cleanEditor->getLocalBounds());
+            juce::File mainShot ("/home/servandoc/Documents/DEV/GlorpDrums/docs/screenshot.png");
+            mainShot.deleteFile();
+            juce::FileOutputStream fosMain (mainShot);
+            if (fosMain.openedOk())
+            {
+                juce::PNGImageFormat png;
+                png.writeImageToStream (cleanImage, fosMain);
+                std::cout << "Updated main screenshot: " << mainShot.getFullPathName().toStdString() << std::endl;
+            }
         }
     }
 

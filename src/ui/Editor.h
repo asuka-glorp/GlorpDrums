@@ -35,6 +35,7 @@ public:
     void filesDropped (const juce::StringArray& files, int x, int y) override;
 
     void selectInstrument (int samplerIndex);
+    void openEDrumWizard();
 
     struct ZoneInfo
     {
@@ -77,7 +78,6 @@ private:
 
     void armLearn (int samplerIndex);
     void promptLoadKitFile();
-    void openEDrumWizard();
 
     PluginProcessor& processor;
 
@@ -154,6 +154,22 @@ private:
         VelocityCurve currentCurve = VelocityCurve::linear;
     };
 
+    class VelocityCurvePreview : public juce::Component
+    {
+    public:
+        VelocityCurvePreview();
+        void setCurve (VelocityCurve c) { currentCurve = c; repaint(); }
+        VelocityCurve getCurve() const noexcept { return currentCurve; }
+
+        std::function<void()> onClick;
+
+        void paint (juce::Graphics& g) override;
+        void mouseDown (const juce::MouseEvent& e) override;
+
+    private:
+        VelocityCurve currentCurve = VelocityCurve::linear;
+    };
+
     MenuButton fileButton { "FILE" };
     MenuButton presetsButton { "PRESETS" };
     MenuButton midiButton { "MIDI" };
@@ -177,6 +193,7 @@ private:
     std::unique_ptr<Knob> instDynamicsKnob;
 
     CurveButton instCurveButton;
+    VelocityCurvePreview instCurvePreview;
     LearnButton instLearnButton;
 
     // E-Drum Setup Wizard Overlay

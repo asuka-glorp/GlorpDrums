@@ -205,6 +205,141 @@ void Editor::CurveButton::paintButton (juce::Graphics& g, bool isHover, bool /*i
     g.drawText (label, b, juce::Justification::centred, false);
 }
 
+Editor::VelocityCurvePreview::VelocityCurvePreview()
+{
+    setMouseCursor (juce::MouseCursor::PointingHandCursor);
+}
+
+void Editor::VelocityCurvePreview::mouseDown (const juce::MouseEvent& /*e*/)
+{
+    if (onClick != nullptr)
+        onClick();
+}
+
+void Editor::VelocityCurvePreview::paint (juce::Graphics& g)
+{
+    auto b = getLocalBounds().toFloat().reduced (1.0f);
+
+    // Deep tech/navy viewport background (DrumGizmo style)
+    const auto bgCol = juce::Colour (0xff101721);
+    const auto borderCol = juce::Colour (0xff26374a);
+    g.setColour (bgCol);
+    g.fillRoundedRectangle (b, 4.0f);
+
+    g.setColour (borderCol);
+    g.drawRoundedRectangle (b, 4.0f, 1.2f);
+
+    // Plot area margins: left for 'out', bottom for 'in'
+    const float labelMarginL = 16.0f;
+    const float labelMarginB = 14.0f;
+    const float padR = 8.0f;
+    const float padT = 8.0f;
+
+    const auto plotArea = juce::Rectangle<float> (
+        b.getX() + labelMarginL,
+        b.getY() + padT,
+        std::max (10.0f, b.getWidth() - labelMarginL - padR),
+        std::max (10.0f, b.getHeight() - padT - labelMarginB)
+    );
+
+    // Faint grid lines at 25%, 50%, 75%
+    g.setColour (juce::Colour (0x1f4ea8de));
+    for (int step = 1; step <= 3; ++step)
+    {
+        const float frac = step * 0.25f;
+        const float gx = plotArea.getX() + frac * plotArea.getWidth();
+        const float gy = plotArea.getY() + frac * plotArea.getHeight();
+
+        static constexpr float dashLengths[] = { 2.0f, 2.0f };
+        g.drawDashedLine (juce::Line<float> (gx, plotArea.getY(), gx, plotArea.getBottom()),
+                          dashLengths, 2, 0.8f);
+        g.drawDashedLine (juce::Line<float> (plotArea.getX(), gy, plotArea.getRight(), gy),
+                          dashLengths, 2, 0.8f);
+    }
+
+    // Border around plot area
+    g.setColour (juce::Colour (0x285b92e5));
+    g.drawRect (plotArea, 1.0f);
+
+    // Axis labels: "out" on left, "in" on bottom
+    g.setFont (uiFont (9.0f));
+    g.setColour (juce::Colour (0x9989b4d8));
+
+    // "out" stacked vertically
+    const auto leftLabelArea = juce::Rectangle<float> (b.getX() + 2.0f, plotArea.getY(), labelMarginL - 4.0f, plotArea.getHeight());
+    g.drawFittedText ("o\nu\nt", leftLabelArea.toNearestInt(), juce::Justification::centred, 3);
+
+    // "in" centered along bottom
+    const auto bottomLabelArea = juce::Rectangle<float> (plotArea.getX(), plotArea.getBottom() + 1.0f, plotArea.getWidth(), labelMarginB - 2.0f);
+    g.drawText ("in", bottomLabelArea, juce::Justification::centred, false);
+
+    // Plot response curve: y = f(x)
+    juce::Path curvePath;
+    const int numSegments = 48;
+    for (int i = 0; i <= numSegments; ++i)
+    {
+        const float x = static_cast<float> (i) / static_cast<float> (numSegments);
+        float y = x;
+        switch (currentCurve)
+        {
+            case VelocityCurve::logarithmic:
+                y = std::sqrt (x);
+                break;
+            case VelocityCurve::exponential:
+                y = x * x;
+                break;
+            case VelocityCurve::sCurve:
+                y = x * x * (3.0f - 2.0f * x);
+                break;
+            case VelocityCurve::linear:
+            default:
+                y = x;
+                break;
+        }
+
+        const float px = plotArea.getX() + x * plotArea.getWidth();
+        const float py = plotArea.getBottom() - y * plotArea.getHeight();
+
+        if (i == 0)
+            curvePath.startNewSubPath (px, py);
+        else
+            curvePath.lineTo (px, py);
+    }
+
+    // Faint neon underglow
+    g.setColour (juce::Colour (0x332ecc71));
+    g.strokePath (curvePath, juce::PathStrokeType (3.5f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+
+    // Crisp neon curve stroke (DrumGizmo green)
+    g.setColour (juce::Colour (0xff39e75f));
+    g.strokePath (curvePath, juce::PathStrokeType (2.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+
+    // Anchor points (DrumGizmo style: Green start, Yellow mid, Red end)
+    auto drawDot = [&] (float xNorm, float yNorm, juce::Colour col)
+    {
+        const float dotX = plotArea.getX() + xNorm * plotArea.getWidth();
+        const float dotY = plotArea.getBottom() - yNorm * plotArea.getHeight();
+        g.setColour (col);
+        g.fillEllipse (dotX - 2.5f, dotY - 2.5f, 5.0f, 5.0f);
+        g.setColour (juce::Colours::white.withAlpha (0.6f));
+        g.drawEllipse (dotX - 2.5f, dotY - 2.5f, 5.0f, 5.0f, 0.8f);
+    };
+
+    float midY = 0.5f;
+    switch (currentCurve)
+    {
+        case VelocityCurve::logarithmic: midY = std::sqrt (0.5f); break;
+        case VelocityCurve::exponential: midY = 0.25f; break;
+        case VelocityCurve::sCurve:     midY = 0.5f; break;
+        case VelocityCurve::linear:
+        default:                         midY = 0.5f; break;
+    }
+
+    drawDot (0.0f, 0.0f, juce::Colour (0xff22c55e)); // Green origin
+    drawDot (0.5f, midY, juce::Colour (0xfffacc15)); // Yellow midpoint
+    drawDot (1.0f, 1.0f, juce::Colour (0xffef4444)); // Red peak
+}
+
 //==============================================================================
 Editor::Editor (PluginProcessor& p)
     : processor (p)
@@ -711,8 +846,13 @@ void Editor::buildControls()
     instDynamicsKnob->setDoubleClickReturnValue (true, 0.5);
     addAndMakeVisible (*instDynamicsKnob);
 
-    // Left Panel: Velocity Curve Button
+    // Left Panel: Velocity Curve Button & DrumGizmo-style Curve Preview
     addAndMakeVisible (instCurveButton);
+    addAndMakeVisible (instCurvePreview);
+    instCurvePreview.onClick = [this]
+    {
+        instCurveButton.triggerClick();
+    };
     instCurveButton.onClick = [this]
     {
         const int samplerIdx = getActiveSamplerIndex();
@@ -1105,6 +1245,7 @@ void Editor::updateInstrumentDisplay()
     {
         const auto params = processor.getSampler().getInstrumentParams (samplerIdx);
         instCurveButton.setCurve (params.velocityCurve);
+        instCurvePreview.setCurve (params.velocityCurve);
     }
 
     const bool isLearningThis = (learningInstrument >= 0 && learningInstrument == samplerIdx);
@@ -1333,13 +1474,17 @@ void Editor::resized()
     instPitchKnob->setBounds (kCol1, kRow2, kSize, kSize + 14);
     instDynamicsKnob->setBounds (kCol2, kRow2, kSize, kSize + 14);
 
-    // Velocity Curve row
-    const int curveY = kRow2 + kSize + 14;
+    // Velocity Curve row: Preset button + DrumGizmo-style Curve Preview
+    const int curveY = kRow2 + kSize + 12;
     const int curveH = 24;
     instCurveButton.setBounds (panelX + 14, curveY, panelW - 28, curveH);
 
+    const int previewY = curveY + curveH + 6;
+    const int previewH = 68;
+    instCurvePreview.setBounds (panelX + 14, previewY, panelW - 28, previewH);
+
     // Bottom row: NOTE label on left, LEARN button on right
-    const int noteRowY = curveY + curveH + 8;
+    const int noteRowY = previewY + previewH + 8;
     const int learnW = 68;
     const int learnH = 26;
     instLearnButton.setBounds (panelX + panelW - 14 - learnW, noteRowY, learnW, learnH);

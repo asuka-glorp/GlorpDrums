@@ -36,6 +36,19 @@ namespace
              | (static_cast<uint32_t> (u[3]) << 24);
     }
 
+    uint64_t readU64LE (const char* p) noexcept
+    {
+        const auto* u = reinterpret_cast<const uint8_t*> (p);
+        return static_cast<uint64_t> (u[0])
+             | (static_cast<uint64_t> (u[1]) << 8)
+             | (static_cast<uint64_t> (u[2]) << 16)
+             | (static_cast<uint64_t> (u[3]) << 24)
+             | (static_cast<uint64_t> (u[4]) << 32)
+             | (static_cast<uint64_t> (u[5]) << 40)
+             | (static_cast<uint64_t> (u[6]) << 48)
+             | (static_cast<uint64_t> (u[7]) << 56);
+    }
+
     std::string normalizePath (std::string p)
     {
         std::replace (p.begin(), p.end(), '\\', '/');
@@ -219,16 +232,59 @@ bool GlorpKitReader::parseZipHeaders (std::ifstream& stream)
     if (! stream.read (eocd, 22))
         return false;
 
-    const auto totalEntries = readU16LE (eocd + 10);
+    uint64_t totalEntries = readU16LE (eocd + 10);
     const auto centralDirSize = readU32LE (eocd + 12);
-    const auto centralDirOffset = readU32LE (eocd + 16);
+    uint64_t centralDirOffset = readU32LE (eocd + 16);
 
     (void) centralDirSize;
 
-    // Read central directory entries
-    stream.seekg (centralDirOffset);
+    // Check for ZIP64 End of Central Directory Locator (PK\x06\x07)
+    // In standard ZIP64 archives, the locator is 20 bytes long immediately before EOCD.
+    int64_t zip64LocatorOffset = -1;
+    if (eocdOffset >= 20)
+    {
+        const int64_t relLoc = eocdOffset - searchStart - 20;
+        if (relLoc >= 0 && std::memcmp (searchBuf.data() + relLoc, "PK\x06\x07", 4) == 0)
+        {
+            zip64LocatorOffset = eocdOffset - 20;
+        }
+        else
+        {
+            // Scan backwards up to 128 bytes before EOCD in searchBuf
+            const int64_t scanStart = std::max<int64_t> (0, eocdOffset - searchStart - 128);
+            for (int64_t i = eocdOffset - searchStart - 20; i >= scanStart; --i)
+            {
+                if (std::memcmp (searchBuf.data() + i, "PK\x06\x07", 4) == 0)
+                {
+                    zip64LocatorOffset = searchStart + i;
+                    break;
+                }
+            }
+        }
+    }
 
-    for (int i = 0; i < totalEntries; ++i)
+    if (zip64LocatorOffset >= 0)
+    {
+        stream.seekg (zip64LocatorOffset);
+        char locator[20];
+        if (stream.read (locator, 20) && std::memcmp (locator, "PK\x06\x07", 4) == 0)
+        {
+            const auto zip64EocdOffset = readU64LE (locator + 8);
+            stream.seekg (static_cast<std::streamoff> (zip64EocdOffset));
+
+            char zip64Eocd[56];
+            if (stream.read (zip64Eocd, 56) && std::memcmp (zip64Eocd, "PK\x06\x06", 4) == 0)
+            {
+                totalEntries = readU64LE (zip64Eocd + 32);
+                centralDirOffset = readU64LE (zip64Eocd + 48);
+            }
+        }
+    }
+
+    // Read central directory entries
+    stream.seekg (static_cast<std::streamoff> (centralDirOffset));
+
+    for (uint64_t i = 0; i < totalEntries; ++i)
     {
         char header[46];
         if (! stream.read (header, 46))
@@ -238,18 +294,56 @@ bool GlorpKitReader::parseZipHeaders (std::ifstream& stream)
             break;
 
         const auto method = readU16LE (header + 10);
-        const auto compressedSize = readU32LE (header + 20);
-        const auto uncompressedSize = readU32LE (header + 24);
+        uint64_t compressedSize = readU32LE (header + 20);
+        uint64_t uncompressedSize = readU32LE (header + 24);
         const auto filenameLen = readU16LE (header + 28);
         const auto extraLen = readU16LE (header + 30);
         const auto commentLen = readU16LE (header + 32);
-        const auto localHeaderOffset = readU32LE (header + 42);
+        uint64_t localHeaderOffset = readU32LE (header + 42);
 
         std::string filename (static_cast<size_t> (filenameLen), '\0');
         stream.read (&filename[0], filenameLen);
 
-        // Skip extra field and comment
-        stream.seekg (static_cast<std::streamoff> (extraLen + commentLen), std::ios::cur);
+        // Read extra field to parse ZIP64 extra block (ID 0x0001) if present
+        if (extraLen > 0)
+        {
+            std::vector<char> extraBuf (extraLen);
+            if (stream.read (extraBuf.data(), extraLen))
+            {
+                size_t off = 0;
+                while (off + 4 <= extraLen)
+                {
+                    const auto tag = readU16LE (extraBuf.data() + off);
+                    const auto len = readU16LE (extraBuf.data() + off + 2);
+                    off += 4;
+
+                    if (tag == 0x0001 && off + len <= extraLen)
+                    {
+                        size_t fieldOff = 0;
+                        if (uncompressedSize == 0xFFFFFFFF && fieldOff + 8 <= len)
+                        {
+                            uncompressedSize = readU64LE (extraBuf.data() + off + fieldOff);
+                            fieldOff += 8;
+                        }
+                        if (compressedSize == 0xFFFFFFFF && fieldOff + 8 <= len)
+                        {
+                            compressedSize = readU64LE (extraBuf.data() + off + fieldOff);
+                            fieldOff += 8;
+                        }
+                        if (localHeaderOffset == 0xFFFFFFFF && fieldOff + 8 <= len)
+                        {
+                            localHeaderOffset = readU64LE (extraBuf.data() + off + fieldOff);
+                            fieldOff += 8;
+                        }
+                    }
+                    off += len;
+                }
+            }
+        }
+
+        // Skip comment
+        if (commentLen > 0)
+            stream.seekg (static_cast<std::streamoff> (commentLen), std::ios::cur);
 
         // Directories end with '/'
         if (! filename.empty() && (filename.back() == '/' || filename.back() == '\\'))
@@ -257,24 +351,24 @@ bool GlorpKitReader::parseZipHeaders (std::ifstream& stream)
 
         GlorpKitEntry entry;
         entry.name = normalizePath (filename);
-        entry.uncompressedSize = uncompressedSize;
-        entry.compressedSize = compressedSize;
+        entry.uncompressedSize = static_cast<int64_t> (uncompressedSize);
+        entry.compressedSize = static_cast<int64_t> (compressedSize);
         entry.isCompressed = (method != 0);
 
         // Calculate actual data offset by reading local header
         const auto curPos = stream.tellg();
-        stream.seekg (localHeaderOffset);
+        stream.seekg (static_cast<std::streamoff> (localHeaderOffset));
 
         char localHeader[30];
         if (stream.read (localHeader, 30) && std::memcmp (localHeader, "PK\x03\x04", 4) == 0)
         {
             const auto localFileLen = readU16LE (localHeader + 26);
             const auto localExtraLen = readU16LE (localHeader + 28);
-            entry.dataOffset = localHeaderOffset + 30 + localFileLen + localExtraLen;
+            entry.dataOffset = static_cast<int64_t> (localHeaderOffset) + 30 + localFileLen + localExtraLen;
         }
         else
         {
-            entry.dataOffset = localHeaderOffset + 30 + filenameLen;
+            entry.dataOffset = static_cast<int64_t> (localHeaderOffset) + 30 + filenameLen;
         }
 
         stream.seekg (curPos);

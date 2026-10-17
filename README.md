@@ -1,24 +1,66 @@
 # GlorpDrums
 
-GlorpDrums is a sample-based acoustic drum plugin and standalone application built with JUCE. It loads drum kits formatted for the DrumGizmo XML standard and supports multi-zone articulations, velocity layers, round-robin variations, choke groups, per-zone sound shaping, and multi-channel DAW output routing.
+**GlorpDrums** is a sample-based acoustic drum plugin and standalone application built with JUCE and modern C++20 for Linux musicians. Designed to serve as the definitive Linux alternative to commercial drum samplers, GlorpDrums delivers zero-copy sample playback, multi-zone articulations, comprehensive e-drum calibration, per-instrument sound shaping, and multi-channel stem routing for professional music production.
 
 ![GlorpDrums Standalone Interface](docs/screenshot.png)
 
 ---
 
-## Features
+## Key Features
 
-* **Multi-Zone Articulations**: Supports multi-zone instruments grouped by drum piece:
-  * **Snare**: Head, Rimshot, RimClick (crosstick), and Rest/Muffled.
-  * **Toms**: Head and Rim zones for rack and floor toms.
-  * **Hi-Hat**: Closed, Semi-Open, Open, and Pedal with automatic mutual choking.
+### 🥁 Native GlorpKit Format (`.glorpkit`)
+* **Single-File Distribution**: Eliminates sprawling folders of thousands of loose WAV files by packaging full drum kits into single, standardized `.glorpkit` archives.
+* **ZIP64 Architecture**: Fully supports massive multi-gigabyte sample libraries (e.g., CrocellKit 8.4 GB, multi-round-robin kits) without entry limits.
+* **Zero-Copy Memory Mapping (`mmap`)**: Samples are streamed directly from the archive into memory buffers without disk extraction, ensuring near-instant kit loading and minimal memory footprint.
+* **Legacy DrumGizmo Compatibility**: Seamlessly loads legacy DrumGizmo `drumkit.xml` and `midimap.xml` folder setups as a built-in fallback.
+
+### 🎯 Multi-Zone Acoustic Engine
+* **Articulated Pieces**:
+  * **Snare**: Head, Rimshot, RimClick (cross-stick), and Rest/Muffled.
+  * **Hi-Hat**: Closed, Semi-Open, Open, and Pedal Chick with automatic mutual choking.
   * **Cymbals**: Edge, Bow, Bell, and Choke articulations for crashes and rides.
-* **Per-Zone Sound Shaping**: Independent Volume, Pan, Pitch shift (-12 to +12 semitones), and Velocity Dynamics response per zone.
-* **Multi-Channel DAW Routing**: Supports up to 16 discrete stereo output buses, allowing individual kit pieces to be routed to dedicated mixer tracks in Ardour, Reaper, Bitwig, or other DAWs.
-* **6-Lane Drum Rhythm Ribbon**: Real-time MIDI activity strip along the bottom displaying hits across dedicated horizontal lanes (`CYM`, `HH`, `TOM`, `SNR`, `KCK`, `ETC`). Simultaneous strikes (e.g. Kick + Snare + Hi-Hat) align vertically without visual overlap, with capsule width, color, and accents scaling by strike intensity.
-* **Kit Selector**: Dropdown above the kit graphic to switch between scanned kit directories or browse for any `drumkit.xml` file.
-* **Interactive Kit Graphic**: Click drum pieces to audition hits and navigate instrument settings; displays real-time hit glow animations during playback.
-* **MIDI Mapping & MIDI Learn**: Interactive MIDI learn per zone, plus support for standard DrumGizmo `midimap.xml` files.
+  * **Toms**: Independent Head and Rim zones across rack and floor toms.
+* **Round-Robin & Velocity Layers**: Multi-layer velocity switching and randomized round-robin variations prevent the "machine gun" effect.
+
+### 📈 DrumGizmo-Style Velocity Curves & Preview
+* **Dynamic Response Presets**: Choose between **Linear** (1:1 natural response), **Logarithmic** (boosts lighter ghost notes), **Exponential** (tightens hard hits), and **S-Curve** (exaggerates mid-range dynamics).
+* **Live Visual Response Graph**: Inset display with coordinate axes (`in` on horizontal, `out` on vertical), reference grid lines, glowing response curve, and anchor points. Click directly on the preview to cycle or select curve presets.
+
+### 🎛️ Sound Shaping & Multi-Bus DAW Routing
+* **Per-Instrument Shaping**: Independent controls for **Volume**, **Pan**, **Pitch** transposition ($-12$ to $+12$ semitones with anti-aliased interpolation), and **Dynamics** response.
+* **Multi-Bus DAW Stems**: Up to 16 discrete stereo output buses (Master, Kick, Snare, Hi-Hat, Toms, Cymbals, Percussion, Ambience/Room), enabling direct multitrack mixing in Reaper, Ardour, Bitwig, or Carla.
+
+### ⚡ 6-Lane Drum Rhythm Ribbon
+* Real-time visual MIDI event stream along the bottom featuring 6 dedicated horizontal lanes (`CYM`, `HH`, `TOM`, `SNR`, `KCK`, `ETC`).
+* Simultaneous hits align vertically without visual overlap, with capsule width, color coding, and intensity accents scaling dynamically to hit velocity.
+
+---
+
+## E-Drum Calibration & Setup Wizard
+
+GlorpDrums is purpose-built for electronic drum kits. An integrated **E-Drum Setup Wizard** calibrates pads, cymbals, and pedals in seconds:
+
+![E-Drum Setup Wizard](docs/edrum_wizard_screenshot.png)
+
+* **Hardware Presets**: Pre-configured MIDI mappings for **Roland**, **Yamaha**, **Alesis**, **Millenium**, **Efnote**, **General MIDI (GM)**, **ReaperDrummer**, and standard **DrumGizmo**.
+* **Interactive Step-by-Step Calibration**: Simply strike each physical pad when prompted to automatically detect and assign MIDI note numbers.
+* **Instant MIDI Learn**: Arm the `LEARN` button next to any instrument or zone to bind incoming MIDI notes on the fly.
+
+---
+
+## Roadmap
+
+GlorpDrums is actively developed following an ambitious multi-phase roadmap:
+
+### Phase 1 — E-Drum Input Engine (Upcoming)
+* **Hi-Hat CC#4 Continuity**: Smooth real-time crossfading between Closed, Semi-Open, and Open zones driven by continuous pedal data (CC#4), with a toggle between Continuous Pedal Mode and Discrete Articulation Note Mode.
+* **Poly-Pressure Cymbal Chokes**: Choke damping via Polyphonic Key Pressure (`0xA0`) and Channel Pressure (`0xD0`) with an anti-click fast-release envelope.
+
+### Phase 2 — Full Per-Mic Mixer Tab (Upcoming)
+* **Dual-View UI**: Seamless switching between **[KIT VIEW]** and **[MIXER VIEW]**.
+* **Per-Mic Channel Strips**: Individual faders, mute, solo, and phase inversion for all recorded kit mics (Close, Room, Overhead Left/Right, Ambience, Bleed).
+* **Built-In DSP FX**: 3-band parametric EQ, VCA drum compressor, warm tape/tube saturation, transient shaper, and algorithmic reverb sends.
+* **Mixer Presets**: Save and load `.glorpmix` presets for different production styles.
 
 ---
 
@@ -27,14 +69,14 @@ GlorpDrums is a sample-based acoustic drum plugin and standalone application bui
 ### Prerequisites (Linux)
 * CMake 3.22 or higher
 * C++20 compatible compiler (GCC 11+ or Clang 14+)
-* JUCE Linux system dependencies (ALSA, JACK, FreeType, X11, OpenGL development headers):
+* Linux development headers (ALSA, JACK, FreeType, X11, OpenGL):
   ```bash
   sudo apt install build-essential cmake libasound2-dev libjack-jackd2-dev \
                    libfreetype-dev libx11-dev libxcomposite-dev libxcursor-dev \
                    libxext-dev libxinerama-dev libxrandr-dev libxrender-dev
   ```
 
-The standalone app supports ALSA, JACK, and PipeWire (via JACK or ALSA compatibility). For live performance, JACK is recommended for lowest latency.
+GlorpDrums supports **ALSA**, **JACK**, and **PipeWire** (via PipeWire-JACK or PipeWire-ALSA). For live e-drum performance, JACK / PipeWire-JACK is recommended for minimum latency.
 
 ### Building
 
@@ -42,133 +84,42 @@ The standalone app supports ALSA, JACK, and PipeWire (via JACK or ALSA compatibi
    ```bash
    cmake -B build -DCMAKE_BUILD_TYPE=Release
    ```
-2. Compile the binaries:
+2. Compile binaries:
    ```bash
    cmake --build build --config Release -j$(nproc)
    ```
 
-Compilation generates the following targets in `build/GlorpDrums_artefacts/Release/`:
+Outputs in `build/GlorpDrums_artefacts/Release/`:
 * `Standalone/GlorpDrums` — Standalone executable
 * `VST3/GlorpDrums.vst3` — VST3 plugin bundle
 * `LV2/GlorpDrums.lv2` — LV2 plugin bundle
 
 ### Installation
 
-To copy the plugin bundles and standalone binary to your user directories (`~/.vst3/`, `~/.lv2/`, and `~/.local/bin/`):
+To copy plugin bundles and the standalone binary to your standard user directories (`~/.vst3/`, `~/.lv2/`, and `~/.local/bin/`):
 ```bash
 ./tools/install.sh
 ```
 
-Or to quickly update just the VST3 and LV2 plugins in your DAW scan folders:
+Or to quickly update only the DAW plugin scan folders:
 ```bash
 ./tools/install_plugins.sh
 ```
 
 ---
 
-## Kit Generation Tools
+## Drum Kit Locations
 
-GlorpDrums includes automated Python scripts in `tools/` for converting and extracting drum kits into standard DrumGizmo XML format.
-
-### 1. EZDrummer Sample Ripper (`tools/sample_ripper/`)
-
-This tool automates sampling virtual drum instruments (such as EZDrummer 3) by generating a mathematically timed MIDI track, capturing the audio in your DAW, and slicing the resulting recording into properly structured DrumGizmo kits.
-
-#### Step 1: Generate the Sampling MIDI File
-Run the MIDI track generator:
-```bash
-python3 tools/sample_ripper/make_sampling_midi.py ./capture
-```
-This generates:
-* `capture/sampling_track.mid`: A Standard MIDI File (Channel 10) containing 20 drum articulations across 6 velocity tiers (20, 42, 64, 85, 106, 127) and 3 round-robin iterations (360 total hits). Cymbals and open hi-hats have extended decay spacing (up to 10.5 seconds) to prevent sample tail overlap. Hi-hat pedal open/close positions are automated using MIDI CC #4.
-* `capture/sampling_manifest.json`: Precise timestamps and articulation metadata used by the slicing script.
-
-#### Step 2: Render in Your DAW
-1. Open your DAW (e.g. Ardour 8, Reaper) and create a MIDI track loaded with EZDrummer 3.
-2. Select your desired kit, tuning, and room mic balance in the EZDrummer interface.
-3. Import `capture/sampling_track.mid` onto the track, aligned to timeline start (`00:00:00`).
-4. Export/bounce the master track offline to a stereo WAV file (24-bit, 44.1 kHz or 48 kHz), e.g. `./capture/render.wav`.
-
-#### Step 3: Slice and Assemble the Kit
-Run the slicing and kit builder script:
-```bash
-python3 tools/sample_ripper/slice_and_build_kit.py \
-    ./capture/render.wav \
-    ./capture/sampling_manifest.json \
-    ~/.config/GlorpDrums/kits/EZD_MyKit \
-    "EZD Custom Kit"
-```
-The script will:
-* Detect audio onset transients around each scheduled timestamp, accounting for plugin and DAW latency.
-* Apply pre-roll and anti-click fades to preserve attack clicks and clean sample tails.
-* Export all 360 sliced 24-bit WAV files into instrument subdirectories.
-* Generate `instruments/*.xml` files with normalized sample power curves.
-* Generate `drumkit.xml` with channel mappings and mutual choke rules (closed/semi-open hats choking open hats).
-* Generate `midimap.xml` matching standard General MIDI note layouts.
-
----
-
-### 2. ReaperDrummer Kit Organizer (`tools/organize_reaperdrummer_kits.py`)
-
-This script organizes multi-channel drum recordings (such as the free ReaperDrummer sample packs: *Ludwig Black Cortex* and *Premier Signia*) into DrumGizmo XML kits.
-
-#### Usage:
-1. Place your uncompressed ReaperDrummer sample folders in your kits directory (e.g., `/home/<user>/DrumGizmo/kits/`).
-2. Run the script:
-   ```bash
-   python3 tools/organize_reaperdrummer_kits.py
-   ```
-3. The script scans the WAV file naming patterns (e.g., `Snare A 01.wav`, `Hihat Spl 08.wav`), detects multi-channel audio tracks (direct mics, overheads, room mics), and builds:
-   * Multi-channel instrument XML files with calibrated velocity power curves.
-   * `drumkit.xml` with multichannel routing (`DIRECT`, `OHL`, `OHR`, `AMBL`, `AMBR`).
-   * Choke groupings for open hi-hats and cymbals.
-   * `midimap.xml` mapping MIDI notes to each articulation.
-
----
-
-## Loading Kits in GlorpDrums
-
-1. In GlorpDrums, click the **KIT** dropdown above the drum kit graphic (or use **FILE -> Load DrumKit (.xml)...**).
-2. Select a kit from the scanned list, or browse to any `drumkit.xml` file on disk.
-3. Kit configurations, zone assignments, choke groups, and round robins will load automatically.
-
----
-
-## Project Structure
-
-```
-GlorpDrums/
-├── CMakeLists.txt                # Build configuration (JUCE targets)
-├── src/
-│   ├── core/                     # Audio engine, sampler, voice allocation, XML parsing
-│   │   ├── DrumKit.cpp/h         # Kit data structures and XML loader
-│   │   ├── Sampler.cpp/h         # Polyphonic voice playback and multi-out routing
-│   │   ├── MidiMap.cpp/h         # MIDI note mappings and MIDI learn
-│   │   └── Settings.cpp/h       # Persistent configuration
-│   ├── plugin/                   # JUCE AudioProcessor & AudioProcessorEditor
-│   │   ├── PluginProcessor.cpp/h # Audio processing and bus negotiation
-│   │   └── PluginEditor.h        # Editor wrapper
-│   └── ui/                       # User interface components
-│       ├── Editor.cpp/h          # Main window layout and controls
-│       ├── DrumKitView.cpp/h     # Interactive drum kit visualizer
-│       ├── Scope.cpp/h           # 6-lane Drum Rhythm Ribbon MIDI activity strip
-│       ├── Knob.cpp/h            # Sketched rotary controls
-│       └── Theme.h               # Graphic styling, fonts, and colors
-├── tools/
-│   ├── sample_ripper/            # EZDrummer sampling MIDI generator and slicer
-│   ├── organize_reaperdrummer_kits.py # ReaperDrummer multi-channel kit organizer
-│   ├── install.sh                # Full installation script
-│   └── install_plugins.sh        # Plugin-only deployment script
-└── docs/
-    └── screenshot.png            # Interface screenshot
-```
+GlorpDrums automatically scans the following directories for `.glorpkit` files and DrumGizmo XML manifests:
+* `~/.glorpdrums/kits/` (Recommended)
+* `~/.config/GlorpDrums/kits/`
+* `~/DrumGizmo/kits/`
+* `~/.local/share/drumgizmo/kits/`
+* `~/Documents/drumgizmo/kits/`
+* Custom directories configured via **FILE $\to$ Scan Custom Folder...** or the `GLORP_KITS_PATH` environment variable.
 
 ---
 
 ## License
 
-GlorpDrums is released under the GNU Affero General Public License v3.0 (AGPLv3).
-
-This license is required because GlorpDrums uses the JUCE framework, which is licensed under AGPLv3. The full license text is in the `LICENSE` file.
-
-If you need a different license, please contact the maintainers.
+GlorpDrums is open-source software licensed under the GNU General Public License v3 (GPLv3).

@@ -1,9 +1,38 @@
+# Build outputs
 build/
-libs/JUCE/
+bin/
 *.o
 *.so
 *.a
+*.vst3
+*.lv2
+
+# Dependencies & IDE
+libs/JUCE/
 .cache/
 compile_commands.json
 CMakeUserPresets.json
 .vscode/
+.idea/
+*.swp
+*~
+.DS_Store
+Thumbs.db
+
+# Private tools & scripts (kept locally, excluded from public repo)
+tools/sample_ripper/
+tools/convert_to_glorpkit.py
+tools/organize_reaperdrummer_kits.py
+tools/generate_advanced_kit.py
+tools/__pycache__/
+*.pyc
+*.pyo
+
+# Scratch & test binaries
+check_raw_wav
+test_crocell
+test_menu
+test_*
+diagnose_*
+core
+vgcore.*
