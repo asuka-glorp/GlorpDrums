@@ -36,6 +36,36 @@
 
 ---
 
+### 🎛️ Dual-View UI & Full Per-Mic Mixer Tab
+Toggle effortlessly between **[KIT VIEW]** and **[MIXER VIEW]** directly from the top header:
+
+![GlorpDrums Mixer Console](docs/mixer_view_screenshot.png)
+
+* **Per-Mic Channel Strips**: Complete individual strips for every mic channel (Close Kick, Snare Top, Snare Bottom, Hi-Hat, Toms, Overheads L/R, Room, Ambience, Bleed).
+* **Channel Controls**: Smooth volume faders ($- \infty$ to $+6\text{ dB}$ with double-click reset to $0\text{ dB}$), stereo pan bar with center detent, Solo (`S`), Mute (`M`), and Phase Inversion (`Ø`).
+* **Real-Time LED Ballistics**: Multi-segment peak and RMS LED level meters for every channel and master bus with 30 Hz refresh rate and instant overload clipping indication.
+* **Master Bus Strip**: Dedicated master section pinned on the right with master fader, balance pan, brickwall soft-knee limiter, and algorithmic stereo reverb send/return.
+* **Mixer Preset Architecture (`.glorpmix`)**: Quick-load factory production presets (**Default Clean**, **Massive Rock**, **Vintage Warmth**, **Punchy Studio**, **Dry & Tight**) or save and recall custom `.glorpmix` presets directly to your session.
+
+### 🎚️ Built-In Channel Strip DSP Rack
+Click the **FX** drawer on any channel strip to open an inline analog-inspired processing rack:
+
+![Channel DSP FX Rack](docs/mixer_fx_screenshot.png)
+
+* **3-Band Parametric EQ**: Low shelf at $80\text{ Hz}$ ($\pm 12\text{ dB}$), sweepable peaking mid filter ($200\text{ Hz} - 6\text{ kHz}$, $Q=1.2$), and high shelf at $10\text{ kHz}$ ($\pm 12\text{ dB}$).
+* **VCA Drum Compressor**: Studio compressor with adjustable Threshold ($-30\text{ dB} - 0\text{ dB}$), Ratio ($1:1 - 8:1$), Attack ($1 - 50\text{ ms}$), Release ($20 - 300\text{ ms}$), and Makeup Gain ($0 - +12\text{ dB}$).
+* **Tape & Tube Saturation**: Non-linear hyperbolic tangent ($\tanh$) waveshaping for warm harmonic drive and analog thickness.
+* **Transient Shaper**: Dual peak/RMS envelope follower with independent Attack and Sustain boost/cut for punchy transient snap and room decay extension.
+
+### ⚡ E-Drum Input Engine (Continuous CC#4 & Chokes)
+* **Continuous CC#4 Hi-Hat Tracking**: Smooth real-time crossfading between Closed ($0.0 - 0.20$), Semi-Open ($0.20 - 0.45$), Open Mid ($0.45 - 0.75$), and Full Open ($0.75 - 1.0$) zones based on continuous pedal movement.
+* **Equal-Power Morphing**: Natural acoustic transitions powered by equal-power sinusoidal crossfade weights ($w_A = \cos(\frac{\pi}{2}\alpha), w_B = \sin(\frac{\pi}{2}\alpha)$) with zero phase cancellation.
+* **Mode Switch**: Easily toggle between **Continuous CC#4 Mode (E-Drum)** and **Discrete Articulation Notes Mode (DAW / Keyboard)** in the MIDI menu.
+* **Dynamic Foot Chick & Splash**: Instant foot chick triggered by fast downward pedal stomp ($\Delta CC > 0.40$ in $< 45\text{ ms}$), and foot splash triggered on rapid stomp-and-release gestures.
+* **15ms Anti-Click Cymbal Chokes**: Choke damping via Polyphonic Key Pressure (`0xA0`) and Channel Pressure (`0xD0`) with a smooth $C^1$ half-cosine fade window to eliminate digital clicks.
+
+---
+
 ## E-Drum Calibration & Setup Wizard
 
 GlorpDrums is purpose-built for electronic drum kits. An integrated **E-Drum Setup Wizard** calibrates pads, cymbals, and pedals in seconds:
@@ -52,15 +82,10 @@ GlorpDrums is purpose-built for electronic drum kits. An integrated **E-Drum Set
 
 GlorpDrums is actively developed following an ambitious multi-phase roadmap:
 
-### Phase 1 — E-Drum Input Engine (Upcoming)
-* **Hi-Hat CC#4 Continuity**: Smooth real-time crossfading between Closed, Semi-Open, and Open zones driven by continuous pedal data (CC#4), with a toggle between Continuous Pedal Mode and Discrete Articulation Note Mode.
-* **Poly-Pressure Cymbal Chokes**: Choke damping via Polyphonic Key Pressure (`0xA0`) and Channel Pressure (`0xD0`) with an anti-click fast-release envelope.
-
-### Phase 2 — Full Per-Mic Mixer Tab (Upcoming)
-* **Dual-View UI**: Seamless switching between **[KIT VIEW]** and **[MIXER VIEW]**.
-* **Per-Mic Channel Strips**: Individual faders, mute, solo, and phase inversion for all recorded kit mics (Close, Room, Overhead Left/Right, Ambience, Bleed).
-* **Built-In DSP FX**: 3-band parametric EQ, VCA drum compressor, warm tape/tube saturation, transient shaper, and algorithmic reverb sends.
-* **Mixer Presets**: Save and load `.glorpmix` presets for different production styles.
+* [x] **Phase 1 — E-Drum Input Engine**: Continuous CC#4 hi-hat crossfading, foot chick/splash gestures, and 15ms anti-click cymbal choke damping.
+* [x] **Phase 2 — Full Per-Mic Mixer Tab & Built-in DSP**: Dual-view UI switch ([KIT VIEW] / [MIXER VIEW]), per-mic strips, 3-band EQ, VCA compressor, saturation, transient shaper, master limiter, reverb, and `.glorpmix` presets.
+* [ ] **Phase 3 — Groove Player & MIDI Pattern Library**: Built-in tempo-synced MIDI pattern player, groove audition browser, and drag-and-drop directly into your DAW timeline.
+* [ ] **Phase 4 — Multi-Mic Leakage & Bleed Matrix**: Realistic snare top bleed into kick mic, tom bleed into overheads, and controllable acoustic crosstalk.
 
 ---
 

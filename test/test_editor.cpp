@@ -314,6 +314,41 @@ int main()
         }
     }
 
+    // 6. Test Mixer View snapshot
+    for (auto* child : pluginEditor->getChildren())
+    {
+        if (auto* ed = dynamic_cast<glorp::Editor*> (child))
+        {
+            ed->setViewMode (glorp::Editor::EditorView::mixerView);
+            auto imageMixer = pluginEditor->createComponentSnapshot (pluginEditor->getLocalBounds());
+            juce::File outMixerFile ("/home/servandoc/Documents/DEV/GlorpDrums/docs/mixer_view_screenshot.png");
+            outMixerFile.deleteFile();
+            juce::FileOutputStream fosMixer (outMixerFile);
+            if (fosMixer.openedOk())
+            {
+                juce::PNGImageFormat png;
+                png.writeImageToStream (imageMixer, fosMixer);
+                std::cout << "Saved Mixer View snapshot to: " << outMixerFile.getFullPathName().toStdString() << std::endl;
+            }
+
+            if (auto* mv = ed->getMixerView())
+            {
+                mv->openChannelFX (0);
+                auto imageFX = pluginEditor->createComponentSnapshot (pluginEditor->getLocalBounds());
+                juce::File outFXFile ("/home/servandoc/Documents/DEV/GlorpDrums/docs/mixer_fx_screenshot.png");
+                outFXFile.deleteFile();
+                juce::FileOutputStream fosFX (outFXFile);
+                if (fosFX.openedOk())
+                {
+                    juce::PNGImageFormat png;
+                    png.writeImageToStream (imageFX, fosFX);
+                    std::cout << "Saved Mixer FX Drawer snapshot to: " << outFXFile.getFullPathName().toStdString() << std::endl;
+                }
+            }
+            break;
+        }
+    }
+
     // Update main docs/screenshot.png with latest UI
     {
         // Re-create idle editor for clean main screenshot

@@ -19,6 +19,7 @@ class Knob : public juce::Component,
 {
 public:
     explicit Knob (const juce::String& label);
+    Knob (const juce::String& label, float minVal, float maxVal, float defVal = 0.0f, const juce::String& unit = {});
     ~Knob() override;
 
     void setLabel (const juce::String& text) { labelText = text; repaint(); }
@@ -28,11 +29,15 @@ public:
     void setDoubleClickReturnValue (bool enabled, double value);
     void setRange (double newMin, double newMax, double newInterval = 0.0);
     void setRange (juce::NormalisableRange<float> range, double newInterval = 0.0);
+    void setRange (float minVal, float maxVal, float defVal = 0.0f, const juce::String& unit = {});
 
     float getDisplayValue() const noexcept;
     void setNormalized (float v);
+    void setValue (float realValue);
+    float getValue() const noexcept;
     juce::AudioProcessorParameter* getParameter() const noexcept { return param; }
 
+    std::function<void(float)> onValueChanged;
     std::function<bool()> onLearnRequested;
     void setLearnArmed (bool armed) { learnArmed = armed; repaint(); }
 
@@ -59,6 +64,10 @@ private:
 
     double defaultValue = 0.0;
     bool hasDefaultValue = false;
+
+    float minVal_ = 0.0f;
+    float maxVal_ = 1.0f;
+    juce::String unitString;
 
     juce::AudioProcessorParameter* param = nullptr;
 

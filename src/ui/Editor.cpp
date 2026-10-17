@@ -8,15 +8,15 @@ void Editor::MenuButton::paintButton (juce::Graphics& g, bool isHover, bool isDo
 {
     auto b = getLocalBounds().toFloat().reduced (2.0f);
 
-    if (isHover || isDown)
+    if (active || isHover || isDown)
     {
-        g.setColour (juce::Colour (0xffea8c16).withAlpha (isDown ? 0.24f : 0.12f));
+        g.setColour (juce::Colour (0xffea8c16).withAlpha (active ? 0.22f : (isDown ? 0.24f : 0.12f)));
         g.fillRoundedRectangle (b, 4.0f);
-        drawSketchRect (g, b, juce::Colour (0xffea8c16), 1.5f, 7);
+        drawSketchRect (g, b, juce::Colour (0xffea8c16), active ? 1.8f : 1.5f, 7);
     }
 
     g.setFont (displayFont (19.0f));
-    g.setColour (isHover ? juce::Colour (0xffea8c16) : juce::Colour (0xff111215));
+    g.setColour ((active || isHover) ? juce::Colour (0xffea8c16) : juce::Colour (0xff111215));
     g.drawText (getName(), b, juce::Justification::centred, false);
 }
 
@@ -349,6 +349,9 @@ Editor::Editor (PluginProcessor& p)
     addAndMakeVisible (kitView);
     addAndMakeVisible (scope);
 
+    mixerView = std::make_unique<MixerView> (processor);
+    addChildComponent (*mixerView);
+
     edrumWizard = std::make_unique<EDrumWizard> (processor);
     addChildComponent (*edrumWizard);
     edrumWizard->onClose = [this]
@@ -430,6 +433,46 @@ Editor::~Editor()
     processor.removeListener (this);
 }
 
+void Editor::setViewMode (EditorView mode)
+{
+    currentView = mode;
+    const bool isKit = (currentView == EditorView::kitView);
+
+    if (edrumWizard != nullptr)
+        edrumWizard->close();
+
+    viewToggleButton.setButtonText (isKit ? "MIXER VIEW" : "KIT VIEW");
+    viewToggleButton.setActive (! isKit);
+
+    kitView.setVisible (isKit);
+    kitSelectorButton.setVisible (isKit);
+    instSelectorButton.setVisible (isKit);
+    outBusButton.setVisible (isKit);
+    for (auto& z : zoneButtons)
+        z->setVisible (isKit);
+
+    if (instVolumeKnob != nullptr)   instVolumeKnob->setVisible (isKit);
+    if (instPanKnob != nullptr)      instPanKnob->setVisible (isKit);
+    if (instPitchKnob != nullptr)    instPitchKnob->setVisible (isKit);
+    if (instDynamicsKnob != nullptr) instDynamicsKnob->setVisible (isKit);
+
+    instCurveButton.setVisible (isKit);
+    instCurvePreview.setVisible (isKit);
+    instLearnButton.setVisible (isKit);
+    scope.setVisible (isKit);
+    if (masterVolumeKnob != nullptr) masterVolumeKnob->setVisible (isKit);
+
+    if (mixerView != nullptr)
+    {
+        mixerView->setVisible (! isKit);
+        if (! isKit)
+            mixerView->refreshChannels();
+    }
+
+    resized();
+    repaint();
+}
+
 bool Editor::keyPressed (const juce::KeyPress& key)
 {
     // Developer toggle shortcut: Ctrl + Shift + E or Cmd + Shift + E
@@ -480,10 +523,16 @@ void Editor::filesDropped (const juce::StringArray& files, int /*x*/, int /*y*/)
 //==============================================================================
 void Editor::buildHeaderMenu()
 {
+    addAndMakeVisible (viewToggleButton);
     addAndMakeVisible (fileButton);
     addAndMakeVisible (presetsButton);
     addAndMakeVisible (midiButton);
     addAndMakeVisible (settingsButton);
+
+    viewToggleButton.onClick = [this]
+    {
+        setViewMode (currentView == EditorView::kitView ? EditorView::mixerView : EditorView::kitView);
+    };
 
     auto showMenu = [this] (juce::PopupMenu& m, juce::Component* target)
     {
@@ -660,6 +709,21 @@ juce::PopupMenu Editor::buildMidiMenu()
     auto& map = processor.getMidiMap();
 
     menu.addItem ("E-Drum Setup Wizard...", [this] { openEDrumWizard(); });
+    menu.addSeparator();
+
+    const bool continuousCC4 = (processor.getSampler().getHiHatMode() == HiHatMode::continuousCC4);
+    menu.addItem ("Hi-Hat: Continuous CC#4 (E-Drum Crossfade)", true, continuousCC4, [this]
+    {
+        processor.getSampler().setHiHatMode (HiHatMode::continuousCC4);
+        statusText = "Hi-Hat: Continuous CC#4 Mode active";
+        repaint();
+    });
+    menu.addItem ("Hi-Hat: Discrete Notes (DAW / Keyboard)", true, ! continuousCC4, [this]
+    {
+        processor.getSampler().setHiHatMode (HiHatMode::discreteNotes);
+        statusText = "Hi-Hat: Discrete Notes Mode active";
+        repaint();
+    });
     menu.addSeparator();
 
     menu.addItem ("Panic (All Notes Off)", [this] { processor.getSampler().allNotesOff(); });
@@ -1321,6 +1385,9 @@ void Editor::kitChanged()
             + juce::String (processor.getSampler().usedBusCount()) + " output buses"
         : "Glorp Demo Kit ready";
 
+    if (mixerView != nullptr)
+        mixerView->refreshChannels();
+
     repaint();
 }
 
@@ -1386,14 +1453,17 @@ void Editor::resized()
     // 1. Header menu buttons placed in top right section
     const int menuY = 16;
     const int menuH = 30;
-    const int fileW = 60;
-    const int presetsW = 92;
-    const int midiW = 60;
-    const int settingsW = 96;
-    const int gap = 20;
+    const int viewW = 114;
+    const int fileW = 54;
+    const int presetsW = 86;
+    const int midiW = 54;
+    const int settingsW = 90;
+    const int gap = 14;
 
-    const int totalMenuW = fileW + gap + presetsW + gap + midiW + gap + settingsW;
-    int curX = w - 36 - totalMenuW;
+    const int totalMenuW = viewW + gap + fileW + gap + presetsW + gap + midiW + gap + settingsW;
+    int curX = w - 24 - totalMenuW;
+    viewToggleButton.setBounds (curX, menuY, viewW, menuH);
+    curX += viewW + gap;
     fileButton.setBounds (curX, menuY, fileW, menuH);
     curX += fileW + gap;
     presetsButton.setBounds (curX, menuY, presetsW, menuH);
@@ -1503,6 +1573,9 @@ void Editor::resized()
     const int kitH = bottomY - kitY - 8;
     kitView.setBounds (kitX, kitY, kitW, kitH);
 
+    if (mixerView != nullptr)
+        mixerView->setBounds (16, 56, w - 32, h - 68);
+
     if (edrumWizard != nullptr)
         edrumWizard->setBounds (getLocalBounds());
 }
@@ -1532,57 +1605,60 @@ void Editor::paint (juce::Graphics& g)
     g.drawText ("DRUMS", juce::Rectangle<float> (92.0f, 30.0f, 180.0f, 24.0f),
                 juce::Justification::centredLeft, false);
 
-    // 4. Left Panel Card ("INSTRUMENT SETTINGS")
-    const auto panelRect = juce::Rectangle<float> (24.0f, 74.0f, 196.0f, leftPanelHeight);
-    g.setColour (theme.panel);
-    g.fillRoundedRectangle (panelRect, 6.0f);
-    drawSketchRect (g, panelRect, theme.panelEdge, 1.8f, 3);
-
-    // Title inside card
-    g.setFont (displayFont (18.0f));
-    g.setColour (theme.ink);
-    g.drawText ("INSTRUMENT", juce::Rectangle<float> (panelRect.getX(), panelRect.getY() + 10.0f, panelRect.getWidth(), 18.0f),
-                juce::Justification::centred, false);
-    g.drawText ("SETTINGS", juce::Rectangle<float> (panelRect.getX(), panelRect.getY() + 28.0f, panelRect.getWidth(), 18.0f),
-                juce::Justification::centred, false);
-
-    // Bottom note label in Left Panel
-    if (instLearnButton.isVisible())
+    if (currentView == EditorView::kitView)
     {
-        const float noteRowX = 24.0f + 14.0f;
-        const float noteRowY = static_cast<float> (instLearnButton.getY());
-        const float noteRowH = static_cast<float> (instLearnButton.getHeight());
-        const float noteMaxW = static_cast<float> (instLearnButton.getX()) - noteRowX - 4.0f;
+        // 4. Left Panel Card ("INSTRUMENT SETTINGS")
+        const auto panelRect = juce::Rectangle<float> (24.0f, 74.0f, 196.0f, leftPanelHeight);
+        g.setColour (theme.panel);
+        g.fillRoundedRectangle (panelRect, 6.0f);
+        drawSketchRect (g, panelRect, theme.panelEdge, 1.8f, 3);
 
-        g.setFont (displayFont (15.0f));
-        g.setColour (juce::Colour (0xff111215));
-        const juce::String notePrefix = "NOTE: ";
-        const float pfxW = displayFont (15.0f).getStringWidthFloat (notePrefix);
-        g.drawText (notePrefix, juce::Rectangle<float> (noteRowX, noteRowY, pfxW, noteRowH),
-                    juce::Justification::centredLeft, false);
-
-        const int samplerIdx = getActiveSamplerIndex();
-        const juce::String noteStr = (learningInstrument == samplerIdx && samplerIdx >= 0)
-            ? "???"
-            : noteLabelFor (samplerIdx);
-
-        g.setFont (displayFont (17.5f));
-        g.setColour (juce::Colour (0xffea8c16));
-        g.drawText (noteStr, juce::Rectangle<float> (noteRowX + pfxW, noteRowY, noteMaxW - pfxW, noteRowH),
-                    juce::Justification::centredLeft, false);
-    }
-
-    // 5. "MASTER" title above Master Volume Knob
-    if (masterVolumeKnob != nullptr)
-    {
-        const auto mx = static_cast<float> (masterVolumeKnob->getX());
-        const auto my = static_cast<float> (masterVolumeKnob->getY());
-        const auto mw = static_cast<float> (masterVolumeKnob->getWidth());
-
+        // Title inside card
         g.setFont (displayFont (18.0f));
         g.setColour (theme.ink);
-        g.drawText ("MASTER", juce::Rectangle<float> (mx, my - 20.0f, mw, 18.0f),
+        g.drawText ("INSTRUMENT", juce::Rectangle<float> (panelRect.getX(), panelRect.getY() + 10.0f, panelRect.getWidth(), 18.0f),
                     juce::Justification::centred, false);
+        g.drawText ("SETTINGS", juce::Rectangle<float> (panelRect.getX(), panelRect.getY() + 28.0f, panelRect.getWidth(), 18.0f),
+                    juce::Justification::centred, false);
+
+        // Bottom note label in Left Panel
+        if (instLearnButton.isVisible())
+        {
+            const float noteRowX = 24.0f + 14.0f;
+            const float noteRowY = static_cast<float> (instLearnButton.getY());
+            const float noteRowH = static_cast<float> (instLearnButton.getHeight());
+            const float noteMaxW = static_cast<float> (instLearnButton.getX()) - noteRowX - 4.0f;
+
+            g.setFont (displayFont (15.0f));
+            g.setColour (juce::Colour (0xff111215));
+            const juce::String notePrefix = "NOTE: ";
+            const float pfxW = displayFont (15.0f).getStringWidthFloat (notePrefix);
+            g.drawText (notePrefix, juce::Rectangle<float> (noteRowX, noteRowY, pfxW, noteRowH),
+                        juce::Justification::centredLeft, false);
+
+            const int samplerIdx = getActiveSamplerIndex();
+            const juce::String noteStr = (learningInstrument == samplerIdx && samplerIdx >= 0)
+                ? "???"
+                : noteLabelFor (samplerIdx);
+
+            g.setFont (displayFont (17.5f));
+            g.setColour (juce::Colour (0xffea8c16));
+            g.drawText (noteStr, juce::Rectangle<float> (noteRowX + pfxW, noteRowY, noteMaxW - pfxW, noteRowH),
+                        juce::Justification::centredLeft, false);
+        }
+
+        // 5. "MASTER" title above Master Volume Knob
+        if (masterVolumeKnob != nullptr)
+        {
+            const auto mx = static_cast<float> (masterVolumeKnob->getX());
+            const auto my = static_cast<float> (masterVolumeKnob->getY());
+            const auto mw = static_cast<float> (masterVolumeKnob->getWidth());
+
+            g.setFont (displayFont (18.0f));
+            g.setColour (theme.ink);
+            g.drawText ("MASTER", juce::Rectangle<float> (mx, my - 20.0f, mw, 18.0f),
+                        juce::Justification::centred, false);
+        }
     }
 }
 

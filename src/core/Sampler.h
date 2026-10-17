@@ -22,6 +22,7 @@
 
 #pragma once
 
+#include "ChannelFX.h"
 #include "DrumKit.h"
 #include "SampleCache.h"
 
@@ -32,6 +33,13 @@
 
 namespace glorp
 {
+
+/// Hi-Hat response mode: continuous CC#4 pedal crossfade vs discrete mapped notes.
+enum class HiHatMode : int
+{
+    continuousCC4 = 0,
+    discreteNotes = 1
+};
 
 /// Velocity curve profile for e-drum pad calibration.
 enum class VelocityCurve : int
@@ -126,6 +134,10 @@ public:
     /// As above, but remembers which note caused the hit so the GUI can show it.
     void noteOn (int instrument, int note, float velocity, int64_t timeInSamples);
 
+    /// E-drum hi-hat mode
+    void setHiHatMode (HiHatMode mode) noexcept { hiHatMode.store (mode, std::memory_order_relaxed); }
+    HiHatMode getHiHatMode() const noexcept { return hiHatMode.load (std::memory_order_relaxed); }
+
     /// Continuous hi-hat pedal control (0.0 = fully open, 1.0 = fully closed / tight).
     void setHiHatPedal (float pedalValue) noexcept;
     float getHiHatPedal() const noexcept { return hiHatPedal.load (std::memory_order_relaxed); }
@@ -146,6 +158,31 @@ public:
     void chokeAllCymbals (int64_t fadeMs, int64_t timeInSamples);
 
     void allNotesOff();
+
+    // -- Per-Mic Mixer (Phase 2) -------------------------------------------
+
+    int numMicStrips() const noexcept;
+    juce::String micStripName (int index) const;
+    juce::String micStripTitle (int index) const;
+
+    void setMicStripParams (int index, const MicStripParams& params);
+    MicStripParams getMicStripParams (int index) const;
+
+    void setMasterStripParams (const MasterStripParams& params);
+    MasterStripParams getMasterStripParams() const;
+
+    void applyMixerPreset (const MixerPreset& preset);
+    MixerPreset getCurrentMixerPreset (const juce::String& name) const;
+
+    float getMicPeakL (int index) const noexcept;
+    float getMicPeakR (int index) const noexcept;
+    float getMicRmsL  (int index) const noexcept;
+    float getMicRmsR  (int index) const noexcept;
+
+    float getMasterPeakL() const noexcept { return masterPeakL.load (std::memory_order_relaxed); }
+    float getMasterPeakR() const noexcept { return masterPeakR.load (std::memory_order_relaxed); }
+    float getMasterRmsL()  const noexcept { return masterRmsL.load  (std::memory_order_relaxed); }
+    float getMasterRmsR()  const noexcept { return masterRmsR.load  (std::memory_order_relaxed); }
 
     // -- rendering ---------------------------------------------------------
 
@@ -186,6 +223,7 @@ private:
         int channel = 0;
         float gainL = 0.0f;
         float gainR = 0.0f;
+        int kitChannelIndex = 0;    ///< index into kitChannels_ for per-mic mixing
     };
 
     /// A resolved round of an instrument: all of its channels, ready to sum.
@@ -248,6 +286,8 @@ private:
         int64_t startedAt = 0;
         int64_t endsAt = 0;          ///< absolute sample clock, 0 when not choking
         int64_t endsAtAbsolute = 0;  ///< when the sample data + flush runs out
+        int64_t chokeFadeSamples = 0;///< total fade length in samples for anti-click choke
+        int64_t chokeStartSample = 0;///< sample clock when choke started
 
         double position = 0.0;       ///< fractional read position within the sample, in frames
         double pitchRatio = 1.0;     ///< varispeed ratio: 2^(semitones/12) * rateRatio
@@ -271,6 +311,7 @@ private:
 
     Voice* allocateVoice();
     int   chooseHit (int instrumentIndex, float velocity);
+    void  triggerVoice (int instrument, int note, float velocity, int64_t timeInSamples);
 
     /// Which stereo output bus an instrument writes to.
     int   busForInstrument (int instrument) const noexcept
@@ -307,6 +348,10 @@ private:
     std::atomic<uint32_t> randomState { 0x12345678u };
 
     // -- E-drum state -------------------------------------------------------
+    std::atomic<HiHatMode> hiHatMode { HiHatMode::continuousCC4 };
+    int64_t lastPedalDownClock = 0;
+    float lastPedalDownSpeed = 0.0f;
+
     struct HiHatIndices
     {
         int closed = -1;
@@ -330,6 +375,31 @@ private:
     HitEvent hitRing[hitRingSize];
     std::atomic<int> hitWrite { 0 };
     std::atomic<int> hitRead { 0 };
+
+    // -- Per-mic mixer state & DSP ------------------------------------------
+    struct MicChannelState
+    {
+        juce::String name;
+        juce::String title;
+        MicStripParams params;
+        ChannelStripFX fx;
+        std::atomic<float> peakL { 0.0f };
+        std::atomic<float> peakR { 0.0f };
+        std::atomic<float> rmsL  { 0.0f };
+        std::atomic<float> rmsR  { 0.0f };
+    };
+
+    std::vector<std::unique_ptr<MicChannelState>> micChannels;
+    MasterStripParams masterStripParams;
+    MasterFX masterFX;
+    std::atomic<float> masterPeakL { 0.0f };
+    std::atomic<float> masterPeakR { 0.0f };
+    std::atomic<float> masterRmsL  { 0.0f };
+    std::atomic<float> masterRmsR  { 0.0f };
+
+    // Preallocated audio-thread scratch buffers for mixing
+    std::vector<std::vector<float>> micScratchL, micScratchR;
+    std::vector<float> reverbAccumL, reverbAccumR;
 
     // -- kit state, guarded by kitLock --------------------------------------
     mutable juce::CriticalSection kitLock;

@@ -19,6 +19,14 @@ Knob::Knob (const juce::String& label)
     setOpaque (false);
 }
 
+Knob::Knob (const juce::String& label, float minVal, float maxVal, float defVal, const juce::String& unit)
+    : labelText (label), minVal_ (minVal), maxVal_ (maxVal), unitString (unit)
+{
+    setOpaque (false);
+    setValue (defVal);
+    setDoubleClickReturnValue (true, normalised);
+}
+
 Knob::~Knob()
 {
     if (param != nullptr)
@@ -55,9 +63,31 @@ void Knob::setRange (juce::NormalisableRange<float>, double)
 {
 }
 
+void Knob::setRange (float minVal, float maxVal, float defVal, const juce::String& unit)
+{
+    minVal_ = minVal;
+    maxVal_ = maxVal;
+    unitString = unit;
+    setValue (defVal);
+    setDoubleClickReturnValue (true, normalised);
+}
+
+void Knob::setValue (float realValue)
+{
+    const float norm = (maxVal_ > minVal_) ? (realValue - minVal_) / (maxVal_ - minVal_) : 0.0f;
+    setNormalized (norm);
+}
+
+float Knob::getValue() const noexcept
+{
+    return minVal_ + getDisplayValue() * (maxVal_ - minVal_);
+}
+
 void Knob::parameterValueChanged (int, float newValue)
 {
     normalised = newValue;
+    if (onValueChanged != nullptr)
+        onValueChanged (getValue());
     juce::MessageManager::callAsync ([this] { repaint(); });
 }
 
@@ -211,6 +241,9 @@ void Knob::setNormalized (float v)
 
     if (param != nullptr)
         param->setValueNotifyingHost (normalised);
+
+    if (onValueChanged != nullptr)
+        onValueChanged (getValue());
 
     repaint();
 }

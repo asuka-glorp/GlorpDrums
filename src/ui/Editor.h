@@ -7,6 +7,7 @@
 #include "DrumKitView.h"
 #include "EDrumWizard.h"
 #include "Knob.h"
+#include "MixerView.h"
 #include "PluginProcessor.h"
 #include "Scope.h"
 
@@ -24,6 +25,15 @@ class Editor : public juce::Component,
 public:
     explicit Editor (PluginProcessor&);
     ~Editor() override;
+
+    enum class EditorView
+    {
+        kitView,
+        mixerView
+    };
+
+    void setViewMode (EditorView mode);
+    EditorView getViewMode() const noexcept { return currentView; }
 
     void paint (juce::Graphics&) override;
     void resized() override;
@@ -56,6 +66,7 @@ public:
     void selectLogicalInstrument (int index);
     void selectZone (int logicalIndex, int zoneIndex, bool triggerPreview = false);
     int getActiveSamplerIndex() const;
+    MixerView* getMixerView() noexcept { return mixerView.get(); }
 
 private:
     void kitChanged() override;
@@ -86,7 +97,11 @@ private:
     {
     public:
         explicit MenuButton (const juce::String& name) : juce::Button (name) {}
+        void setActive (bool a) { active = a; repaint(); }
+        bool getActive() const noexcept { return active; }
         void paintButton (juce::Graphics& g, bool isHover, bool isDown) override;
+    private:
+        bool active = false;
     };
 
     class InstrumentSelectorButton : public juce::Button
@@ -170,6 +185,7 @@ private:
         VelocityCurve currentCurve = VelocityCurve::linear;
     };
 
+    MenuButton viewToggleButton { "MIXER VIEW" };
     MenuButton fileButton { "FILE" };
     MenuButton presetsButton { "PRESETS" };
     MenuButton midiButton { "MIDI" };
@@ -178,6 +194,9 @@ private:
     KitSelectorButton kitSelectorButton;
     DrumKitView kitView;
     Scope scope;
+
+    std::unique_ptr<MixerView> mixerView;
+    EditorView currentView = EditorView::kitView;
 
     std::unique_ptr<juce::Drawable> logo;
 

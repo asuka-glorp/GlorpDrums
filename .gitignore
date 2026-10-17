@@ -33,6 +33,6 @@ check_raw_wav
 test_crocell
 test_menu
 test_*
-diagnose_*
-core
+/core
+core.[0-9]*
 vgcore.*

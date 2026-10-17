@@ -1,0 +1,229 @@
+/*
+    MixerView.h - Full-featured per-mic drum mixer console and DSP rack for GlorpDrums.
+*/
+
+#pragma once
+
+#include "ChannelFX.h"
+#include "Knob.h"
+#include "PluginProcessor.h"
+#include "Theme.h"
+
+#include <juce_gui_basics/juce_gui_basics.h>
+
+#include <memory>
+#include <vector>
+
+namespace glorp
+{
+
+class MixerView : public juce::Component,
+                  private juce::Timer
+{
+public:
+    explicit MixerView (PluginProcessor& processor);
+    ~MixerView() override;
+
+    void paint (juce::Graphics& g) override;
+    void resized() override;
+    void mouseDown (const juce::MouseEvent& e) override;
+
+    void refreshChannels();
+    void openChannelFX (int channelIndex);
+    void openMasterFX();
+
+private:
+    void timerCallback() override;
+
+    PluginProcessor& processor;
+    Theme theme = Theme::sketch();
+
+    //==========================================================================
+    // UI Helpers & Custom Buttons
+    //==========================================================================
+    class HandButton : public juce::Button
+    {
+    public:
+        HandButton (const juce::String& name, bool isToggle = false);
+        void paintButton (juce::Graphics& g, bool isHover, bool isDown) override;
+        void setActive (bool a) { active = a; repaint(); }
+        bool getActive() const noexcept { return active; }
+        juce::Colour activeColour = juce::Colour (0xfff1c40f);
+    private:
+        bool isToggle_ = false;
+        bool active = false;
+    };
+
+    //==========================================================================
+    // Channel FX Drawer Popup (EQ, Comp, Saturation, Transient)
+    //==========================================================================
+    class ChannelFXPopup : public juce::Component
+    {
+    public:
+        ChannelFXPopup (MixerView& owner, PluginProcessor& processor);
+        void openForChannel (int channelIndex);
+        void close();
+        bool isOpen() const noexcept { return isVisible(); }
+
+        void paint (juce::Graphics& g) override;
+        void resized() override;
+        void mouseDown (const juce::MouseEvent& e) override;
+
+    private:
+        MixerView& owner;
+        PluginProcessor& processor;
+        int currentChannel = -1;
+
+        HandButton closeBtn { "CLOSE" };
+        HandButton eqToggle { "EQ ON", true };
+        HandButton compToggle { "COMP ON", true };
+
+        // EQ Knobs
+        std::unique_ptr<Knob> eqLowGainKnob;
+        std::unique_ptr<Knob> eqMidGainKnob;
+        std::unique_ptr<Knob> eqMidFreqKnob;
+        std::unique_ptr<Knob> eqHighGainKnob;
+
+        // Compressor Knobs
+        std::unique_ptr<Knob> compThreshKnob;
+        std::unique_ptr<Knob> compRatioKnob;
+        std::unique_ptr<Knob> compAttackKnob;
+        std::unique_ptr<Knob> compReleaseKnob;
+        std::unique_ptr<Knob> compMakeupKnob;
+
+        // Saturation & Transient Shaper Knobs
+        std::unique_ptr<Knob> satDriveKnob;
+        std::unique_ptr<Knob> transAttackKnob;
+        std::unique_ptr<Knob> transSustainKnob;
+    };
+
+    //==========================================================================
+    // Master FX Drawer Popup (Reverb Return, Size, Damping, Limiter)
+    //==========================================================================
+    class MasterFXPopup : public juce::Component
+    {
+    public:
+        MasterFXPopup (MixerView& owner, PluginProcessor& processor);
+        void open();
+        void close();
+        bool isOpen() const noexcept { return isVisible(); }
+
+        void paint (juce::Graphics& g) override;
+        void resized() override;
+        void mouseDown (const juce::MouseEvent& e) override;
+
+    private:
+        MixerView& owner;
+        PluginProcessor& processor;
+
+        HandButton closeBtn { "CLOSE" };
+        HandButton limiterToggle { "LIMITER", true };
+
+        std::unique_ptr<Knob> revReturnKnob;
+        std::unique_ptr<Knob> revSizeKnob;
+        std::unique_ptr<Knob> revDampKnob;
+        std::unique_ptr<Knob> revWidthKnob;
+    };
+
+    //==========================================================================
+    // Individual Channel Strip Component
+    //==========================================================================
+    class ChannelStripComponent : public juce::Component
+    {
+    public:
+        ChannelStripComponent (MixerView& owner, PluginProcessor& processor, int channelIndex);
+
+        void paint (juce::Graphics& g) override;
+        void resized() override;
+        void mouseDown (const juce::MouseEvent& e) override;
+        void mouseDrag (const juce::MouseEvent& e) override;
+        void mouseDoubleClick (const juce::MouseEvent& e) override;
+
+        int getChannelIndex() const noexcept { return channelIndex_; }
+        void updateFromState();
+
+    private:
+        MixerView& owner;
+        PluginProcessor& processor;
+        int channelIndex_ = 0;
+
+        HandButton phaseBtn { "0", true };
+        HandButton fxBtn    { "FX", true };
+        HandButton soloBtn  { "S", true };
+        HandButton muteBtn  { "M", true };
+
+        // Fader & Meter bounds
+        juce::Rectangle<float> faderTrackBounds;
+        juce::Rectangle<float> faderThumbBounds;
+        juce::Rectangle<float> meterBounds;
+
+        bool draggingFader = false;
+        bool draggingPan = false;
+        juce::Rectangle<float> panBarBounds;
+    };
+
+    //==========================================================================
+    // Master Strip Component
+    //==========================================================================
+    class MasterStripComponent : public juce::Component
+    {
+    public:
+        MasterStripComponent (MixerView& owner, PluginProcessor& processor);
+
+        void paint (juce::Graphics& g) override;
+        void resized() override;
+        void mouseDown (const juce::MouseEvent& e) override;
+        void mouseDrag (const juce::MouseEvent& e) override;
+        void mouseDoubleClick (const juce::MouseEvent& e) override;
+
+        void updateFromState();
+
+    private:
+        MixerView& owner;
+        PluginProcessor& processor;
+
+        HandButton fxBtn { "REVERB FX" };
+        HandButton limiterBtn { "LIMITER", true };
+
+        juce::Rectangle<float> faderTrackBounds;
+        juce::Rectangle<float> faderThumbBounds;
+        juce::Rectangle<float> meterLBounds;
+        juce::Rectangle<float> meterRBounds;
+        juce::Rectangle<float> panBarBounds;
+
+        bool draggingFader = false;
+        bool draggingPan = false;
+    };
+
+    //==========================================================================
+    // Subcomponents & Containers
+    //==========================================================================
+    juce::Viewport channelViewport;
+    std::unique_ptr<juce::Component> channelContainer;
+    std::vector<std::unique_ptr<ChannelStripComponent>> channelStrips;
+
+    std::unique_ptr<MasterStripComponent> masterStrip;
+
+    // Preset buttons
+    HandButton presetCleanBtn  { "CLEAN", false };
+    HandButton presetRockBtn   { "ROCK", false };
+    HandButton presetWarmBtn   { "WARM", false };
+    HandButton presetPunchBtn  { "PUNCH", false };
+    HandButton presetDryBtn    { "DRY", false };
+    HandButton savePresetBtn   { "SAVE .glorpmix" };
+    HandButton loadPresetBtn   { "LOAD..." };
+
+    // FX Drawers
+    std::unique_ptr<ChannelFXPopup> channelFXPopup;
+    std::unique_ptr<MasterFXPopup> masterFXPopup;
+
+    void applyPreset (int presetIndex);
+    void promptSavePreset();
+    void promptLoadPreset();
+
+    juce::String activePresetName { "Default Clean" };
+
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MixerView)
+};
+
+} // namespace glorp

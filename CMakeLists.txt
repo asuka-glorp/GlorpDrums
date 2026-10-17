@@ -133,13 +133,15 @@ target_sources(GlorpDrums PRIVATE
     src/core/Sampler.cpp
     src/core/MidiMap.cpp
     src/core/Settings.cpp
+    src/core/GlorpKit.cpp
+    src/core/ChannelFX.cpp
     src/ui/Editor.cpp
     src/ui/DrumKitView.cpp
     src/ui/CalloutBox.cpp
     src/ui/Knob.cpp
     src/ui/Scope.cpp
     src/ui/EDrumWizard.cpp
-    src/core/GlorpKit.cpp
+    src/ui/MixerView.cpp
 )
 
 # Bundled logo and fonts, as a static library so both the VST3/LV2 binaries and

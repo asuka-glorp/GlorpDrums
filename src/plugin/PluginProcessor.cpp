@@ -326,7 +326,7 @@ void PluginProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Midi
             {
                 const int inst = midiMap.instrumentForNote (note);
                 if (inst >= 0)
-                    sampler.chokeCymbal (inst, 20, sampler.currentSamplePosition() + sampleOffset);
+                    sampler.chokeCymbal (inst, 15, sampler.currentSamplePosition() + sampleOffset);
             }
             continue;
         }
@@ -336,7 +336,7 @@ void PluginProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Midi
         {
             const int pressure = message.getChannelPressureValue();
             if (pressure > 0)
-                sampler.chokeAllCymbals (20, sampler.currentSamplePosition() + sampleOffset);
+                sampler.chokeAllCymbals (15, sampler.currentSamplePosition() + sampleOffset);
             continue;
         }
 
@@ -778,6 +778,14 @@ void PluginProcessor::getStateInformation (juce::MemoryBlock& destination)
     juce::XmlElement state ("GlorpDrumsState");
     state.setAttribute ("version", kVersionTag);
     state.setAttribute ("kit", currentKitPath);
+    state.setAttribute ("hiHatMode", static_cast<int> (sampler.getHiHatMode()));
+
+    const auto mixerPreset = sampler.getCurrentMixerPreset ("CurrentMix");
+    if (auto mixerXml = juce::XmlDocument::parse (mixerPreset.toXmlString()))
+    {
+        mixerXml->setTagName ("MixerState");
+        state.addChildElement (mixerXml.release());
+    }
 
     auto* parameters = state.createNewChildElement ("Parameters");
 
@@ -811,6 +819,19 @@ void PluginProcessor::setStateInformation (const void* data, int sizeInBytes)
         return;
 
     auto kitPath = xml->getStringAttribute ("kit");
+
+    if (xml->hasAttribute ("hiHatMode"))
+    {
+        const int modeInt = xml->getIntAttribute ("hiHatMode", 0);
+        sampler.setHiHatMode (modeInt == 1 ? HiHatMode::discreteNotes : HiHatMode::continuousCC4);
+    }
+
+    if (auto* mixerXml = xml->getChildByName ("MixerState"))
+    {
+        MixerPreset p;
+        if (MixerPreset::fromXmlString (mixerXml->toString(), p))
+            sampler.applyMixerPreset (p);
+    }
 
     if (auto* parameters = xml->getChildByName ("Parameters"))
     {
