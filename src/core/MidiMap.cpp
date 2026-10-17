@@ -195,39 +195,87 @@ std::vector<MapPreset> MidiMap::availablePresets()
 {
     std::vector<MapPreset> presets;
 
-    // The built-ins, ordered for someone who has never touched a drum pad:
-    // General MIDI first, then the specific popular pad layouts.
-    struct BuiltIn { const char* name; std::pair<int, const char*> notes[20]; };
+    struct BuiltIn
+    {
+        const char* name;
+        std::vector<std::pair<int, const char*>> notes;
+    };
 
     static const BuiltIn builtIns[] =
     {
         { "General MIDI", {
-            { 35, "Kick" }, { 36, "Kick" }, { 38, "Snare" }, { 42, "HihatClosed" },
-            { 46, "HihatOpen" }, { 49, "Crash" }, { 51, "Ride" }, { 45, "Tom1" },
-            { 47, "Tom2" }, { 48, "Tom3" }, { 41, "FloorTom" }, { 0, nullptr } } },
+            { 35, "Kick" }, { 36, "Kick" }, { 37, "SideStick" }, { 38, "Snare" },
+            { 40, "Rimshot" }, { 42, "HihatClosed" }, { 44, "HihatPedal" }, { 46, "HihatOpen" },
+            { 48, "Tom1" }, { 45, "Tom2" }, { 43, "FloorTom" }, { 41, "FloorTom" },
+            { 49, "Crash" }, { 51, "Ride" }, { 53, "RideBell" } } },
 
         { "General MIDI (extended)", {
             { 35, "Kick" }, { 36, "Kick" }, { 37, "SideStick" }, { 38, "Snare" },
-            { 39, "Clap" }, { 40, "Tom1" }, { 41, "FloorTom" }, { 42, "HihatClosed" },
-            { 43, "LowFloorTom" }, { 45, "Tom2" }, { 46, "HihatOpen" }, { 47, "Tom3" },
-            { 48, "Tom4" }, { 49, "Crash" }, { 50, "HighTom" }, { 51, "Ride" },
-            { 53, "RideBell" }, { 54, "Tambourine" }, { 56, "Cowbell" }, { 57, "Crash2" } } },
+            { 39, "Clap" }, { 40, "Rimshot" }, { 41, "FloorTom" }, { 42, "HihatClosed" },
+            { 43, "LowFloorTom" }, { 44, "HihatPedal" }, { 45, "Tom2" }, { 46, "HihatOpen" },
+            { 47, "Tom3" }, { 48, "Tom1" }, { 49, "Crash" }, { 50, "HighTom" },
+            { 51, "Ride" }, { 53, "RideBell" }, { 54, "Tambourine" }, { 55, "Splash" },
+            { 56, "Cowbell" }, { 57, "Crash2" }, { 52, "China" } } },
+
+        { "Roland V-Drums", {
+            { 36, "Kick" }, { 35, "Kick" },
+            { 38, "SnareHead" }, { 40, "Rimshot" }, { 37, "CrossStick" },
+            { 42, "HihatClosed" }, { 22, "HihatClosed" }, { 26, "HihatSemiOpen" },
+            { 46, "HihatOpen" }, { 44, "HihatPedal" }, { 80, "HihatSemiOpen" },
+            { 48, "Tom1Head" }, { 50, "Tom1Rim" },
+            { 45, "Tom2Head" }, { 47, "Tom2Rim" },
+            { 43, "FTomHead" }, { 58, "FTomRim" },
+            { 49, "Crash1Bow" }, { 55, "Crash1Edge" },
+            { 57, "Crash2Bow" }, { 52, "Crash2Edge" },
+            { 51, "RideBow" }, { 53, "RideBell" }, { 59, "RideEdge" },
+            { 54, "Tambourine" }, { 56, "Cowbell" } } },
+
+        { "Yamaha DTX", {
+            { 36, "Kick" }, { 35, "Kick" },
+            { 38, "SnareHead" }, { 40, "Rimshot" }, { 37, "CrossStick" },
+            { 42, "HihatClosed" }, { 26, "HihatSemiOpen" }, { 46, "HihatOpen" }, { 44, "HihatPedal" },
+            { 48, "Tom1Head" }, { 50, "Tom1Rim" },
+            { 45, "Tom2Head" }, { 47, "Tom2Rim" },
+            { 43, "FTomHead" }, { 41, "FTomRim" },
+            { 49, "Crash1Bow" }, { 55, "Crash1Edge" },
+            { 57, "Crash2Bow" }, { 52, "Crash2Edge" },
+            { 51, "RideBow" }, { 53, "RideBell" }, { 59, "RideEdge" } } },
+
+        { "Alesis (Strike / Nitro / Surge)", {
+            { 36, "Kick" },
+            { 38, "SnareHead" }, { 40, "Rimshot" }, { 37, "CrossStick" },
+            { 42, "HihatClosed" }, { 23, "HihatSemiOpen" }, { 46, "HihatOpen" }, { 44, "HihatPedal" },
+            { 48, "Tom1Head" }, { 60, "Tom1Rim" },
+            { 45, "Tom2Head" }, { 62, "Tom2Rim" },
+            { 43, "FTomHead" }, { 64, "FTomRim" },
+            { 49, "Crash1Bow" }, { 55, "Crash1Edge" },
+            { 57, "Crash2Bow" }, { 52, "Crash2Edge" },
+            { 51, "RideBow" }, { 53, "RideBell" }, { 59, "RideEdge" } } },
+
+        { "Millenium / 2box", {
+            { 36, "Kick" },
+            { 38, "SnareHead" }, { 40, "Rimshot" }, { 37, "CrossStick" },
+            { 42, "HihatClosed" }, { 46, "HihatOpen" }, { 44, "HihatPedal" },
+            { 48, "Tom1Head" }, { 50, "Tom1Rim" },
+            { 45, "Tom2Head" }, { 47, "Tom2Rim" },
+            { 43, "FTomHead" }, { 41, "FTomRim" },
+            { 49, "Crash1Bow" }, { 55, "Crash1Edge" },
+            { 57, "Crash2Bow" },
+            { 51, "RideBow" }, { 53, "RideBell" } } },
+
+        { "EFNote (3 / 5 / 7)", {
+            { 36, "Kick" },
+            { 38, "SnareHead" }, { 40, "Rimshot" }, { 37, "CrossStick" },
+            { 42, "HihatClosed" }, { 46, "HihatOpen" }, { 44, "HihatPedal" },
+            { 48, "Tom1Head" }, { 45, "Tom2Head" }, { 43, "FTomHead" },
+            { 49, "Crash1Bow" }, { 55, "Crash1Edge" },
+            { 57, "Crash2Bow" }, { 52, "Crash2Edge" },
+            { 51, "RideBow" }, { 53, "RideBell" }, { 59, "RideEdge" } } },
 
         { "Ableton Push", {
             { 36, "Kick" }, { 37, "Clap" }, { 38, "Snare" }, { 42, "HihatClosed" },
             { 46, "HihatOpen" }, { 45, "Tom1" }, { 47, "Tom2" }, { 48, "Tom3" },
-            { 43, "FloorTom" }, { 49, "Crash" }, { 51, "Ride" }, { 0, nullptr } } },
-
-        { "Roland V-Drums", {
-            { 36, "Kick" }, { 38, "Snare" }, { 42, "HihatClosed" }, { 44, "HihatFoot" },
-            { 46, "HihatOpen" }, { 49, "Crash" }, { 51, "Ride" }, { 53, "RideBell" },
-            { 45, "Tom1" }, { 48, "Tom2" }, { 50, "Tom3" }, { 47, "FloorTom" } } },
-
-        { "Yamaha DTX", {
-            { 36, "Kick" }, { 38, "Snare" }, { 40, "Snare" }, { 42, "HihatClosed" },
-            { 44, "HihatFoot" }, { 46, "HihatOpen" }, { 49, "Crash" }, { 51, "Ride" },
-            { 53, "RideBell" }, { 45, "Tom1" }, { 47, "Tom2" }, { 50, "Tom3" },
-            { 43, "FloorTom" } } },
+            { 43, "FloorTom" }, { 49, "Crash" }, { 51, "Ride" } } },
     };
 
     for (const auto& b : builtIns)
@@ -367,16 +415,221 @@ void MidiMap::applyPreset (const MapPreset& preset, const std::vector<juce::Stri
     clearBindings();
     bindings_ = preset.bindings;
 
-    // Build a name -> index lookup once, rather than scanning per note.
-    std::map<juce::String, int> byName;
+    // Smart instrument name matching so presets resolve correctly against any kit
+    auto matchInstrument = [&] (const juce::String& target) -> int
+    {
+        const auto lower = target.toLowerCase();
 
-    for (size_t i = 0; i < kitInstrumentNames.size(); ++i)
-        byName.emplace (kitInstrumentNames[i].toLowerCase(), static_cast<int> (i));
+        // 1. Exact match (case-insensitive)
+        for (size_t i = 0; i < kitInstrumentNames.size(); ++i)
+            if (kitInstrumentNames[i].equalsIgnoreCase (target))
+                return static_cast<int> (i);
+
+        // 2. Multi-zone snare pieces
+        if (lower == "snarehead" || lower == "snare")
+        {
+            for (size_t i = 0; i < kitInstrumentNames.size(); ++i)
+            {
+                const auto n = kitInstrumentNames[i].toLowerCase();
+                if (n == "snarehead" || n == "snare" || (n.contains ("snare") && ! n.contains ("rim") && ! n.contains ("click") && ! n.contains ("rest")))
+                    return static_cast<int> (i);
+            }
+        }
+        else if (lower == "rimshot" || lower == "snarerimshot")
+        {
+            for (size_t i = 0; i < kitInstrumentNames.size(); ++i)
+                if (kitInstrumentNames[i].toLowerCase().contains ("rimshot"))
+                    return static_cast<int> (i);
+        }
+        else if (lower == "crossstick" || lower == "rimclick" || lower == "sidestick")
+        {
+            for (size_t i = 0; i < kitInstrumentNames.size(); ++i)
+            {
+                const auto n = kitInstrumentNames[i].toLowerCase();
+                if (n.contains ("click") || n.contains ("cross") || n.contains ("stick"))
+                    return static_cast<int> (i);
+            }
+        }
+
+        // 3. Kick
+        else if (lower == "kick" || lower == "kick2")
+        {
+            for (size_t i = 0; i < kitInstrumentNames.size(); ++i)
+            {
+                const auto n = kitInstrumentNames[i].toLowerCase();
+                if (n.contains ("kick") || n.contains ("kdrum") || n.contains ("bdrum") || n.contains ("bd"))
+                    return static_cast<int> (i);
+            }
+        }
+
+        // 4. Hi-Hat
+        else if (lower.contains ("closed") || lower.contains ("close"))
+        {
+            for (size_t i = 0; i < kitInstrumentNames.size(); ++i)
+            {
+                const auto n = kitInstrumentNames[i].toLowerCase();
+                if ((n.contains ("hat") || n.contains ("hh")) && (n.contains ("closed") || n.contains ("close")))
+                    return static_cast<int> (i);
+            }
+        }
+        else if (lower.contains ("semi"))
+        {
+            for (size_t i = 0; i < kitInstrumentNames.size(); ++i)
+            {
+                const auto n = kitInstrumentNames[i].toLowerCase();
+                if ((n.contains ("hat") || n.contains ("hh")) && n.contains ("semi"))
+                    return static_cast<int> (i);
+            }
+        }
+        else if (lower.contains ("open"))
+        {
+            for (size_t i = 0; i < kitInstrumentNames.size(); ++i)
+            {
+                const auto n = kitInstrumentNames[i].toLowerCase();
+                if ((n.contains ("hat") || n.contains ("hh")) && n.contains ("open") && ! n.contains ("semi"))
+                    return static_cast<int> (i);
+            }
+        }
+        else if (lower.contains ("pedal") || lower.contains ("foot"))
+        {
+            for (size_t i = 0; i < kitInstrumentNames.size(); ++i)
+            {
+                const auto n = kitInstrumentNames[i].toLowerCase();
+                if ((n.contains ("hat") || n.contains ("hh")) && (n.contains ("pedal") || n.contains ("foot")))
+                    return static_cast<int> (i);
+            }
+        }
+
+        // 5. Toms
+        else if (lower == "tom1head" || lower == "tom1")
+        {
+            for (size_t i = 0; i < kitInstrumentNames.size(); ++i)
+            {
+                const auto n = kitInstrumentNames[i].toLowerCase();
+                if ((n.contains ("tom1") || n.contains ("rack1") || n.contains ("hightom")) && ! n.contains ("rim"))
+                    return static_cast<int> (i);
+            }
+        }
+        else if (lower == "tom1rim")
+        {
+            for (size_t i = 0; i < kitInstrumentNames.size(); ++i)
+            {
+                const auto n = kitInstrumentNames[i].toLowerCase();
+                if ((n.contains ("tom1") || n.contains ("rack1")) && n.contains ("rim"))
+                    return static_cast<int> (i);
+            }
+        }
+        else if (lower == "tom2head" || lower == "tom2")
+        {
+            for (size_t i = 0; i < kitInstrumentNames.size(); ++i)
+            {
+                const auto n = kitInstrumentNames[i].toLowerCase();
+                if ((n.contains ("tom2") || n.contains ("rack2") || n.contains ("midtom")) && ! n.contains ("rim"))
+                    return static_cast<int> (i);
+            }
+        }
+        else if (lower == "tom2rim")
+        {
+            for (size_t i = 0; i < kitInstrumentNames.size(); ++i)
+            {
+                const auto n = kitInstrumentNames[i].toLowerCase();
+                if ((n.contains ("tom2") || n.contains ("rack2")) && n.contains ("rim"))
+                    return static_cast<int> (i);
+            }
+        }
+        else if (lower.contains ("ftomhead") || lower.contains ("floortom") || lower == "ftom" || lower == "tom3")
+        {
+            for (size_t i = 0; i < kitInstrumentNames.size(); ++i)
+            {
+                const auto n = kitInstrumentNames[i].toLowerCase();
+                if ((n.contains ("floor") || n.contains ("ftom") || n.contains ("lowtom") || n.contains ("tom3")) && ! n.contains ("rim"))
+                    return static_cast<int> (i);
+            }
+        }
+        else if (lower.contains ("ftomrim") || lower.contains ("floortomrim"))
+        {
+            for (size_t i = 0; i < kitInstrumentNames.size(); ++i)
+            {
+                const auto n = kitInstrumentNames[i].toLowerCase();
+                if ((n.contains ("floor") || n.contains ("ftom")) && n.contains ("rim"))
+                    return static_cast<int> (i);
+            }
+        }
+
+        // 6. Cymbals
+        else if (lower == "ridebell")
+        {
+            for (size_t i = 0; i < kitInstrumentNames.size(); ++i)
+            {
+                const auto n = kitInstrumentNames[i].toLowerCase();
+                if (n.contains ("ride") && n.contains ("bell"))
+                    return static_cast<int> (i);
+            }
+        }
+        else if (lower == "rideedge")
+        {
+            for (size_t i = 0; i < kitInstrumentNames.size(); ++i)
+            {
+                const auto n = kitInstrumentNames[i].toLowerCase();
+                if (n.contains ("ride") && n.contains ("edge"))
+                    return static_cast<int> (i);
+            }
+        }
+        else if (lower == "ridebow" || lower == "ride")
+        {
+            for (size_t i = 0; i < kitInstrumentNames.size(); ++i)
+            {
+                const auto n = kitInstrumentNames[i].toLowerCase();
+                if (n.contains ("ride") && ! n.contains ("bell") && ! n.contains ("edge") && ! n.contains ("choke"))
+                    return static_cast<int> (i);
+            }
+            for (size_t i = 0; i < kitInstrumentNames.size(); ++i)
+                if (kitInstrumentNames[i].toLowerCase().contains ("ride"))
+                    return static_cast<int> (i);
+        }
+        else if (lower.startsWith ("crash1") || lower == "crash")
+        {
+            const bool wantsEdge = lower.contains ("edge");
+            for (size_t i = 0; i < kitInstrumentNames.size(); ++i)
+            {
+                const auto n = kitInstrumentNames[i].toLowerCase();
+                if (n.contains ("crash1") || (n.contains ("crash") && ! n.contains ("2") && ! n.contains ("r")))
+                {
+                    if (wantsEdge && n.contains ("edge")) return static_cast<int> (i);
+                    if (! wantsEdge && (n.contains ("bow") || (! n.contains ("edge") && ! n.contains ("choke")))) return static_cast<int> (i);
+                }
+            }
+            for (size_t i = 0; i < kitInstrumentNames.size(); ++i)
+                if (kitInstrumentNames[i].toLowerCase().contains ("crash"))
+                    return static_cast<int> (i);
+        }
+        else if (lower.startsWith ("crash2"))
+        {
+            const bool wantsEdge = lower.contains ("edge");
+            for (size_t i = 0; i < kitInstrumentNames.size(); ++i)
+            {
+                const auto n = kitInstrumentNames[i].toLowerCase();
+                if (n.contains ("crash2") || n.contains ("crashr"))
+                {
+                    if (wantsEdge && n.contains ("edge")) return static_cast<int> (i);
+                    if (! wantsEdge && (n.contains ("bow") || (! n.contains ("edge") && ! n.contains ("choke")))) return static_cast<int> (i);
+                }
+            }
+        }
+
+        // Substring fallback
+        for (size_t i = 0; i < kitInstrumentNames.size(); ++i)
+            if (kitInstrumentNames[i].toLowerCase().contains (lower))
+                return static_cast<int> (i);
+
+        return -1;
+    };
 
     for (const auto& [note, instrumentName] : preset.noteToInstrumentName)
     {
-        if (const auto it = byName.find (instrumentName.toLowerCase()); it != byName.end())
-            noteToInstrument[note] = it->second;
+        const int instIdx = matchInstrument (instrumentName);
+        if (instIdx >= 0)
+            noteToInstrument[note] = instIdx;
     }
 
     for (const auto& [note, instrumentIndex] : preset.noteToInstrument)

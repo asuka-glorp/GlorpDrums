@@ -296,9 +296,65 @@ void PluginProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Midi
             }
         }
 
+        // 1. E-drum Continuous Controllers (CC#4 Hi-Hat, CC#16 Snare position)
+        if (message.isController())
+        {
+            const int cc = message.getControllerNumber();
+            const int val = message.getControllerValue();
+
+            if (cc == 4) // Hi-Hat pedal
+            {
+                const float pedal = static_cast<float> (val) / 127.0f;
+                sampler.setHiHatPedal (pedal);
+                lastHiHatCC4.store (pedal, std::memory_order_relaxed);
+            }
+            else if (cc == 16) // Snare position
+            {
+                const float pos = static_cast<float> (val) / 127.0f;
+                sampler.setSnarePosition (pos);
+                lastSnareCC16.store (pos, std::memory_order_relaxed);
+            }
+        }
+
+        // 2. E-drum Cymbal Choke via Polyphonic Aftertouch (pressure per note)
+        if (message.isAftertouch())
+        {
+            const int note = message.getNoteNumber();
+            const int pressure = message.getAfterTouchValue();
+
+            if (pressure > 0)
+            {
+                const int inst = midiMap.instrumentForNote (note);
+                if (inst >= 0)
+                    sampler.chokeCymbal (inst, 20, sampler.currentSamplePosition() + sampleOffset);
+            }
+            continue;
+        }
+
+        // 3. E-drum Cymbal Choke via Channel Pressure (monophonic aftertouch)
+        if (message.isChannelPressure())
+        {
+            const int pressure = message.getChannelPressureValue();
+            if (pressure > 0)
+                sampler.chokeAllCymbals (20, sampler.currentSamplePosition() + sampleOffset);
+            continue;
+        }
+
         if (message.isAllNotesOff() || message.isAllSoundOff())
         {
             sampler.allNotesOff();
+            continue;
+        }
+
+        // 4. Note-Off choke: some e-drum modules send note-off with high release velocity to indicate choke
+        if (message.isNoteOff())
+        {
+            if (message.getVelocity() > 64)
+            {
+                const int inst = midiMap.instrumentForNote (message.getNoteNumber());
+                if (inst >= 0)
+                    sampler.chokeCymbal (inst, 20, sampler.currentSamplePosition() + sampleOffset);
+            }
             continue;
         }
 

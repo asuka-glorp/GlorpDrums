@@ -5,6 +5,7 @@
 #pragma once
 
 #include "DrumKitView.h"
+#include "EDrumWizard.h"
 #include "Knob.h"
 #include "PluginProcessor.h"
 #include "Scope.h"
@@ -72,6 +73,7 @@ private:
 
     void armLearn (int samplerIndex);
     void promptLoadKitFile();
+    void openEDrumWizard();
 
     PluginProcessor& processor;
 
@@ -137,6 +139,17 @@ private:
         bool isLearning_ = false;
     };
 
+    class CurveButton : public juce::Button
+    {
+    public:
+        CurveButton() : juce::Button ("CURVE") {}
+        void setCurve (VelocityCurve c) { currentCurve = c; repaint(); }
+        VelocityCurve getCurve() const noexcept { return currentCurve; }
+        void paintButton (juce::Graphics& g, bool isHover, bool isDown) override;
+    private:
+        VelocityCurve currentCurve = VelocityCurve::linear;
+    };
+
     MenuButton fileButton { "FILE" };
     MenuButton presetsButton { "PRESETS" };
     MenuButton midiButton { "MIDI" };
@@ -159,7 +172,11 @@ private:
     std::unique_ptr<Knob> instPitchKnob;
     std::unique_ptr<Knob> instDynamicsKnob;
 
+    CurveButton instCurveButton;
     LearnButton instLearnButton;
+
+    // E-Drum Setup Wizard Overlay
+    std::unique_ptr<EDrumWizard> edrumWizard;
 
     // Bottom-Right: Master Volume Knob
     std::unique_ptr<Knob> masterVolumeKnob;

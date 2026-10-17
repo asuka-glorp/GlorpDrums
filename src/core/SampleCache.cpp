@@ -3,64 +3,12 @@
 #include <cstring>
 #include <fstream>
 
+#if defined(__linux__) || defined(__unix__)
+#include <sys/mman.h>
+#endif
+
 namespace glorp
 {
-
-//==============================================================================
-float convertSample (const std::uint8_t* b, int bytesPerSample, int format) noexcept
-{
-    if (format == 1) // IEEE float
-    {
-        if (bytesPerSample == 4)
-        {
-            float v;
-            std::memcpy (&v, b, 4);
-            return v;
-        }
-
-        if (bytesPerSample == 8)
-        {
-            double v;
-            std::memcpy (&v, b, 8);
-            return static_cast<float> (v);
-        }
-
-        return 0.0f;
-    }
-
-    // Integer PCM. Always sign-extend from the container's top bit.
-    switch (bytesPerSample)
-    {
-        case 1:
-            // 8-bit wav is unsigned with a 128 offset.
-            return (static_cast<float> (b[0]) - 128.0f) / 128.0f;
-
-        case 2:
-        {
-            std::int16_t v;
-            std::memcpy (&v, b, 2);
-            return static_cast<float> (v) / 32768.0f;
-        }
-
-        case 3:
-        {
-            std::int32_t v = (static_cast<std::int32_t> (b[0]) << 8)
-                           | (static_cast<std::int32_t> (b[1]) << 16)
-                           | (static_cast<std::int32_t> (b[2]) << 24);
-            return static_cast<float> (v >> 8) / 8388608.0f;
-        }
-
-        case 4:
-        {
-            std::int32_t v;
-            std::memcpy (&v, b, 4);
-            return static_cast<float> (v) / 2147483648.0f;
-        }
-
-        default:
-            return 0.0f;
-    }
-}
 
 //==============================================================================
 void SampleCache::Handle::read (int64_t startFrame, int numFrames, int channel, float* dest) const noexcept
@@ -111,15 +59,6 @@ void SampleCache::Handle::read (int64_t startFrame, int numFrames, int channel, 
 
     for (int i = 0; i < numFrames; ++i)
         dest[i] = convertSample (src + static_cast<std::size_t> (i) * frameBytes, d->bytesPerSample, d->format);
-}
-
-//==============================================================================
-const float* SampleCache::Handle::data (int channel) const noexcept
-{
-    // Always return nullptr — the render loop must use read() for all formats.
-    // Direct pointer access is unsafe for interleaved data because the caller
-    // would need to stride by numChannels, which data() cannot communicate.
-    return nullptr;
 }
 
 //==============================================================================
@@ -211,6 +150,16 @@ bool SampleCache::parseWav (const std::string& path, std::shared_ptr<const Detai
         return false;
     }
 
+    // Advise kernel to preload pages and pre-touch to eliminate audio thread page faults
+   #if defined(__linux__) || defined(__unix__)
+    madvise (const_cast<void*> (mapping->getData()), static_cast<size_t> (size), MADV_WILLNEED);
+   #endif
+
+    volatile std::uint8_t touchSink = 0;
+    for (std::size_t p = 0; p < static_cast<std::size_t> (size); p += 4096)
+        touchSink += data[p];
+    (void) touchSink;
+
     auto readU32 = [] (const std::uint8_t* p) -> std::uint32_t
     {
         return static_cast<std::uint32_t> (p[0])
@@ -232,13 +181,13 @@ bool SampleCache::parseWav (const std::string& path, std::shared_ptr<const Detai
 
     std::size_t pos = 12;
 
-    while (pos + 8 <= size)
+    while (pos + 8 <= static_cast<std::size_t> (size))
     {
         const auto* chunk = data + pos;
         const auto chunkSize = readU32 (chunk + 4);
         const auto body = pos + 8;
 
-        if (body + chunkSize > size)
+        if (body + chunkSize > static_cast<std::size_t> (size))
             break;   // truncated final chunk
 
         if (std::memcmp (chunk, "fmt ", 4) == 0 && chunkSize >= 16)

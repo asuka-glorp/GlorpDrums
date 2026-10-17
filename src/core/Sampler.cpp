@@ -65,10 +65,7 @@ void Sampler::setSampleRateAndBlock (double rate, int blockSize)
     {
         v->mixL.resize (static_cast<size_t> (currentBlockSize));
         v->mixR.resize (static_cast<size_t> (currentBlockSize));
-        v->channelScratch.resize (static_cast<size_t> (currentBlockSize));
     }
-
-    recomputeLatency();
 }
 
 //==============================================================================
@@ -154,6 +151,24 @@ bool Sampler::loadKit (DrumKit kit, juce::String& error)
     roundRobinCursor.assign (static_cast<size_t> (instrumentCount), 0);
     instrumentBuses.assign (static_cast<size_t> (instrumentCount), 0);
 
+    // Identify hi-hat articulation indices for continuous pedal control
+    hiHat = {};
+    for (int i = 0; i < instrumentCount; ++i)
+    {
+        const auto n = instruments_[static_cast<size_t> (i)].name.toLowerCase();
+        if (n.contains ("hat") || n.contains ("hh") || instruments_[static_cast<size_t> (i)].group.equalsIgnoreCase ("hihat"))
+        {
+            if (n.contains ("pedal") || n.contains ("foot"))
+                hiHat.pedal = i;
+            else if (n.contains ("semi"))
+                hiHat.semiOpen = i;
+            else if (n.contains ("open"))
+                hiHat.open = i;
+            else if (n.contains ("closed") || n.contains ("close"))
+                hiHat.closed = i;
+        }
+    }
+
     for (int i = 0; i < instrumentCount; ++i)
     {
         const auto n = instruments_[static_cast<size_t> (i)].name.toLowerCase();
@@ -185,7 +200,6 @@ bool Sampler::loadKit (DrumKit kit, juce::String& error)
               + " instruments had unreadable sample files and were skipped.";
     }
 
-    recomputeLatency();
     recomputeSoloFlags();
     sampleCache.trim();
 
@@ -210,7 +224,7 @@ void Sampler::unloadKit()
     kitTitle.clear();
 
     anySolo.store (false);
-    reportedLatency.store (0);
+    hiHat = {};
     sampleCache.trim();
 }
 
@@ -228,11 +242,11 @@ void Sampler::resetInstrumentParams()
     {
         p = ChannelParams {};
         p.level = 1.0f;
+        p.velocityCurve = VelocityCurve::linear;
     }
 
     anySolo.store (false);
     recomputeSoloFlags();
-    recomputeLatency();
 }
 
 int Sampler::numKitChannels() const
@@ -259,12 +273,6 @@ juce::String Sampler::kitChannelTitle (int index) const
         return juce::String (c.title);
 
     return juce::String (c.name);
-}
-
-void Sampler::recomputeLatency()
-{
-    // Varispeed tuning is zero-latency: no window, no lookahead, no delay.
-    reportedLatency.store (0);
 }
 
 //==============================================================================
@@ -314,6 +322,7 @@ void Sampler::setInstrumentParams (int index, const InstrumentParams& params)
     p.pitch = newPitch;
     p.spread = std::clamp (params.tuneSpread, 0.0f, 100.0f);
     p.dynamics = std::clamp (params.dynamics, 0.0f, 1.0f);
+    p.velocityCurve = params.velocityCurve;
     p.roundRobin = params.autoRoundRobin;
     p.selectedSample = params.selectedSample;
     p.mute = params.mute;
@@ -327,9 +336,6 @@ void Sampler::setInstrumentParams (int index, const InstrumentParams& params)
         anySolo.store (currentAnySolo, std::memory_order_relaxed);
         recomputeSoloFlags();
     }
-
-    if (pitchChanged)
-        recomputeLatency();
 }
 
 InstrumentParams Sampler::getInstrumentParams (int index) const
@@ -346,6 +352,7 @@ InstrumentParams Sampler::getInstrumentParams (int index) const
     out.pitchSemitones = p.pitch;
     out.tuneSpread = p.spread;
     out.dynamics = p.dynamics;
+    out.velocityCurve = p.velocityCurve;
     out.autoRoundRobin = p.roundRobin;
     out.mute = p.mute;
     out.solo = p.solo;
@@ -579,6 +586,18 @@ void Sampler::noteOn (int instrument, int note, float velocity, int64_t timeInSa
     if (instrument < 0 || instrument >= instrumentCount)
         return;
 
+    // E-drum continuous hi-hat articulation selection based on pedal CC#4
+    if (note >= 0 && (instrument == hiHat.closed || instrument == hiHat.semiOpen || instrument == hiHat.open))
+    {
+        const float pedal = hiHatPedal.load (std::memory_order_relaxed);
+        if (pedal >= 0.70f && hiHat.closed >= 0)
+            instrument = hiHat.closed;
+        else if (pedal >= 0.30f && hiHat.semiOpen >= 0)
+            instrument = hiHat.semiOpen;
+        else if (hiHat.open >= 0)
+            instrument = hiHat.open;
+    }
+
     const auto& runtime = instruments_[static_cast<size_t> (instrument)];
 
     if (runtime.hits.empty())
@@ -615,11 +634,28 @@ void Sampler::noteOn (int instrument, int note, float velocity, int64_t timeInSa
     if (p.muted)
         return;
 
+    // Apply e-drum velocity curve (linear, logarithmic, exponential, s-curve)
+    float effectiveVel = std::clamp (velocity, 0.0f, 1.0f);
+    switch (p.velocityCurve)
+    {
+        case VelocityCurve::logarithmic:
+            effectiveVel = std::sqrt (effectiveVel);
+            break;
+        case VelocityCurve::exponential:
+            effectiveVel = effectiveVel * effectiveVel;
+            break;
+        case VelocityCurve::sCurve:
+            effectiveVel = effectiveVel * effectiveVel * (3.0f - 2.0f * effectiveVel);
+            break;
+        case VelocityCurve::linear:
+        default:
+            break;
+    }
+
     // Dynamics knob: controls the velocity response curve and sample layer selection.
     // At 0.5: natural 1:1 linear response.
     // Below 0.5: compressed dynamics (softer hits are brought up, punchy and consistent).
     // Above 0.5: expanded dynamics (exaggerated difference between soft and loud hits).
-    float effectiveVel = std::clamp (velocity, 0.0f, 1.0f);
     if (std::abs (p.dynamics - 0.5f) > 0.01f)
     {
         const float dynExp = std::pow (2.0f, (p.dynamics - 0.5f) * 3.0f);
@@ -710,6 +746,71 @@ void Sampler::allNotesOff()
         v.pitchSemitones = 0.0f;
         v.startSkip = 0;
         v.endsAt = 0;
+    }
+}
+
+void Sampler::setHiHatPedal (float pedalValue) noexcept
+{
+    const float clamped = std::clamp (pedalValue, 0.0f, 1.0f);
+    const float prev = hiHatPedal.exchange (clamped, std::memory_order_relaxed);
+
+    // Choke open hi-hats when pedal moves from open towards closed
+    if (prev < 0.55f && clamped >= 0.60f)
+    {
+        if (hiHat.open >= 0)
+            chokeInstrument (hiHat.open, 30, sampleClock);
+        if (hiHat.semiOpen >= 0)
+            chokeInstrument (hiHat.semiOpen, 30, sampleClock);
+
+        // Firm downward foot stomp: trigger pedal chick
+        if (clamped - prev > 0.30f && clamped >= 0.80f)
+        {
+            const int chickInst = hiHat.pedal >= 0 ? hiHat.pedal : hiHat.closed;
+            if (chickInst >= 0)
+            {
+                const float vel = std::clamp ((clamped - prev) * 1.5f, 0.35f, 1.0f);
+                noteOn (chickInst, -1, vel, sampleClock);
+            }
+        }
+    }
+}
+
+void Sampler::chokeCymbal (int instrumentIndex, int64_t fadeMs, int64_t timeInSamples)
+{
+    if (instrumentIndex < 0 || instrumentIndex >= instrumentCount)
+        return;
+
+    chokeInstrument (instrumentIndex, fadeMs, timeInSamples);
+
+    const auto name = instruments_[static_cast<size_t> (instrumentIndex)].name.toLowerCase();
+    juce::String stem = name;
+    for (const char* suffix : { "edge", "bow", "bell", "choke", "crash", "ride", "splash", "china" })
+    {
+        if (stem.endsWith (suffix) && stem.length() > static_cast<int> (std::strlen (suffix)))
+        {
+            stem = stem.dropLastCharacters (static_cast<int> (std::strlen (suffix)));
+            break;
+        }
+    }
+
+    for (int i = 0; i < instrumentCount; ++i)
+    {
+        if (i == instrumentIndex)
+            continue;
+
+        const auto otherName = instruments_[static_cast<size_t> (i)].name.toLowerCase();
+        if (otherName.startsWith (stem))
+            chokeInstrument (i, fadeMs, timeInSamples);
+    }
+}
+
+void Sampler::chokeAllCymbals (int64_t fadeMs, int64_t timeInSamples)
+{
+    for (int i = 0; i < instrumentCount; ++i)
+    {
+        const auto n = instruments_[static_cast<size_t> (i)].name.toLowerCase();
+        if (n.contains ("crash") || n.contains ("ride") || n.contains ("splash") || n.contains ("china") || n.contains ("cymbal"))
+            chokeInstrument (i, fadeMs, timeInSamples);
     }
 }
 
@@ -853,7 +954,7 @@ void Sampler::render (float* const* output, int numOutputChannels, int numSample
         std::fill (v.mixR.begin(), v.mixR.begin() + numSamples, 0.0f);
 
         const double ratio = v.pitchRatio;
-        const bool shifting = (ratio != 1.0);
+        const bool shifting = std::abs (ratio - 1.0) > 1.0e-5;
 
         for (int i = 0; i < numSamples; ++i)
         {
@@ -864,91 +965,36 @@ void Sampler::render (float* const* output, int numOutputChannels, int numSample
 
             if (shifting)
             {
-                // Cubic interpolation at fractional position
+                // Cubic Hermite interpolation at fractional position
                 const int64_t pos = static_cast<int64_t> (v.position);
                 const float t = static_cast<float> (v.position - static_cast<double> (pos));
 
                 for (const auto& channelRef : hit.channels)
                 {
-                    const auto* data = channelRef.handle.data (channelRef.channel);
+                    const float y0 = channelRef.handle.readSample (pos - 1, channelRef.channel);
+                    const float y1 = channelRef.handle.readSample (pos,     channelRef.channel);
+                    const float y2 = channelRef.handle.readSample (pos + 1, channelRef.channel);
+                    const float y3 = channelRef.handle.readSample (pos + 2, channelRef.channel);
 
-                    if (data != nullptr)
-                    {
-                        // Fast path: 32-bit float — direct pointer access
-                        const int64_t p0 = pos - 1;
-                        const int64_t p1 = pos;
-                        const int64_t p2 = pos + 1;
-                        const int64_t p3 = pos + 2;
+                    const float c1 = 0.5f * (y2 - y0);
+                    const float c2 = y0 - 2.5f * y1 + 2.0f * y2 - 0.5f * y3;
+                    const float c3 = 0.5f * (y3 - y0) + 1.5f * (y1 - y2);
+                    const float sample = ((c3 * t + c2) * t + c1) * t + y1;
 
-                        const float y0 = (p0 >= 0 && p0 < hit.numFrames) ? data[p0] : 0.0f;
-                        const float y1 = (p1 >= 0 && p1 < hit.numFrames) ? data[p1] : 0.0f;
-                        const float y2 = (p2 >= 0 && p2 < hit.numFrames) ? data[p2] : 0.0f;
-                        const float y3 = (p3 >= 0 && p3 < hit.numFrames) ? data[p3] : 0.0f;
-
-                        const float c1 = 0.5f * (y2 - y0);
-                        const float c2 = y0 - 2.5f * y1 + 2.0f * y2 - 0.5f * y3;
-                        const float c3 = 0.5f * (y3 - y0) + 1.5f * (y1 - y2);
-                        const float sample = ((c3 * t + c2) * t + c1) * t + y1;
-
-                        sampleL += sample * channelRef.gainL;
-                        sampleR += sample * channelRef.gainR;
-                    }
-                    else
-                    {
-                        // Fallback: non-float format — read 4 frames around position
-                        float y0 = 0.0f, y1 = 0.0f, y2 = 0.0f, y3 = 0.0f;
-                        const int64_t p0 = pos - 1;
-                        const int64_t p1 = pos;
-                        const int64_t p2 = pos + 1;
-                        const int64_t p3 = pos + 2;
-
-                        if (p0 >= 0 && p0 < hit.numFrames)
-                            channelRef.handle.read (p0, 1, channelRef.channel, &y0);
-                        if (p1 >= 0 && p1 < hit.numFrames)
-                            channelRef.handle.read (p1, 1, channelRef.channel, &y1);
-                        if (p2 >= 0 && p2 < hit.numFrames)
-                            channelRef.handle.read (p2, 1, channelRef.channel, &y2);
-                        if (p3 >= 0 && p3 < hit.numFrames)
-                            channelRef.handle.read (p3, 1, channelRef.channel, &y3);
-
-                        const float c1 = 0.5f * (y2 - y0);
-                        const float c2 = y0 - 2.5f * y1 + 2.0f * y2 - 0.5f * y3;
-                        const float c3 = 0.5f * (y3 - y0) + 1.5f * (y1 - y2);
-                        const float sample = ((c3 * t + c2) * t + c1) * t + y1;
-
-                        sampleL += sample * channelRef.gainL;
-                        sampleR += sample * channelRef.gainR;
-                    }
+                    sampleL += sample * channelRef.gainL;
+                    sampleR += sample * channelRef.gainR;
                 }
             }
             else
             {
-                // Fast path: integer position, no interpolation
+                // Fast path: 1:1 speed, direct exact sample read
                 const int64_t pos = static_cast<int64_t> (v.position);
 
                 for (const auto& channelRef : hit.channels)
                 {
-                    const auto* data = channelRef.handle.data (channelRef.channel);
-
-                    if (data != nullptr)
-                    {
-                        // Fast path: 32-bit float — direct pointer access
-                        if (pos >= 0 && pos < hit.numFrames)
-                        {
-                            sampleL += data[pos] * channelRef.gainL;
-                            sampleR += data[pos] * channelRef.gainR;
-                        }
-                    }
-                    else
-                    {
-                        // Fallback: non-float format — read single frame
-                        float sample = 0.0f;
-                        if (pos >= 0 && pos < hit.numFrames)
-                            channelRef.handle.read (pos, 1, channelRef.channel, &sample);
-
-                        sampleL += sample * channelRef.gainL;
-                        sampleR += sample * channelRef.gainR;
-                    }
+                    const float sample = channelRef.handle.readSample (pos, channelRef.channel);
+                    sampleL += sample * channelRef.gainL;
+                    sampleR += sample * channelRef.gainR;
                 }
             }
 

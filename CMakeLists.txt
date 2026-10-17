@@ -138,6 +138,7 @@ target_sources(GlorpDrums PRIVATE
     src/ui/CalloutBox.cpp
     src/ui/Knob.cpp
     src/ui/Scope.cpp
+    src/ui/EDrumWizard.cpp
 )
 
 # Bundled logo and fonts, as a static library so both the VST3/LV2 binaries and

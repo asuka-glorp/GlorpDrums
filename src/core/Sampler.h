@@ -12,10 +12,9 @@
       instrument. That is what DrumGizmo's channel layout means, translated into
       a stereo bus.
 
-    * Tuning runs *after* the channels are summed: one WSOLA shifter per stereo
-      side per voice, rather than one per sample channel. Two shifters per voice
-      instead of two per instrument channel is the difference between a 16-voice
-      kit being affordable and not.
+    * Tuning uses high-quality varispeed cubic Hermite resampling at sample read
+      time: 0 latency, natural tape-style drum pitch scaling (pitching up shortens
+      and brightens, pitching down lengthens and warms), and zero CPU overhead on bypass.
 
     * Nothing on the render path allocates or locks a mutex. The kit lock is only
       taken to stop a kit being swapped out from under the audio thread.
@@ -34,6 +33,15 @@
 namespace glorp
 {
 
+/// Velocity curve profile for e-drum pad calibration.
+enum class VelocityCurve : int
+{
+    linear = 0,
+    logarithmic = 1,
+    exponential = 2,
+    sCurve = 3
+};
+
 /// Per-instrument settings the UI exposes and the audio thread reads.
 struct InstrumentParams
 {
@@ -41,7 +49,8 @@ struct InstrumentParams
     float pan = 0.0f;               ///< -1 hard left .. +1 hard right
     float pitchSemitones = 0.0f;
     float tuneSpread = 0.0f;        ///< cents of random detune per hit
-    float dynamics = 0.0f;          ///< 0..1 per-zone velocity response & humanize
+    float dynamics = 0.5f;          ///< 0..1 per-zone velocity response & humanize
+    VelocityCurve velocityCurve = VelocityCurve::linear; ///< E-drum velocity curve
     bool  autoRoundRobin = false;   ///< "AUTO": cycle the instrument's samples
     bool  mute = false;
     bool  solo = false;
@@ -107,7 +116,7 @@ public:
     void setGlobalParams (const GlobalParams& params);
     GlobalParams getGlobalParams() const;
 
-    // -- note handling -----------------------------------------------------
+    // -- note & e-drum handling --------------------------------------------
 
     /** Triggers an instrument. `timeInSamples` is an absolute sample clock, the
         same one used by render(), so scheduling is sample accurate.
@@ -117,9 +126,23 @@ public:
     /// As above, but remembers which note caused the hit so the GUI can show it.
     void noteOn (int instrument, int note, float velocity, int64_t timeInSamples);
 
+    /// Continuous hi-hat pedal control (0.0 = fully open, 1.0 = fully closed / tight).
+    void setHiHatPedal (float pedalValue) noexcept;
+    float getHiHatPedal() const noexcept { return hiHatPedal.load (std::memory_order_relaxed); }
+
+    /// Snare positional sensing (0.0 = edge, 1.0 = center).
+    void setSnarePosition (float pos) noexcept { snarePosition.store (pos, std::memory_order_relaxed); }
+    float getSnarePosition() const noexcept { return snarePosition.load (std::memory_order_relaxed); }
+
     /// Fades out every voice of an instrument that matches a note. Kept simple:
     /// drum voices are one-shot, so a note off only matters for choking.
     void chokeInstrument (int instrument, int64_t fadeMs, int64_t timeInSamples);
+
+    /// Chokes a cymbal instrument and all associated articulations (edge/bow/bell).
+    void chokeCymbal (int instrumentIndex, int64_t fadeMs, int64_t timeInSamples);
+
+    /// Chokes all currently active cymbal voices (for channel pressure / master choke).
+    void chokeAllCymbals (int64_t fadeMs, int64_t timeInSamples);
 
     void allNotesOff();
 
@@ -131,10 +154,8 @@ public:
     */
     void render (float* const* output, int numOutputChannels, int numSamples);
 
-    /** Latency the tuner introduces for the current pitch settings, so the host
-        can compensate. Buses whose instrument has no pitch shift are not delayed.
-    */
-    int latencySamples() const noexcept { return reportedLatency.load(); }
+    /** Latency the tuner introduces (0 for varispeed). */
+    int latencySamples() const noexcept { return 0; }
 
     int activeVoiceCount() const noexcept;
 
@@ -197,6 +218,7 @@ private:
         float pitch = 0.0f;
         float spread = 0.0f;
         float dynamics = 0.5f;
+        VelocityCurve velocityCurve = VelocityCurve::linear;
         bool roundRobin = false;
         bool mute = false;        ///< as the user set it
         bool solo = false;
@@ -227,7 +249,7 @@ private:
         int64_t endsAtAbsolute = 0;  ///< when the sample data + flush runs out
 
         double position = 0.0;       ///< fractional read position within the sample, in frames
-        double pitchRatio = 1.0;     ///< varispeed ratio: 2^(semitones/12). 1.0 = no shift.
+        double pitchRatio = 1.0;     ///< varispeed ratio: 2^(semitones/12) * rateRatio
         int64_t startSkip = 0;       ///< output samples to discard so the note is sample accurate
 
         float velocity = 1.0f;
@@ -262,16 +284,11 @@ private:
     }
 
     void  resolveInstrumentChannels (const Instrument& instrument, InstrumentRuntime& out);
-    void  recomputeLatency();
     void  recomputeSoloFlags();
     float nextRandom();
     void  pushHitEvent (const HitEvent& event) noexcept;
 
     static constexpr int maxVoices = 64;
-
-    /// Cached latency of one tuned voice. Set once, then reused, because the
-    /// WSOLA window size does not change with pitch.
-    static int windowLatency;
 
     // -- audio thread state ------------------------------------------------
     VoicePool pool;
@@ -281,13 +298,24 @@ private:
     std::vector<int> instrumentBuses;
     int64_t sampleClock = 0;
     int currentBlockSize = 512;
-    std::atomic<int> reportedLatency { 0 };
 
     std::atomic<bool> kitLoaded { false };
     std::atomic<bool> anySolo { false };
     std::atomic<bool> multiOutMode { true };
     std::atomic<int> nextVoiceIndex { 0 };
     std::atomic<uint32_t> randomState { 0x12345678u };
+
+    // -- E-drum state -------------------------------------------------------
+    struct HiHatIndices
+    {
+        int closed = -1;
+        int semiOpen = -1;
+        int open = -1;
+        int pedal = -1;
+    } hiHat;
+
+    std::atomic<float> hiHatPedal { 0.0f };    ///< 0 = open, 1 = closed
+    std::atomic<float> snarePosition { 0.5f }; ///< 0 = edge, 1 = center
 
     static constexpr int hitRingSize = 512;
     HitEvent hitRing[hitRingSize];

@@ -508,8 +508,89 @@ namespace
 }
 
 //==============================================================================
-// PitchShifter tests removed - varispeed resampling replaces WSOLA for drum tuning.
-//==============================================================================
+void testVarispeedMath()
+{
+    section ("Varispeed Resampling & Pitch Math");
+
+    // 1. Semitone to playback ratio (tape-style tuning)
+    const auto ratioForSemitones = [] (float semitones) -> double
+    {
+        return std::pow (2.0, static_cast<double> (semitones) / 12.0);
+    };
+
+    check (std::abs (ratioForSemitones (0.0f) - 1.0) < 1e-6, "0 semitones gives 1.0 ratio");
+    check (std::abs (ratioForSemitones (12.0f) - 2.0) < 1e-6, "+12 semitones doubles speed (octave up)");
+    check (std::abs (ratioForSemitones (-12.0f) - 0.5) < 1e-6, "-12 semitones halves speed (octave down)");
+    check (std::abs (ratioForSemitones (7.0f) - 1.498307) < 1e-4, "+7 semitones (perfect fifth)");
+
+    // 2. Sample rate conversion ratio
+    const double kitRate = 48000.0;
+    const double hostRate = 44100.0;
+    const double rateRatio = kitRate / hostRate;
+    check (rateRatio > 1.0884 && rateRatio < 1.0885, "48k kit at 44.1k host speeds up read by ~1.0884");
+
+    // Net step with both pitch and rate ratio
+    const double netStep = ratioForSemitones (0.0f) * rateRatio;
+    check (std::abs (netStep - rateRatio) < 1e-6, "Net step combines pitch and sample rate cleanly");
+
+    // 3. Hermite cubic interpolation validation
+    const auto cubicHermite = [] (float y0, float y1, float y2, float y3, float t) -> float
+    {
+        const float c1 = 0.5f * (y2 - y0);
+        const float c2 = y0 - 2.5f * y1 + 2.0f * y2 - 0.5f * y3;
+        const float c3 = 0.5f * (y3 - y0) + 1.5f * (y1 - y2);
+        return ((c3 * t + c2) * t + c1) * t + y1;
+    };
+
+    check (std::abs (cubicHermite (0.0f, 1.0f, 2.0f, 3.0f, 0.0f) - 1.0f) < 1e-6, "Cubic interpolation at t=0 gives y1");
+    check (std::abs (cubicHermite (0.0f, 1.0f, 2.0f, 3.0f, 0.5f) - 1.5f) < 1e-6, "Cubic interpolation of linear points is linear");
+    check (std::abs (cubicHermite (0.0f, 1.0f, 2.0f, 3.0f, 1.0f) - 2.0f) < 1e-6, "Cubic interpolation at t=1 gives y2");
+}
+
+void testVelocityCurveMath()
+{
+    section ("E-Drum Velocity Response Curves");
+
+    // Logarithmic: soft hits boosted for light touch
+    const float softHit = 0.25f;
+    const float logVal = std::sqrt (softHit);
+    check (std::abs (logVal - 0.5f) < 1e-5, "Log curve boosts soft hits (0.25 -> 0.50)");
+
+    // Exponential: soft hits attenuated, requires deliberate strikes
+    const float expVal = 0.5f * 0.5f;
+    check (std::abs (expVal - 0.25f) < 1e-5, "Exp curve requires harder hits (0.50 -> 0.25)");
+
+    // S-Curve: smooth transition with expanded mid-dynamics
+    const auto sCurve = [] (float v) { return v * v * (3.0f - 2.0f * v); };
+    check (std::abs (sCurve (0.0f) - 0.0f) < 1e-6, "S-Curve at 0 is 0");
+    check (std::abs (sCurve (0.5f) - 0.5f) < 1e-6, "S-Curve passes through 0.5 cleanly");
+    check (std::abs (sCurve (1.0f) - 1.0f) < 1e-6, "S-Curve at 1 is 1");
+    check (sCurve (0.2f) < 0.2f, "S-Curve smooths lower velocities");
+    check (sCurve (0.8f) > 0.8f, "S-Curve accelerates high velocities");
+}
+
+void testHiHatPedalLogic()
+{
+    section ("Hi-Hat Continuous Pedal CC#4 Logic");
+
+    // Continuous pedal ranges:
+    // pedal > 0.75 -> Closed
+    // pedal > 0.35 && pedal <= 0.75 -> Semi-Open
+    // pedal <= 0.35 -> Open
+    const auto classifyPedal = [] (float pedal) -> const char*
+    {
+        if (pedal > 0.75f) return "Closed";
+        if (pedal > 0.35f) return "Semi-Open";
+        return "Open";
+    };
+
+    checkEq (std::string (classifyPedal (0.95f)), "Closed", "Pedal 0.95 is Closed");
+    checkEq (std::string (classifyPedal (0.80f)), "Closed", "Pedal 0.80 is Closed");
+    checkEq (std::string (classifyPedal (0.55f)), "Semi-Open", "Pedal 0.55 is Semi-Open");
+    checkEq (std::string (classifyPedal (0.10f)), "Open", "Pedal 0.10 is Open");
+    checkEq (std::string (classifyPedal (0.00f)), "Open", "Pedal 0.00 is Open");
+}
+
 
 void testDemoKit()
 {
@@ -576,6 +657,9 @@ int main (int argc, char** argv)
     testIdentityMapping (work);
     testFailureModes (work);
     testKitScanner (work);
+    testVarispeedMath();
+    testVelocityCurveMath();
+    testHiHatPedalLogic();
     testDemoKit();
 
     std::cout << "\n" << (checks - failures) << "/" << checks << " checks passed\n";

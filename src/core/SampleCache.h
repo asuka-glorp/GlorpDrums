@@ -21,6 +21,7 @@
 #include <juce_audio_formats/juce_audio_formats.h>
 
 #include <atomic>
+#include <cstring>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -29,12 +30,81 @@
 namespace glorp
 {
 
+//==============================================================================
+/** Converts one sample of `bytesPerSample` bytes in the given format to float. */
+inline float convertSample (const std::uint8_t* b, int bytesPerSample, int format) noexcept
+{
+    if (format == 1) // IEEE float
+    {
+        if (bytesPerSample == 4)
+        {
+            float v;
+            std::memcpy (&v, b, 4);
+            return v;
+        }
+
+        if (bytesPerSample == 8)
+        {
+            double v;
+            std::memcpy (&v, b, 8);
+            return static_cast<float> (v);
+        }
+
+        return 0.0f;
+    }
+
+    // Integer PCM. Always sign-extend from the container's top bit.
+    switch (bytesPerSample)
+    {
+        case 1:
+            // 8-bit wav is unsigned with a 128 offset.
+            return (static_cast<float> (b[0]) - 128.0f) / 128.0f;
+
+        case 2:
+        {
+            std::int16_t v;
+            std::memcpy (&v, b, 2);
+            return static_cast<float> (v) / 32768.0f;
+        }
+
+        case 3:
+        {
+            std::int32_t v = (static_cast<std::int32_t> (b[0]) << 8)
+                           | (static_cast<std::int32_t> (b[1]) << 16)
+                           | (static_cast<std::int32_t> (b[2]) << 24);
+            return static_cast<float> (v >> 8) / 8388608.0f;
+        }
+
+        case 4:
+        {
+            std::int32_t v;
+            std::memcpy (&v, b, 4);
+            return static_cast<float> (v) / 2147483648.0f;
+        }
+
+        default:
+            return 0.0f;
+    }
+}
+
+//==============================================================================
 class SampleCache
 {
-private:
-    struct Detail;
-
 public:
+    struct Detail
+    {
+        std::shared_ptr<juce::MemoryMappedFile> mapping;
+        const float* interleaved = nullptr;   ///< null when the mapping needs conversion
+        const std::uint8_t* raw = nullptr;
+
+        int numChannels = 0;
+        int64_t numFrames = 0;
+        double sampleRate = 44100.0;
+
+        int bytesPerSample = 0;   ///< container width, e.g. 3 for 24-bit
+        int format = 0;           ///< 0 = integer PCM, 1 = IEEE float
+    };
+
     SampleCache();
     ~SampleCache();
 
@@ -53,10 +123,26 @@ public:
         /// `dest`. Frames past the end of the file are filled with silence.
         void read (int64_t startFrame, int numFrames, int channel, float* dest) const noexcept;
 
-        /// Returns a direct pointer to the float data for `channel`, or nullptr
-        /// if the mapping is not available. Valid for the lifetime of this handle.
-        /// Use for random-access reads where the caller manages bounds checking.
-        const float* data (int channel) const noexcept;
+        /// Single-sample fast inline read for realtime synthesis & resampling.
+        /// Returns 0.0f when out of bounds or invalid.
+        inline float readSample (int64_t frame, int channel) const noexcept
+        {
+            if (detail == nullptr || frame < 0 || frame >= detail->numFrames)
+                return 0.0f;
+
+            const auto* d = detail.get();
+            if (channel < 0 || channel >= d->numChannels)
+                return 0.0f;
+
+            if (d->interleaved != nullptr)
+                return d->interleaved[frame * d->numChannels + channel];
+
+            const auto frameBytes = static_cast<std::size_t> (d->bytesPerSample) * static_cast<std::size_t> (d->numChannels);
+            const auto offset = static_cast<std::size_t> (frame) * frameBytes
+                              + static_cast<std::size_t> (channel) * static_cast<std::size_t> (d->bytesPerSample);
+
+            return convertSample (d->raw + offset, d->bytesPerSample, d->format);
+        }
 
     private:
         friend class SampleCache;
@@ -75,20 +161,6 @@ public:
     int mappedFileCount() const;
 
 private:
-    struct Detail
-    {
-        std::shared_ptr<juce::MemoryMappedFile> mapping;
-        const float* interleaved = nullptr;   ///< null when the mapping needs conversion
-        const std::uint8_t* raw = nullptr;
-
-        int numChannels = 0;
-        int64_t numFrames = 0;
-        double sampleRate = 44100.0;
-
-        int bytesPerSample = 0;   ///< container width, e.g. 3 for 24-bit
-        int format = 0;           ///< 0 = integer PCM, 1 = IEEE float
-    };
-
     struct CacheEntry
     {
         std::shared_ptr<const Detail> detail;
@@ -101,10 +173,5 @@ private:
     std::map<std::string, CacheEntry> cache;
     juce::AudioFormatManager formatManager;
 };
-
-/** Converts one sample of `bytesPerSample` bytes in the given format to float.
-    Exposed for testing.
-*/
-float convertSample (const std::uint8_t* bytes, int bytesPerSample, int format) noexcept;
 
 } // namespace glorp

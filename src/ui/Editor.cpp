@@ -181,6 +181,30 @@ void Editor::LearnButton::paintButton (juce::Graphics& g, bool isHover, bool /*i
     }
 }
 
+void Editor::CurveButton::paintButton (juce::Graphics& g, bool isHover, bool /*isDown*/)
+{
+    auto b = getLocalBounds().toFloat().reduced (1.0f);
+    g.setColour (juce::Colour (0xfffcfdfc));
+    g.fillRoundedRectangle (b, 3.0f);
+
+    const auto orangeCol = juce::Colour (0xffea8c16);
+    drawSketchRect (g, b, isHover ? orangeCol : juce::Colour (0xff7a7d7a), isHover ? 1.6f : 1.2f, 6);
+
+    juce::String label = "CURVE: LIN";
+    switch (currentCurve)
+    {
+        case VelocityCurve::logarithmic: label = "CURVE: LOG"; break;
+        case VelocityCurve::exponential: label = "CURVE: EXP"; break;
+        case VelocityCurve::sCurve:     label = "CURVE: S-CURV"; break;
+        case VelocityCurve::linear:
+        default: break;
+    }
+
+    g.setFont (displayFont (13.5f));
+    g.setColour (isHover ? orangeCol : juce::Colour (0xff222522));
+    g.drawText (label, b, juce::Justification::centred, false);
+}
+
 //==============================================================================
 Editor::Editor (PluginProcessor& p)
     : processor (p)
@@ -189,6 +213,14 @@ Editor::Editor (PluginProcessor& p)
 
     addAndMakeVisible (kitView);
     addAndMakeVisible (scope);
+
+    edrumWizard = std::make_unique<EDrumWizard> (processor);
+    addChildComponent (*edrumWizard);
+    edrumWizard->onClose = [this]
+    {
+        updateInstrumentDisplay();
+        repaint();
+    };
 
     buildHeaderMenu();
     buildControls();
@@ -342,6 +374,16 @@ void Editor::promptLoadKitFile()
         });
 }
 
+void Editor::openEDrumWizard()
+{
+    if (edrumWizard != nullptr)
+    {
+        edrumWizard->setBounds (getLocalBounds());
+        edrumWizard->open();
+        edrumWizard->toFront (true);
+    }
+}
+
 juce::PopupMenu Editor::buildFileMenu()
 {
     juce::PopupMenu menu;
@@ -457,6 +499,9 @@ juce::PopupMenu Editor::buildMidiMenu()
 {
     juce::PopupMenu menu;
     auto& map = processor.getMidiMap();
+
+    menu.addItem ("E-Drum Setup Wizard...", [this] { openEDrumWizard(); });
+    menu.addSeparator();
 
     menu.addItem ("Panic (All Notes Off)", [this] { processor.getSampler().allNotesOff(); });
     menu.addSeparator();
@@ -641,6 +686,52 @@ void Editor::buildControls()
     instDynamicsKnob = std::make_unique<Knob> ("DYNAMICS");
     instDynamicsKnob->setDoubleClickReturnValue (true, 0.5);
     addAndMakeVisible (*instDynamicsKnob);
+
+    // Left Panel: Velocity Curve Button
+    addAndMakeVisible (instCurveButton);
+    instCurveButton.onClick = [this]
+    {
+        const int samplerIdx = getActiveSamplerIndex();
+        if (samplerIdx < 0)
+            return;
+
+        const auto currentParams = processor.getSampler().getInstrumentParams (samplerIdx);
+        juce::PopupMenu menu;
+        menu.addSectionHeader ("VELOCITY RESPONSE");
+        menu.addItem ("Linear (1:1 Natural)", true, currentParams.velocityCurve == VelocityCurve::linear, [this, samplerIdx]
+        {
+            auto p = processor.getSampler().getInstrumentParams (samplerIdx);
+            p.velocityCurve = VelocityCurve::linear;
+            processor.getSampler().setInstrumentParams (samplerIdx, p);
+            updateInstrumentDisplay();
+        });
+        menu.addItem ("Logarithmic (Boost Soft Hits)", true, currentParams.velocityCurve == VelocityCurve::logarithmic, [this, samplerIdx]
+        {
+            auto p = processor.getSampler().getInstrumentParams (samplerIdx);
+            p.velocityCurve = VelocityCurve::logarithmic;
+            processor.getSampler().setInstrumentParams (samplerIdx, p);
+            updateInstrumentDisplay();
+        });
+        menu.addItem ("Exponential (Tight / Hard Hits)", true, currentParams.velocityCurve == VelocityCurve::exponential, [this, samplerIdx]
+        {
+            auto p = processor.getSampler().getInstrumentParams (samplerIdx);
+            p.velocityCurve = VelocityCurve::exponential;
+            processor.getSampler().setInstrumentParams (samplerIdx, p);
+            updateInstrumentDisplay();
+        });
+        menu.addItem ("S-Curve (Enhanced Mid-Dynamics)", true, currentParams.velocityCurve == VelocityCurve::sCurve, [this, samplerIdx]
+        {
+            auto p = processor.getSampler().getInstrumentParams (samplerIdx);
+            p.velocityCurve = VelocityCurve::sCurve;
+            processor.getSampler().setInstrumentParams (samplerIdx, p);
+            updateInstrumentDisplay();
+        });
+
+        juce::PopupMenu::Options opts;
+        opts = opts.withTargetComponent (&instCurveButton)
+                   .withParentComponent (this);
+        menu.showMenuAsync (opts);
+    };
 
     // Left Panel: Learn Button
     addAndMakeVisible (instLearnButton);
@@ -965,6 +1056,12 @@ void Editor::updateInstrumentDisplay()
     outBusButton.setBusIndex (inst.outputBus);
 
     const int samplerIdx = getActiveSamplerIndex();
+    if (samplerIdx >= 0)
+    {
+        const auto params = processor.getSampler().getInstrumentParams (samplerIdx);
+        instCurveButton.setCurve (params.velocityCurve);
+    }
+
     const bool isLearningThis = (learningInstrument >= 0 && learningInstrument == samplerIdx);
     instLearnButton.setLearning (isLearningThis);
 }
@@ -1068,6 +1165,14 @@ void Editor::timerCallback()
 
     if (anyHit)
         repaint();
+
+    const float cc4 = processor.getHiHatCC4();
+    static float lastReportedCC4 = -1.0f;
+    if (std::abs (cc4 - lastReportedCC4) > 0.005f)
+    {
+        lastReportedCC4 = cc4;
+        scope.controllerReceived (4, static_cast<int> (cc4 * 127.0f));
+    }
 
     processor.drainControlQueue();
 
@@ -1183,8 +1288,13 @@ void Editor::resized()
     instPitchKnob->setBounds (kCol1, kRow2, kSize, kSize + 14);
     instDynamicsKnob->setBounds (kCol2, kRow2, kSize, kSize + 14);
 
+    // Velocity Curve row
+    const int curveY = kRow2 + kSize + 14;
+    const int curveH = 24;
+    instCurveButton.setBounds (panelX + 14, curveY, panelW - 28, curveH);
+
     // Bottom row: NOTE label on left, LEARN button on right
-    const int noteRowY = kRow2 + kSize + 18;
+    const int noteRowY = curveY + curveH + 8;
     const int learnW = 68;
     const int learnH = 26;
     instLearnButton.setBounds (panelX + panelW - 14 - learnW, noteRowY, learnW, learnH);
@@ -1202,6 +1312,9 @@ void Editor::resized()
     const int kitY = 84;
     const int kitH = bottomY - kitY - 8;
     kitView.setBounds (kitX, kitY, kitW, kitH);
+
+    if (edrumWizard != nullptr)
+        edrumWizard->setBounds (getLocalBounds());
 }
 
 //==============================================================================
