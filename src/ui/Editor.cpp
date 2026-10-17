@@ -796,6 +796,25 @@ void Editor::buildLogicalInstruments()
         return;
     }
 
+    if (processor.getCurrentKit().isNativeGlorpKit)
+    {
+        for (const auto& p : processor.getCurrentKit().logicalPieces)
+        {
+            LogicalInstrument li;
+            li.name = juce::String (p.name);
+            li.piece = DrumKitView::pieceForName (p.name);
+            if (li.piece == KitPiece::count)
+                li.piece = DrumKitView::pieceForName (p.id);
+            li.outputBus = p.outputBus;
+            for (const auto& z : p.zones)
+                li.zones.push_back ({ z.samplerIndex, juce::String (z.name) });
+            logicalInstruments.push_back (std::move (li));
+        }
+        selectedLogicalIndex = juce::jlimit (0, static_cast<int> (logicalInstruments.size()) - 1, selectedLogicalIndex);
+        rebuildZoneButtons();
+        return;
+    }
+
     const auto parseParent = [] (const juce::String& rawName) -> std::pair<juce::String, juce::String>
     {
         const auto trimmed = rawName.trim();

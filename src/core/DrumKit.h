@@ -106,6 +106,10 @@ struct Instrument
     int index = -1;             ///< position in the kit, i.e. which output bus it uses
     std::string archivePath;    ///< set when loaded from a .glorpkit archive
 
+    std::string logicalName;    ///< Logical piece name (e.g. "Snare")
+    std::string zoneName;       ///< Zone name (e.g. "head", "rimshot")
+    int outputBus = 0;          ///< Target output bus
+
     /// Absolute path of an audio file, resolved against the instrument's directory.
     /// DrumGizmo writes these relative to the instrument XML, so every consumer needs
     /// this rather than the raw string.
@@ -142,6 +146,32 @@ struct DrumKit
     bool isArchive = false;
     std::string archivePath;
 
+    // -- native GlorpKit model --------------------------------------------
+    struct ZoneItem
+    {
+        std::string name;
+        int samplerIndex = -1;
+        int note = -1;
+        int altNote = -1;
+        std::string graphic;
+    };
+
+    struct LogicalPiece
+    {
+        std::string name;
+        std::string id;
+        std::string graphic;
+        int outputBus = 0;
+        std::string chokeGroup;
+        std::vector<ZoneItem> zones;
+    };
+
+    bool isNativeGlorpKit = false;
+    std::vector<LogicalPiece> logicalPieces;
+    std::map<std::string, float> factoryMicLevels;
+    std::map<std::string, float> factoryInstrumentLevels;
+    std::map<std::string, float> factoryInstrumentPans;
+
     // -- diagnostics ------------------------------------------------------
     std::string error;          ///< non-empty if the kit failed to load properly
     std::vector<std::string> warnings;
@@ -161,6 +191,8 @@ struct DrumKit
 
 private:
     static DrumKit loadFromArchive (const std::string& archivePath);
+    static DrumKit loadNativeGlorpKit (class GlorpKitReader& reader, const std::string& archivePath);
+    static DrumKit loadLegacyArchive (class GlorpKitReader& reader, const std::string& archivePath);
 
     bool parseInstrument (Instrument& instrument, const XmlNode& node,
                           const std::string& kitDir, std::string& error);

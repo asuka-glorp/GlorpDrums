@@ -283,7 +283,7 @@ private:
         return busCount > 0 ? std::min (instrument, busCount - 1) : 0;
     }
 
-    void  resolveInstrumentChannels (const Instrument& instrument, InstrumentRuntime& out);
+    void  resolveInstrumentChannels (const DrumKit& kit, const Instrument& instrument, InstrumentRuntime& out);
     void  recomputeSoloFlags();
     float nextRandom();
     void  pushHitEvent (const HitEvent& event) noexcept;

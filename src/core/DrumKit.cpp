@@ -289,6 +289,162 @@ bool DrumKit::resolveChannels (Instrument& instrument, std::string& error)
 }
 
 //==============================================================================
+//==============================================================================
+DrumKit DrumKit::loadNativeGlorpKit (GlorpKitReader& reader, const std::string& archivePath)
+{
+    DrumKit kit;
+    kit.isArchive = true;
+    kit.archivePath = archivePath;
+    kit.xmlPath = archivePath;
+    kit.isNativeGlorpKit = true;
+
+    GlorpKitManifest manifest;
+    std::vector<GlorpGraphic> graphics;
+    if (! reader.readNativeKitManifest (manifest, graphics))
+    {
+        kit.error = "Could not parse kit.xml in " + archivePath;
+        return kit;
+    }
+
+    kit.title = manifest.title;
+    kit.author = manifest.author;
+    kit.version = manifest.version;
+    kit.license = manifest.license;
+    kit.description = manifest.description;
+    kit.declaredSampleRate = manifest.declaredSampleRate;
+
+    // Channels from mics
+    for (const auto& m : manifest.mics)
+    {
+        KitChannel kc;
+        kc.name = m.name;
+        kc.title = m.title;
+        kc.source = m.name;
+        kit.channels.push_back (std::move (kc));
+    }
+
+    std::vector<GlorpInstrumentSpec> pieceSpecs;
+    if (! reader.readNativeInstruments (pieceSpecs))
+    {
+        kit.error = "No valid instruments found in " + archivePath;
+        return kit;
+    }
+
+    // Read factory mixer preset if present
+    GlorpMixerSetting mixerSetting;
+    if (reader.readFactoryMixer (mixerSetting))
+    {
+        kit.factoryMicLevels = mixerSetting.micLevels;
+        kit.factoryInstrumentLevels = mixerSetting.instrumentLevels;
+        kit.factoryInstrumentPans = mixerSetting.instrumentPans;
+    }
+
+    for (const auto& pieceSpec : pieceSpecs)
+    {
+        LogicalPiece lp;
+        lp.name = pieceSpec.name;
+        lp.id = pieceSpec.id;
+        lp.graphic = pieceSpec.graphic;
+        lp.outputBus = pieceSpec.outputBus;
+        lp.chokeGroup = pieceSpec.chokeGroup;
+
+        for (const auto& zoneSpec : pieceSpec.zones)
+        {
+            Instrument inst;
+            inst.name = pieceSpec.name + "." + zoneSpec.name;
+            inst.displayName = pieceSpec.name + " " + zoneSpec.name;
+            inst.logicalName = pieceSpec.name;
+            inst.zoneName = zoneSpec.name;
+            inst.group = pieceSpec.chokeGroup;
+            inst.outputBus = pieceSpec.outputBus;
+            inst.archivePath = archivePath;
+            inst.index = static_cast<int> (kit.instruments.size());
+
+            // Build choke specs
+            for (const auto& ct : zoneSpec.chokes)
+            {
+                ChokeSpec cs;
+                cs.instrument = ct.instrument;
+                cs.chokeTimeMs = ct.chokeTimeMs;
+                cs.hasChokeTime = true;
+                inst.chokes.push_back (std::move (cs));
+            }
+
+            // In GlorpKit zone.xml, multiple audio files for the same hit share the same hit name/power.
+            // Group samples by hit name or file while preserving order.
+            std::vector<SampleHit> hitList;
+            std::map<std::string, size_t> hitIndexMap;
+            for (const auto& sref : zoneSpec.samples)
+            {
+                const auto hitKey = ! sref.name.empty() ? sref.name : sref.file;
+                auto it = hitIndexMap.find (hitKey);
+                if (it == hitIndexMap.end())
+                {
+                    hitIndexMap[hitKey] = hitList.size();
+                    SampleHit hit;
+                    hit.name = ! sref.name.empty() ? sref.name : fs::path (sref.file).stem().string();
+                    hit.power = sref.power;
+
+                    AudioFileRef aref;
+                    aref.channel = sref.mic;
+                    aref.file = sref.file;
+                    aref.fileChannel = sref.fileChannel;
+                    aref.archiveOffset = sref.archiveOffset;
+                    aref.archiveLength = sref.archiveLength;
+                    hit.audioFiles.push_back (std::move (aref));
+                    hitList.push_back (std::move (hit));
+                }
+                else
+                {
+                    AudioFileRef aref;
+                    aref.channel = sref.mic;
+                    aref.file = sref.file;
+                    aref.fileChannel = sref.fileChannel;
+                    aref.archiveOffset = sref.archiveOffset;
+                    aref.archiveLength = sref.archiveLength;
+                    hitList[it->second].audioFiles.push_back (std::move (aref));
+                }
+            }
+            inst.samples = std::move (hitList);
+
+            // Set up channel mappings
+            for (const auto& m : manifest.mics)
+            {
+                ChannelMap cm;
+                cm.in = m.name;
+                cm.out = m.name;
+                cm.main = (m.name == "close" || m.name.find ("oh") != std::string::npos);
+                inst.channelMaps.push_back (std::move (cm));
+            }
+
+            // Resolve channels
+            std::string rerr;
+            kit.resolveChannels (inst, rerr);
+
+            // Suggested MIDI note
+            if (zoneSpec.note >= 0)
+                kit.suggestedMap[zoneSpec.note] = inst.name;
+            if (zoneSpec.altNote >= 0)
+                kit.suggestedMap[zoneSpec.altNote] = inst.name;
+
+            ZoneItem zi;
+            zi.name = zoneSpec.name;
+            zi.samplerIndex = inst.index;
+            zi.note = zoneSpec.note;
+            zi.altNote = zoneSpec.altNote;
+            zi.graphic = zoneSpec.graphic;
+            lp.zones.push_back (std::move (zi));
+
+            kit.instruments.push_back (std::move (inst));
+        }
+
+        kit.logicalPieces.push_back (std::move (lp));
+    }
+
+    return kit;
+}
+
+//==============================================================================
 DrumKit DrumKit::loadFromArchive (const std::string& archivePath)
 {
     DrumKit kit;
@@ -302,6 +458,20 @@ DrumKit DrumKit::loadFromArchive (const std::string& archivePath)
         kit.error = "Could not open drumkit archive: " + archivePath;
         return kit;
     }
+
+    if (reader.isNativeGlorpKit())
+        return loadNativeGlorpKit (reader, archivePath);
+
+    return loadLegacyArchive (reader, archivePath);
+}
+
+//==============================================================================
+DrumKit DrumKit::loadLegacyArchive (GlorpKitReader& reader, const std::string& archivePath)
+{
+    DrumKit kit;
+    kit.isArchive = true;
+    kit.archivePath = archivePath;
+    kit.xmlPath = archivePath;
 
     // Check if any entries are compressed. If compressed, extract to managed cache directory.
     bool hasCompressedEntries = false;

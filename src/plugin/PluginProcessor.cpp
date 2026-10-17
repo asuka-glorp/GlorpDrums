@@ -508,22 +508,23 @@ void PluginProcessor::loadKit (const juce::String& drumkitPath)
     if (drumkitPath.isEmpty())
         return;
 
-    auto kit = DrumKit::load (drumkitPath.toStdString());
+    currentKit = DrumKit::load (drumkitPath.toStdString());
 
-    if (! kit.error.empty())
-        lastKitError = juce::String (kit.error);
-    else if (! kit.warnings.empty())
-        lastKitError = juce::String (kit.warnings.front());
+    if (! currentKit.error.empty())
+        lastKitError = juce::String (currentKit.error);
+    else if (! currentKit.warnings.empty())
+        lastKitError = juce::String (currentKit.warnings.front());
 
-    // Keep the suggested map before the kit is moved into the sampler.
-    const auto suggestedMap = kit.suggestedMap;
+    // Keep the suggested map before the kit is passed to the sampler.
+    const auto suggestedMap = currentKit.suggestedMap;
 
     juce::String error;
 
-    if (! sampler.loadKit (std::move (kit), error))
+    if (! sampler.loadKit (currentKit, error))
     {
         lastKitError = error;
         sampler.unloadKit();
+        currentKit = {};
         return;
     }
 
@@ -616,10 +617,41 @@ void PluginProcessor::loadKit (const juce::String& drumkitPath)
     // Reset per-instrument controls for the new kit.
     sampler.resetInstrumentParams();
 
-    for (auto* p : instrumentLevelParams)    p->setValueNotifyingHost (0.5f);
-    for (auto* p : instrumentPanParams)      p->setValueNotifyingHost (0.5f);
-    for (auto* p : instrumentPitchParams)    p->setValueNotifyingHost (0.5f);
-    for (auto* p : instrumentDynamicsParams) p->setValueNotifyingHost (0.5f);
+    for (int i = 0; i < maxSupportedInstruments; ++i)
+    {
+        float levelNorm = 0.5f; // default 1.0f (0.5 * 2.0f)
+        float panNorm = 0.5f;   // default 0.0f (0.5 * 2.0f - 1.0f)
+        int busIdx = std::min (i, 15);
+
+        if (currentKit.isNativeGlorpKit && i < static_cast<int> (currentKit.instruments.size()))
+        {
+            const auto& inst = currentKit.instruments[static_cast<size_t> (i)];
+            busIdx = std::clamp (inst.outputBus, 0, 15);
+
+            auto itL = currentKit.factoryInstrumentLevels.find (inst.logicalName);
+            if (itL == currentKit.factoryInstrumentLevels.end())
+                itL = currentKit.factoryInstrumentLevels.find (inst.name);
+            if (itL != currentKit.factoryInstrumentLevels.end())
+                levelNorm = std::clamp (itL->second / 2.0f, 0.0f, 1.0f);
+
+            auto itP = currentKit.factoryInstrumentPans.find (inst.logicalName);
+            if (itP == currentKit.factoryInstrumentPans.end())
+                itP = currentKit.factoryInstrumentPans.find (inst.name);
+            if (itP != currentKit.factoryInstrumentPans.end())
+                panNorm = std::clamp ((itP->second + 1.0f) * 0.5f, 0.0f, 1.0f);
+        }
+
+        if (i < static_cast<int> (instrumentLevelParams.size()))
+            instrumentLevelParams[static_cast<size_t> (i)]->setValueNotifyingHost (levelNorm);
+        if (i < static_cast<int> (instrumentPanParams.size()))
+            instrumentPanParams[static_cast<size_t> (i)]->setValueNotifyingHost (panNorm);
+        if (i < static_cast<int> (instrumentPitchParams.size()))
+            instrumentPitchParams[static_cast<size_t> (i)]->setValueNotifyingHost (0.5f);
+        if (i < static_cast<int> (instrumentDynamicsParams.size()))
+            instrumentDynamicsParams[static_cast<size_t> (i)]->setValueNotifyingHost (0.5f);
+        if (i < static_cast<int> (instrumentBusParams.size()))
+            instrumentBusParams[static_cast<size_t> (i)]->setValueNotifyingHost (busIdx / 15.0f);
+    }
 
     listeners.call (&Listener::kitChanged);
 }

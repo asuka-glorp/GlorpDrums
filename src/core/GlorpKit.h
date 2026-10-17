@@ -2,10 +2,11 @@
     GlorpKit.h - Single-file drumkit container format (.glorpkit).
 
     A .glorpkit file is an uncompressed or compressed PKZIP archive containing:
-      - drumkit.xml (or kit.xml) manifest
-      - midimap.xml (or variant-specific midimap)
-      - instrument XML files
-      - WAV audio files (stored uncompressed for zero-copy memory mapping)
+      - kit.xml (or legacy drumkit.xml) manifest
+      - instruments/<piece>/instrument.xml
+      - instruments/<piece>/<zone>/zone.xml
+      - instruments/<piece>/<zone>/samples/*.wav
+      - presets/factory-mixer.xml
 
     When stored uncompressed (ZIP_STORED, method 0), SampleCache memory-maps
     exact byte ranges directly from the .glorpkit file without temporary files.
@@ -33,14 +34,77 @@ struct GlorpKitEntry
     bool isCompressed = false;
 };
 
+struct GlorpMic
+{
+    std::string name;
+    std::string title;
+    float defaultLevel = 1.0f;
+};
+
+struct GlorpGraphic
+{
+    std::string name;
+    std::string src;
+};
+
+struct GlorpSampleRef
+{
+    std::string name;
+    std::string file;
+    std::string mic;
+    int fileChannel = 0; // 0-based
+    float power = 1.0f;
+    int64_t archiveOffset = -1;
+    int64_t archiveLength = -1;
+};
+
+struct GlorpChokeTarget
+{
+    std::string instrument;
+    std::string zone;
+    float chokeTimeMs = 40.0f;
+};
+
+struct GlorpZoneSpec
+{
+    std::string name;
+    std::string graphic;
+    int note = -1;
+    int altNote = -1;
+    float power = 1.0f;
+    int roundRobin = 1;
+    std::vector<GlorpSampleRef> samples;
+    std::vector<GlorpChokeTarget> chokes;
+};
+
+struct GlorpInstrumentSpec
+{
+    std::string name;
+    std::string id;
+    std::string graphic;
+    int outputBus = 0;
+    std::string chokeGroup;
+    std::vector<GlorpZoneSpec> zones;
+};
+
+struct GlorpMixerSetting
+{
+    std::map<std::string, float> micLevels;
+    std::map<std::string, float> instrumentLevels;
+    std::map<std::string, float> instrumentPans;
+};
+
 struct GlorpKitManifest
 {
     std::string title;
     std::string description;
     std::string author;
     std::string version;
+    std::string license;
     int instrumentCount = 0;
     int declaredSampleRate = 48000;
+    bool isNative = false;
+    std::vector<GlorpMic> mics;
     bool valid = false;
     std::string error;
 };
@@ -70,7 +134,19 @@ public:
     /// Reads an XML or text entry into a std::string.
     std::string readEntryString (const std::string& relativePath) const;
 
-    /// Locates the root manifest (e.g. drumkit.xml, kit.xml, or any *kit*.xml).
+    /// Returns true if the archive has a native GlorpKit kit.xml (<glorpkit> root).
+    bool isNativeGlorpKit() const;
+
+    /// Reads native kit.xml metadata, mics, and graphics.
+    bool readNativeKitManifest (GlorpKitManifest& manifest, std::vector<GlorpGraphic>& graphics) const;
+
+    /// Reads all instruments in instruments/*/instrument.xml and their zones.
+    bool readNativeInstruments (std::vector<GlorpInstrumentSpec>& instruments) const;
+
+    /// Reads presets/factory-mixer.xml if present.
+    bool readFactoryMixer (GlorpMixerSetting& mixer) const;
+
+    /// Locates the root manifest (e.g. kit.xml, drumkit.xml, or any *kit*.xml).
     std::string findManifestPath() const;
 
     /// Locates the midimap (e.g. midimap.xml or Midimap_*.xml).

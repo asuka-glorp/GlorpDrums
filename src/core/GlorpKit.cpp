@@ -12,6 +12,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <set>
 
 namespace fs = std::filesystem;
 
@@ -53,6 +54,14 @@ namespace
         std::transform (s.begin(), s.end(), s.begin(),
                         [] (unsigned char c) { return static_cast<char> (std::tolower (c)); });
         return s;
+    }
+
+    std::string parentDirectory (const std::string& path)
+    {
+        const auto slash = path.find_last_of ("/\\");
+        if (slash == std::string::npos)
+            return ".";
+        return path.substr (0, slash);
     }
 }
 
@@ -96,10 +105,28 @@ bool GlorpKitReader::quickReadManifest (const std::string& archivePath, GlorpKit
         return false;
     }
 
+    if (reader.isNativeGlorpKit())
+    {
+        std::vector<GlorpGraphic> graphics;
+        if (reader.readNativeKitManifest (manifest, graphics))
+        {
+            // Count pieces
+            manifest.instrumentCount = 0;
+            for (const auto& name : reader.listEntries())
+            {
+                if (name.rfind ("instruments/", 0) == 0 && name.find ("/instrument.xml") != std::string::npos)
+                    ++manifest.instrumentCount;
+            }
+            manifest.valid = true;
+            return true;
+        }
+    }
+
+    // Fallback: Legacy DrumGizmo manifest in archive
     const auto manifestPath = reader.findManifestPath();
     if (manifestPath.empty())
     {
-        manifest.error = "Archive has no drumkit.xml or kit.xml manifest";
+        manifest.error = "Archive has no kit.xml or drumkit.xml manifest";
         return false;
     }
 
@@ -142,10 +169,10 @@ bool GlorpKitReader::quickReadManifest (const std::string& archivePath, GlorpKit
 //==============================================================================
 bool GlorpKitReader::open (const std::string& archivePath)
 {
-    opened_ = false;
+    archivePath_ = archivePath;
     entries_.clear();
     entryList_.clear();
-    archivePath_ = archivePath;
+    opened_ = false;
 
     std::ifstream stream (archivePath, std::ios::binary);
     if (! stream.is_open())
@@ -160,23 +187,22 @@ bool GlorpKitReader::open (const std::string& archivePath)
 
 bool GlorpKitReader::parseZipHeaders (std::ifstream& stream)
 {
+    // Search backward from end of file for EOCD signature (PK\x05\x06)
     stream.seekg (0, std::ios::end);
     const auto fileSize = static_cast<int64_t> (stream.tellg());
-
     if (fileSize < 22)
         return false;
 
-    // Search for End of Central Directory record (EOCD signature: 0x06054B50)
-    // EOCD is at least 22 bytes and at most 65535 + 22 bytes from file end.
-    const auto maxSearch = std::min<int64_t> (fileSize, 65535 + 22);
-    const auto searchStart = fileSize - maxSearch;
-
-    std::vector<char> searchBuf (static_cast<size_t> (maxSearch));
+    const int64_t searchLen = std::min<int64_t> (fileSize, 65557);
+    const int64_t searchStart = fileSize - searchLen;
     stream.seekg (searchStart);
-    stream.read (searchBuf.data(), maxSearch);
+
+    std::vector<char> searchBuf (static_cast<size_t> (searchLen));
+    if (! stream.read (searchBuf.data(), searchLen))
+        return false;
 
     int64_t eocdOffset = -1;
-    for (int64_t i = maxSearch - 22; i >= 0; --i)
+    for (int64_t i = searchLen - 22; i >= 0; --i)
     {
         if (std::memcmp (searchBuf.data() + i, "PK\x05\x06", 4) == 0)
         {
@@ -261,34 +287,27 @@ bool GlorpKitReader::parseZipHeaders (std::ifstream& stream)
 }
 
 //==============================================================================
-bool GlorpKitReader::hasEntry (const std::string& relativePath) const
-{
-    return getEntry (relativePath) != nullptr;
-}
-
 const GlorpKitEntry* GlorpKitReader::getEntry (const std::string& relativePath) const
 {
     const auto norm = normalizePath (relativePath);
-    const auto it = entries_.find (norm);
+    auto it = entries_.find (norm);
     if (it != entries_.end())
         return &it->second;
 
     // Case-insensitive fallback
-    const auto lower = toLower (norm);
-    for (const auto& pair : entries_)
+    const auto normLower = toLower (norm);
+    for (const auto& [name, entry] : entries_)
     {
-        if (toLower (pair.first) == lower)
-            return &pair.second;
-    }
-
-    // Basename fallback (e.g. "samples/kick.wav" -> matches "kick.wav")
-    for (const auto& pair : entries_)
-    {
-        if (fs::path (pair.first).filename().string() == fs::path (norm).filename().string())
-            return &pair.second;
+        if (toLower (name) == normLower)
+            return &entry;
     }
 
     return nullptr;
+}
+
+bool GlorpKitReader::hasEntry (const std::string& relativePath) const
+{
+    return getEntry (relativePath) != nullptr;
 }
 
 std::string GlorpKitReader::readEntryString (const std::string& relativePath) const
@@ -323,10 +342,199 @@ std::string GlorpKitReader::readEntryString (const std::string& relativePath) co
     return in->readEntireStreamAsString().toStdString();
 }
 
+bool GlorpKitReader::isNativeGlorpKit() const
+{
+    if (! hasEntry ("kit.xml"))
+        return false;
+
+    const auto xmlStr = readEntryString ("kit.xml");
+    std::string err;
+    auto root = parseXml (xmlStr, err);
+    return root != nullptr && root->tag == "glorpkit";
+}
+
+bool GlorpKitReader::readNativeKitManifest (GlorpKitManifest& manifest, std::vector<GlorpGraphic>& graphics) const
+{
+    if (! hasEntry ("kit.xml"))
+        return false;
+
+    const auto xmlStr = readEntryString ("kit.xml");
+    std::string err;
+    auto root = parseXml (xmlStr, err);
+    if (root == nullptr || root->tag != "glorpkit")
+        return false;
+
+    manifest.isNative = true;
+    manifest.title = root->attribute ("name");
+    manifest.author = root->attribute ("author");
+    manifest.version = root->attribute ("version", "1.0");
+    manifest.license = root->attribute ("license");
+    manifest.declaredSampleRate = root->attributeInt ("samplerate", 48000);
+
+    if (auto* d = root->child ("description"))
+        manifest.description = d->text;
+
+    if (auto* micsNode = root->child ("mics"))
+    {
+        for (auto* m : micsNode->childrenNamed ("mic"))
+        {
+            GlorpMic mic;
+            mic.name = m->attribute ("name");
+            mic.title = m->attribute ("title");
+            mic.defaultLevel = m->attributeFloat ("default", 1.0f);
+            manifest.mics.push_back (std::move (mic));
+        }
+    }
+
+    if (auto* gNode = root->child ("graphics"))
+    {
+        for (auto* g : gNode->childrenNamed ("graphic"))
+        {
+            GlorpGraphic gr;
+            gr.name = g->attribute ("name");
+            gr.src = g->attribute ("src");
+            graphics.push_back (std::move (gr));
+        }
+    }
+
+    manifest.valid = true;
+    return true;
+}
+
+bool GlorpKitReader::readNativeInstruments (std::vector<GlorpInstrumentSpec>& instruments) const
+{
+    std::set<std::string> instPaths;
+    for (const auto& name : entryList_)
+    {
+        if (name.rfind ("instruments/", 0) == 0 && name.find ("/instrument.xml") != std::string::npos)
+            instPaths.insert (name);
+    }
+
+    for (const auto& instXmlPath : instPaths)
+    {
+        const auto xmlStr = readEntryString (instXmlPath);
+        std::string err;
+        auto root = parseXml (xmlStr, err);
+        if (root == nullptr || root->tag != "glorp-instrument")
+            continue;
+
+        const auto instDir = parentDirectory (instXmlPath);
+        const auto pieceId = fs::path (instDir).filename().string();
+
+        GlorpInstrumentSpec spec;
+        spec.name = root->attribute ("name");
+        spec.id = pieceId;
+        spec.graphic = root->attribute ("graphic");
+        spec.outputBus = root->attributeInt ("output-bus", 0);
+        spec.chokeGroup = root->attribute ("choke-group", "none");
+
+        // Parse zones
+        for (auto* zn : root->childrenNamed ("zone"))
+        {
+            GlorpZoneSpec zone;
+            zone.name = zn->attribute ("name");
+            zone.graphic = zn->attribute ("graphic");
+            if (zone.graphic.empty())
+                zone.graphic = spec.graphic;
+            zone.note = zn->attributeInt ("note", -1);
+            zone.altNote = zn->attributeInt ("alt-note", -1);
+
+            const auto zoneXmlPath = instDir + "/" + zone.name + "/zone.xml";
+            const auto zoneXmlStr = readEntryString (zoneXmlPath);
+            if (! zoneXmlStr.empty())
+            {
+                std::string zerr;
+                auto zroot = parseXml (zoneXmlStr, zerr);
+                if (zroot != nullptr && zroot->tag == "glorp-zone")
+                {
+                    zone.power = zroot->attributeFloat ("power", 1.0f);
+                    zone.roundRobin = zroot->attributeInt ("round-robin", 1);
+
+                    const auto zoneDir = instDir + "/" + zone.name;
+
+                    for (auto* sn : zroot->childrenNamed ("sample"))
+                    {
+                        GlorpSampleRef sref;
+                        sref.name = sn->attribute ("name");
+                        const auto fileAttr = sn->attribute ("file");
+                        sref.mic = sn->attribute ("mic", "close");
+                        sref.power = sn->attributeFloat ("power", 1.0f);
+                        sref.fileChannel = sn->attributeInt ("channel", 1) - 1;
+                        if (sref.fileChannel < 0) sref.fileChannel = 0;
+
+                        std::string fullSamplePath = zoneDir + "/" + fileAttr;
+                        const auto* entry = getEntry (fullSamplePath);
+                        if (entry == nullptr)
+                            entry = getEntry (fileAttr);
+
+                        if (entry != nullptr)
+                        {
+                            sref.file = entry->name;
+                            sref.archiveOffset = entry->dataOffset;
+                            sref.archiveLength = entry->uncompressedSize;
+                            zone.samples.push_back (std::move (sref));
+                        }
+                    }
+
+                    for (auto* cn : zroot->childrenNamed ("choke"))
+                    {
+                        GlorpChokeTarget ct;
+                        ct.instrument = cn->attribute ("target");
+                        ct.chokeTimeMs = cn->attributeFloat ("time", 40.0f);
+                        zone.chokes.push_back (std::move (ct));
+                    }
+                }
+            }
+
+            spec.zones.push_back (std::move (zone));
+        }
+
+        instruments.push_back (std::move (spec));
+    }
+
+    return ! instruments.empty();
+}
+
+bool GlorpKitReader::readFactoryMixer (GlorpMixerSetting& mixer) const
+{
+    if (! hasEntry ("presets/factory-mixer.xml"))
+        return false;
+
+    const auto xmlStr = readEntryString ("presets/factory-mixer.xml");
+    std::string err;
+    auto root = parseXml (xmlStr, err);
+    if (root == nullptr || root->tag != "glorp-mixer")
+        return false;
+
+    for (auto* mn : root->childrenNamed ("mic"))
+    {
+        const auto name = mn->attribute ("name");
+        const auto level = mn->attributeFloat ("level", 1.0f);
+        if (! name.empty())
+            mixer.micLevels[name] = level;
+    }
+
+    for (auto* in : root->childrenNamed ("instrument"))
+    {
+        const auto name = in->attribute ("name");
+        const auto zone = in->attribute ("zone");
+        const auto level = in->attributeFloat ("level", 1.0f);
+        const auto pan = in->attributeFloat ("pan", 0.0f);
+        const auto key = zone.empty() ? name : (name + "." + zone);
+        if (! key.empty())
+        {
+            mixer.instrumentLevels[key] = level;
+            mixer.instrumentPans[key] = pan;
+        }
+    }
+
+    return true;
+}
+
 std::string GlorpKitReader::findManifestPath() const
 {
     // Try exact root manifests first
-    for (const auto& candidate : { "drumkit.xml", "kit.xml", "Drumkit.xml", "Kit.xml" })
+    for (const auto& candidate : { "kit.xml", "drumkit.xml", "Kit.xml", "Drumkit.xml" })
         if (hasEntry (candidate))
             return candidate;
 

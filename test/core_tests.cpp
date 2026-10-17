@@ -685,15 +685,15 @@ void testGlorpKitPackage (const fs::path& work)
     check (manifest.valid, "manifest is marked valid");
     checkEq (manifest.title, "Glorp Demo Kit", "quickReadManifest extracted title");
     checkEq (manifest.declaredSampleRate, 44100, "quickReadManifest extracted sample rate");
-    checkEq (manifest.instrumentCount, 23, "quickReadManifest instrumentCount is 23");
+    checkEq (manifest.instrumentCount, 9, "quickReadManifest piece count is 9");
 
     // 4. Low-level reader open
     GlorpKitReader reader;
     check (reader.open (packagePath.string()), "GlorpKitReader open succeeded");
-    checkEq (reader.findManifestPath(), "drumkit.xml", "findManifestPath locates drumkit.xml");
-    checkEq (reader.findMidimapPath(), "midimap.xml", "findMidimapPath locates midimap.xml");
-    const auto* entry = reader.getEntry ("drumkit.xml");
-    check (entry != nullptr, "getEntry for drumkit.xml succeeds");
+    check (reader.isNativeGlorpKit(), "reader recognizes native GlorpKit");
+    checkEq (reader.findManifestPath(), "kit.xml", "findManifestPath locates kit.xml");
+    const auto* entry = reader.getEntry ("kit.xml");
+    check (entry != nullptr, "getEntry for kit.xml succeeds");
     if (entry != nullptr)
     {
         check (! entry->isCompressed, "entry is uncompressed (ZIP_STORED) for zero-copy mmap");
@@ -705,10 +705,14 @@ void testGlorpKitPackage (const fs::path& work)
     DrumKit kit = DrumKit::load (packagePath.string());
     check (kit.error.empty() && ! kit.instruments.empty(), "DrumKit::load from archive produces valid kit");
     check (kit.isArchive, "kit.isArchive is true");
+    check (kit.isNativeGlorpKit, "kit.isNativeGlorpKit is true");
     checkEq (kit.archivePath, packagePath.string(), "kit.archivePath matches");
     checkEq (kit.title, "Glorp Demo Kit", "kit.title matches");
     checkEq (kit.declaredSampleRate, 44100, "kit.declaredSampleRate matches");
-    checkEq (static_cast<int> (kit.instruments.size()), 23, "kit has 23 instruments");
+    checkEq (static_cast<int> (kit.logicalPieces.size()), 9, "kit has 9 logical pieces");
+    checkEq (static_cast<int> (kit.instruments.size()), 23, "kit has 23 instruments (zones)");
+    check (! kit.factoryMicLevels.empty(), "kit has factory mic levels");
+    check (! kit.factoryInstrumentLevels.empty(), "kit has factory instrument levels");
 
     // 6. Verify zero-copy sample URI formatting
     bool verifiedSamplePath = false;

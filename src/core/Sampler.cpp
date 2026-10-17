@@ -105,7 +105,7 @@ bool Sampler::loadKit (DrumKit kit, juce::String& error)
     for (const auto& instrument : kit.instruments)
     {
         InstrumentRuntime runtime;
-        resolveInstrumentChannels (instrument, runtime);
+        resolveInstrumentChannels (kit, instrument, runtime);
 
         if (runtime.hits.empty())
             ++missingFiles;
@@ -171,25 +171,45 @@ bool Sampler::loadKit (DrumKit kit, juce::String& error)
 
     for (int i = 0; i < instrumentCount; ++i)
     {
-        const auto n = instruments_[static_cast<size_t> (i)].name.toLowerCase();
-        if (n.contains ("kick") || n.contains ("kdrum"))
-            instrumentBuses[static_cast<size_t> (i)] = 0; // Bus 1: Ch 1-2
-        else if (n.contains ("snare") || n.contains ("rimclick") || n.contains ("rimshot"))
-            instrumentBuses[static_cast<size_t> (i)] = 1; // Bus 2: Ch 3-4
-        else if (n.contains ("hihat") || n.contains ("hh"))
-            instrumentBuses[static_cast<size_t> (i)] = 2; // Bus 3: Ch 5-6
-        else if (n.contains ("tom1") || n.contains ("hightom"))
-            instrumentBuses[static_cast<size_t> (i)] = 3; // Bus 4: Ch 7-8
-        else if (n.contains ("tom2") || n.contains ("midtom"))
-            instrumentBuses[static_cast<size_t> (i)] = 4; // Bus 5: Ch 9-10
-        else if (n.contains ("ftom") || n.contains ("floor"))
-            instrumentBuses[static_cast<size_t> (i)] = 5; // Bus 6: Ch 11-12
-        else if (n.contains ("ride"))
-            instrumentBuses[static_cast<size_t> (i)] = 6; // Bus 7: Ch 13-14
-        else if (n.contains ("crash") || n.contains ("cymbal") || n.contains ("splash") || n.contains ("china"))
-            instrumentBuses[static_cast<size_t> (i)] = 7; // Bus 8: Ch 15-16
+        if (kit.isNativeGlorpKit)
+        {
+            instrumentBuses[static_cast<size_t> (i)] = std::clamp (kit.instruments[static_cast<size_t> (i)].outputBus, 0, 15);
+
+            const auto& inst = kit.instruments[static_cast<size_t> (i)];
+            auto itL = kit.factoryInstrumentLevels.find (inst.logicalName);
+            if (itL == kit.factoryInstrumentLevels.end())
+                itL = kit.factoryInstrumentLevels.find (inst.name);
+            if (itL != kit.factoryInstrumentLevels.end())
+                channelParams[static_cast<size_t> (i)].level = itL->second;
+
+            auto itP = kit.factoryInstrumentPans.find (inst.logicalName);
+            if (itP == kit.factoryInstrumentPans.end())
+                itP = kit.factoryInstrumentPans.find (inst.name);
+            if (itP != kit.factoryInstrumentPans.end())
+                channelParams[static_cast<size_t> (i)].pan = itP->second;
+        }
         else
-            instrumentBuses[static_cast<size_t> (i)] = std::min (i, 15);
+        {
+            const auto n = instruments_[static_cast<size_t> (i)].name.toLowerCase();
+            if (n.contains ("kick") || n.contains ("kdrum"))
+                instrumentBuses[static_cast<size_t> (i)] = 0; // Bus 1: Ch 1-2
+            else if (n.contains ("snare") || n.contains ("rimclick") || n.contains ("rimshot"))
+                instrumentBuses[static_cast<size_t> (i)] = 1; // Bus 2: Ch 3-4
+            else if (n.contains ("hihat") || n.contains ("hh"))
+                instrumentBuses[static_cast<size_t> (i)] = 2; // Bus 3: Ch 5-6
+            else if (n.contains ("tom1") || n.contains ("hightom"))
+                instrumentBuses[static_cast<size_t> (i)] = 3; // Bus 4: Ch 7-8
+            else if (n.contains ("tom2") || n.contains ("midtom"))
+                instrumentBuses[static_cast<size_t> (i)] = 4; // Bus 5: Ch 9-10
+            else if (n.contains ("ftom") || n.contains ("floor"))
+                instrumentBuses[static_cast<size_t> (i)] = 5; // Bus 6: Ch 11-12
+            else if (n.contains ("ride"))
+                instrumentBuses[static_cast<size_t> (i)] = 6; // Bus 7: Ch 13-14
+            else if (n.contains ("crash") || n.contains ("cymbal") || n.contains ("splash") || n.contains ("china"))
+                instrumentBuses[static_cast<size_t> (i)] = 7; // Bus 8: Ch 15-16
+            else
+                instrumentBuses[static_cast<size_t> (i)] = std::min (i, 15);
+        }
     }
 
     // A kit with more instruments than buses is a hard error, not a silent
@@ -391,7 +411,7 @@ GlobalParams Sampler::getGlobalParams() const
 }
 
 //==============================================================================
-void Sampler::resolveInstrumentChannels (const Instrument& instrument, InstrumentRuntime& out)
+void Sampler::resolveInstrumentChannels (const DrumKit& kit, const Instrument& instrument, InstrumentRuntime& out)
 {
     out.name = instrument.displayName;
     out.group = instrument.group;
@@ -428,28 +448,35 @@ void Sampler::resolveInstrumentChannels (const Instrument& instrument, Instrumen
             if (! channelRef.handle.valid)
                 continue;
 
+            float micLevel = 1.0f;
+            auto itM = kit.factoryMicLevels.find (ref.channel);
+            if (itM == kit.factoryMicLevels.end())
+                itM = kit.factoryMicLevels.find (source.kitChannel);
+            if (itM != kit.factoryMicLevels.end())
+                micLevel = itM->second;
+
             if (channelCount == 1)
             {
-                channelRef.gainL = normalisation;
-                channelRef.gainR = normalisation;
+                channelRef.gainL = normalisation * micLevel;
+                channelRef.gainR = normalisation * micLevel;
             }
             else
             {
                 const auto chName = juce::String (ref.channel).toLowerCase();
                 if (chName.contains ("left") || chName.endsWith ("l") || chName.contains ("_l") || chName.contains (".l"))
                 {
-                    channelRef.gainL = normalisation * 1.414f;
+                    channelRef.gainL = normalisation * 1.414f * micLevel;
                     channelRef.gainR = 0.0f;
                 }
                 else if (chName.contains ("right") || chName.endsWith ("r") || chName.contains ("_r") || chName.contains (".r"))
                 {
                     channelRef.gainL = 0.0f;
-                    channelRef.gainR = normalisation * 1.414f;
+                    channelRef.gainR = normalisation * 1.414f * micLevel;
                 }
                 else
                 {
-                    channelRef.gainL = normalisation;
-                    channelRef.gainR = normalisation;
+                    channelRef.gainL = normalisation * micLevel;
+                    channelRef.gainR = normalisation * micLevel;
                 }
             }
 

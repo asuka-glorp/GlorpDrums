@@ -83,6 +83,7 @@ public:
 
     const std::vector<KitEntry>& getKitList() const noexcept { return kitList; }
     juce::String getCurrentKitPath() const { return currentKitPath; }
+    const DrumKit& getCurrentKit() const noexcept { return currentKit; }
 
     /// Applies a MIDI-map preset to the loaded kit.
     void applyMapPreset (const juce::String& presetName);
@@ -147,6 +148,7 @@ private:
     std::vector<KitEntry> kitList;
     juce::String currentKitPath;
     juce::String lastKitError;
+    DrumKit currentKit;
 
     std::atomic<float> lastHiHatCC4 { 0.0f };
     std::atomic<float> lastSnareCC16 { 0.5f };
