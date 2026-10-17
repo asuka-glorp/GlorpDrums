@@ -114,6 +114,15 @@ void SampleCache::Handle::read (int64_t startFrame, int numFrames, int channel, 
 }
 
 //==============================================================================
+const float* SampleCache::Handle::data (int channel) const noexcept
+{
+    // Always return nullptr — the render loop must use read() for all formats.
+    // Direct pointer access is unsafe for interleaved data because the caller
+    // would need to stride by numChannels, which data() cannot communicate.
+    return nullptr;
+}
+
+//==============================================================================
 SampleCache::SampleCache()
 {
     formatManager.registerBasicFormats();

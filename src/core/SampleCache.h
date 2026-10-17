@@ -53,6 +53,11 @@ public:
         /// `dest`. Frames past the end of the file are filled with silence.
         void read (int64_t startFrame, int numFrames, int channel, float* dest) const noexcept;
 
+        /// Returns a direct pointer to the float data for `channel`, or nullptr
+        /// if the mapping is not available. Valid for the lifetime of this handle.
+        /// Use for random-access reads where the caller manages bounds checking.
+        const float* data (int channel) const noexcept;
+
     private:
         friend class SampleCache;
         std::shared_ptr<const Detail> detail;

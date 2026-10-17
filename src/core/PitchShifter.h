@@ -1,34 +1,12 @@
 /*
-    PitchShifter.h - transient-preserving pitch shifting for drum samples.
+    PitchShifter.h - DEPRECATED: transient-preserving pitch shifting for drum samples.
 
-    Why not a phase vocoder?
-    ------------------------
-    A phase vocoder smears transients, and a drum hit *is* a transient. Tuning a
-    kick or snare with one sounds like it was played through a broken sampler: the
-    attack arrives late, blurred, with pre-ringing. Rubber Band is a fine library,
-    but its realtime mode also carries roughly 5000 samples of latency it will not
-    tell you about, which a sample instrument cannot hide.
+    This class is no longer used in the render path. Varispeed resampling in
+    Sampler::render() replaces it: zero latency, no FFT allocation, and the
+    tape-style pitch behavior drummers expect (pitch up = shorter + brighter).
 
-    What this does instead
-    ----------------------
-    WSOLA (waveform-similarity overlap-add), the same family of technique SoundTouch
-    uses. The signal is cut into overlapping frames which are cross-correlated
-    against the ideal position and slid to wherever the waveform lines up best.
-    That preserves the waveform through the attack, so the transient survives.
-
-    The chain is:
-
-      1. The first few milliseconds are played completely dry. The attack is the
-         most important part of a drum hit and the part overlap-add damages most,
-         so it bypasses the algorithm entirely.
-      2. WSOLA time-stretches by the pitch ratio.
-      3. Cubic resampling at the same ratio restores the original duration,
-         producing a net pitch shift with unchanged timing.
-      4. A gentle high shelf, proportional to an upward shift, restores the snap
-         that moving every partial upward otherwise costs.
-
-    Latency is one WSOLA window, and latencySamples() reports it so the host can
-    compensate.
+    Kept for reference and potential future use (e.g. formant-preserving mode).
+    Do not use for new code.
 */
 
 #pragma once

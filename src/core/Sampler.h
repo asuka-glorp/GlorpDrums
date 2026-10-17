@@ -24,7 +24,6 @@
 #pragma once
 
 #include "DrumKit.h"
-#include "PitchShifter.h"
 #include "SampleCache.h"
 
 #include <algorithm>
@@ -215,9 +214,9 @@ private:
         float velCurve = 1.0f;
     };
 
-    /// A voice holds two WSOLA shifters, and PitchShifter is neither copyable nor
-    /// movable, so voices are held by pointer. Allocated once at construction: the
-    /// audio thread must never allocate.
+    /// A voice is held by pointer so the pool can be resized without moving
+    /// voices. Allocated once at construction: the audio thread must never
+    /// allocate.
     struct Voice
     {
         bool active = false;
@@ -227,7 +226,8 @@ private:
         int64_t endsAt = 0;          ///< absolute sample clock, 0 when not choking
         int64_t endsAtAbsolute = 0;  ///< when the sample data + flush runs out
 
-        int64_t position = 0;        ///< read position within the sample, in frames
+        double position = 0.0;       ///< fractional read position within the sample, in frames
+        double pitchRatio = 1.0;     ///< varispeed ratio: 2^(semitones/12). 1.0 = no shift.
         int64_t startSkip = 0;       ///< output samples to discard so the note is sample accurate
 
         float velocity = 1.0f;
@@ -235,11 +235,8 @@ private:
         float attackGain = 0.0f;     ///< current value of the fade-in
         int   attackSamples = 0;
 
-        PitchShifter shifter[2];
-        bool shifterPrepared = false;
-
         // Reused scratch, sized to the largest block seen.
-        std::vector<float> mixL, mixR, shiftedL, shiftedR, channelScratch;
+        std::vector<float> mixL, mixR, channelScratch;
     };
 
     /// Owns the voice pool. Kept out of Voice itself so the pool can be resized
@@ -304,6 +301,7 @@ private:
     int instrumentCount = 0;
     int busCount = 0;
     double currentSampleRate = 44100.0;
+    double kitSampleRate = 48000.0;   ///< declared sample rate of the loaded kit
     juce::String kitTitle;
 
     SampleCache sampleCache;

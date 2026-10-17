@@ -30,7 +30,7 @@ namespace
 
 //==============================================================================
 //==============================================================================
-int Sampler::windowLatency = 0;
+// Varispeed tuning introduces zero latency — no window, no lookahead.
 
 namespace
 {
@@ -59,15 +59,13 @@ void Sampler::setSampleRateAndBlock (double rate, int blockSize)
 
     currentSampleRate = rate > 0.0 ? rate : 44100.0;
     currentBlockSize = std::max (16, blockSize);
-    windowLatency = 0;
 
+    // Preallocate voice scratch buffers to max block size to avoid audio-thread allocation
     for (auto& v : pool.voices)
     {
-        v->shifter[0].setSearchRadius (192);
-        v->shifter[1].setSearchRadius (192);
-        v->shifter[0].prepare (currentSampleRate, currentBlockSize);
-        v->shifter[1].prepare (currentSampleRate, currentBlockSize);
-        v->shifterPrepared = true;
+        v->mixL.resize (static_cast<size_t> (currentBlockSize));
+        v->mixR.resize (static_cast<size_t> (currentBlockSize));
+        v->channelScratch.resize (static_cast<size_t> (currentBlockSize));
     }
 
     recomputeLatency();
@@ -145,6 +143,7 @@ bool Sampler::loadKit (DrumKit kit, juce::String& error)
     instruments_ = std::move (resolved);
     kitChannels_ = kit.channels;
     instrumentCount = static_cast<int> (instruments_.size());
+    kitSampleRate = kit.declaredSampleRate > 0 ? static_cast<double> (kit.declaredSampleRate) : currentSampleRate;
 
     // The number of buses in use is bounded by what was built; anything beyond
     // that shares the last bus rather than being dropped.
@@ -264,24 +263,8 @@ juce::String Sampler::kitChannelTitle (int index) const
 
 void Sampler::recomputeLatency()
 {
-    // Only instruments that are actually tuned contribute latency. Taking the
-    // maximum keeps host compensation valid for every bus; an untuned bus simply
-    // is not delayed.
-    if (windowLatency == 0)
-    {
-        PitchShifter probe;
-        probe.prepare (currentSampleRate, currentBlockSize);
-        probe.setSemitones (1.0f);
-        windowLatency = probe.latencySamples();
-    }
-
-    int worst = 0;
-
-    for (const auto& p : channelParams)
-        if (p.pitch != 0.0f)
-            worst = std::max (worst, windowLatency);
-
-    reportedLatency.store (worst);
+    // Varispeed tuning is zero-latency: no window, no lookahead, no delay.
+    reportedLatency.store (0);
 }
 
 //==============================================================================
@@ -322,7 +305,7 @@ void Sampler::setInstrumentParams (int index, const InstrumentParams& params)
 
     auto& p = channelParams[static_cast<size_t> (index)];
 
-    const float newPitch = std::clamp (params.pitchSemitones, -PitchShifter::maxSemitones, PitchShifter::maxSemitones);
+    const float newPitch = std::clamp (params.pitchSemitones, -12.0f, 12.0f);
     const bool pitchChanged = (p.pitch != newPitch);
     const bool soloChanged = (p.solo != params.solo || p.mute != params.mute);
 
@@ -418,8 +401,13 @@ void Sampler::resolveInstrumentChannels (const Instrument& instrument, Instrumen
         hit.power = instrument.samples[s].power;
 
         const auto channelCount = sources.size();
-        const float kitGainFactor = (channelCount <= 2) ? 1.0f : 3.2f;
-        const auto normalisation = (1.0f / std::sqrt (static_cast<float> (channelCount))) * kitGainFactor;
+        // Normalize to prevent clipping when summing multiple channels.
+        // For 15-channel kits (Crocell), 1/sqrt(15)*3.2 = 0.826 per channel,
+        // which sums to >12x overshoot. Use 1/N for >2 channels instead.
+        const float kitGainFactor = (channelCount <= 2) ? 1.0f : 1.0f;
+        const auto normalisation = (channelCount <= 2)
+            ? (1.0f / std::sqrt (static_cast<float> (channelCount))) * kitGainFactor
+            : (1.0f / static_cast<float> (channelCount));
 
         for (size_t c = 0; c < channelCount; ++c)
         {
@@ -655,12 +643,22 @@ void Sampler::noteOn (int instrument, int note, float velocity, int64_t timeInSa
         pitch += nextRandom() * p.spread;
     }
 
-    pitch = std::clamp (pitch, -PitchShifter::maxSemitones, PitchShifter::maxSemitones);
+    pitch = std::clamp (pitch, -12.0f, 12.0f);
 
     voice->active = true;
     voice->instrument = instrument;
     voice->hit = hitIndex;
-    voice->position = 0;
+    voice->position = 0.0;
+
+    // Sample-rate conversion via varispeed: if the kit was recorded at a
+    // different rate than the host, fold the ratio into the playback speed.
+    // A 48k kit at 44.1k host plays at 48/44.1 = 1.088x speed, which raises
+    // the pitch by exactly the right amount to compensate.
+    const double rateRatio = (kitSampleRate > 0.0 && currentSampleRate > 0.0)
+                                 ? kitSampleRate / currentSampleRate
+                                 : 1.0;
+    voice->pitchRatio = std::pow (2.0, pitch / 12.0) * rateRatio;
+
     voice->velocity = std::clamp (level, 0.0f, 2.0f);
     voice->pitchSemitones = pitch;
     voice->startedAt = timeInSamples;
@@ -671,33 +669,16 @@ void Sampler::noteOn (int instrument, int note, float velocity, int64_t timeInSa
     // Discard output so the hit starts exactly where the note asked for.
     voice->startSkip = std::max<int64_t> (0, timeInSamples - sampleClock);
 
-    voice->shifter[0].reset();
-    voice->shifter[1].reset();
-    voice->shifter[0].setSemitones (pitch);
-    voice->shifter[1].setSemitones (pitch);
-
-    const auto naturalEnd = timeInSamples + hit.numFrames;
+    // Varispeed: output duration = input duration / pitchRatio.
+    const auto naturalEnd = timeInSamples + static_cast<int64_t> (static_cast<double> (hit.numFrames) / voice->pitchRatio);
 
     voice->endsAtAbsolute = naturalEnd;
 
     // The decay control fades the tail out sooner, or lets it ring on.
     if (globals.decayScale < 0.999f)
-        voice->endsAt = timeInSamples + static_cast<int64_t> (static_cast<double> (hit.numFrames) * globals.decayScale);
+        voice->endsAt = timeInSamples + static_cast<int64_t> (static_cast<double> (hit.numFrames) * globals.decayScale / voice->pitchRatio);
     else
         voice->endsAt = 0;
-
-    if (voice->mixL.size() < static_cast<size_t> (currentBlockSize))
-    {
-        voice->mixL.resize (static_cast<size_t> (currentBlockSize));
-        voice->mixR.resize (static_cast<size_t> (currentBlockSize));
-        voice->shiftedL.resize (static_cast<size_t> (currentBlockSize));
-        voice->shiftedR.resize (static_cast<size_t> (currentBlockSize));
-        voice->channelScratch.resize (static_cast<size_t> (currentBlockSize));
-    }
-
-    // A tuned voice has to run past the end of the sample to flush its window.
-    if (pitch != 0.0f)
-        voice->endsAtAbsolute = naturalEnd + voice->shifter[0].latencySamples() + 2;
 
     pushHitEvent ({ instrument, note, voice->velocity, pitch });
 }
@@ -862,67 +843,126 @@ void Sampler::render (float* const* output, int numOutputChannels, int numSample
         if (p.muted)
             continue;
 
-        // Make sure the voice scratch is big enough for this block.
-        if (v.mixL.size() < static_cast<size_t> (numSamples))
-        {
-            const auto size = static_cast<size_t> (numSamples);
-            v.mixL.resize (size);
-            v.mixR.resize (size);
-            v.shiftedL.resize (size);
-            v.shiftedR.resize (size);
-            v.channelScratch.resize (size);
-        }
+        // Scratch buffers are preallocated in setSampleRateAndBlock().
+        // No allocation on the audio thread.
 
-        // 1. Sum the instrument's channels into a stereo pair. This happens
-        //    before tuning so the shifter only runs twice per voice rather than
-        //    twice per sample channel.
+        // 1. Sum the instrument's channels into a stereo pair, resampling at
+        //    the varispeed ratio. Cubic interpolation preserves transients far
+        //    better than WSOLA for drum sounds, and introduces zero latency.
         std::fill (v.mixL.begin(), v.mixL.begin() + numSamples, 0.0f);
         std::fill (v.mixR.begin(), v.mixR.begin() + numSamples, 0.0f);
 
-        int maxRead = 0;
+        const double ratio = v.pitchRatio;
+        const bool shifting = (ratio != 1.0);
 
-        for (const auto& channelRef : hit.channels)
+        for (int i = 0; i < numSamples; ++i)
         {
-            const auto remaining = hit.numFrames - v.position;
-
-            if (remaining <= 0)
+            if (v.position >= static_cast<double> (hit.numFrames))
                 break;
 
-            const auto toRead = static_cast<int> (std::min<int64_t> (numSamples, remaining));
+            float sampleL = 0.0f, sampleR = 0.0f;
 
-            if (toRead <= 0)
-                continue;
+            if (shifting)
+            {
+                // Cubic interpolation at fractional position
+                const int64_t pos = static_cast<int64_t> (v.position);
+                const float t = static_cast<float> (v.position - static_cast<double> (pos));
 
-            maxRead = std::max (maxRead, toRead);
+                for (const auto& channelRef : hit.channels)
+                {
+                    const auto* data = channelRef.handle.data (channelRef.channel);
 
-            v.channelScratch.assign (static_cast<size_t> (toRead), 0.0f);
-            channelRef.handle.read (v.position, toRead, channelRef.channel, v.channelScratch.data());
+                    if (data != nullptr)
+                    {
+                        // Fast path: 32-bit float — direct pointer access
+                        const int64_t p0 = pos - 1;
+                        const int64_t p1 = pos;
+                        const int64_t p2 = pos + 1;
+                        const int64_t p3 = pos + 2;
 
-            if (channelRef.gainL != 0.0f)
-                for (int i = 0; i < toRead; ++i)
-                    v.mixL[static_cast<size_t> (i)] += v.channelScratch[static_cast<size_t> (i)] * channelRef.gainL;
+                        const float y0 = (p0 >= 0 && p0 < hit.numFrames) ? data[p0] : 0.0f;
+                        const float y1 = (p1 >= 0 && p1 < hit.numFrames) ? data[p1] : 0.0f;
+                        const float y2 = (p2 >= 0 && p2 < hit.numFrames) ? data[p2] : 0.0f;
+                        const float y3 = (p3 >= 0 && p3 < hit.numFrames) ? data[p3] : 0.0f;
 
-            if (channelRef.gainR != 0.0f)
-                for (int i = 0; i < toRead; ++i)
-                    v.mixR[static_cast<size_t> (i)] += v.channelScratch[static_cast<size_t> (i)] * channelRef.gainR;
+                        const float c1 = 0.5f * (y2 - y0);
+                        const float c2 = y0 - 2.5f * y1 + 2.0f * y2 - 0.5f * y3;
+                        const float c3 = 0.5f * (y3 - y0) + 1.5f * (y1 - y2);
+                        const float sample = ((c3 * t + c2) * t + c1) * t + y1;
+
+                        sampleL += sample * channelRef.gainL;
+                        sampleR += sample * channelRef.gainR;
+                    }
+                    else
+                    {
+                        // Fallback: non-float format — read 4 frames around position
+                        float y0 = 0.0f, y1 = 0.0f, y2 = 0.0f, y3 = 0.0f;
+                        const int64_t p0 = pos - 1;
+                        const int64_t p1 = pos;
+                        const int64_t p2 = pos + 1;
+                        const int64_t p3 = pos + 2;
+
+                        if (p0 >= 0 && p0 < hit.numFrames)
+                            channelRef.handle.read (p0, 1, channelRef.channel, &y0);
+                        if (p1 >= 0 && p1 < hit.numFrames)
+                            channelRef.handle.read (p1, 1, channelRef.channel, &y1);
+                        if (p2 >= 0 && p2 < hit.numFrames)
+                            channelRef.handle.read (p2, 1, channelRef.channel, &y2);
+                        if (p3 >= 0 && p3 < hit.numFrames)
+                            channelRef.handle.read (p3, 1, channelRef.channel, &y3);
+
+                        const float c1 = 0.5f * (y2 - y0);
+                        const float c2 = y0 - 2.5f * y1 + 2.0f * y2 - 0.5f * y3;
+                        const float c3 = 0.5f * (y3 - y0) + 1.5f * (y1 - y2);
+                        const float sample = ((c3 * t + c2) * t + c1) * t + y1;
+
+                        sampleL += sample * channelRef.gainL;
+                        sampleR += sample * channelRef.gainR;
+                    }
+                }
+            }
+            else
+            {
+                // Fast path: integer position, no interpolation
+                const int64_t pos = static_cast<int64_t> (v.position);
+
+                for (const auto& channelRef : hit.channels)
+                {
+                    const auto* data = channelRef.handle.data (channelRef.channel);
+
+                    if (data != nullptr)
+                    {
+                        // Fast path: 32-bit float — direct pointer access
+                        if (pos >= 0 && pos < hit.numFrames)
+                        {
+                            sampleL += data[pos] * channelRef.gainL;
+                            sampleR += data[pos] * channelRef.gainR;
+                        }
+                    }
+                    else
+                    {
+                        // Fallback: non-float format — read single frame
+                        float sample = 0.0f;
+                        if (pos >= 0 && pos < hit.numFrames)
+                            channelRef.handle.read (pos, 1, channelRef.channel, &sample);
+
+                        sampleL += sample * channelRef.gainL;
+                        sampleR += sample * channelRef.gainR;
+                    }
+                }
+            }
+
+            v.mixL[static_cast<size_t> (i)] = sampleL;
+            v.mixR[static_cast<size_t> (i)] = sampleR;
+
+            v.position += ratio;
         }
 
-        v.position += maxRead;
-        if (v.position >= hit.numFrames)
+        if (v.position >= static_cast<double> (hit.numFrames))
             v.active = false;
 
-        // 2. Tune, if this voice is shifted. At zero the shifter is a bit-exact
-        //    bypass, so the common case costs nothing.
         const float* sourceL = v.mixL.data();
         const float* sourceR = v.mixR.data();
-
-        if (v.pitchSemitones != 0.0f && v.shifterPrepared)
-        {
-            v.shifter[0].processMono (v.mixL.data(), numSamples, v.shiftedL.data(), numSamples);
-            v.shifter[1].processMono (v.mixR.data(), numSamples, v.shiftedR.data(), numSamples);
-            sourceL = v.shiftedL.data();
-            sourceR = v.shiftedR.data();
-        }
 
         // 3. Instrument pan and level, then the master, then accumulate.
         float panL = 0.0f, panR = 0.0f;

@@ -11,7 +11,7 @@ namespace
 
     juce::String pitchToText (float value, int)
     {
-        const auto semitones = (value - 0.5f) * 2.0f * PitchShifter::maxSemitones;
+        const auto semitones = (value - 0.5f) * 24.0f; // ±12 semitones
         return juce::String (juce::roundToInt (semitones * 100.0f) / 100.0f) + " st";
     }
 
@@ -236,8 +236,7 @@ void PluginProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Midi
 
         params.level = instrumentLevelParams[static_cast<size_t> (i)]->get();
         params.pan = instrumentPanParams[static_cast<size_t> (i)]->get() * 2.0f - 1.0f;
-        params.pitchSemitones = (instrumentPitchParams[static_cast<size_t> (i)]->get() - 0.5f)
-                              * 2.0f * PitchShifter::maxSemitones;
+        params.pitchSemitones = (instrumentPitchParams[static_cast<size_t> (i)]->get() - 0.5f) * 24.0f;
 
         if (i < static_cast<int> (instrumentDynamicsParams.size()))
             params.dynamics = instrumentDynamicsParams[static_cast<size_t> (i)]->get();
@@ -373,7 +372,7 @@ void PluginProcessor::applyControlValue (int instrumentIndex, const juce::String
     }
     else if (field == "pitch")
     {
-        params.pitchSemitones = (normalised - 0.5f) * 2.0f * PitchShifter::maxSemitones;
+        params.pitchSemitones = (normalised - 0.5f) * 24.0f;
 
         if (instrumentIndex < static_cast<int> (instrumentPitchParams.size()))
             instrumentPitchParams[static_cast<size_t> (instrumentIndex)]
