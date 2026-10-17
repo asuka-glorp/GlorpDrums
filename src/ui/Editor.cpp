@@ -318,6 +318,30 @@ void Editor::mouseDown (const juce::MouseEvent& e)
     }
 }
 
+bool Editor::isInterestedInFileDrag (const juce::StringArray& files)
+{
+    for (const auto& f : files)
+    {
+        const auto ext = juce::File (f).getFileExtension().toLowerCase();
+        if (ext == ".glorpkit" || ext == ".zip" || ext == ".xml")
+            return true;
+    }
+    return false;
+}
+
+void Editor::filesDropped (const juce::StringArray& files, int /*x*/, int /*y*/)
+{
+    for (const auto& f : files)
+    {
+        const auto ext = juce::File (f).getFileExtension().toLowerCase();
+        if (ext == ".glorpkit" || ext == ".zip" || ext == ".xml")
+        {
+            processor.loadKit (f);
+            break;
+        }
+    }
+}
+
 //==============================================================================
 void Editor::buildHeaderMenu()
 {
@@ -361,9 +385,9 @@ void Editor::buildHeaderMenu()
 
 void Editor::promptLoadKitFile()
 {
-    auto chooser = std::make_shared<juce::FileChooser> ("Select DrumKit XML File",
+    auto chooser = std::make_shared<juce::FileChooser> ("Select DrumKit (.glorpkit, .xml, .zip)",
         juce::File::getSpecialLocation (juce::File::userHomeDirectory),
-        "*.xml");
+        "*.glorpkit;*.xml;*.zip");
 
     chooser->launchAsync (juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
         [this, chooser] (const juce::FileChooser& fc)
@@ -388,7 +412,7 @@ juce::PopupMenu Editor::buildFileMenu()
 {
     juce::PopupMenu menu;
 
-    menu.addItem ("Load DrumKit (.xml)...", [this]
+    menu.addItem ("Load DrumKit (.glorpkit, .xml)...", [this]
     {
         promptLoadKitFile();
     });
@@ -613,7 +637,7 @@ void Editor::buildControls()
             menu.addItem ("(No kits found in scan folders)", false, false, nullptr);
 
         menu.addSeparator();
-        menu.addItem ("Browse for DrumKit (.xml)...", [this]
+        menu.addItem ("Browse for DrumKit (.glorpkit, .xml)...", [this]
         {
             promptLoadKitFile();
         });

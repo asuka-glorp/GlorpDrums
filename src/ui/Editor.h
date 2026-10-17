@@ -18,6 +18,7 @@ namespace glorp
 
 class Editor : public juce::Component,
                public juce::Timer,
+               public juce::FileDragAndDropTarget,
                private PluginProcessor::Listener
 {
 public:
@@ -29,6 +30,9 @@ public:
     void timerCallback() override;
     bool keyPressed (const juce::KeyPress&) override;
     void mouseDown (const juce::MouseEvent&) override;
+
+    bool isInterestedInFileDrag (const juce::StringArray& files) override;
+    void filesDropped (const juce::StringArray& files, int x, int y) override;
 
     void selectInstrument (int samplerIndex);
 

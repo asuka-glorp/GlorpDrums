@@ -57,6 +57,40 @@ int main()
 
     std::cout << "-> Multi-out bus layout & routing verification: PASSED!\n";
 
+    // 3. Verify .glorpkit zero-copy sample reading and Sampler loading
+    const std::string testPkg = "/tmp/verify_test.glorpkit";
+    const std::string buildCmd = "python3 tools/convert_to_glorpkit.py test/kits/GlorpDemoKit -o \"" + testPkg + "\" > /dev/null 2>&1";
+    int cmdRes = std::system (buildCmd.c_str());
+    assert (cmdRes == 0);
+
+    glorp::DrumKit pkgKit = glorp::DrumKit::load (testPkg);
+    assert (pkgKit.error.empty());
+    assert (pkgKit.isArchive);
+    assert (! pkgKit.instruments.empty());
+
+    // Resolve first sample URI
+    const auto& firstInst = pkgKit.instruments.front();
+    assert (! firstInst.samples.empty());
+    const auto& firstSample = firstInst.samples.front();
+    assert (! firstSample.audioFiles.empty());
+    const auto sampleUri = firstInst.samplePath (firstSample.audioFiles.front());
+    std::cout << "Testing SampleCache zero-copy load of: " << sampleUri << "\n";
+
+    glorp::SampleCache cache;
+    auto handle = cache.open (sampleUri);
+    assert (handle.isValid());
+    assert (handle.numFrames > 0);
+    assert (handle.sampleRate == 44100);
+
+    // Read a block of audio frames
+    std::vector<float> audioData (128, 0.0f);
+    handle.read (0, 128, 0, audioData.data());
+    std::cout << "Successfully read 128 audio frames directly from .glorpkit via zero-copy mmap!\n";
+    std::cout << "-> Zero-copy memory mapped .glorpkit playback: PASSED!\n";
+
+    // Clean up temporary package
+    std::remove (testPkg.c_str());
+
     std::cout << "=== ALL VERIFICATIONS PASSED SUCCESSFULLY ===\n";
     return 0;
 }

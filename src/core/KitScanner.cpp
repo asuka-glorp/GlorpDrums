@@ -1,6 +1,7 @@
 #include "KitScanner.h"
 
 #include "DrumKit.h"
+#include "GlorpKit.h"
 
 #include <algorithm>
 #include <cctype>
@@ -25,12 +26,10 @@ namespace
             || name == ".cache" || name == "node_modules";
     }
 
-    /** True for the two ways a drumkit manifest is named in the wild:
-          drumkit.xml                  (the modern convention)
+    /** True for drumkit manifests:
+          drumkit.xml                  (modern convention)
           <Anything>.xml               (kits that ship named variants)
-        The second form matters because plenty of established kits, CrocellKit
-        among them, have no drumkit.xml at all and instead offer tiny/small/
-        default/full variants picked by the user.
+          <Name>.glorpkit / <Name>.zip (single-file packaged archives)
     */
     bool couldBeKitFileName (const fs::path& p)
     {
@@ -40,6 +39,9 @@ namespace
         auto ext = p.extension().string();
         std::transform (ext.begin(), ext.end(), ext.begin(),
                         [] (unsigned char c) { return static_cast<char> (std::tolower (c)); });
+
+        if (ext == ".glorpkit" || ext == ".zip")
+            return true;
 
         if (ext != ".xml")
             return false;
@@ -120,9 +122,10 @@ std::vector<std::string> KitScanner::defaultSearchPaths()
 
         if (const auto home = homeDirectory(); ! home.empty())
         {
+            paths.push_back (home + "/.glorpdrums/kits");
+            paths.push_back (home + "/.config/GlorpDrums/kits");
             paths.push_back (home + "/DrumGizmo/kits");
             paths.push_back (home + "/.local/share/drumgizmo/kits");
-            paths.push_back (home + "/.config/GlorpDrums/kits");
             paths.push_back (home + "/Documents/drumgizmo/kits");
         }
 
@@ -214,6 +217,22 @@ KitEntry KitScanner::describe (const std::string& drumkitPath, const std::string
             entry.folderName = p.stem().string();
 
         entry.displayName = entry.folderName;
+
+        if (GlorpKitReader::isGlorpKitFile (drumkitPath))
+        {
+            GlorpKitManifest manifest;
+            if (! GlorpKitReader::quickReadManifest (drumkitPath, manifest))
+            {
+                entry.valid = false;
+                entry.error = manifest.error;
+                return entry;
+            }
+
+            entry.displayName = "[PKG] " + manifest.title;
+            entry.instrumentCount = manifest.instrumentCount;
+            entry.valid = true;
+            return entry;
+        }
 
         // Pull the title out without paying for a full instrument load.
         std::string xmlError;

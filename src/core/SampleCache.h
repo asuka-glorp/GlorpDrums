@@ -151,8 +151,14 @@ public:
 
     /** Opens a wav file, or returns an invalid handle. Blocking; call off the
         audio thread. Safe to call repeatedly for the same path.
+        Also parses "glorpkit://<archivePath>#<offset>:<length>" paths.
     */
     Handle open (const std::string& path);
+
+    /** Opens an uncompressed wav file located at a byte slice inside an archive.
+        Uses memory mapping on the exact range for zero-copy access.
+    */
+    Handle openFromArchive (const std::string& archivePath, int64_t byteOffset, int64_t byteLength);
 
     /// Drops mapped files that nothing holds a handle to.
     void trim();
@@ -168,6 +174,8 @@ private:
     };
 
     bool parseWav (const std::string& path, std::shared_ptr<const Detail>& out, std::string& error) const;
+    bool parseWavSlice (const std::string& archivePath, int64_t byteOffset, int64_t byteLength,
+                        std::shared_ptr<const Detail>& out, std::string& error) const;
 
     mutable std::mutex mutex;
     std::map<std::string, CacheEntry> cache;

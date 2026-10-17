@@ -77,6 +77,27 @@ int SampleCache::mappedFileCount() const
 
 SampleCache::Handle SampleCache::open (const std::string& path)
 {
+    if (path.rfind ("glorpkit://", 0) == 0)
+    {
+        const auto hashPos = path.find ('#');
+        if (hashPos != std::string::npos)
+        {
+            const auto archivePath = path.substr (11, hashPos - 11);
+            const auto rangeStr = path.substr (hashPos + 1);
+            const auto colonPos = rangeStr.find (':');
+            if (colonPos != std::string::npos)
+            {
+                try
+                {
+                    const int64_t offset = std::stoll (rangeStr.substr (0, colonPos));
+                    const int64_t len = std::stoll (rangeStr.substr (colonPos + 1));
+                    return openFromArchive (archivePath, offset, len);
+                }
+                catch (...) {}
+            }
+        }
+    }
+
     Handle handle;
 
     std::shared_ptr<const Detail> detail;
@@ -115,6 +136,45 @@ SampleCache::Handle SampleCache::open (const std::string& path)
     return handle;
 }
 
+SampleCache::Handle SampleCache::openFromArchive (const std::string& archivePath, int64_t byteOffset, int64_t byteLength)
+{
+    Handle handle;
+    const auto cacheKey = "glorpkit://" + archivePath + "#" + std::to_string (byteOffset) + ":" + std::to_string (byteLength);
+
+    std::shared_ptr<const Detail> detail;
+
+    {
+        std::lock_guard<std::mutex> lock (mutex);
+
+        const auto it = cache.find (cacheKey);
+
+        if (it != cache.end())
+        {
+            detail = it->second.detail;
+        }
+        else
+        {
+            std::string error;
+
+            if (! parseWavSlice (archivePath, byteOffset, byteLength, detail, error))
+            {
+                cache[cacheKey] = CacheEntry {};
+                return handle;
+            }
+
+            cache[cacheKey] = CacheEntry { detail, detail };
+        }
+    }
+
+    handle.detail = detail;
+    handle.valid = detail != nullptr && detail->numFrames > 0;
+    handle.numChannels = detail != nullptr ? detail->numChannels : 0;
+    handle.numFrames = detail != nullptr ? detail->numFrames : 0;
+    handle.sampleRate = detail != nullptr ? detail->sampleRate : 44100.0;
+
+    return handle;
+}
+
 void SampleCache::trim()
 {
     std::lock_guard<std::mutex> lock (mutex);
@@ -125,6 +185,158 @@ void SampleCache::trim()
             it = cache.erase (it);           // never resolved
         else
             ++it;
+    }
+}
+
+//==============================================================================
+namespace
+{
+    bool parseWavBytes (const std::string& identifier,
+                        std::shared_ptr<juce::MemoryMappedFile> mapping,
+                        const std::uint8_t* data, size_t size,
+                        std::shared_ptr<const SampleCache::Detail>& out,
+                        std::string& error)
+    {
+        if (size < 44 || std::memcmp (data, "RIFF", 4) != 0 || std::memcmp (data + 8, "WAVE", 4) != 0)
+        {
+            error = "'" + identifier + "' is not a RIFF/WAVE file";
+            return false;
+        }
+
+        // Advise kernel to preload pages and pre-touch to eliminate audio thread page faults
+       #if defined(__linux__) || defined(__unix__)
+        if (mapping != nullptr)
+            madvise (const_cast<void*> (mapping->getData()), mapping->getSize(), MADV_WILLNEED);
+       #endif
+
+        volatile std::uint8_t touchSink = 0;
+        for (std::size_t p = 0; p < size; p += 4096)
+            touchSink += data[p];
+        (void) touchSink;
+
+        auto readU32 = [] (const std::uint8_t* p) -> std::uint32_t
+        {
+            return static_cast<std::uint32_t> (p[0])
+                 | (static_cast<std::uint32_t> (p[1]) << 8)
+                 | (static_cast<std::uint32_t> (p[2]) << 16)
+                 | (static_cast<std::uint32_t> (p[3]) << 24);
+        };
+
+        auto readU16 = [] (const std::uint8_t* p) -> std::uint16_t
+        {
+            return static_cast<std::uint16_t> (static_cast<std::uint16_t> (p[0])
+                                             | (static_cast<std::uint16_t> (p[1]) << 8));
+        };
+
+        const std::uint8_t* fmt = nullptr;
+        std::uint32_t fmtSize = 0;
+        const std::uint8_t* samples = nullptr;
+        std::uint32_t samplesSize = 0;
+
+        std::size_t pos = 12;
+
+        while (pos + 8 <= size)
+        {
+            const auto* chunk = data + pos;
+            const auto chunkSize = readU32 (chunk + 4);
+            const auto body = pos + 8;
+
+            if (body + chunkSize > size)
+                break;
+
+            if (std::memcmp (chunk, "fmt ", 4) == 0 && chunkSize >= 16)
+            {
+                fmt = data + body;
+                fmtSize = chunkSize;
+            }
+            else if (std::memcmp (chunk, "data", 4) == 0)
+            {
+                samples = data + body;
+                samplesSize = chunkSize;
+            }
+
+            pos = body + chunkSize + (chunkSize & 1u);
+        }
+
+        if (fmt == nullptr || samples == nullptr)
+        {
+            error = "'" + identifier + "' has no fmt or data chunk";
+            return false;
+        }
+
+        const auto audioFormat = readU16 (fmt);
+        const auto numChannels = static_cast<int> (readU16 (fmt + 2));
+        auto sampleRate = static_cast<double> (readU32 (fmt + 4));
+        const auto bitsPerSample = static_cast<int> (readU16 (fmt + 14));
+
+        int effectiveFormat = audioFormat;
+        if (audioFormat == 0xFFFE && fmtSize >= 40)
+            effectiveFormat = readU16 (fmt + 24);
+
+        int containerFormat;
+        switch (effectiveFormat)
+        {
+            case 1:  containerFormat = 0; break;   // PCM
+            case 3:  containerFormat = 1; break;   // IEEE float
+            default:
+                error = "'" + identifier + "' uses unsupported wav format tag " + std::to_string (audioFormat);
+                return false;
+        }
+
+        int bytesPerSample;
+        switch (bitsPerSample)
+        {
+            case 8:  bytesPerSample = 1; break;
+            case 16: bytesPerSample = 2; break;
+            case 24: bytesPerSample = 3; break;
+            case 32: bytesPerSample = 4; break;
+            case 64:
+                if (containerFormat != 1)
+                {
+                    error = "'" + identifier + "' is 64-bit integer PCM, which nothing supports";
+                    return false;
+                }
+                bytesPerSample = 8;
+                break;
+            default:
+                error = "'" + identifier + "' has " + std::to_string (bitsPerSample) + "-bit samples";
+                return false;
+        }
+
+        if (numChannels <= 0 || numChannels > 64)
+        {
+            error = "'" + identifier + "' has an implausible channel count";
+            return false;
+        }
+
+        if (sampleRate <= 0.0)
+            sampleRate = 44100.0;
+
+        const auto frameBytes = static_cast<std::size_t> (bytesPerSample) * static_cast<std::size_t> (numChannels);
+        const auto numFrames = static_cast<int64_t> (samplesSize / frameBytes);
+
+        if (numFrames <= 0)
+        {
+            error = "'" + identifier + "' contains no audio frames";
+            return false;
+        }
+
+        auto detail = std::make_shared<SampleCache::Detail>();
+        detail->mapping = std::move (mapping);
+        detail->raw = data;
+        detail->numChannels = numChannels;
+        detail->numFrames = numFrames;
+        detail->sampleRate = sampleRate;
+        detail->bytesPerSample = bytesPerSample;
+        detail->format = containerFormat;
+
+        if (containerFormat == 1 && bytesPerSample == 4)
+            detail->interleaved = reinterpret_cast<const float*> (samples);
+        else
+            detail->raw = samples;
+
+        out = std::move (detail);
+        return true;
     }
 }
 
@@ -144,154 +356,35 @@ bool SampleCache::parseWav (const std::string& path, std::shared_ptr<const Detai
     const auto* data = static_cast<const std::uint8_t*> (mapping->getData());
     const auto size = mapping->getSize();
 
-    if (size < 44 || std::memcmp (data, "RIFF", 4) != 0 || std::memcmp (data + 8, "WAVE", 4) != 0)
+    return parseWavBytes (path, mapping, data, size, out, error);
+}
+
+bool SampleCache::parseWavSlice (const std::string& archivePath, int64_t byteOffset, int64_t byteLength,
+                                 std::shared_ptr<const Detail>& out, std::string& error) const
+{
+    if (byteLength < 44)
     {
-        error = "'" + path + "' is not a RIFF/WAVE file";
+        error = "slice too small for RIFF header";
         return false;
     }
 
-    // Advise kernel to preload pages and pre-touch to eliminate audio thread page faults
-   #if defined(__linux__) || defined(__unix__)
-    madvise (const_cast<void*> (mapping->getData()), static_cast<size_t> (size), MADV_WILLNEED);
-   #endif
+    auto mapping = std::make_shared<juce::MemoryMappedFile> (
+        juce::File (archivePath),
+        juce::Range<juce::int64> (byteOffset, byteOffset + byteLength),
+        juce::MemoryMappedFile::readOnly);
 
-    volatile std::uint8_t touchSink = 0;
-    for (std::size_t p = 0; p < static_cast<std::size_t> (size); p += 4096)
-        touchSink += data[p];
-    (void) touchSink;
-
-    auto readU32 = [] (const std::uint8_t* p) -> std::uint32_t
+    if (mapping == nullptr || mapping->getData() == nullptr || mapping->getSize() == 0)
     {
-        return static_cast<std::uint32_t> (p[0])
-             | (static_cast<std::uint32_t> (p[1]) << 8)
-             | (static_cast<std::uint32_t> (p[2]) << 16)
-             | (static_cast<std::uint32_t> (p[3]) << 24);
-    };
-
-    auto readU16 = [] (const std::uint8_t* p) -> std::uint16_t
-    {
-        return static_cast<std::uint16_t> (static_cast<std::uint16_t> (p[0])
-                                         | (static_cast<std::uint16_t> (p[1]) << 8));
-    };
-
-    const std::uint8_t* fmt = nullptr;
-    std::uint32_t fmtSize = 0;
-    const std::uint8_t* samples = nullptr;
-    std::uint32_t samplesSize = 0;
-
-    std::size_t pos = 12;
-
-    while (pos + 8 <= static_cast<std::size_t> (size))
-    {
-        const auto* chunk = data + pos;
-        const auto chunkSize = readU32 (chunk + 4);
-        const auto body = pos + 8;
-
-        if (body + chunkSize > static_cast<std::size_t> (size))
-            break;   // truncated final chunk
-
-        if (std::memcmp (chunk, "fmt ", 4) == 0 && chunkSize >= 16)
-        {
-            fmt = data + body;
-            fmtSize = chunkSize;
-        }
-        else if (std::memcmp (chunk, "data", 4) == 0)
-        {
-            samples = data + body;
-            samplesSize = chunkSize;
-        }
-
-        // Chunks are word aligned.
-        pos = body + chunkSize + (chunkSize & 1u);
-    }
-
-    if (fmt == nullptr || samples == nullptr)
-    {
-        error = "'" + path + "' has no fmt or data chunk";
+        error = "could not map slice of '" + archivePath + "'";
         return false;
     }
 
-    const auto audioFormat = readU16 (fmt);
-    const auto numChannels = static_cast<int> (readU16 (fmt + 2));
-    auto sampleRate = static_cast<double> (readU32 (fmt + 4));
-    const auto bitsPerSample = static_cast<int> (readU16 (fmt + 14));
+    const auto rangeStart = mapping->getRange().getStart();
+    const auto offsetInside = static_cast<size_t> (byteOffset - rangeStart);
+    const auto* data = static_cast<const std::uint8_t*> (mapping->getData()) + offsetInside;
+    const auto size = static_cast<size_t> (byteLength);
 
-    // WAVE_FORMAT_EXTENSIBLE (0xFFFE) keeps the real tag in the GUID's first
-    // two bytes; kits occasionally use it for 24-bit.
-    int effectiveFormat = audioFormat;
-
-    if (audioFormat == 0xFFFE && fmtSize >= 40)
-        effectiveFormat = readU16 (fmt + 24);
-
-    int containerFormat;
-
-    switch (effectiveFormat)
-    {
-        case 1:  containerFormat = 0; break;   // PCM
-        case 3:  containerFormat = 1; break;   // IEEE float
-        default:
-            error = "'" + path + "' uses unsupported wav format tag " + std::to_string (audioFormat);
-            return false;
-    }
-
-    int bytesPerSample;
-
-    switch (bitsPerSample)
-    {
-        case 8:  bytesPerSample = 1; break;
-        case 16: bytesPerSample = 2; break;
-        case 24: bytesPerSample = 3; break;
-        case 32: bytesPerSample = 4; break;
-        case 64:
-            if (containerFormat != 1)
-            {
-                error = "'" + path + "' is 64-bit integer PCM, which nothing supports";
-                return false;
-            }
-            bytesPerSample = 8;
-            break;
-
-        default:
-            error = "'" + path + "' has " + std::to_string (bitsPerSample) + "-bit samples";
-            return false;
-    }
-
-    if (numChannels <= 0 || numChannels > 64)
-    {
-        error = "'" + path + "' has an implausible channel count";
-        return false;
-    }
-
-    if (sampleRate <= 0.0)
-        sampleRate = 44100.0;
-
-    const auto frameBytes = static_cast<std::size_t> (bytesPerSample) * static_cast<std::size_t> (numChannels);
-    const auto numFrames = static_cast<int64_t> (samplesSize / frameBytes);
-
-    if (numFrames <= 0)
-    {
-        error = "'" + path + "' contains no audio frames";
-        return false;
-    }
-
-    auto detail = std::make_shared<Detail>();
-    detail->mapping = std::move (mapping);
-    detail->raw = data;
-    detail->numChannels = numChannels;
-    detail->numFrames = numFrames;
-    detail->sampleRate = sampleRate;
-    detail->bytesPerSample = bytesPerSample;
-    detail->format = containerFormat;
-
-    // Native float data can be handed out directly with no conversion at all,
-    // which is the common case for 32-bit float kits.
-    if (containerFormat == 1 && bytesPerSample == 4)
-        detail->interleaved = reinterpret_cast<const float*> (samples);
-    else
-        detail->raw = samples;
-
-    out = std::move (detail);
-    return true;
+    return parseWavBytes (archivePath + "#slice", mapping, data, size, out, error);
 }
 
 } // namespace glorp

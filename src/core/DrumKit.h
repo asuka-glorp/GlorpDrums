@@ -36,6 +36,8 @@ struct AudioFileRef
     std::string channel;      ///< instrument-side channel name (matches `in` of a channelmap)
     std::string file;         ///< path relative to the instrument XML's directory
     int fileChannel = 0;      ///< zero-based channel index inside that wav file
+    int64_t archiveOffset = -1; ///< byte offset in .glorpkit archive (or -1 if plain file)
+    int64_t archiveLength = -1; ///< byte length in .glorpkit archive
 };
 
 /** One round of an instrument's samples, e.g. "Snare-1" of "Snare-1..5".
@@ -102,6 +104,7 @@ struct Instrument
     std::vector<std::vector<ChannelSource>> resolvedChannels;
 
     int index = -1;             ///< position in the kit, i.e. which output bus it uses
+    std::string archivePath;    ///< set when loaded from a .glorpkit archive
 
     /// Absolute path of an audio file, resolved against the instrument's directory.
     /// DrumGizmo writes these relative to the instrument XML, so every consumer needs
@@ -136,6 +139,9 @@ struct DrumKit
     /// Note -> instrument name, as suggested by the kit's midimap.xml (if any).
     std::map<int, std::string> suggestedMap;
 
+    bool isArchive = false;
+    std::string archivePath;
+
     // -- diagnostics ------------------------------------------------------
     std::string error;          ///< non-empty if the kit failed to load properly
     std::vector<std::string> warnings;
@@ -143,9 +149,9 @@ struct DrumKit
     /// Human-readable name for the kit dropdown: "<title>" or the folder name.
     std::string displayName() const;
 
-    /// Loads a kit from a path to its drumkit.xml. Always returns a DrumKit; check
-    /// `error` and the emptiness of `instruments` to know whether it worked.
-    static DrumKit load (const std::string& drumkitXmlPath);
+    /// Loads a kit from a path to its drumkit.xml or a .glorpkit archive. Always returns a DrumKit;
+    /// check `error` and the emptiness of `instruments` to know whether it worked.
+    static DrumKit load (const std::string& drumkitPath);
 
     /// Index of the instrument with this semantic name, or -1.
     int indexOfInstrument (const std::string& name) const noexcept;
@@ -154,6 +160,8 @@ struct DrumKit
     int indexOfKitChannel (const std::string& name) const noexcept;
 
 private:
+    static DrumKit loadFromArchive (const std::string& archivePath);
+
     bool parseInstrument (Instrument& instrument, const XmlNode& node,
                           const std::string& kitDir, std::string& error);
     bool loadInstrumentSamples (Instrument& instrument, std::string& error);

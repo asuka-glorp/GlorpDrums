@@ -6,6 +6,7 @@
 */
 
 #include "DrumKit.h"
+#include "GlorpKit.h"
 #include "KitScanner.h"
 // PitchShifter tests removed: varispeed resampling replaces WSOLA for drum tuning.
 #include "XmlLite.h"
@@ -592,11 +593,26 @@ void testHiHatPedalLogic()
 }
 
 
+static fs::path findRepoRoot()
+{
+    auto p = fs::current_path();
+    for (int i = 0; i < 4; ++i)
+    {
+        if (fs::exists (p / "test" / "kits" / "GlorpDemoKit") && fs::exists (p / "tools" / "convert_to_glorpkit.py"))
+            return p;
+        if (! p.has_parent_path() || p == p.parent_path())
+            break;
+        p = p.parent_path();
+    }
+    return fs::current_path();
+}
+
 void testDemoKit()
 {
     section ("GlorpDemoKit verification");
 
-    const fs::path demoKitPath = fs::current_path() / "test" / "kits" / "GlorpDemoKit" / "drumkit.xml";
+    const fs::path repoRoot = findRepoRoot();
+    const fs::path demoKitPath = repoRoot / "test" / "kits" / "GlorpDemoKit" / "drumkit.xml";
 
     if (! fs::exists (demoKitPath))
     {
@@ -640,6 +656,99 @@ void testDemoKit()
     }
 }
 
+void testGlorpKitPackage (const fs::path& work)
+{
+    section ("GlorpKit Single-File Package (.glorpkit)");
+
+    // 1. Extension detection
+    check (GlorpKitReader::isGlorpKitFile ("my_kit.glorpkit"), "isGlorpKitFile recognizes .glorpkit");
+    check (GlorpKitReader::isGlorpKitFile ("my_kit.GLORPKIT"), "isGlorpKitFile is case-insensitive");
+    check (GlorpKitReader::isGlorpKitFile ("archive.zip"), "isGlorpKitFile recognizes .zip");
+    check (! GlorpKitReader::isGlorpKitFile ("drumkit.xml"), "isGlorpKitFile rejects .xml");
+
+    // 2. Package test/kits/GlorpDemoKit into a test .glorpkit file
+    const fs::path repoRoot = findRepoRoot();
+    const fs::path demoKitDir = repoRoot / "test" / "kits" / "GlorpDemoKit";
+    const fs::path scriptPath = repoRoot / "tools" / "convert_to_glorpkit.py";
+    const fs::path packagePath = work / "GlorpDemoKit.glorpkit";
+
+    const std::string cmd = "python3 \"" + scriptPath.string() + "\" \"" + demoKitDir.string() + "\" -o \"" + packagePath.string() + "\" > /dev/null 2>&1";
+    int ret = std::system (cmd.c_str());
+    check (ret == 0, "tools/convert_to_glorpkit.py succeeded");
+    check (fs::exists (packagePath), "package file exists on disk");
+    check (fs::exists (packagePath) && fs::file_size (packagePath) > 1000000, "package has expected size > 1MB");
+
+    // 3. Quick manifest reader
+    GlorpKitManifest manifest;
+    bool manifestOk = GlorpKitReader::quickReadManifest (packagePath.string(), manifest);
+    check (manifestOk, "quickReadManifest succeeded");
+    check (manifest.valid, "manifest is marked valid");
+    checkEq (manifest.title, "Glorp Demo Kit", "quickReadManifest extracted title");
+    checkEq (manifest.declaredSampleRate, 44100, "quickReadManifest extracted sample rate");
+    checkEq (manifest.instrumentCount, 23, "quickReadManifest instrumentCount is 23");
+
+    // 4. Low-level reader open
+    GlorpKitReader reader;
+    check (reader.open (packagePath.string()), "GlorpKitReader open succeeded");
+    checkEq (reader.findManifestPath(), "drumkit.xml", "findManifestPath locates drumkit.xml");
+    checkEq (reader.findMidimapPath(), "midimap.xml", "findMidimapPath locates midimap.xml");
+    const auto* entry = reader.getEntry ("drumkit.xml");
+    check (entry != nullptr, "getEntry for drumkit.xml succeeds");
+    if (entry != nullptr)
+    {
+        check (! entry->isCompressed, "entry is uncompressed (ZIP_STORED) for zero-copy mmap");
+        check (entry->dataOffset > 0, "entry dataOffset is positive");
+        check (entry->uncompressedSize > 0, "entry uncompressedSize is positive");
+    }
+
+    // 5. DrumKit::load on packaged archive
+    DrumKit kit = DrumKit::load (packagePath.string());
+    check (kit.error.empty() && ! kit.instruments.empty(), "DrumKit::load from archive produces valid kit");
+    check (kit.isArchive, "kit.isArchive is true");
+    checkEq (kit.archivePath, packagePath.string(), "kit.archivePath matches");
+    checkEq (kit.title, "Glorp Demo Kit", "kit.title matches");
+    checkEq (kit.declaredSampleRate, 44100, "kit.declaredSampleRate matches");
+    checkEq (static_cast<int> (kit.instruments.size()), 23, "kit has 23 instruments");
+
+    // 6. Verify zero-copy sample URI formatting
+    bool verifiedSamplePath = false;
+    for (const auto& inst : kit.instruments)
+    {
+        for (const auto& sample : inst.samples)
+        {
+            for (const auto& ref : sample.audioFiles)
+            {
+                check (ref.archiveOffset > 0, inst.name + " audiofile has positive archiveOffset");
+                check (ref.archiveLength > 0, inst.name + " audiofile has positive archiveLength");
+                const auto uri = inst.samplePath (ref);
+                check (uri.rfind ("glorpkit://", 0) == 0, "samplePath produces glorpkit:// URI: " + uri);
+                check (uri.find ('#') != std::string::npos, "URI contains offset hash");
+                verifiedSamplePath = true;
+                break;
+            }
+            if (verifiedSamplePath) break;
+        }
+        if (verifiedSamplePath) break;
+    }
+    check (verifiedSamplePath, "verified sample URI format from packaged kit");
+
+    // 7. KitScanner package discovery
+    const fs::path scanDir = work / "scantest";
+    std::error_code ec;
+    fs::create_directories (scanDir, ec);
+    const fs::path copiedPkg = scanDir / "MyPackagedKit.glorpkit";
+    fs::copy_file (packagePath, copiedPkg, fs::copy_options::overwrite_existing, ec);
+
+    auto scanned = KitScanner::scan ({ scanDir.string() });
+    checkEq (static_cast<int> (scanned.size()), 1, "KitScanner discovers .glorpkit file");
+    if (! scanned.empty())
+    {
+        check (scanned[0].valid, "scanned package entry is valid");
+        checkEq (scanned[0].drumkitPath, copiedPkg.string(), "drumkitPath matches package path");
+        check (scanned[0].displayName.find ("[PKG]") != std::string::npos, "displayName includes [PKG] tag: " + scanned[0].displayName);
+    }
+}
+
 int main (int argc, char** argv)
 {
     const fs::path work = argc > 1 ? fs::path (argv[1])
@@ -661,6 +770,7 @@ int main (int argc, char** argv)
     testVelocityCurveMath();
     testHiHatPedalLogic();
     testDemoKit();
+    testGlorpKitPackage (work);
 
     std::cout << "\n" << (checks - failures) << "/" << checks << " checks passed\n";
 

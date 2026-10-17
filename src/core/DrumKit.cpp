@@ -1,4 +1,5 @@
 #include "DrumKit.h"
+#include "GlorpKit.h"
 
 #include <algorithm>
 #include <cstdlib>
@@ -59,6 +60,10 @@ std::string DrumKit::displayName() const
 
 std::string Instrument::samplePath (const AudioFileRef& ref) const
 {
+    if (ref.archiveOffset >= 0 && ! archivePath.empty())
+        return "glorpkit://" + archivePath + "#" + std::to_string (ref.archiveOffset)
+             + ":" + std::to_string (ref.archiveLength);
+
     return joinPath (baseDir, ref.file);
 }
 
@@ -284,8 +289,277 @@ bool DrumKit::resolveChannels (Instrument& instrument, std::string& error)
 }
 
 //==============================================================================
+DrumKit DrumKit::loadFromArchive (const std::string& archivePath)
+{
+    DrumKit kit;
+    kit.isArchive = true;
+    kit.archivePath = archivePath;
+    kit.xmlPath = archivePath;
+
+    GlorpKitReader reader;
+    if (! reader.open (archivePath))
+    {
+        kit.error = "Could not open drumkit archive: " + archivePath;
+        return kit;
+    }
+
+    // Check if any entries are compressed. If compressed, extract to managed cache directory.
+    bool hasCompressedEntries = false;
+    for (const auto& name : reader.listEntries())
+    {
+        if (const auto* e = reader.getEntry (name))
+        {
+            if (e->isCompressed)
+            {
+                hasCompressedEntries = true;
+                break;
+            }
+        }
+    }
+
+    if (hasCompressedEntries)
+    {
+        const auto cacheDir = GlorpKitReader::getCacheDirectoryFor (archivePath);
+        std::error_code ec;
+        fs::create_directories (cacheDir, ec);
+
+        const auto manifestName = reader.findManifestPath();
+        const auto extractedManifest = cacheDir + "/" + (manifestName.empty() ? "drumkit.xml" : manifestName);
+
+        if (! fs::exists (extractedManifest))
+        {
+            if (! reader.extractToDirectory (cacheDir))
+            {
+                kit.error = "Could not extract compressed drumkit archive to cache";
+                return kit;
+            }
+        }
+
+        auto extractedKit = DrumKit::load (extractedManifest);
+        extractedKit.isArchive = true;
+        extractedKit.archivePath = archivePath;
+        return extractedKit;
+    }
+
+    // Uncompressed (zero-copy memory mapping path):
+    const auto manifestPath = reader.findManifestPath();
+    if (manifestPath.empty())
+    {
+        kit.error = "'" + archivePath + "' has no drumkit.xml or kit.xml manifest";
+        return kit;
+    }
+
+    const auto xmlStr = reader.readEntryString (manifestPath);
+    std::string xmlError;
+    auto root = parseXml (xmlStr, xmlError);
+
+    if (root == nullptr)
+    {
+        kit.error = "Could not read manifest in archive: " + xmlError;
+        return kit;
+    }
+
+    if (root->tag != "drumkit" && root->tag != "glorpkit")
+    {
+        kit.error = "'" + archivePath + "' is not a drumkit archive (root is <" + root->tag + ">)";
+        return kit;
+    }
+
+    kit.formatVersion = root->attribute ("version");
+    kit.declaredSampleRate = root->attributeInt ("samplerate", 48000);
+    kit.title = root->attribute ("name");
+
+    if (auto* meta = root->child ("metadata"))
+    {
+        if (auto* n = meta->child ("version"))     kit.version     = n->text;
+        if (auto* n = meta->child ("title"))       kit.title       = n->text;
+        if (auto* n = meta->child ("description")) kit.description = n->text;
+        if (auto* n = meta->child ("author"))      kit.author      = n->text;
+        if (auto* n = meta->child ("email"))       kit.email       = n->text;
+        if (auto* n = meta->child ("website"))     kit.website     = n->text;
+        if (auto* n = meta->child ("license"))     kit.license     = n->text;
+    }
+
+    if (kit.title.empty())
+        kit.title = fs::path (archivePath).stem().string();
+
+    if (auto* chanNode = root->child ("channels"))
+    {
+        for (auto* c : chanNode->childrenNamed ("channel"))
+        {
+            KitChannel ch;
+            ch.name = c->attribute ("name");
+            if (auto* t = c->child ("title")) ch.title = t->text;
+            if (auto* s = c->child ("source")) ch.source = s->text;
+            else if (auto* m = c->child ("microphone")) ch.source = m->text;
+
+            if (! ch.name.empty())
+                kit.channels.push_back (std::move (ch));
+        }
+    }
+
+    auto* instrumentsNode = root->child ("instruments");
+    if (instrumentsNode == nullptr)
+    {
+        kit.error = "drumkit has no <instruments> node";
+        return kit;
+    }
+
+    for (auto* node : instrumentsNode->childrenNamed ("instrument"))
+    {
+        Instrument instrument;
+        instrument.name = node->attribute ("name");
+        instrument.group = node->attribute ("group");
+        instrument.archivePath = archivePath;
+        instrument.displayName = prettifyName (instrument.name);
+
+        const auto fileAttr = node->attribute ("file");
+        if (instrument.name.empty() || fileAttr.empty())
+            continue;
+
+        for (auto* cm : node->childrenNamed ("channelmap"))
+        {
+            ChannelMap m;
+            m.in   = cm->attribute ("in");
+            m.out  = cm->attribute ("out");
+            m.main = cm->attributeBool ("main", false);
+            if (auto* b = cm->child ("bleed"))
+                m.bleed = static_cast<float> (std::atof (b->text.c_str()));
+            if (! m.in.empty() && ! m.out.empty())
+                instrument.channelMaps.push_back (std::move (m));
+        }
+
+        if (auto* chokes = node->child ("chokes"))
+        {
+            for (auto* c : chokes->childrenNamed ("choke"))
+            {
+                ChokeSpec spec;
+                spec.instrument = c->attribute ("instrument");
+                if (c->hasAttribute ("choketime"))
+                {
+                    spec.chokeTimeMs = c->attributeFloat ("choketime", 100.0f);
+                    spec.hasChokeTime = true;
+                }
+                if (! spec.instrument.empty())
+                    instrument.chokes.push_back (std::move (spec));
+            }
+        }
+
+        // Read instrument XML from archive
+        std::string instXmlStr = reader.readEntryString (fileAttr);
+        if (instXmlStr.empty())
+            instXmlStr = reader.readEntryString ("instruments/" + fileAttr);
+
+        if (instXmlStr.empty())
+        {
+            kit.warnings.push_back ("Instrument XML not found in archive: " + fileAttr);
+            continue;
+        }
+
+        std::string instXmlError;
+        auto instRoot = parseXml (instXmlStr, instXmlError);
+        if (instRoot == nullptr)
+        {
+            kit.warnings.push_back ("Failed to parse instrument XML " + fileAttr + ": " + instXmlError);
+            continue;
+        }
+
+        if (auto* meta = instRoot->child ("metadata"))
+            if (auto* t = meta->child ("title"))
+                if (! t->text.empty())
+                    instrument.displayName = t->text;
+
+        auto* samples = instRoot->child ("samples");
+        if (samples != nullptr)
+        {
+            const auto instDir = parentDirectory (fileAttr);
+
+            for (auto* sn : samples->childrenNamed ("sample"))
+            {
+                SampleHit hit;
+                hit.name = sn->attribute ("name");
+                hit.power = sn->attributeFloat ("power", 1.0f);
+                if (hit.name.empty())
+                    hit.name = "hit" + std::to_string (instrument.samples.size());
+
+                for (auto* an : sn->childrenNamed ("audiofile"))
+                {
+                    AudioFileRef ref;
+                    ref.channel = an->attribute ("channel");
+                    ref.file = an->attribute ("file");
+                    ref.fileChannel = an->attributeInt ("filechannel", 1) - 1;
+                    if (ref.fileChannel < 0) ref.fileChannel = 0;
+
+                    if (ref.channel.empty() || ref.file.empty())
+                        continue;
+
+                    // Locate audio file in reader
+                    const GlorpKitEntry* entry = reader.getEntry (ref.file);
+                    if (entry == nullptr && instDir != ".")
+                        entry = reader.getEntry (joinPath (instDir, ref.file));
+                    if (entry == nullptr)
+                        entry = reader.getEntry ("samples/" + ref.file);
+                    if (entry == nullptr)
+                        entry = reader.getEntry ("instruments/" + ref.file);
+
+                    if (entry != nullptr)
+                    {
+                        ref.archiveOffset = entry->dataOffset;
+                        ref.archiveLength = entry->uncompressedSize;
+                        hit.audioFiles.push_back (std::move (ref));
+                    }
+                    else
+                    {
+                        kit.warnings.push_back ("Sample file not found in archive: " + ref.file);
+                    }
+                }
+
+                if (! hit.audioFiles.empty())
+                    instrument.samples.push_back (std::move (hit));
+            }
+        }
+
+        std::string resErr;
+        kit.resolveChannels (instrument, resErr);
+
+        if (instrument.isValid())
+        {
+            instrument.index = static_cast<int> (kit.instruments.size());
+            kit.instruments.push_back (std::move (instrument));
+        }
+    }
+
+    if (kit.instruments.empty())
+        kit.error = "Archive contains no usable instruments";
+
+    // Read companion midimap from archive if present
+    const auto midimapPath = reader.findMidimapPath();
+    if (! midimapPath.empty())
+    {
+        const auto mapStr = reader.readEntryString (midimapPath);
+        std::string mapError;
+        auto mapRoot = parseXml (mapStr, mapError);
+        if (mapRoot != nullptr && mapRoot->tag == "midimap")
+        {
+            for (auto* m : mapRoot->childrenNamed ("map"))
+            {
+                const auto note = m->attributeInt ("note", -1);
+                const auto& instr = m->attribute ("instr");
+                if (note >= 0 && note < 128 && ! instr.empty())
+                    kit.suggestedMap[note] = instr;
+            }
+        }
+    }
+
+    return kit;
+}
+
+//==============================================================================
 DrumKit DrumKit::load (const std::string& drumkitXmlPath)
 {
+    if (GlorpKitReader::isGlorpKitFile (drumkitXmlPath))
+        return loadFromArchive (drumkitXmlPath);
+
     DrumKit kit;
     kit.xmlPath = drumkitXmlPath;
 

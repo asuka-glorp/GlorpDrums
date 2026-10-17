@@ -139,6 +139,7 @@ target_sources(GlorpDrums PRIVATE
     src/ui/Knob.cpp
     src/ui/Scope.cpp
     src/ui/EDrumWizard.cpp
+    src/core/GlorpKit.cpp
 )
 
 # Bundled logo and fonts, as a static library so both the VST3/LV2 binaries and
@@ -196,12 +197,14 @@ if(GLORP_BUILD_TESTS)
     add_executable(glorp_core_tests test/core_tests.cpp)
     target_sources(glorp_core_tests PRIVATE
         src/core/XmlLite.cpp
+        src/core/GlorpKit.cpp
         src/core/DrumKit.cpp
         src/core/KitScanner.cpp
         src/core/PitchShifter.cpp
     )
     target_include_directories(glorp_core_tests PRIVATE src/core)
-    target_link_libraries(glorp_core_tests PRIVATE juce::juce_recommended_warning_flags)
+    target_compile_definitions(glorp_core_tests PRIVATE JUCE_USE_CURL=0 JUCE_WEB_BROWSER=0)
+    target_link_libraries(glorp_core_tests PRIVATE juce::juce_core juce::juce_recommended_warning_flags)
     add_test(NAME core COMMAND glorp_core_tests)
 
     add_executable(test_editor test/test_editor.cpp)

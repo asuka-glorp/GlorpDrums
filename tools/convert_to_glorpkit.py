@@ -1,352 +1,335 @@
 #!/usr/bin/env python3
 """
-convert_to_glorpkit.py - Convert DrumGizmo drumkits to GlorpKit format.
+convert_to_glorpkit.py - Package DrumGizmo drumkits into GlorpKit (.glorpkit) single-file packages.
 
-Reads a DrumGizmo drumkit (drumkit.xml + instrument XMLs) and produces a
-.glorpkit ZIP archive with the directory structure expected by GlorpDrums.
+Creates a zero-copy memory-mappable .glorpkit container from a DrumGizmo kit directory
+or drumkit.xml file, and installs it to ~/.glorpdrums/kits/ by default.
+
+Features:
+  - Stored uncompressed (ZIP_STORED) for zero-copy OS memory mapping in GlorpDrums
+  - Verifies kit structure (drumkit.xml, instruments, samples, midimaps)
+  - Automatically targets /home/$USER/.glorpdrums/kits (creates directory if missing)
+  - Optional custom output path via --output / -o
 
 Usage:
-    python3 tools/convert_to_glorpkit.py <input_kit.xml> <output.glorpkit> [--name NAME]
+  python3 tools/convert_to_glorpkit.py /path/to/DrumGizmoKit/
+  python3 tools/convert_to_glorpkit.py /path/to/drumkit.xml
+  python3 tools/convert_to_glorpkit.py /path/to/DrumGizmoKit/ -o /custom/path/MyKit.glorpkit
 """
 
 import argparse
 import os
+import re
 import sys
 import xml.etree.ElementTree as ET
 import zipfile
-import re
-import json
+from pathlib import Path
 
 
-# ── DrumGizmo → GlorpKit mic mapping ─────────────────────────────────────────
-
-def map_channel_to_mic(channel_name):
-    """Map a DrumGizmo channel name to a GlorpKit mic name."""
-    ch = channel_name.lower()
-
-    # Direct/close mics
-    if ch in ("direct", "direct1", "direct2", "direct3", "close", "kdruminside",
-              "snaretop", "snarebottom", "kickclose", "closemic"):
-        return "close"
-
-    # Overhead left/right
-    if ch in ("ohleft", "ohright", "ohl", "ohr", "overheadleft", "overheadright",
-              "oh-l", "oh-r"):
-        if "left" in ch or ch in ("ohl", "oh-l"):
-            return "oh-left"
-        if "right" in ch or ch in ("ohr", "oh-r"):
-            return "oh-right"
-        return "oh-left"  # default for ambiguous
-
-    # Overhead center
-    if ch in ("ohcenter", "oh-c", "ohc"):
-        return "oh-center"
-
-    # Room/ambience
-    if ch in ("room", "ambleft", "ambright", "ambl", "ambr", "ambienceleft",
-              "ambenceright", "amb"):
-        if "left" in ch or ch in ("ambl",):
-            return "amb-left"
-        if "right" in ch or ch in ("ambr",):
-            return "amb-right"
-        return "room"
-
-    # Generic bleed
-    if ch in ("bleed", "bleed1", "bleed2"):
-        return "room"
-
-    # Fallback: use the channel name as-is
-    return ch
+def sanitize_filename(name: str) -> str:
+    """Sanitize kit title for filesystem use."""
+    clean = re.sub(r'[^a-zA-Z0-9_\-\. ]', '_', name).strip()
+    return clean if clean else "drumkit"
 
 
-def sanitize_name(name):
-    """Convert a name to a safe directory/file name."""
-    name = re.sub(r'[^a-zA-Z0-9_-]', '', name)
-    return name.lower() if name else "unknown"
+def find_drumkit_xml(input_path: Path) -> tuple[Path, Path]:
+    """
+    Given an input path (directory or XML file), returns (drumkit_xml_path, kit_root_dir).
+    Raises FileNotFoundError if not found.
+    """
+    p = input_path.resolve()
+
+    if p.is_file():
+        if p.name.lower() in ("drumkit.xml", "kit.xml") or p.suffix.lower() == ".xml":
+            return p, p.parent
+        raise ValueError(f"Input file '{p}' does not appear to be a drumkit XML file.")
+
+    if p.is_dir():
+        for candidate in ("drumkit.xml", "kit.xml"):
+            c_path = p / candidate
+            if c_path.is_file():
+                return c_path, p
+
+        # Search top-level XML files for <drumkit> tag
+        for xml_file in p.glob("*.xml"):
+            try:
+                tree = ET.parse(xml_file)
+                root = tree.getroot()
+                if root.tag.lower() in ("drumkit", "glorpkit"):
+                    return xml_file, p
+            except Exception:
+                continue
+
+        raise FileNotFoundError(f"No drumkit.xml or kit.xml found in directory '{p}'.")
+
+    raise FileNotFoundError(f"Input path '{p}' does not exist.")
 
 
-def title_case(name):
-    """Convert a name to Title Case for display."""
-    return name.replace('-', ' ').replace('_', ' ').title()
+def inspect_drumkit(xml_path: Path, kit_dir: Path) -> dict:
+    """
+    Parses the drumkit XML and verifies referenced instrument XMLs and audio files.
+    """
+    try:
+        tree = ET.parse(xml_path)
+        root = tree.getroot()
+    except Exception as e:
+        raise ValueError(f"XML parse error in '{xml_path}': {e}")
 
+    if root.tag.lower() not in ("drumkit", "glorpkit"):
+        raise ValueError(f"Root tag in '{xml_path}' is <{root.tag}>, expected <drumkit> or <glorpkit>.")
 
-# ── DrumGizmo XML parsing ───────────────────────────────────────────────────
+    # Metadata
+    title = root.get("name", "")
+    meta = root.find("metadata")
+    if meta is not None:
+        title_node = meta.find("title")
+        if title_node is not None and title_node.text:
+            title = title_node.text.strip()
+    if not title:
+        title = kit_dir.name
 
-def parse_drumkit_xml(xml_path):
-    """Parse a DrumGizmo drumkit.xml and return structured data."""
-    tree = ET.parse(xml_path)
-    root = tree.getroot()
-
-    kit_dir = os.path.dirname(os.path.abspath(xml_path))
-
-    # Kit metadata
-    kit_name = root.get('name', os.path.basename(kit_dir))
-    kit_desc = root.get('description', '')
-    samplerate = int(root.get('samplerate', '48000'))
+    version = root.get("version", "1.0.0")
+    samplerate = root.get("samplerate", "48000")
 
     # Channels
     channels = []
-    channels_node = root.find('channels')
-    if channels_node is not None:
-        for ch in channels_node.findall('channel'):
-            ch_name = ch.get('name', '')
-            ch_title_node = ch.find('title')
-            ch_title = ch_title_node.text if ch_title_node is not None else ch_name
-            channels.append({'name': ch_name, 'title': ch_title or ch_name})
+    chan_node = root.find("channels")
+    if chan_node is not None:
+        for c in chan_node.findall("channel"):
+            c_name = c.get("name", "")
+            if c_name:
+                channels.append(c_name)
 
     # Instruments
     instruments = []
-    instruments_node = root.find('instruments')
-    if instruments_node is None:
-        print(f"ERROR: No <instruments> node in {xml_path}", file=sys.stderr)
-        return None
+    missing_instruments = []
+    missing_samples = []
+    total_samples = 0
 
-    for inst_node in instruments_node.findall('instrument'):
-        inst_name = inst_node.get('name', '')
-        inst_file = inst_node.get('file', '')
+    inst_node = root.find("instruments")
+    if inst_node is not None:
+        for inst in inst_node.findall("instrument"):
+            name = inst.get("name", "")
+            file_rel = inst.get("file", "")
+            if not file_rel:
+                continue
 
-        if not inst_name or not inst_file:
-            continue
+            # Normalize path
+            file_rel_norm = file_rel.replace("\\", "/")
+            inst_xml_path = (kit_dir / file_rel_norm).resolve()
 
-        inst_xml_path = os.path.join(kit_dir, inst_file)
-        if not os.path.exists(inst_xml_path):
-            print(f"WARNING: Instrument XML not found: {inst_xml_path}", file=sys.stderr)
-            continue
+            if not inst_xml_path.is_file():
+                missing_instruments.append(file_rel_norm)
+                continue
 
-        inst_data = parse_instrument_xml(inst_xml_path, kit_dir)
-        if inst_data is None:
-            continue
+            inst_info = {
+                "name": name or inst_xml_path.stem,
+                "file": file_rel_norm,
+                "path": inst_xml_path,
+                "sample_count": 0,
+            }
 
-        inst_data['name'] = inst_name
-        instruments.append(inst_data)
+            # Parse instrument XML to inspect samples
+            try:
+                itree = ET.parse(inst_xml_path)
+                iroot = itree.getroot()
+                inst_dir = inst_xml_path.parent
+
+                samples_elem = iroot.find("samples")
+                if samples_elem is not None:
+                    for s in samples_elem.findall("sample"):
+                        for af in s.findall("audiofile"):
+                            wav_rel = af.get("file", "")
+                            if not wav_rel:
+                                continue
+                            wav_rel_norm = wav_rel.replace("\\", "/")
+
+                            # Resolve relative to instrument XML directory or kit dir
+                            sample_path = (inst_dir / wav_rel_norm).resolve()
+                            if not sample_path.is_file():
+                                sample_path = (kit_dir / wav_rel_norm).resolve()
+
+                            if not sample_path.is_file():
+                                missing_samples.append(f"{inst_info['name']} -> {wav_rel_norm}")
+                            else:
+                                inst_info["sample_count"] += 1
+                                total_samples += 1
+            except Exception as e:
+                print(f"Warning: could not parse instrument XML '{inst_xml_path}': {e}", file=sys.stderr)
+
+            instruments.append(inst_info)
 
     return {
-        'name': kit_name,
-        'description': kit_desc,
-        'samplerate': samplerate,
-        'channels': channels,
-        'instruments': instruments,
-        'kit_dir': kit_dir,
+        "title": title,
+        "version": version,
+        "samplerate": samplerate,
+        "channels": channels,
+        "instruments": instruments,
+        "missing_instruments": missing_instruments,
+        "missing_samples": missing_samples,
+        "total_samples": total_samples,
+        "xml_path": xml_path,
+        "kit_dir": kit_dir,
     }
 
 
-def parse_instrument_xml(xml_path, kit_dir):
-    """Parse a DrumGizmo instrument XML file."""
-    tree = ET.parse(xml_path)
-    root = tree.getroot()
+def collect_files_to_package(kit_dir: Path, manifest_rel: str) -> list[tuple[Path, str]]:
+    """
+    Collects all files in the kit directory to include in the package,
+    preserving paths relative to kit_dir. Filters out hidden files, VCS, and existing packages.
+    """
+    files_to_pack = []
+    ignored_suffixes = {".glorpkit", ".zip", ".tar", ".gz", ".tmp", ".bak", ".swp"}
+    ignored_names = {".git", ".gitignore", ".gitattributes", ".DS_Store", "Thumbs.db", "__pycache__"}
 
-    inst_dir = os.path.dirname(os.path.abspath(xml_path))
+    for root, dirs, files in os.walk(kit_dir):
+        # Filter directories in-place
+        dirs[:] = [d for d in dirs if d not in ignored_names and not d.startswith(".")]
 
-    # Display name from metadata
-    display_name = root.get('name', os.path.basename(inst_dir))
-    meta = root.find('metadata')
-    if meta is not None:
-        title_node = meta.find('title')
-        if title_node is not None and title_node.text:
-            display_name = title_node.text
-
-    # Channelmaps
-    channelmaps = []
-    for cm in root.findall('channelmap'):
-        channelmaps.append({
-            'in': cm.get('in', ''),
-            'out': cm.get('out', ''),
-            'main': cm.get('main', 'false').lower() == 'true',
-        })
-
-    # Chokes
-    chokes = []
-    chokes_node = root.find('chokes')
-    if chokes_node is not None:
-        for ch in chokes_node.findall('choke'):
-            chokes.append({
-                'instrument': ch.get('instrument', ''),
-                'time': float(ch.get('choketime', '100')),
-            })
-
-    # Samples
-    samples = []
-    samples_node = root.find('samples')
-    if samples_node is None:
-        return None
-
-    for sample_node in samples_node.findall('sample'):
-        sample_name = sample_node.get('name', '')
-        power = float(sample_node.get('power', '1.0'))
-
-        audio_files = []
-        for af in sample_node.findall('audiofile'):
-            channel = af.get('channel', '')
-            file = af.get('file', '')
-            file_channel = int(af.get('filechannel', '1'))
-
-            if not channel or not file:
+        for f in sorted(files):
+            if f.startswith(".") or f in ignored_names:
                 continue
 
-            # Resolve file path
-            file_path = os.path.join(inst_dir, file)
-            if not os.path.exists(file_path):
-                print(f"WARNING: Sample file not found: {file_path}", file=sys.stderr)
+            file_path = Path(root) / f
+            suffix = file_path.suffix.lower()
+            if suffix in ignored_suffixes:
                 continue
 
-            audio_files.append({
-                'channel': channel,
-                'file': file,
-                'file_channel': file_channel,
-                'abs_path': os.path.abspath(file_path),
-            })
+            rel_arc_path = file_path.relative_to(kit_dir).as_posix()
+            files_to_pack.append((file_path, rel_arc_path))
 
-        if not audio_files:
-            continue
-
-        samples.append({
-            'name': sample_name,
-            'power': power,
-            'audio_files': audio_files,
-        })
-
-    if not samples:
-        return None
-
-    return {
-        'name': root.get('name', ''),
-        'display_name': display_name,
-        'channelmaps': channelmaps,
-        'chokes': chokes,
-        'samples': samples,
-    }
+    return files_to_pack
 
 
-# ── GlorpKit generation ─────────────────────────────────────────────────────
-
-def generate_kit_xml(kit_data):
-    """Generate kit.xml content."""
-    lines = []
-    lines.append('<?xml version="1.0" encoding="UTF-8"?>')
-    lines.append(f'<glorpkit version="1.0" name="{escape_xml(kit_data["name"])}" samplerate="{kit_data["samplerate"]}">')
-
-    # Mic definitions
-    mics = {}
-    for inst in kit_data['instruments']:
-        for sample in inst['samples']:
-            for af in sample['audio_files']:
-                mic = map_channel_to_mic(af['channel'])
-                if mic not in mics:
-                    mics[mic] = {
-                        'name': mic,
-                        'title': title_case(mic),
-                        'default': '1.0' if mic == 'close' else '0.5',
-                    }
-
-    lines.append('  <mics>')
-    for mic in mics.values():
-        lines.append(f'    <mic name="{escape_xml(mic["name"])}" title="{escape_xml(mic["title"])}" default="{mic["default"]}"/>')
-    lines.append('  </mics>')
-
-    lines.append('</glorpkit>')
-    return '\n'.join(lines)
-
-
-def generate_instrument_xml(inst_data, kit_data):
-    """Generate instrument.xml for an instrument directory."""
-    lines = []
-    lines.append('<?xml version="1.0" encoding="UTF-8"?>')
-
-    inst_name = sanitize_name(inst_data['name'])
-    display_name = escape_xml(inst_data['display_name'])
-    lines.append(f'<glorp-instrument name="{display_name}">')
-
-    # Group zones by sample power brackets for round-robin
-    # For now, each sample becomes a zone entry
-    for i, sample in enumerate(inst_data['samples']):
-        zone_name = f"zone{i}"
-        power = sample['power']
-        lines.append(f'  <zone name="{zone_name}" power="{power:.4f}"/>')
-
-    lines.append('</glorp-instrument>')
-    return '\n'.join(lines)
-
-
-def generate_zone_xml(sample_data):
-    """Generate zone.xml for a zone directory."""
-    lines = []
-    lines.append('<?xml version="1.0" encoding="UTF-8"?>')
-    lines.append(f'<glorp-zone name="{escape_xml(sample_data["name"])}" power="{sample_data["power"]:.4f}">')
-
-    for af in sample_data['audio_files']:
-        mic = map_channel_to_mic(af['channel'])
-        # Store relative path within the glorpskit archive
-        file_name = os.path.basename(af['file'])
-        lines.append(f'  <sample file="{escape_xml(file_name)}" mic="{mic}" channel="{af["file_channel"]}"/>')
-
-    lines.append('</glorp-zone>')
-    return '\n'.join(lines)
-
-
-def escape_xml(text):
-    """Escape XML special characters."""
-    return text.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;').replace('"', '&quot;')
-
-
-def convert_kit(input_xml, output_path, kit_name=None):
-    """Convert a DrumGizmo kit to GlorpKit format."""
-    print(f"Parsing {input_xml}...")
-    kit_data = parse_drumkit_xml(input_xml)
-    if kit_data is None:
-        print("ERROR: Failed to parse kit", file=sys.stderr)
+def convert_kit(input_path: Path, output_path: Path | None, kit_name: str | None, dry_run: bool = False) -> bool:
+    """Packages a DrumGizmo kit into a .glorpkit file."""
+    try:
+        manifest_path, kit_dir = find_drumkit_xml(input_path)
+    except Exception as e:
+        print(f"Error: {e}", file=sys.stderr)
         return False
 
-    if kit_name:
-        kit_data['name'] = kit_name
+    info = inspect_drumkit(manifest_path, kit_dir)
 
-    print(f"Found {len(kit_data['instruments'])} instruments")
-    print(f"Found {len(kit_data['channels'])} channels")
+    title = kit_name if kit_name else info["title"]
+    safe_name = sanitize_filename(title)
 
-    # Build ZIP archive (stored, not compressed — WAV files don't compress well)
-    with zipfile.ZipFile(output_path, 'w', zipfile.ZIP_STORED) as zf:
-        # kit.xml
-        kit_xml = generate_kit_xml(kit_data)
-        zf.writestr('kit.xml', kit_xml)
+    # Determine default destination directory: /home/$USER/.glorpdrums/kits
+    default_dir = Path.home() / ".glorpdrums" / "kits"
 
-        # Instruments
-        for inst in kit_data['instruments']:
-            inst_name = sanitize_name(inst['name'])
-            inst_dir = f'instruments/{inst_name}'
+    if output_path is None:
+        target_file = default_dir / f"{safe_name}.glorpkit"
+    else:
+        target_path = output_path.resolve()
+        if target_path.is_dir():
+            target_file = target_path / f"{safe_name}.glorpkit"
+        else:
+            if not target_path.name.lower().endswith((".glorpkit", ".zip")):
+                target_file = target_path.with_suffix(".glorpkit")
+            else:
+                target_file = target_path
 
-            # instrument.xml
-            inst_xml = generate_instrument_xml(inst, kit_data)
-            zf.writestr(f'{inst_dir}/instrument.xml', inst_xml)
+    print("=" * 64)
+    print("GlorpKit Drumkit Packager")
+    print("=" * 64)
+    print(f"Kit Title:       {title}")
+    print(f"Format Version:  {info['version']}")
+    print(f"Sample Rate:     {info['samplerate']} Hz")
+    print(f"Kit Directory:   {kit_dir}")
+    print(f"Channels ({len(info['channels'])}):  {', '.join(info['channels']) if info['channels'] else '(default)'}")
+    print(f"Instruments:     {len(info['instruments'])}")
+    print(f"Samples Found:   {info['total_samples']}")
+    print(f"Target Output:   {target_file}")
+    print("-" * 64)
 
-            # Zone directories
-            for i, sample in enumerate(inst['samples']):
-                zone_name = f"zone{i}"
-                zone_dir = f'{inst_dir}/{zone_name}'
+    if info["missing_instruments"]:
+        print(f"WARNING: {len(info['missing_instruments'])} instrument XML files not found:", file=sys.stderr)
+        for m in info["missing_instruments"][:5]:
+            print(f"  - {m}", file=sys.stderr)
+        if len(info["missing_instruments"]) > 5:
+            print(f"  ... and {len(info['missing_instruments']) - 5} more", file=sys.stderr)
 
-                # zone.xml
-                zone_xml = generate_zone_xml(sample)
-                zf.writestr(f'{zone_dir}/zone.xml', zone_xml)
+    if info["missing_samples"]:
+        print(f"WARNING: {len(info['missing_samples'])} audio sample files not found:", file=sys.stderr)
+        for m in info["missing_samples"][:5]:
+            print(f"  - {m}", file=sys.stderr)
+        if len(info["missing_samples"]) > 5:
+            print(f"  ... and {len(info['missing_samples']) - 5} more", file=sys.stderr)
 
-                # Samples
-                os.makedirs(f'{zone_dir}/samples', exist_ok=True)
-                for af in sample['audio_files']:
-                    file_name = os.path.basename(af['file'])
-                    sample_arc_path = f'{zone_dir}/samples/{file_name}'
-                    zf.write(af['abs_path'], sample_arc_path)
+    manifest_rel = manifest_path.relative_to(kit_dir).as_posix()
+    files_to_pack = collect_files_to_package(kit_dir, manifest_rel)
 
-    print(f"Created {output_path}")
-    return True
+    # Ensure drumkit.xml / kit.xml is in the package
+    has_manifest = any(arc_name.lower() in ("drumkit.xml", "kit.xml") for _, arc_name in files_to_pack)
+    if not has_manifest:
+        files_to_pack.insert(0, (manifest_path, "drumkit.xml"))
+
+    total_bytes = sum(f.stat().st_size for f, _ in files_to_pack)
+    print(f"Files to Package: {len(files_to_pack)} ({total_bytes / (1024 * 1024):.1f} MB)")
+
+    if dry_run:
+        print("\nDry-run complete. No archive created.")
+        return True
+
+    # Ensure destination directory exists (e.g. /home/$USER/.glorpdrums/kits)
+    target_file.parent.mkdir(parents=True, exist_ok=True)
+
+    print(f"\nBuilding uncompressed package: {target_file} ...")
+    try:
+        # Write uncompressed ZIP archive (ZIP_STORED) for zero-copy memory mapping
+        with zipfile.ZipFile(target_file, "w", compression=zipfile.ZIP_STORED) as zf:
+            for idx, (src_file, arc_name) in enumerate(files_to_pack, 1):
+                zf.write(src_file, arc_name)
+                if idx % 50 == 0 or idx == len(files_to_pack):
+                    percent = (idx / len(files_to_pack)) * 100.0
+                    sys.stdout.write(f"\r  Progress: {idx}/{len(files_to_pack)} files ({percent:.0f}%)")
+                    sys.stdout.flush()
+
+        print("\n\nPackage successfully built!")
+        print(f"Location: {target_file}")
+        print(f"Size:     {target_file.stat().st_size / (1024 * 1024):.1f} MB")
+        print("\nGlorpDrums will automatically list this kit in its library as:")
+        print(f"  [PKG] {title}")
+        return True
+    except Exception as e:
+        print(f"\nERROR creating package: {e}", file=sys.stderr)
+        if target_file.exists():
+            target_file.unlink(missing_ok=True)
+        return False
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Convert DrumGizmo kit to GlorpKit format')
-    parser.add_argument('input', help='Path to drumkit.xml')
-    parser.add_argument('output', help='Path to output .glorpkit file')
-    parser.add_argument('--name', help='Override kit name')
+    parser = argparse.ArgumentParser(
+        description="Convert DrumGizmo kits into single-file zero-copy .glorpkit packages.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Convert kit and install directly to ~/.glorpdrums/kits/
+  python3 tools/convert_to_glorpkit.py /path/to/DrumGizmoKit/
+
+  # Convert specific drumkit.xml file
+  python3 tools/convert_to_glorpkit.py /path/to/drumkit.xml
+
+  # Output to a custom path or directory
+  python3 tools/convert_to_glorpkit.py /path/to/DrumGizmoKit/ -o /custom/path/MyKit.glorpkit
+
+  # Override kit display name
+  python3 tools/convert_to_glorpkit.py /path/to/DrumGizmoKit/ --name "Studio Custom Kit"
+        """
+    )
+    parser.add_argument("input", help="Path to drumkit.xml or DrumGizmo kit directory")
+    parser.add_argument("-o", "--output", help="Optional output path or directory (defaults to ~/.glorpdrums/kits/)")
+    parser.add_argument("--name", help="Override kit display title and package filename")
+    parser.add_argument("--dry-run", action="store_true", help="Validate kit and inspect contents without building package")
+
     args = parser.parse_args()
 
-    success = convert_kit(args.input, args.output, args.name)
+    input_path = Path(args.input)
+    output_path = Path(args.output) if args.output else None
+
+    success = convert_kit(input_path, output_path, args.name, args.dry_run)
     sys.exit(0 if success else 1)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
