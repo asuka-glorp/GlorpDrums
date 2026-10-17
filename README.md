@@ -27,12 +27,14 @@ GlorpDrums is a sample-based acoustic drum plugin and standalone application bui
 ### Prerequisites (Linux)
 * CMake 3.22 or higher
 * C++20 compatible compiler (GCC 11+ or Clang 14+)
-* JUCE Linux system dependencies (ALSA, FreeType, X11, OpenGL development headers):
+* JUCE Linux system dependencies (ALSA, JACK, FreeType, X11, OpenGL development headers):
   ```bash
-  sudo apt install build-essential cmake libasound2-dev libfreetype-dev \
-                   libx11-dev libxcomposite-dev libxcursor-dev libxext-dev \
-                   libxinerama-dev libxrandr-dev libxrender-dev
+  sudo apt install build-essential cmake libasound2-dev libjack-jackd2-dev \
+                   libfreetype-dev libx11-dev libxcomposite-dev libxcursor-dev \
+                   libxext-dev libxinerama-dev libxrandr-dev libxrender-dev
   ```
+
+The standalone app supports ALSA, JACK, and PipeWire (via JACK or ALSA compatibility). For live performance, JACK is recommended for lowest latency.
 
 ### Building
 
@@ -165,4 +167,8 @@ GlorpDrums/
 
 ## License
 
-GlorpDrums is released under the GNU General Public License v3.0 (GPLv3).
+GlorpDrums is released under the GNU Affero General Public License v3.0 (AGPLv3).
+
+This license is required because GlorpDrums uses the JUCE framework, which is licensed under AGPLv3. The full license text is in the `LICENSE` file.
+
+If you need a different license, please contact the maintainers.

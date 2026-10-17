@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.22)
 
-project(GlorpDrums VERSION 0.1.0 LANGUAGES C CXX)
+project(GlorpDrums VERSION 0.2.0 LANGUAGES C CXX)
 
 #==================================================================================
 # Options
@@ -130,7 +130,6 @@ target_sources(GlorpDrums PRIVATE
     src/core/DrumKit.cpp
     src/core/KitScanner.cpp
     src/core/SampleCache.cpp
-    src/core/PitchShifter.cpp
     src/core/Sampler.cpp
     src/core/MidiMap.cpp
     src/core/Settings.cpp
@@ -166,8 +165,9 @@ target_link_libraries(GlorpDrums
 )
 
 if(GLORP_BUILD_STANDALONE)
-    # ALSA MIDI so the standalone app can be played with a real drum pad.
-    target_compile_definitions(GlorpDrums PRIVATE JUCE_ALSA=1 JUCE_JACK=0)
+    # ALSA + JACK so the standalone app works with real drum pads and pro audio setups.
+    # JACK is enabled for live performance and low-latency monitoring.
+    target_compile_definitions(GlorpDrums PRIVATE JUCE_ALSA=1 JUCE_JACK=1)
     target_link_libraries(GlorpDrums PRIVATE juce::juce_audio_devices)
 endif()
 
@@ -179,7 +179,7 @@ endif()
 # our own would only mean maintaining something less well tested.
 
 if(GLORP_BUILD_STANDALONE)
-    target_compile_definitions(GlorpDrums PRIVATE JUCE_ALSA=1 JUCE_JACK=0)
+    target_compile_definitions(GlorpDrums PRIVATE JUCE_ALSA=1 JUCE_JACK=1)
     target_link_libraries(GlorpDrums PRIVATE juce::juce_audio_devices)
 endif()
 
