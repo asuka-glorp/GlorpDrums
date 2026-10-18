@@ -40,6 +40,7 @@ public:
     std::function<void(float)> onValueChanged;
     std::function<bool()> onLearnRequested;
     void setLearnArmed (bool armed) { learnArmed = armed; repaint(); }
+    void setTheme (const Theme& t) { theme = t; repaint(); }
 
     void paint (juce::Graphics&) override;
     void mouseDown (const juce::MouseEvent&) override;

@@ -84,29 +84,33 @@ MixerView::HandButton::HandButton (const juce::String& name, bool isToggle)
 void MixerView::HandButton::paintButton (juce::Graphics& g, bool isHover, bool isDown)
 {
     const auto r = getLocalBounds().toFloat().reduced (1.0f);
-    const auto ink = juce::Colour (0xff111215);
+    const auto ink = theme.ink;
 
-    // Comic offset drop shadow
-    g.setColour (ink.withAlpha (0.35f));
-    g.fillRoundedRectangle (r.translated (2.0f, 2.0f), 4.0f);
+    // Comic offset drop shadow (light mode only)
+    if (! theme.isDark)
+    {
+        g.setColour (ink.withAlpha (0.35f));
+        g.fillRoundedRectangle (r.translated (2.0f, 2.0f), 4.0f);
+    }
 
     juce::Colour bg;
     if (active)
         bg = activeColour;
     else if (isDown)
-        bg = juce::Colour (0xffe5e9dc);
+        bg = theme.isDark ? juce::Colour (0xff282a30) : juce::Colour (0xffe5e9dc);
     else if (isHover)
-        bg = juce::Colour (0xfff4f6ee);
+        bg = theme.isDark ? juce::Colour (0xff24252a) : juce::Colour (0xfff4f6ee);
     else
-        bg = juce::Colour (0xfffcfdfc);
+        bg = theme.panel;
 
     g.setColour (bg);
     g.fillRoundedRectangle (r, 4.0f);
 
-    drawSketchRect (g, r, ink, active ? 2.0f : 1.4f);
+    const auto borderCol = isHover ? theme.accent : theme.panelEdge;
+    drawSketchRect (g, r, borderCol, active ? 2.0f : 1.4f);
 
-    const bool whiteText = (active && (activeColour == juce::Colour (0xffe74c3c) || activeColour == juce::Colour (0xff111215)));
-    g.setColour (whiteText ? juce::Colours::white : ink);
+    const bool whiteText = theme.isDark || (active && (activeColour == juce::Colour (0xffe74c3c) || activeColour == juce::Colour (0xff111215)));
+    g.setColour (whiteText ? juce::Colours::white : (active ? juce::Colour (0xff111215) : theme.ink));
     g.setFont (displayFont (std::min (r.getHeight() * 0.58f, 13.0f)));
     g.drawText (getButtonText(), r, juce::Justification::centred, false);
 }
@@ -174,6 +178,7 @@ MixerView::ChannelStripComponent::ChannelStripComponent (MixerView& o, PluginPro
     addAndMakeVisible (busBtn);
 
     updateFromState();
+    setTheme (owner.theme);
 }
 
 void MixerView::ChannelStripComponent::updateFromState()
@@ -224,55 +229,69 @@ void MixerView::ChannelStripComponent::resized()
     busBtn.setBounds (r.getX() + 6.0f, r.getBottom() - 26.0f, r.getWidth() - 12.0f, 22.0f);
 }
 
+void MixerView::ChannelStripComponent::setTheme (const Theme& t)
+{
+    theme = t;
+    phaseBtn.setTheme (t);
+    fxBtn.setTheme (t);
+    soloBtn.setTheme (t);
+    muteBtn.setTheme (t);
+    busBtn.setTheme (t);
+    repaint();
+}
+
 void MixerView::ChannelStripComponent::paint (juce::Graphics& g)
 {
     const auto r = getLocalBounds().toFloat().reduced (2.0f);
     const auto name = processor.getSampler().micStripTitle (channelIndex_);
     const auto accent = getMicColor (name);
     const auto params = processor.getSampler().getMicStripParams (channelIndex_);
-    const auto ink = juce::Colour (0xff111215);
+    const auto ink = theme.ink;
 
-    // Comic offset drop shadow
-    g.setColour (ink.withAlpha (0.32f));
-    g.fillRoundedRectangle (r.translated (3.0f, 3.0f), 6.0f);
+    // Comic offset drop shadow (light mode only)
+    if (! theme.isDark)
+    {
+        g.setColour (ink.withAlpha (0.32f));
+        g.fillRoundedRectangle (r.translated (3.0f, 3.0f), 6.0f);
+    }
 
-    // Strip background: hand-drawn sketchbook paper
-    g.setColour (juce::Colour (0xfffcfdfc));
+    // Strip background
+    g.setColour (theme.panel);
     g.fillRoundedRectangle (r, 6.0f);
 
     // Sketched ink border
-    drawSketchRect (g, r, ink, 1.8f, channelIndex_ * 7 + 13);
+    drawSketchRect (g, r, theme.panelEdge, 1.8f, channelIndex_ * 7 + 13);
 
     // Top Channel Badge
     auto badgeR = juce::Rectangle<float> (r.getX() + 4.0f, r.getY() + 4.0f, r.getWidth() - 8.0f, 26.0f);
     g.setColour (accent);
     g.fillRoundedRectangle (badgeR, 4.0f);
-    drawSketchRect (g, badgeR, ink, 1.5f, channelIndex_ * 11 + 3);
+    drawSketchRect (g, badgeR, theme.isDark ? theme.panelEdge : ink, 1.5f, channelIndex_ * 11 + 3);
 
     g.setColour (juce::Colours::white);
     g.setFont (displayFont (11.0f));
     g.drawFittedText (name.toUpperCase(), badgeR.reduced (2.0f).toNearestInt(), juce::Justification::centred, 1);
 
-    // Pan Bar: warm paper slot with ink border
-    g.setColour (juce::Colour (0xfff5f3ec));
+    // Pan Bar: trough slot with border
+    g.setColour (theme.trough);
     g.fillRoundedRectangle (panBarBounds, 3.0f);
-    drawSketchRect (g, panBarBounds, ink, 1.2f, 99);
+    drawSketchRect (g, panBarBounds, theme.panelEdge, 1.2f, 99);
 
     const float centerX = panBarBounds.getCentreX();
     const float panOffset = params.pan * (panBarBounds.getWidth() * 0.45f);
     if (std::abs (params.pan) > 0.02f)
     {
-        g.setColour (juce::Colour (0xffea8c16)); // comic warm amber
+        g.setColour (theme.accent);
         if (params.pan > 0.0f)
             g.fillRect (centerX, panBarBounds.getY() + 2.0f, panOffset, panBarBounds.getHeight() - 4.0f);
         else
             g.fillRect (centerX + panOffset, panBarBounds.getY() + 2.0f, -panOffset, panBarBounds.getHeight() - 4.0f);
     }
     // Center tick
-    g.setColour (ink);
+    g.setColour (theme.ink);
     g.drawVerticalLine (static_cast<int> (centerX), panBarBounds.getY(), panBarBounds.getBottom());
 
-    g.setColour (ink);
+    g.setColour (theme.ink);
     g.setFont (displayFont (9.0f));
     juce::String panStr = "C";
     if (params.pan < -0.05f) panStr = "L" + juce::String (static_cast<int> (-params.pan * 100.0f));
@@ -280,19 +299,19 @@ void MixerView::ChannelStripComponent::paint (juce::Graphics& g)
     g.drawText (panStr, panBarBounds, juce::Justification::centred, false);
 
     // Fader Track: sketched vertical slot
-    g.setColour (juce::Colour (0xffede8dc));
+    g.setColour (theme.trough);
     g.fillRoundedRectangle (faderTrackBounds, 4.0f);
-    drawSketchRect (g, faderTrackBounds, ink, 1.4f, 101);
+    drawSketchRect (g, faderTrackBounds, theme.panelEdge, 1.4f, 101);
 
     // 0dB Tick mark
     const float zeroY = faderTrackBounds.getBottom() - 0.75f * faderTrackBounds.getHeight();
-    g.setColour (ink);
+    g.setColour (theme.ink.withAlpha (0.6f));
     g.drawHorizontalLine (static_cast<int> (zeroY), faderTrackBounds.getX() - 4.0f, faderTrackBounds.getX());
 
     // LED Meter: retro comic meter capsule
-    g.setColour (juce::Colour (0xfff0eee6));
+    g.setColour (theme.trough);
     g.fillRoundedRectangle (meterBounds, 3.0f);
-    drawSketchRect (g, meterBounds, ink, 1.3f, 202);
+    drawSketchRect (g, meterBounds, theme.panelEdge, 1.3f, 202);
 
     const float peakL = processor.getSampler().getMicPeakL (channelIndex_);
     const float rmsL  = processor.getSampler().getMicRmsL  (channelIndex_);
@@ -327,7 +346,7 @@ void MixerView::ChannelStripComponent::paint (juce::Graphics& g)
     if (normPeak > 0.02f)
     {
         const float peakY = meterY + meterH - normPeak * meterH;
-        g.setColour (normPeak >= 0.98f ? juce::Colour (0xffe74c3c) : ink);
+        g.setColour (normPeak >= 0.98f ? juce::Colour (0xffe74c3c) : theme.ink);
         g.fillRect (meterX, peakY - 1.0f, meterW, 2.0f);
     }
 
@@ -337,13 +356,16 @@ void MixerView::ChannelStripComponent::paint (juce::Graphics& g)
     auto thumbR = juce::Rectangle<float> (faderTrackBounds.getX() - 5.0f, thumbY, faderTrackBounds.getWidth() + 10.0f, 20.0f);
 
     // Drop shadow
-    g.setColour (ink.withAlpha (0.4f));
-    g.fillRoundedRectangle (thumbR.translated (2.0f, 2.0f), 3.0f);
+    if (! theme.isDark)
+    {
+        g.setColour (ink.withAlpha (0.4f));
+        g.fillRoundedRectangle (thumbR.translated (2.0f, 2.0f), 3.0f);
+    }
 
     // Thumb cap
-    g.setColour (juce::Colour (0xffffffff));
+    g.setColour (theme.panel);
     g.fillRoundedRectangle (thumbR, 3.0f);
-    drawSketchRect (g, thumbR, ink, 1.8f, 55);
+    drawSketchRect (g, thumbR, theme.panelEdge, 1.8f, 55);
 
     // Center indicator stripe
     g.setColour (accent);
@@ -351,11 +373,11 @@ void MixerView::ChannelStripComponent::paint (juce::Graphics& g)
 
     // Numeric dB Display
     auto dbRect = juce::Rectangle<float> (r.getX() + 4.0f, r.getBottom() - 50.0f, r.getWidth() - 8.0f, 18.0f);
-    g.setColour (juce::Colour (0xfff5f3ec));
+    g.setColour (theme.trough);
     g.fillRoundedRectangle (dbRect, 3.0f);
-    drawSketchRect (g, dbRect, ink, 1.2f, 77);
+    drawSketchRect (g, dbRect, theme.panelEdge, 1.2f, 77);
 
-    g.setColour (params.level > 1.0f ? juce::Colour (0xffd03020) : ink);
+    g.setColour (params.level > 1.0f ? juce::Colour (0xffd03020) : theme.ink);
     g.setFont (displayFont (9.5f));
     g.drawText (formatDb (params.level), dbRect, juce::Justification::centred, false);
 }
@@ -440,6 +462,7 @@ MixerView::MasterStripComponent::MasterStripComponent (MixerView& o, PluginProce
     addAndMakeVisible (fxBtn);
 
     updateFromState();
+    setTheme (owner.theme);
 }
 
 void MixerView::MasterStripComponent::updateFromState()
@@ -465,68 +488,82 @@ void MixerView::MasterStripComponent::resized()
     meterRBounds     = juce::Rectangle<float> (r.getX() + 63.0f, faderTop, 12.0f, faderH);
 }
 
+void MixerView::MasterStripComponent::setTheme (const Theme& t)
+{
+    theme = t;
+    fxBtn.setTheme (t);
+    limiterBtn.setTheme (t);
+    repaint();
+}
+
 void MixerView::MasterStripComponent::paint (juce::Graphics& g)
 {
     const auto r = getLocalBounds().toFloat().reduced (2.0f);
     const auto params = processor.getSampler().getMasterStripParams();
-    const auto ink = juce::Colour (0xff101114);
+    const auto ink = theme.ink;
 
-    // Drop shadow
-    g.setColour (ink.withAlpha (0.25f));
-    g.fillRoundedRectangle (r.translated (3.0f, 3.0f), 6.0f);
+    // Drop shadow (light mode only)
+    if (! theme.isDark)
+    {
+        g.setColour (ink.withAlpha (0.25f));
+        g.fillRoundedRectangle (r.translated (3.0f, 3.0f), 6.0f);
+    }
 
     // Master Paper Panel
-    g.setColour (juce::Colour (0xfffcfdfc));
+    g.setColour (theme.panel);
     g.fillRoundedRectangle (r, 6.0f);
-    drawSketchRect (g, r, ink, 2.0f, 90);
+    drawSketchRect (g, r, theme.panelEdge, 2.0f, 90);
 
     // Master Header Badge: Gold/Amber warm comic pill
     auto badgeR = juce::Rectangle<float> (r.getX() + 4.0f, r.getY() + 4.0f, r.getWidth() - 8.0f, 28.0f);
-    g.setColour (ink.withAlpha (0.25f));
-    g.fillRoundedRectangle (badgeR.translated (1.5f, 1.5f), 4.0f);
+    if (! theme.isDark)
+    {
+        g.setColour (ink.withAlpha (0.25f));
+        g.fillRoundedRectangle (badgeR.translated (1.5f, 1.5f), 4.0f);
+    }
     g.setColour (juce::Colour (0xffffeaa7)); // warm golden comic pill
     g.fillRoundedRectangle (badgeR, 4.0f);
-    drawSketchRect (g, badgeR, ink, 1.5f, 91);
+    drawSketchRect (g, badgeR, theme.isDark ? theme.panelEdge : ink, 1.5f, 91);
 
-    g.setColour (ink);
+    g.setColour (juce::Colour (0xff101114));
     g.setFont (displayFont (12.5f));
     g.drawText ("MASTER BUS", badgeR, juce::Justification::centred, false);
 
     // Master Pan Bar
-    g.setColour (juce::Colour (0xffedebe4));
+    g.setColour (theme.trough);
     g.fillRoundedRectangle (panBarBounds, 3.0f);
-    drawSketchRect (g, panBarBounds, ink, 1.2f, 92);
+    drawSketchRect (g, panBarBounds, theme.panelEdge, 1.2f, 92);
 
     const float centerX = panBarBounds.getCentreX();
     const float panOffset = params.pan * (panBarBounds.getWidth() * 0.45f);
     if (std::abs (params.pan) > 0.02f)
     {
-        g.setColour (juce::Colour (0xffea8c16)); // Warm orange accent
+        g.setColour (theme.accent);
         if (params.pan > 0.0f)
             g.fillRect (centerX, panBarBounds.getY() + 2.0f, panOffset, panBarBounds.getHeight() - 4.0f);
         else
             g.fillRect (centerX + panOffset, panBarBounds.getY() + 2.0f, -panOffset, panBarBounds.getHeight() - 4.0f);
     }
-    g.setColour (ink);
+    g.setColour (theme.ink);
     g.drawVerticalLine (static_cast<int> (centerX), panBarBounds.getY(), panBarBounds.getBottom());
 
     // Fader Track: paper trough
-    g.setColour (juce::Colour (0xffedebe4));
+    g.setColour (theme.trough);
     g.fillRoundedRectangle (faderTrackBounds, 4.0f);
-    drawSketchRect (g, faderTrackBounds, ink, 1.2f, 93);
+    drawSketchRect (g, faderTrackBounds, theme.panelEdge, 1.2f, 93);
 
     // 0dB mark
     const float zeroY = faderTrackBounds.getBottom() - 0.75f * faderTrackBounds.getHeight();
-    g.setColour (ink.withAlpha (0.6f));
+    g.setColour (theme.ink.withAlpha (0.6f));
     g.drawHorizontalLine (static_cast<int> (zeroY), faderTrackBounds.getX() - 3.0f, faderTrackBounds.getX());
 
     // Dual meters (L and R) with discrete comic segments
     for (int ch = 0; ch < 2; ++ch)
     {
         const auto mR = (ch == 0 ? meterLBounds : meterRBounds);
-        g.setColour (juce::Colour (0xffedebe4));
+        g.setColour (theme.trough);
         g.fillRoundedRectangle (mR, 2.0f);
-        drawSketchRect (g, mR, ink, 1.0f, 94 + ch);
+        drawSketchRect (g, mR, theme.panelEdge, 1.0f, 94 + ch);
 
         const float peak = (ch == 0 ? processor.getSampler().getMasterPeakL() : processor.getSampler().getMasterPeakR());
         const float rms  = (ch == 0 ? processor.getSampler().getMasterRmsL()  : processor.getSampler().getMasterRmsR());
@@ -559,7 +596,7 @@ void MixerView::MasterStripComponent::paint (juce::Graphics& g)
         if (normPeak > 0.02f)
         {
             const float peakY = mY + mH - normPeak * mH;
-            g.setColour (normPeak >= 0.98f ? juce::Colour (0xffe74c3c) : ink);
+            g.setColour (normPeak >= 0.98f ? juce::Colour (0xffe74c3c) : theme.ink);
             g.fillRect (mX, peakY - 1.0f, mW, 2.0f);
         }
     }
@@ -569,12 +606,15 @@ void MixerView::MasterStripComponent::paint (juce::Graphics& g)
     const float thumbY = faderTrackBounds.getBottom() - normGain * faderTrackBounds.getHeight() - 10.0f;
     auto thumbR = juce::Rectangle<float> (faderTrackBounds.getX() - 4.0f, thumbY, faderTrackBounds.getWidth() + 8.0f, 20.0f);
 
-    g.setColour (ink.withAlpha (0.4f));
-    g.fillRoundedRectangle (thumbR.translated (2.0f, 2.0f), 3.0f);
+    if (! theme.isDark)
+    {
+        g.setColour (ink.withAlpha (0.4f));
+        g.fillRoundedRectangle (thumbR.translated (2.0f, 2.0f), 3.0f);
+    }
 
-    g.setColour (juce::Colour (0xffffffff));
+    g.setColour (theme.panel);
     g.fillRoundedRectangle (thumbR, 3.0f);
-    drawSketchRect (g, thumbR, ink, 1.8f, 97);
+    drawSketchRect (g, thumbR, theme.panelEdge, 1.8f, 97);
 
     // Crimson master stripe
     g.setColour (juce::Colour (0xffe74c3c));
@@ -582,11 +622,11 @@ void MixerView::MasterStripComponent::paint (juce::Graphics& g)
 
     // Master dB display
     auto dbRect = juce::Rectangle<float> (r.getX() + 6.0f, r.getBottom() - 26.0f, r.getWidth() - 12.0f, 20.0f);
-    g.setColour (juce::Colour (0xfff5f3ec));
+    g.setColour (theme.trough);
     g.fillRoundedRectangle (dbRect, 3.0f);
-    drawSketchRect (g, dbRect, ink, 1.2f, 98);
+    drawSketchRect (g, dbRect, theme.panelEdge, 1.2f, 98);
 
-    g.setColour (params.level > 1.0f ? juce::Colour (0xffd03020) : ink);
+    g.setColour (params.level > 1.0f ? juce::Colour (0xffd03020) : theme.ink);
     g.setFont (displayFont (10.0f));
     g.drawText (formatDb (params.level), dbRect, juce::Justification::centred, false);
 }
@@ -735,6 +775,7 @@ MixerView::ChannelFXPopup::ChannelFXPopup (MixerView& o, PluginProcessor& proc)
     addAndMakeVisible (*transSustainKnob);
 
     setVisible (false);
+    setTheme (owner.theme);
 }
 
 void MixerView::ChannelFXPopup::openForChannel (int chIdx)
@@ -800,38 +841,62 @@ void MixerView::ChannelFXPopup::resized()
     transSustainKnob->setBounds (314, 194, 60, 60);
 }
 
+void MixerView::ChannelFXPopup::setTheme (const Theme& t)
+{
+    theme = t;
+    closeBtn.setTheme (t);
+    eqToggle.setTheme (t);
+    compToggle.setTheme (t);
+    if (eqLowGainKnob) eqLowGainKnob->setTheme (t);
+    if (eqMidFreqKnob) eqMidFreqKnob->setTheme (t);
+    if (eqMidGainKnob) eqMidGainKnob->setTheme (t);
+    if (eqHighGainKnob) eqHighGainKnob->setTheme (t);
+    if (compThreshKnob) compThreshKnob->setTheme (t);
+    if (compRatioKnob) compRatioKnob->setTheme (t);
+    if (compAttackKnob) compAttackKnob->setTheme (t);
+    if (compReleaseKnob) compReleaseKnob->setTheme (t);
+    if (compMakeupKnob) compMakeupKnob->setTheme (t);
+    if (satDriveKnob) satDriveKnob->setTheme (t);
+    if (transAttackKnob) transAttackKnob->setTheme (t);
+    if (transSustainKnob) transSustainKnob->setTheme (t);
+    repaint();
+}
+
 void MixerView::ChannelFXPopup::paint (juce::Graphics& g)
 {
     const auto r = getLocalBounds().toFloat().reduced (2.0f);
-    const auto ink = juce::Colour (0xff101114);
+    const auto ink = theme.ink;
 
-    // Backdrop shadow
-    g.setColour (ink.withAlpha (0.35f));
-    g.fillRoundedRectangle (r.translated (4.0f, 4.0f), 8.0f);
+    // Backdrop shadow (light mode only)
+    if (! theme.isDark)
+    {
+        g.setColour (ink.withAlpha (0.35f));
+        g.fillRoundedRectangle (r.translated (4.0f, 4.0f), 8.0f);
+    }
 
-    // Paper sketchbook card
-    g.setColour (juce::Colour (0xfffcfdfc));
+    // Card background
+    g.setColour (theme.panel);
     g.fillRoundedRectangle (r, 8.0f);
-    drawSketchRect (g, r, ink, 2.2f, 101);
+    drawSketchRect (g, r, theme.panelEdge, 2.2f, 101);
 
     // Header banner
     auto headerR = juce::Rectangle<float> (r.getX() + 4.0f, r.getY() + 4.0f, r.getWidth() - 8.0f, 32.0f);
     g.setColour (juce::Colour (0xffffeaa7)); // Golden banner
     g.fillRoundedRectangle (headerR, 6.0f);
-    drawSketchRect (g, headerR, ink, 1.4f, 102);
+    drawSketchRect (g, headerR, theme.isDark ? theme.panelEdge : ink, 1.4f, 102);
 
     const auto name = currentChannel >= 0 ? processor.getSampler().micStripTitle (currentChannel) : "";
-    g.setColour (ink);
+    g.setColour (juce::Colour (0xff101114));
     g.setFont (displayFont (16.0f));
     g.drawText ("CHANNEL FX RACK: " + name.toUpperCase(), 24, 14, getWidth() - 120, 24, juce::Justification::left, false);
 
     // Dividing lines
-    g.setColour (ink.withAlpha (0.25f));
+    g.setColour (theme.ink.withAlpha (0.25f));
     g.drawHorizontalLine (112, 20.0f, getWidth() - 20.0f);
     g.drawHorizontalLine (186, 20.0f, getWidth() - 20.0f);
 
     // Section labels
-    g.setColour (ink);
+    g.setColour (theme.ink);
     g.setFont (displayFont (11.5f));
     g.drawText ("3-BAND EQ", 24, 78, 90, 20, juce::Justification::left, false);
     g.drawText ("VCA COMP", 24, 152, 90, 20, juce::Justification::left, false);
@@ -893,6 +958,7 @@ MixerView::MasterFXPopup::MasterFXPopup (MixerView& o, PluginProcessor& proc)
     addAndMakeVisible (*revWidthKnob);
 
     setVisible (false);
+    setTheme (owner.theme);
 }
 
 void MixerView::MasterFXPopup::open()
@@ -927,27 +993,42 @@ void MixerView::MasterFXPopup::resized()
     revWidthKnob->setBounds  (354, 52, 60, 60);
 }
 
+void MixerView::MasterFXPopup::setTheme (const Theme& t)
+{
+    theme = t;
+    closeBtn.setTheme (t);
+    limiterToggle.setTheme (t);
+    if (revReturnKnob) revReturnKnob->setTheme (t);
+    if (revSizeKnob) revSizeKnob->setTheme (t);
+    if (revDampKnob) revDampKnob->setTheme (t);
+    if (revWidthKnob) revWidthKnob->setTheme (t);
+    repaint();
+}
+
 void MixerView::MasterFXPopup::paint (juce::Graphics& g)
 {
     const auto r = getLocalBounds().toFloat().reduced (2.0f);
-    const auto ink = juce::Colour (0xff101114);
+    const auto ink = theme.ink;
 
-    // Backdrop shadow
-    g.setColour (ink.withAlpha (0.35f));
-    g.fillRoundedRectangle (r.translated (4.0f, 4.0f), 8.0f);
+    // Backdrop shadow (light mode only)
+    if (! theme.isDark)
+    {
+        g.setColour (ink.withAlpha (0.35f));
+        g.fillRoundedRectangle (r.translated (4.0f, 4.0f), 8.0f);
+    }
 
-    // Paper card
-    g.setColour (juce::Colour (0xfffcfdfc));
+    // Card background
+    g.setColour (theme.panel);
     g.fillRoundedRectangle (r, 8.0f);
-    drawSketchRect (g, r, ink, 2.2f, 103);
+    drawSketchRect (g, r, theme.panelEdge, 2.2f, 103);
 
     // Header banner
     auto headerR = juce::Rectangle<float> (r.getX() + 4.0f, r.getY() + 4.0f, r.getWidth() - 8.0f, 32.0f);
-    g.setColour (juce::Colour (0xffdfe6e9)); // Soft paper banner
+    g.setColour (theme.isDark ? juce::Colour (0xff3a3c44) : juce::Colour (0xffdfe6e9));
     g.fillRoundedRectangle (headerR, 6.0f);
-    drawSketchRect (g, headerR, ink, 1.4f, 104);
+    drawSketchRect (g, headerR, theme.isDark ? theme.panelEdge : ink, 1.4f, 104);
 
-    g.setColour (ink);
+    g.setColour (theme.isDark ? juce::Colours::white : ink);
     g.setFont (displayFont (15.0f));
     g.drawText ("MASTER REVERB & DYNAMICS", 24, 14, getWidth() - 120, 24, juce::Justification::left, false);
 }
@@ -1012,6 +1093,7 @@ void MixerView::refreshChannels()
     for (int i = 0; i < numMics; ++i)
     {
         auto strip = std::make_unique<ChannelStripComponent> (*this, processor, i);
+        strip->setTheme (theme);
         channelContainer->addAndMakeVisible (*strip);
         channelStrips.push_back (std::move (strip));
     }
@@ -1033,6 +1115,15 @@ void MixerView::openMasterFX()
 {
     if (masterFXPopup != nullptr)
         masterFXPopup->open();
+}
+
+void MixerView::closePopups()
+{
+    if (channelFXPopup != nullptr && channelFXPopup->isOpen())
+        channelFXPopup->close();
+
+    if (masterFXPopup != nullptr && masterFXPopup->isOpen())
+        masterFXPopup->close();
 }
 
 void MixerView::applyPreset (int presetIndex)
@@ -1166,14 +1257,41 @@ void MixerView::resized()
         masterFXPopup->setBounds (getWidth() - 460, 40, 430, 130);
 }
 
+void MixerView::setTheme (const Theme& newTheme)
+{
+    theme = newTheme;
+
+    presetCleanBtn.setTheme (theme);
+    presetRockBtn.setTheme (theme);
+    presetWarmBtn.setTheme (theme);
+    presetPunchBtn.setTheme (theme);
+    presetDryBtn.setTheme (theme);
+    savePresetBtn.setTheme (theme);
+    loadPresetBtn.setTheme (theme);
+
+    for (auto& strip : channelStrips)
+        if (strip != nullptr)
+            strip->setTheme (theme);
+
+    if (masterStrip != nullptr)
+        masterStrip->setTheme (theme);
+
+    if (channelFXPopup != nullptr)
+        channelFXPopup->setTheme (theme);
+
+    if (masterFXPopup != nullptr)
+        masterFXPopup->setTheme (theme);
+
+    repaint();
+}
+
 void MixerView::paint (juce::Graphics& g)
 {
-    // Warm paper desk background matching the plugin theme
-    g.fillAll (juce::Colour (0xffe2e5e2));
+    // Background matching the plugin theme
+    g.fillAll (theme.background);
 
     // Preset label
-    const auto ink = juce::Colour (0xff101114);
-    g.setColour (ink);
+    g.setColour (theme.ink);
     g.setFont (displayFont (12.0f));
     g.drawText ("ACTIVE PRESET: " + activePresetName.toUpperCase(),
                 getWidth() - 280, 14, 160, 20, juce::Justification::right, false);

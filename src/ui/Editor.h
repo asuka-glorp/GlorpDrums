@@ -67,6 +67,7 @@ public:
     void selectZone (int logicalIndex, int zoneIndex, bool triggerPreview = false);
     int getActiveSamplerIndex() const;
     MixerView* getMixerView() noexcept { return mixerView.get(); }
+    void applyTheme (const Theme& newTheme);
 
 private:
     void kitChanged() override;
@@ -99,9 +100,11 @@ private:
         explicit MenuButton (const juce::String& name) : juce::Button (name) {}
         void setActive (bool a) { active = a; repaint(); }
         bool getActive() const noexcept { return active; }
+        void setTheme (const Theme& t) { theme = t; repaint(); }
         void paintButton (juce::Graphics& g, bool isHover, bool isDown) override;
     private:
         bool active = false;
+        Theme theme = Theme::sketch();
     };
 
     class InstrumentSelectorButton : public juce::Button
@@ -111,8 +114,10 @@ private:
         void paintButton (juce::Graphics& g, bool isHover, bool isDown) override;
         void setInstrumentName (const juce::String& name) { currentName = name; repaint(); }
         const juce::String& getInstrumentName() const noexcept { return currentName; }
+        void setTheme (const Theme& t) { theme = t; repaint(); }
     private:
         juce::String currentName { "SNARE" };
+        Theme theme = Theme::sketch();
     };
 
     class KitSelectorButton : public juce::Button
@@ -122,8 +127,10 @@ private:
         void paintButton (juce::Graphics& g, bool isHover, bool isDown) override;
         void setKitName (const juce::String& name) { currentName = name; repaint(); }
         const juce::String& getKitName() const noexcept { return currentName; }
+        void setTheme (const Theme& t) { theme = t; repaint(); }
     private:
         juce::String currentName { "NO KIT LOADED" };
+        Theme theme = Theme::sketch();
     };
 
     class OutputBusButton : public juce::Button
@@ -132,9 +139,11 @@ private:
         OutputBusButton() : juce::Button ("outBus") {}
         void setBusIndex (int busIdx) { currentBus = busIdx; repaint(); }
         int getBusIndex() const noexcept { return currentBus; }
+        void setTheme (const Theme& t) { theme = t; repaint(); }
         void paintButton (juce::Graphics& g, bool isHover, bool isDown) override;
     private:
         int currentBus = 0;
+        Theme theme = Theme::sketch();
     };
 
     class ZoneButton : public juce::Button
@@ -143,9 +152,11 @@ private:
         ZoneButton (const juce::String& name, bool active);
         void setActive (bool active);
         bool getActive() const noexcept { return isActive; }
+        void setTheme (const Theme& t) { theme = t; repaint(); }
         void paintButton (juce::Graphics& g, bool isHover, bool isDown) override;
     private:
         bool isActive = false;
+        Theme theme = Theme::sketch();
     };
 
     class LearnButton : public juce::Button
@@ -153,9 +164,11 @@ private:
     public:
         LearnButton() : juce::Button ("LEARN") {}
         void setLearning (bool learning);
+        void setTheme (const Theme& t) { theme = t; repaint(); }
         void paintButton (juce::Graphics& g, bool isHover, bool isDown) override;
     private:
         bool isLearning_ = false;
+        Theme theme = Theme::sketch();
     };
 
     class CurveButton : public juce::Button
@@ -164,9 +177,11 @@ private:
         CurveButton() : juce::Button ("CURVE") {}
         void setCurve (VelocityCurve c) { currentCurve = c; repaint(); }
         VelocityCurve getCurve() const noexcept { return currentCurve; }
+        void setTheme (const Theme& t) { theme = t; repaint(); }
         void paintButton (juce::Graphics& g, bool isHover, bool isDown) override;
     private:
         VelocityCurve currentCurve = VelocityCurve::linear;
+        Theme theme = Theme::sketch();
     };
 
     class VelocityCurvePreview : public juce::Component
@@ -175,6 +190,7 @@ private:
         VelocityCurvePreview();
         void setCurve (VelocityCurve c) { currentCurve = c; repaint(); }
         VelocityCurve getCurve() const noexcept { return currentCurve; }
+        void setTheme (const Theme& t) { theme = t; repaint(); }
 
         std::function<void()> onClick;
 
@@ -183,6 +199,7 @@ private:
 
     private:
         VelocityCurve currentCurve = VelocityCurve::linear;
+        Theme theme = Theme::sketch();
     };
 
     MenuButton viewToggleButton { "MIXER VIEW" };

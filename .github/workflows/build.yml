@@ -36,6 +36,12 @@ jobs:
             libcurl4-openssl-dev \
             libjack-jackd2-dev
 
+      - name: Fetch JUCE
+        run: |
+          if [ ! -d "libs/JUCE" ]; then
+            git clone --depth 1 --branch 8.0.6 https://github.com/juce-framework/JUCE.git libs/JUCE
+          fi
+
       - name: Configure
         run: cmake -B build -DCMAKE_BUILD_TYPE=Release
 

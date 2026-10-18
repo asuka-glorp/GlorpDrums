@@ -29,6 +29,7 @@ struct Theme
     juce::Colour inkSoft;          ///< secondary text and tick marks
     juce::Colour accent;           ///< highlights, active state, learned mapping
     juce::Colour warning;
+    juce::Colour trough;           ///< recessed wells, fader slots, meters, graph interior
 
     // -- drum kit art ------------------------------------------------------
     juce::Colour shell;
@@ -49,6 +50,7 @@ struct Theme
         t.inkSoft = juce::Colour (0xff4b4e54);
         t.accent = juce::Colour (0xffea8c16);
         t.warning = juce::Colour (0xffd03020);
+        t.trough = juce::Colour (0xffede8dc);
         t.shell = juce::Colour (0xfff9fafb);
         t.shellShade = juce::Colour (0xffcbd0d6);
         t.cymbal = juce::Colour (0xfff4f5f6);
@@ -60,13 +62,14 @@ struct Theme
     {
         Theme t;
         t.isDark = true;
-        t.background = juce::Colour (0xff1b1b1e);
-        t.panel = juce::Colour (0xff26262b);
-        t.panelEdge = juce::Colour (0xffd8d4c8);
-        t.ink = juce::Colour (0xfff0ece2);
-        t.inkSoft = juce::Colour (0xff9a958a);
-        t.accent = juce::Colour (0xffe8703f);
+        t.background = juce::Colour (0xff161719);
+        t.panel = juce::Colour (0xff1c1d21);
+        t.panelEdge = juce::Colour (0xffffffff);
+        t.ink = juce::Colour (0xffffffff);
+        t.inkSoft = juce::Colour (0xffb0b4ba);
+        t.accent = juce::Colour (0xffea8c16);
         t.warning = juce::Colour (0xffe8a33f);
+        t.trough = juce::Colour (0xff121316);
         t.shell = juce::Colour (0xff3a3a41);
         t.shellShade = juce::Colour (0xff2a2a30);
         t.cymbal = juce::Colour (0xff9c8f52);

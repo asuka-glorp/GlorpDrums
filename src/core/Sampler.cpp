@@ -585,13 +585,14 @@ void Sampler::resolveInstrumentChannels (const DrumKit& kit, const Instrument& i
         hit.power = instrument.samples[s].power;
 
         const auto channelCount = sources.size();
-        // Normalize to prevent clipping when summing multiple channels.
-        // For 15-channel kits (Crocell), 1/sqrt(15)*3.2 = 0.826 per channel,
-        // which sums to >12x overshoot. Use 1/N for >2 channels instead.
-        const float kitGainFactor = (channelCount <= 2) ? 1.0f : 1.0f;
-        const auto normalisation = (channelCount <= 2)
-            ? (1.0f / std::sqrt (static_cast<float> (channelCount))) * kitGainFactor
-            : (1.0f / static_cast<float> (channelCount));
+        // If the kit defines discrete mic channels, each source channel is routed
+        // to its respective mic mixer track at unity gain (1.0f), matching DAW / REAPER behavior.
+        // Only if kit.channels is empty (all audio files collapse into a single stereo pair)
+        // do we normalize by sqrt(channelCount) to prevent digital clipping when summing.
+        const bool hasDiscreteMics = ! kit.channels.empty();
+        const float normalisation = hasDiscreteMics
+            ? 1.0f
+            : (1.0f / std::sqrt (std::max (1.0f, static_cast<float> (channelCount))));
 
         for (size_t c = 0; c < channelCount; ++c)
         {
@@ -615,12 +616,18 @@ void Sampler::resolveInstrumentChannels (const DrumKit& kit, const Instrument& i
             if (! channelRef.handle.valid)
                 continue;
 
+            // When discrete mic channels exist, mic level is applied by the channel strip fader
+            // (ch->params.level initialized from kit.factoryMicLevels).
+            // For fallback single-track kits, apply factoryMicLevels directly here.
             float micLevel = 1.0f;
-            auto itM = kit.factoryMicLevels.find (ref.channel);
-            if (itM == kit.factoryMicLevels.end())
-                itM = kit.factoryMicLevels.find (source.kitChannel);
-            if (itM != kit.factoryMicLevels.end())
-                micLevel = itM->second;
+            if (! hasDiscreteMics)
+            {
+                auto itM = kit.factoryMicLevels.find (ref.channel);
+                if (itM == kit.factoryMicLevels.end())
+                    itM = kit.factoryMicLevels.find (source.kitChannel);
+                if (itM != kit.factoryMicLevels.end())
+                    micLevel = itM->second;
+            }
 
             if (channelCount == 1)
             {
@@ -632,13 +639,13 @@ void Sampler::resolveInstrumentChannels (const DrumKit& kit, const Instrument& i
                 const auto chName = juce::String (ref.channel).toLowerCase();
                 if (chName.contains ("left") || chName.endsWith ("l") || chName.contains ("_l") || chName.contains (".l"))
                 {
-                    channelRef.gainL = normalisation * 1.414f * micLevel;
+                    channelRef.gainL = normalisation * micLevel;
                     channelRef.gainR = 0.0f;
                 }
                 else if (chName.contains ("right") || chName.endsWith ("r") || chName.contains ("_r") || chName.contains (".r"))
                 {
                     channelRef.gainL = 0.0f;
-                    channelRef.gainR = normalisation * 1.414f * micLevel;
+                    channelRef.gainR = normalisation * micLevel;
                 }
                 else
                 {
@@ -1234,8 +1241,9 @@ void Sampler::render (float* const* output, int numOutputChannels, int numSample
             if (p.muted)
                 continue;
 
-            float panL = 0.0f, panR = 0.0f;
-            panGains (p.pan, panL, panR);
+            float panL = 1.0f, panR = 1.0f;
+            if (p.pan != 0.0f)
+                panGains (p.pan, panL, panR);
             const float instGainL = v.velocity * p.level * panL;
             const float instGainR = v.velocity * p.level * panR;
 
@@ -1369,7 +1377,16 @@ void Sampler::render (float* const* output, int numOutputChannels, int numSample
                               reverbAccumL.data(), reverbAccumR.data());
 
             float micPanL = 1.0f, micPanR = 1.0f;
-            panGains (p.pan, micPanL, micPanR);
+            if (p.pan < 0.0f)
+            {
+                micPanL = 1.0f;
+                micPanR = 1.0f + p.pan;
+            }
+            else if (p.pan > 0.0f)
+            {
+                micPanL = 1.0f - p.pan;
+                micPanR = 1.0f;
+            }
             const float micGainL = p.level * micPanL;
             const float micGainR = p.level * micPanR;
 
@@ -1518,8 +1535,9 @@ void Sampler::render (float* const* output, int numOutputChannels, int numSample
             if (v.position >= static_cast<double> (hit.numFrames))
                 v.active = false;
 
-            float panL = 0.0f, panR = 0.0f;
-            panGains (p.pan, panL, panR);
+            float panL = 1.0f, panR = 1.0f;
+            if (p.pan != 0.0f)
+                panGains (p.pan, panL, panR);
             const auto gainL = v.velocity * p.level * panL * masterGainL;
             const auto gainR = v.velocity * p.level * panR * masterGainR;
 

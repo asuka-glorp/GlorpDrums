@@ -35,6 +35,12 @@ jobs:
             libcurl4-openssl-dev \
             libjack-jackd2-dev
 
+      - name: Fetch JUCE
+        run: |
+          if [ ! -d "libs/JUCE" ]; then
+            git clone --depth 1 --branch 8.0.6 https://github.com/juce-framework/JUCE.git libs/JUCE
+          fi
+
       - name: Configure
         run: cmake -B build -DCMAKE_BUILD_TYPE=Release
 
@@ -43,16 +49,26 @@ jobs:
 
       - name: Package
         run: |
+          # Bundle default demo kit into release package structure
+          mkdir -p build/GlorpDrums_artefacts/Release/kits
+          cp -r test/kits/GlorpDemoKit build/GlorpDrums_artefacts/Release/kits/
+
+          # Also package standalone demo kit archive
+          tar czf build/GlorpDrums_artefacts/Release/GlorpDemoKit.tar.gz -C test/kits GlorpDemoKit
+
           cd build/GlorpDrums_artefacts/Release
           tar czf GlorpDrums-${{ matrix.os }}.tar.gz \
             VST3/GlorpDrums.vst3 \
             LV2/GlorpDrums.lv2 \
-            Standalone/GlorpDrums
+            Standalone/GlorpDrums \
+            kits/GlorpDemoKit
 
       - name: Upload release asset
         uses: softprops/action-gh-release@v2
         with:
-          files: build/GlorpDrums_artefacts/Release/GlorpDrums-${{ matrix.os }}.tar.gz
+          files: |
+            build/GlorpDrums_artefacts/Release/GlorpDrums-${{ matrix.os }}.tar.gz
+            build/GlorpDrums_artefacts/Release/GlorpDemoKit.tar.gz
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

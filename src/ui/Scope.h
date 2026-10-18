@@ -62,6 +62,7 @@ public:
     void controllerReceived (int cc, int value);
 
     void paint (juce::Graphics&) override;
+    void setTheme (const Theme& t) { theme = t; repaint(); }
 
     static ScopeLane laneForPieceAndName (KitPiece piece, const juce::String& name);
     static juce::Colour colorForInstrument (KitPiece piece, const juce::String& name);

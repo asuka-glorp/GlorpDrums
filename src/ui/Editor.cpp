@@ -10,26 +10,26 @@ void Editor::MenuButton::paintButton (juce::Graphics& g, bool isHover, bool isDo
 
     if (active || isHover || isDown)
     {
-        g.setColour (juce::Colour (0xffea8c16).withAlpha (active ? 0.22f : (isDown ? 0.24f : 0.12f)));
+        g.setColour (theme.accent.withAlpha (active ? 0.22f : (isDown ? 0.24f : 0.12f)));
         g.fillRoundedRectangle (b, 4.0f);
-        drawSketchRect (g, b, juce::Colour (0xffea8c16), active ? 1.8f : 1.5f, 7);
+        drawSketchRect (g, b, theme.accent, active ? 1.8f : 1.5f, 7);
     }
 
     g.setFont (displayFont (19.0f));
-    g.setColour ((active || isHover) ? juce::Colour (0xffea8c16) : juce::Colour (0xff111215));
+    g.setColour ((active || isHover) ? theme.accent : theme.ink);
     g.drawText (getName(), b, juce::Justification::centred, false);
 }
 
-void Editor::InstrumentSelectorButton::paintButton (juce::Graphics& g, bool isHover, bool isDown)
+void Editor::InstrumentSelectorButton::paintButton (juce::Graphics& g, bool isHover, bool /*isDown*/)
 {
     auto b = getLocalBounds().toFloat().reduced (1.0f);
 
     // Inner background
-    g.setColour (juce::Colour (0xfffcfdfc));
+    g.setColour (theme.panel);
     g.fillRoundedRectangle (b, 4.0f);
 
     // Orange sketched border
-    const auto borderCol = juce::Colour (0xffea8c16);
+    const auto borderCol = theme.accent;
     g.setColour (borderCol);
     drawSketchRect (g, b, borderCol, isHover ? 1.8f : 1.4f, 9);
 
@@ -47,12 +47,13 @@ void Editor::InstrumentSelectorButton::paintButton (juce::Graphics& g, bool isHo
     chevron.startNewSubPath (cx - 4.0f, cy - 2.0f);
     chevron.lineTo (cx, cy + 2.5f);
     chevron.lineTo (cx + 4.0f, cy - 2.0f);
+    g.setColour (borderCol);
     g.strokePath (chevron, juce::PathStrokeType (1.5f));
 
     // Instrument Name text
     auto textArea = b.withTrimmedLeft (22.0f).withTrimmedRight (20.0f);
     g.setFont (displayFont (16.0f));
-    g.setColour (isHover ? borderCol : juce::Colour (0xff111215));
+    g.setColour (theme.isDark ? theme.accent : (isHover ? borderCol : theme.ink));
     g.drawText (currentName.toUpperCase(), textArea, juce::Justification::centred, true);
 }
 
@@ -60,17 +61,17 @@ void Editor::KitSelectorButton::paintButton (juce::Graphics& g, bool isHover, bo
 {
     auto b = getLocalBounds().toFloat().reduced (1.0f);
 
-    // Inner paper background
-    g.setColour (juce::Colour (0xfffcfdfc));
+    // Inner background
+    g.setColour (theme.panel);
     g.fillRoundedRectangle (b, 4.0f);
 
     // Sketched border with orange hover accent
-    const auto borderCol = isHover ? juce::Colour (0xffea8c16) : juce::Colour (0xff111215);
+    const auto borderCol = isHover ? theme.accent : theme.panelEdge;
     drawSketchRect (g, b, borderCol, isHover ? 1.8f : 1.4f, 11);
 
     // Small comic "KIT:" label on left
     g.setFont (displayFont (12.0f));
-    g.setColour (juce::Colour (0xff70747c));
+    g.setColour (theme.inkSoft);
     g.drawText ("KIT:", juce::Rectangle<float> (b.getX() + 10.0f, b.getY(), 32.0f, b.getHeight()),
                 juce::Justification::centredLeft, false);
 
@@ -81,13 +82,13 @@ void Editor::KitSelectorButton::paintButton (juce::Graphics& g, bool isHover, bo
     chevron.startNewSubPath (cx - 4.0f, cy - 2.0f);
     chevron.lineTo (cx, cy + 2.5f);
     chevron.lineTo (cx + 4.0f, cy - 2.0f);
-    g.setColour (isHover ? juce::Colour (0xffea8c16) : juce::Colour (0xff111215));
+    g.setColour (isHover ? theme.accent : theme.ink);
     g.strokePath (chevron, juce::PathStrokeType (1.5f));
 
     // Kit title text in center
     auto textArea = b.withTrimmedLeft (44.0f).withTrimmedRight (24.0f);
     g.setFont (displayFont (15.0f));
-    g.setColour (isHover ? juce::Colour (0xffea8c16) : juce::Colour (0xff111215));
+    g.setColour (isHover ? theme.accent : theme.ink);
     g.drawText (currentName.toUpperCase(), textArea, juce::Justification::centred, true);
 }
 
@@ -95,17 +96,17 @@ void Editor::OutputBusButton::paintButton (juce::Graphics& g, bool isHover, bool
 {
     auto b = getLocalBounds().toFloat().reduced (1.0f);
 
-    g.setColour (juce::Colour (0xfffcfdfc));
+    g.setColour (theme.panel);
     g.fillRoundedRectangle (b, 3.0f);
 
-    const auto borderCol = isHover ? juce::Colour (0xffea8c16) : juce::Colour (0x66111215);
+    const auto borderCol = isHover ? theme.accent : (theme.isDark ? theme.panelEdge.withAlpha (0.6f) : juce::Colour (0x66111215));
     drawSketchRect (g, b, borderCol, 1.0f, 4);
 
     const juce::String text = "OUT: " + juce::String (currentBus * 2 + 1) + "-" + juce::String (currentBus * 2 + 2)
                             + (currentBus == 0 ? " (MAIN)  ▼" : "  ▼");
 
     g.setFont (displayFont (12.5f));
-    g.setColour (isHover ? juce::Colour (0xffea8c16) : juce::Colour (0xff111215));
+    g.setColour (isHover ? theme.accent : theme.ink);
     g.drawText (text, b, juce::Justification::centred, true);
 }
 
@@ -128,13 +129,12 @@ void Editor::ZoneButton::paintButton (juce::Graphics& g, bool isHover, bool /*is
 {
     auto b = getLocalBounds().toFloat().reduced (1.0f);
 
-    // Clean white background
-    g.setColour (juce::Colour (0xfffcfdfc));
+    g.setColour (theme.panel);
     g.fillRoundedRectangle (b, 3.0f);
 
     if (isActive)
     {
-        const auto orangeCol = juce::Colour (0xffea8c16);
+        const auto orangeCol = theme.accent;
         drawSketchRect (g, b, orangeCol, isHover ? 1.8f : 1.4f, 5);
         g.setFont (displayFont (13.5f));
         g.setColour (orangeCol);
@@ -142,10 +142,10 @@ void Editor::ZoneButton::paintButton (juce::Graphics& g, bool isHover, bool /*is
     }
     else
     {
-        const auto borderCol = isHover ? juce::Colour (0xffea8c16) : juce::Colour (0x66111215);
+        const auto borderCol = isHover ? theme.accent : (theme.isDark ? theme.panelEdge.withAlpha (0.4f) : juce::Colour (0x66111215));
         drawSketchRect (g, b, borderCol, 1.0f, 3);
         g.setFont (displayFont (13.0f));
-        g.setColour (isHover ? juce::Colour (0xffea8c16) : juce::Colour (0xff111215));
+        g.setColour (isHover ? theme.accent : theme.inkSoft);
         g.drawText (getName(), b, juce::Justification::centred, true);
     }
 }
@@ -162,11 +162,11 @@ void Editor::LearnButton::setLearning (bool learning)
 void Editor::LearnButton::paintButton (juce::Graphics& g, bool isHover, bool /*isDown*/)
 {
     auto b = getLocalBounds().toFloat().reduced (1.0f);
-    g.setColour (juce::Colour (0xfffcfdfc));
+    g.setColour (theme.panel);
     g.fillRoundedRectangle (b, 3.0f);
 
-    const auto orangeCol = juce::Colour (0xffea8c16);
-    drawSketchRect (g, b, orangeCol, isHover ? 1.8f : 1.4f, 7);
+    const auto orangeCol = theme.accent;
+    drawSketchRect (g, b, isLearning_ ? orangeCol : (isHover ? orangeCol : theme.panelEdge), isHover ? 1.8f : 1.4f, 7);
 
     g.setFont (displayFont (14.5f));
     if (isLearning_)
@@ -176,7 +176,7 @@ void Editor::LearnButton::paintButton (juce::Graphics& g, bool isHover, bool /*i
     }
     else
     {
-        g.setColour (isHover ? orangeCol : juce::Colour (0xff111215));
+        g.setColour (isHover ? orangeCol : (theme.isDark ? theme.accent : theme.ink));
         g.drawText ("LEARN", b, juce::Justification::centred, false);
     }
 }
@@ -184,11 +184,11 @@ void Editor::LearnButton::paintButton (juce::Graphics& g, bool isHover, bool /*i
 void Editor::CurveButton::paintButton (juce::Graphics& g, bool isHover, bool /*isDown*/)
 {
     auto b = getLocalBounds().toFloat().reduced (1.0f);
-    g.setColour (juce::Colour (0xfffcfdfc));
+    g.setColour (theme.panel);
     g.fillRoundedRectangle (b, 3.0f);
 
-    const auto orangeCol = juce::Colour (0xffea8c16);
-    drawSketchRect (g, b, isHover ? orangeCol : juce::Colour (0xff7a7d7a), isHover ? 1.6f : 1.2f, 6);
+    const auto orangeCol = theme.accent;
+    drawSketchRect (g, b, isHover ? orangeCol : (theme.isDark ? theme.panelEdge.withAlpha (0.6f) : juce::Colour (0xff7a7d7a)), isHover ? 1.6f : 1.2f, 6);
 
     juce::String label = "CURVE: LIN";
     switch (currentCurve)
@@ -201,7 +201,7 @@ void Editor::CurveButton::paintButton (juce::Graphics& g, bool isHover, bool /*i
     }
 
     g.setFont (displayFont (13.5f));
-    g.setColour (isHover ? orangeCol : juce::Colour (0xff222522));
+    g.setColour (isHover ? orangeCol : theme.ink);
     g.drawText (label, b, juce::Justification::centred, false);
 }
 
@@ -219,18 +219,21 @@ void Editor::VelocityCurvePreview::mouseDown (const juce::MouseEvent& /*e*/)
 void Editor::VelocityCurvePreview::paint (juce::Graphics& g)
 {
     auto b = getLocalBounds().toFloat().reduced (2.0f);
-    const auto ink = juce::Colour (0xff111215);
+    const auto ink = theme.ink;
 
-    // Comic drop shadow
-    g.setColour (ink.withAlpha (0.35f));
-    g.fillRoundedRectangle (b.translated (3.0f, 3.0f), 5.0f);
+    // Comic drop shadow (light mode only)
+    if (! theme.isDark)
+    {
+        g.setColour (ink.withAlpha (0.35f));
+        g.fillRoundedRectangle (b.translated (3.0f, 3.0f), 5.0f);
+    }
 
-    // Hand-drawn sketchbook paper viewport background
-    g.setColour (juce::Colour (0xfffcfdfc));
+    // Viewport background
+    g.setColour (theme.panel);
     g.fillRoundedRectangle (b, 5.0f);
 
     // Sketched ink border
-    drawSketchRect (g, b, ink, 2.0f, 42);
+    drawSketchRect (g, b, theme.panelEdge, 1.8f, 42);
 
     // Plot area margins: left for 'out', bottom for 'in'
     const float labelMarginL = 18.0f;
@@ -245,12 +248,12 @@ void Editor::VelocityCurvePreview::paint (juce::Graphics& g)
         std::max (10.0f, b.getHeight() - padT - labelMarginB)
     );
 
-    // Warm pencil graph paper background
-    g.setColour (juce::Colour (0xfff5f3ec));
+    // Graph paper background: trough color
+    g.setColour (theme.trough);
     g.fillRect (plotArea);
 
     // Pencil grid lines at 25%, 50%, 75%
-    g.setColour (juce::Colour (0x444b4e54));
+    g.setColour (theme.isDark ? juce::Colour (0x28ffffff) : juce::Colour (0x444b4e54));
     for (int step = 1; step <= 3; ++step)
     {
         const float frac = step * 0.25f;
@@ -265,11 +268,11 @@ void Editor::VelocityCurvePreview::paint (juce::Graphics& g)
     }
 
     // Border around plot area
-    drawSketchRect (g, plotArea, ink, 1.2f, 88);
+    drawSketchRect (g, plotArea, theme.isDark ? theme.panelEdge.withAlpha (0.6f) : ink, 1.2f, 88);
 
     // Axis labels: "OUT" on left, "IN" on bottom in comic font
     g.setFont (displayFont (9.5f));
-    g.setColour (ink);
+    g.setColour (theme.ink);
 
     // "OUT" stacked vertically
     const auto leftLabelArea = juce::Rectangle<float> (b.getX() + 2.0f, plotArea.getY(), labelMarginL - 4.0f, plotArea.getHeight());
@@ -313,11 +316,11 @@ void Editor::VelocityCurvePreview::paint (juce::Graphics& g)
     }
 
     // Bold comic ink outline under the curve
-    g.setColour (ink);
+    g.setColour (theme.isDark ? juce::Colours::black : ink);
     g.strokePath (curvePath, juce::PathStrokeType (3.8f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
 
     // Vibrant comic curve stroke
-    g.setColour (juce::Colour (0xffea8c16));
+    g.setColour (theme.accent);
     g.strokePath (curvePath, juce::PathStrokeType (2.2f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
 
     // Anchor points: hand-drawn comic dots with ink outlines
@@ -325,7 +328,7 @@ void Editor::VelocityCurvePreview::paint (juce::Graphics& g)
     {
         const float dotX = plotArea.getX() + xNorm * plotArea.getWidth();
         const float dotY = plotArea.getBottom() - yNorm * plotArea.getHeight();
-        g.setColour (ink);
+        g.setColour (theme.isDark ? theme.panelEdge : ink);
         g.fillEllipse (dotX - 3.5f, dotY - 3.5f, 7.0f, 7.0f);
         g.setColour (col);
         g.fillEllipse (dotX - 2.0f, dotY - 2.0f, 4.0f, 4.0f);
@@ -430,6 +433,7 @@ Editor::Editor (PluginProcessor& p)
     setSize (processor.getSettings().editorWidth, processor.getSettings().editorHeight);
 
     kitChanged();
+    applyTheme (theme);
     startTimerHz (30);
 }
 
@@ -437,6 +441,48 @@ Editor::~Editor()
 {
     stopTimer();
     processor.removeListener (this);
+}
+
+void Editor::applyTheme (const Theme& newTheme)
+{
+    theme = newTheme;
+
+    logo = logoDrawable();
+    if (logo != nullptr && theme.isDark)
+    {
+        logo->replaceColour (juce::Colours::black, theme.ink);
+        logo->replaceColour (juce::Colour (0xff000000), theme.ink);
+    }
+
+    kitSelectorButton.setTheme (theme);
+    instSelectorButton.setTheme (theme);
+    outBusButton.setTheme (theme);
+    instLearnButton.setTheme (theme);
+    instCurveButton.setTheme (theme);
+    instCurvePreview.setTheme (theme);
+    for (auto& zb : zoneButtons)
+        if (zb != nullptr)
+            zb->setTheme (theme);
+
+    viewToggleButton.setTheme (theme);
+    fileButton.setTheme (theme);
+    presetsButton.setTheme (theme);
+    midiButton.setTheme (theme);
+    settingsButton.setTheme (theme);
+
+    if (instVolumeKnob != nullptr)   instVolumeKnob->setTheme (theme);
+    if (instPanKnob != nullptr)      instPanKnob->setTheme (theme);
+    if (instPitchKnob != nullptr)    instPitchKnob->setTheme (theme);
+    if (instDynamicsKnob != nullptr) instDynamicsKnob->setTheme (theme);
+    if (masterVolumeKnob != nullptr) masterVolumeKnob->setTheme (theme);
+
+    kitView.setTheme (theme);
+    scope.setTheme (theme);
+
+    if (mixerView != nullptr)
+        mixerView->setTheme (theme);
+
+    repaint();
 }
 
 void Editor::setViewMode (EditorView mode)
@@ -767,8 +813,7 @@ juce::PopupMenu Editor::buildSettingsMenu()
         auto& settings = processor.getSettings();
         settings.themeIndex = settings.themeIndex == 0 ? 1 : 0;
         settings.saveIfChanged();
-        theme = Theme::byIndex (settings.themeIndex);
-        repaint();
+        applyTheme (Theme::byIndex (settings.themeIndex));
     });
 
     menu.addSeparator();
@@ -1197,6 +1242,7 @@ void Editor::rebuildZoneButtons()
             selectZone (selectedLogicalIndex, zoneIdx, true);
         };
 
+        btn->setTheme (theme);
         addAndMakeVisible (*btn);
         zoneButtons.push_back (std::move (btn));
     }
@@ -1636,7 +1682,7 @@ void Editor::paint (juce::Graphics& g)
             const float noteMaxW = static_cast<float> (instLearnButton.getX()) - noteRowX - 4.0f;
 
             g.setFont (displayFont (15.0f));
-            g.setColour (juce::Colour (0xff111215));
+            g.setColour (theme.ink);
             const juce::String notePrefix = "NOTE: ";
             const float pfxW = displayFont (15.0f).getStringWidthFloat (notePrefix);
             g.drawText (notePrefix, juce::Rectangle<float> (noteRowX, noteRowY, pfxW, noteRowH),

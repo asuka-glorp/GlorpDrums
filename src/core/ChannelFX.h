@@ -70,7 +70,7 @@ struct MicStripParams
 /// Parameters for the Master mixer channel.
 struct MasterStripParams
 {
-    float level = 0.85f;           ///< linear master gain
+    float level = 1.0f;            ///< linear master gain (0 dB unity default)
     float pan = 0.0f;              ///< -1.0 .. +1.0
     bool  limiterEnabled = true;   ///< fast transparent soft limiter
     float reverbReturn = 0.25f;    ///< wet reverb return level (0.0 .. 1.0)

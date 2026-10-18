@@ -2,9 +2,26 @@
 
 **GlorpDrums** is a sample-based acoustic drum plugin and standalone application built with JUCE and modern C++20 for Linux musicians. Designed to serve as the definitive Linux alternative to commercial drum samplers, GlorpDrums delivers zero-copy sample playback, multi-zone articulations, comprehensive e-drum calibration, per-instrument sound shaping, and multi-channel stem routing for professional music production.
 
-![GlorpDrums Standalone Interface](docs/screenshot.png)
+![GlorpDrums Dark Theme Interface](docs/dark_kit_view.png)
+
+*GlorpDrums features both a high-contrast Dark Theme with a unified comic-cutout drum kit contour and a warm, hand-drawn Light Sketch Theme.*
+
+<details>
+<summary><b>View Light (Sketch) Theme Interface</b></summary>
+
+![GlorpDrums Light Sketch Interface](docs/screenshot.png)
+
+</details>
 
 ---
+
+## 🥁 Download Flagship Drum Kits
+
+Download official and community-curated drum kits (including ReaperDrummer flagship converted kits such as **Premier Signia**, **Ludwig Black Cortex**, **CrocellKit**, and multi-velocity acoustic libraries):
+
+👉 **[Download Drum Kits on Google Drive](https://drive.google.com/drive/folders/14eSb17o4aXm6neqrlVAfPcXrx5GzndgD?usp=drive_link)**
+
+Place downloaded `.glorpkit` files or extracted kit folders into `~/.glorpdrums/kits/` or `~/.config/GlorpDrums/kits/`, or scan your custom download directory via **FILE $\to$ Scan Custom Folder...**
 
 ## Key Features
 
@@ -39,7 +56,14 @@
 ### 🎛️ Dual-View UI & Full Per-Mic Mixer Tab
 Toggle effortlessly between **[KIT VIEW]** and **[MIXER VIEW]** directly from the top header:
 
-![GlorpDrums Mixer Console](docs/mixer_view_screenshot.png)
+![GlorpDrums Dark Mixer Console](docs/dark_mixer_view.png)
+
+<details>
+<summary><b>View Light (Sketch) Mixer Console</b></summary>
+
+![GlorpDrums Light Mixer Console](docs/mixer_view_screenshot.png)
+
+</details>
 
 * **Per-Mic Channel Strips**: Complete individual strips for every mic channel (Close Kick, Snare Top, Snare Bottom, Hi-Hat, Toms, Overheads L/R, Room, Ambience, Bleed).
 * **Channel Controls**: Smooth volume faders ($- \infty$ to $+6\text{ dB}$ with double-click reset to $0\text{ dB}$), stereo pan bar with center detent, Solo (`S`), Mute (`M`), and Phase Inversion (`Ø`).
@@ -84,7 +108,7 @@ GlorpDrums is actively developed following an ambitious multi-phase roadmap:
 
 * [x] **Phase 1 — E-Drum Input Engine**: Continuous CC#4 hi-hat crossfading, foot chick/splash gestures, and 15ms anti-click cymbal choke damping.
 * [x] **Phase 2 — Full Per-Mic Mixer Tab & Built-in DSP**: Dual-view UI switch ([KIT VIEW] / [MIXER VIEW]), per-mic strips, 3-band EQ, VCA compressor, saturation, transient shaper, master limiter, reverb, and `.glorpmix` presets.
-* [ ] **Phase 3 — Groove Player & MIDI Pattern Library**: Built-in tempo-synced MIDI pattern player, groove audition browser, and drag-and-drop directly into your DAW timeline.
+* [ ] **Phase 3 — Recording Mode & Practice Assistant**: Built-in recording mode that saves both a MIDI file and a WAV recording with the option for importing a backing track with a smart tempo detection algorithm that allows a toggleable count-in for practice or recording.
 * [ ] **Phase 4 — Multi-Mic Leakage & Bleed Matrix**: Realistic snare top bleed into kick mic, tom bleed into overheads, and controllable acoustic crosstalk.
 
 ---

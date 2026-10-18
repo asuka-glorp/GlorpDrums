@@ -348,12 +348,18 @@ void MasterFX::process (float* masterL, float* masterR, int numSamples,
         }
     }
 
-    // 2. Master pan and level
+    // 2. Master pan and level (balance panning for stereo bus)
     float panL = 1.0f, panR = 1.0f;
-    const auto panAngle = std::clamp (static_cast<double> ((std::clamp (params.pan, -1.0f, 1.0f) + 1.0f) * 0.25f) * kPi,
-                                      0.0, 0.5 * kPi);
-    panL = static_cast<float> (std::cos (panAngle));
-    panR = static_cast<float> (std::sin (panAngle));
+    if (params.pan < 0.0f)
+    {
+        panL = 1.0f;
+        panR = 1.0f + params.pan;
+    }
+    else if (params.pan > 0.0f)
+    {
+        panL = 1.0f - params.pan;
+        panR = 1.0f;
+    }
 
     const float finalGainL = params.level * panL;
     const float finalGainR = params.level * panR;

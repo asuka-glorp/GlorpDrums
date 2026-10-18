@@ -652,10 +652,140 @@ void DrumKitView::timerCallback()
         repaint();
 }
 
+void DrumKitView::setTheme (const Theme& newTheme)
+{
+    const bool darkChanged = (theme.isDark != newTheme.isDark);
+    theme = newTheme;
+    if (darkChanged)
+    {
+        hasLayout = false;
+        layout();
+    }
+    repaint();
+}
+
 void DrumKitView::resized()
 {
     hasLayout = false;
     layout();
+}
+
+void DrumKitView::rebuildKitOutline()
+{
+    if (! theme.isDark)
+    {
+        unifiedKitOutlineImage = {};
+        return;
+    }
+
+    const int W = getWidth();
+    const int H = getHeight();
+    if (W <= 50 || H <= 50)
+        return;
+
+    juce::Image composite (juce::Image::ARGB, W, H, true);
+    {
+        juce::Graphics cg (composite);
+        const KitPiece renderOrder[] = {
+            KitPiece::kick,
+            KitPiece::crash1,
+            KitPiece::hihat,
+            KitPiece::snare,
+            KitPiece::tom1,
+            KitPiece::tom2,
+            KitPiece::ride,
+            KitPiece::crash2,
+            KitPiece::floorTom
+        };
+
+        for (auto piece : renderOrder)
+        {
+            const auto& p = pieces[static_cast<size_t> (piece)];
+            if (p.image.isValid() && ! p.bounds.isEmpty())
+                cg.drawImage (p.image, p.bounds, juce::RectanglePlacement::stretchToFit);
+        }
+    }
+
+    std::vector<uint8_t> mask (static_cast<size_t> (W * H), 0);
+    {
+        juce::Image::BitmapData srcData (composite, juce::Image::BitmapData::readOnly);
+        for (int y = 0; y < H; ++y)
+        {
+            for (int x = 0; x < W; ++x)
+            {
+                if (srcData.getPixelColour (x, y).getAlpha() > 25)
+                    mask[static_cast<size_t> (y * W + x)] = 1;
+            }
+        }
+    }
+
+    // Circular dilation kernel with smooth anti-aliased edge falloff
+    const int R = 6;
+    struct KernelPt { int dx, dy; float dist; };
+    std::vector<KernelPt> kernel;
+    for (int dy = -R; dy <= R; ++dy)
+    {
+        for (int dx = -R; dx <= R; ++dx)
+        {
+            float d = std::hypot (static_cast<float> (dx), static_cast<float> (dy));
+            if (d <= static_cast<float> (R) + 0.75f)
+                kernel.push_back ({ dx, dy, d });
+        }
+    }
+
+    std::vector<uint8_t> outlineAlpha (static_cast<size_t> (W * H), 0);
+
+    for (int y = 0; y < H; ++y)
+    {
+        for (int x = 0; x < W; ++x)
+        {
+            if (! mask[static_cast<size_t> (y * W + x)])
+                continue;
+
+            bool isBoundary = (x == 0 || x == W - 1 || y == 0 || y == H - 1 ||
+                               ! mask[static_cast<size_t> (y * W + (x - 1))] ||
+                               ! mask[static_cast<size_t> (y * W + (x + 1))] ||
+                               ! mask[static_cast<size_t> ((y - 1) * W + x)] ||
+                               ! mask[static_cast<size_t> ((y + 1) * W + x)]);
+
+            if (isBoundary)
+            {
+                for (const auto& pt : kernel)
+                {
+                    int nx = x + pt.dx;
+                    int ny = y + pt.dy;
+                    if (nx >= 0 && nx < W && ny >= 0 && ny < H)
+                    {
+                        float falloff = std::clamp ((static_cast<float> (R) + 0.75f - pt.dist) / 1.0f, 0.0f, 1.0f);
+                        uint8_t a = static_cast<uint8_t> (falloff * 255.0f);
+                        size_t idx = static_cast<size_t> (ny * W + nx);
+                        if (a > outlineAlpha[idx])
+                            outlineAlpha[idx] = a;
+                    }
+                }
+            }
+            else
+            {
+                outlineAlpha[static_cast<size_t> (y * W + x)] = 255;
+            }
+        }
+    }
+
+    juce::Image outImg (juce::Image::ARGB, W, H, true);
+    {
+        juce::Image::BitmapData dstData (outImg, juce::Image::BitmapData::readWrite);
+        for (int y = 0; y < H; ++y)
+        {
+            for (int x = 0; x < W; ++x)
+            {
+                uint8_t a = outlineAlpha[static_cast<size_t> (y * W + x)];
+                if (a > 0)
+                    dstData.setPixelColour (x, y, juce::Colour (0xffffffff).withAlpha (static_cast<float> (a) / 255.0f));
+            }
+        }
+    }
+
+    unifiedKitOutlineImage = outImg;
 }
 
 void DrumKitView::layout()
@@ -707,6 +837,7 @@ void DrumKitView::layout()
     }
 
     hasLayout = true;
+    rebuildKitOutline();
 }
 
 void DrumKitView::paint (juce::Graphics& g)
@@ -735,7 +866,13 @@ void DrumKitView::paint (juce::Graphics& g)
         g.drawHorizontalLine (static_cast<int> (H * 0.94f), 0.0f, W);
     }
 
-    // 2. Render back-to-front Z-order matching user layer stack:
+    // 2. Render unified drumkit white contour in Dark Theme
+    if (theme.isDark && unifiedKitOutlineImage.isValid())
+    {
+        g.drawImageAt (unifiedKitOutlineImage, 0, 0);
+    }
+
+    // 3. Render back-to-front Z-order matching user layer stack:
     // kick -> crash_1 -> hihat -> snare -> tom_1 -> tom_2 -> ride -> crash_2 -> f_tom
     const KitPiece renderOrder[] = {
         KitPiece::kick,

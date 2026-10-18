@@ -43,7 +43,19 @@ endif()
 #   libXrandr-devel libXcomposite-devel alsa-lib-devel
 # JUCE's X11 code includes headers from the first three by name, so they are not
 # optional. Everything below builds against the real X11 feature set.
-add_subdirectory(libs/JUCE)
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/libs/JUCE/CMakeLists.txt")
+    add_subdirectory(libs/JUCE)
+else()
+    include(FetchContent)
+    message(STATUS "Local libs/JUCE not found; downloading JUCE 8.0.6 via FetchContent...")
+    FetchContent_Declare(
+        JUCE
+        GIT_REPOSITORY https://github.com/juce-framework/JUCE.git
+        GIT_TAG        8.0.6
+        GIT_SHALLOW    TRUE
+    )
+    FetchContent_MakeAvailable(JUCE)
+endif()
 
 #==================================================================================
 # Plugin targets

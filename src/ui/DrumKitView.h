@@ -50,6 +50,8 @@ public:
     void setEditMode (bool enabled);
     void setSelectedPiece (KitPiece piece) { selectedPiece = piece; repaint(); }
 
+    void setTheme (const Theme& newTheme);
+
     KitPiece pieceAt (juce::Point<float> pos) const;
 
     void paint (juce::Graphics&) override;
@@ -117,6 +119,9 @@ private:
 
     Theme theme = Theme::sketch();
     bool hasLayout = false;
+
+    juce::Image unifiedKitOutlineImage;
+    void rebuildKitOutline();
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (DrumKitView)
 };

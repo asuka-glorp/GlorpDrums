@@ -345,6 +345,49 @@ int main()
                     std::cout << "Saved Mixer FX Drawer snapshot to: " << outFXFile.getFullPathName().toStdString() << std::endl;
                 }
             }
+
+            // 7. Test Dark Theme Overhaul (Kit View + Thick White Drumkit Outline + Dark Mixer View)
+            ed->applyTheme (glorp::Theme::dark());
+            ed->setViewMode (glorp::Editor::EditorView::kitView);
+
+            // Trigger hit on Snare for dark theme hit snapshot
+            for (auto* edChild : ed->getChildren())
+            {
+                if (auto* kv = dynamic_cast<glorp::DrumKitView*> (edChild))
+                {
+                    kv->triggerHitForPiece (glorp::KitPiece::snare, 1.0f);
+                }
+            }
+
+            auto darkKitImg = pluginEditor->createComponentSnapshot (pluginEditor->getLocalBounds());
+            juce::File darkKitFile ("/home/servandoc/Documents/DEV/GlorpDrums/test/editor_snapshot_dark.png");
+            darkKitFile.deleteFile();
+            juce::FileOutputStream fosDarkKit (darkKitFile);
+            if (fosDarkKit.openedOk())
+            {
+                juce::PNGImageFormat png;
+                png.writeImageToStream (darkKitImg, fosDarkKit);
+                std::cout << "Saved Dark Kit View snapshot to: " << darkKitFile.getFullPathName().toStdString() << std::endl;
+            }
+
+            // Dark Mixer View snapshot
+            ed->setViewMode (glorp::Editor::EditorView::mixerView);
+            if (auto* mv = ed->getMixerView())
+            {
+                // Dismiss open popup so channel strips are fully exposed
+                mv->closePopups();
+            }
+            auto darkMixerImg = pluginEditor->createComponentSnapshot (pluginEditor->getLocalBounds());
+            juce::File darkMixerFile ("/home/servandoc/Documents/DEV/GlorpDrums/test/mixer_view_snapshot_dark.png");
+            darkMixerFile.deleteFile();
+            juce::FileOutputStream fosDarkMixer (darkMixerFile);
+            if (fosDarkMixer.openedOk())
+            {
+                juce::PNGImageFormat png;
+                png.writeImageToStream (darkMixerImg, fosDarkMixer);
+                std::cout << "Saved Dark Mixer View snapshot to: " << darkMixerFile.getFullPathName().toStdString() << std::endl;
+            }
+
             break;
         }
     }

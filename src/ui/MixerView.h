@@ -31,6 +31,8 @@ public:
     void refreshChannels();
     void openChannelFX (int channelIndex);
     void openMasterFX();
+    void closePopups();
+    void setTheme (const Theme& newTheme);
 
 private:
     void timerCallback() override;
@@ -48,10 +50,12 @@ private:
         void paintButton (juce::Graphics& g, bool isHover, bool isDown) override;
         void setActive (bool a) { active = a; repaint(); }
         bool getActive() const noexcept { return active; }
+        void setTheme (const Theme& t) { theme = t; repaint(); }
         juce::Colour activeColour = juce::Colour (0xfff1c40f);
     private:
         bool isToggle_ = false;
         bool active = false;
+        Theme theme = Theme::sketch();
     };
 
     //==========================================================================
@@ -64,6 +68,7 @@ private:
         void openForChannel (int channelIndex);
         void close();
         bool isOpen() const noexcept { return isVisible(); }
+        void setTheme (const Theme& t);
 
         void paint (juce::Graphics& g) override;
         void resized() override;
@@ -73,6 +78,7 @@ private:
         MixerView& owner;
         PluginProcessor& processor;
         int currentChannel = -1;
+        Theme theme = Theme::sketch();
 
         HandButton closeBtn { "CLOSE" };
         HandButton eqToggle { "EQ ON", true };
@@ -107,6 +113,7 @@ private:
         void open();
         void close();
         bool isOpen() const noexcept { return isVisible(); }
+        void setTheme (const Theme& t);
 
         void paint (juce::Graphics& g) override;
         void resized() override;
@@ -115,6 +122,7 @@ private:
     private:
         MixerView& owner;
         PluginProcessor& processor;
+        Theme theme = Theme::sketch();
 
         HandButton closeBtn { "CLOSE" };
         HandButton limiterToggle { "LIMITER", true };
@@ -141,11 +149,13 @@ private:
 
         int getChannelIndex() const noexcept { return channelIndex_; }
         void updateFromState();
+        void setTheme (const Theme& t);
 
     private:
         MixerView& owner;
         PluginProcessor& processor;
         int channelIndex_ = 0;
+        Theme theme = Theme::sketch();
 
         HandButton phaseBtn { "0", true };
         HandButton fxBtn    { "FX", true };
@@ -178,10 +188,12 @@ private:
         void mouseDoubleClick (const juce::MouseEvent& e) override;
 
         void updateFromState();
+        void setTheme (const Theme& t);
 
     private:
         MixerView& owner;
         PluginProcessor& processor;
+        Theme theme = Theme::sketch();
 
         HandButton fxBtn { "REVERB FX" };
         HandButton limiterBtn { "LIMITER", true };
