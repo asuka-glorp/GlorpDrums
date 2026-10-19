@@ -88,6 +88,33 @@ Click the **FX** drawer on any channel strip to open an inline analog-inspired p
 * **Dynamic Foot Chick & Splash**: Instant foot chick triggered by fast downward pedal stomp ($\Delta CC > 0.40$ in $< 45\text{ ms}$), and foot splash triggered on rapid stomp-and-release gestures.
 * **15ms Anti-Click Cymbal Chokes**: Choke damping via Polyphonic Key Pressure (`0xA0`) and Channel Pressure (`0xD0`) with a smooth $C^1$ half-cosine fade window to eliminate digital clicks.
 
+### 🎙️ Phase 3 — Dual-Format Recording & Practice Mode
+Access the integrated practice suite directly via the **[PRACTICE]** header button:
+
+![GlorpDrums Practice & Recording View](docs/practice_view_screenshot.png)
+
+<details>
+<summary><b>View Dark Theme Practice & Recording View</b></summary>
+
+![GlorpDrums Dark Practice View](docs/practice_view_snapshot_dark.png)
+
+</details>
+
+* **Synchronized Dual-Format Recording**:
+  * **24-bit PCM WAV**: Captures bit-accurate audio straight from the plugin engine via a lock-free circular ring buffer (zero allocations on the real-time audio thread).
+  * **Standard MIDI File (SMF Type 1)**: Simultaneously records all incoming MIDI notes, velocities, polyphonic cymbal chokes, and continuous CC#4 pedal motion curves into a `.mid` file with millisecond-accurate tempo maps.
+  * **Configurable Audio Content**: Default records **Drums Only** (ideal for laying drum tracks into a DAW project) with an instant toggle for **Full Mix** (drums + backing track).
+  * **DAW Drag-and-Drop Export**: Quickly export recorded takes to any folder or drag them straight into Reaper, Bitwig, or Ardour.
+* **Smart Tempo Detection & Backing Track Player**:
+  * **Multi-Format Player**: Drag-and-drop or load `.wav`, `.mp3`, `.flac`, `.aiff`, or `.ogg` backing tracks with transparent sample rate resampling, playhead scrubbing, loop regions, volume, and mute.
+  * **Spectral Flux Tempo Analysis**: Real-time STFT onset novelty curve, autocorrelation across 60–200 BPM, parabolic peak interpolation, and downbeat phase alignment detect track BPM automatically with confidence scoring.
+  * **Interactive BPM Controls**: Instant Tap Tempo, double/half speed (`x 2`, `/ 2`), and fine nudge (`-0.5`, `+0.5` BPM).
+* **Sample-Accurate Practice Metronome**:
+  * **Count-In Options**: Toggleable count-in modes (**OFF**, **1 Bar / 4 Beats**, **2 Bars / 8 Beats**) with synchronized playback start.
+  * **Click Voices**: Studio-grade synthesized pulses including **Woodblock**, **Studio Beep**, **SideStick**, and **Cowbell**.
+  * **Visual Beat Counter**: 4 comic-sketched flashing beat indicator circles (`1 - 2 - 3 - 4`) with distinct accent flashing for downbeats.
+  * **Live Rhythm Ribbon**: 6-lane rolling drum ribbon provides instant visual feedback on timing accuracy across Kick, Snare, Hi-Hat, Toms, Cymbals, and Ride.
+
 ---
 
 ## E-Drum Calibration & Setup Wizard
@@ -108,7 +135,7 @@ GlorpDrums is actively developed following an ambitious multi-phase roadmap:
 
 * [x] **Phase 1 — E-Drum Input Engine**: Continuous CC#4 hi-hat crossfading, foot chick/splash gestures, and 15ms anti-click cymbal choke damping.
 * [x] **Phase 2 — Full Per-Mic Mixer Tab & Built-in DSP**: Dual-view UI switch ([KIT VIEW] / [MIXER VIEW]), per-mic strips, 3-band EQ, VCA compressor, saturation, transient shaper, master limiter, reverb, and `.glorpmix` presets.
-* [ ] **Phase 3 — Recording Mode & Practice Assistant**: Built-in recording mode that saves both a MIDI file and a WAV recording with the option for importing a backing track with a smart tempo detection algorithm that allows a toggleable count-in for practice or recording.
+* [x] **Phase 3 — Recording Mode & Practice Assistant**: Synchronized 24-bit WAV + SMF Type 1 MIDI recording (drums-only default with full-mix toggle), backing track player with transparent resampling, spectral-flux tempo detection, metronome with 1-bar / 2-bar count-in, flashing beat counter, and 6-lane rolling rhythm ribbon.
 * [ ] **Phase 4 — Multi-Mic Leakage & Bleed Matrix**: Realistic snare top bleed into kick mic, tom bleed into overheads, and controllable acoustic crosstalk.
 
 ---

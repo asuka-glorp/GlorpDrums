@@ -877,6 +877,37 @@ void Sampler::noteOn (int instrument, int note, float velocity, int64_t timeInSa
     triggerVoice (instrument, note, velocity, timeInSamples);
 }
 
+namespace
+{
+static bool isSameCymbal (const juce::String& nameA, const juce::String& nameB)
+{
+    const auto a = nameA.toLowerCase().removeCharacters (" _-");
+    const auto b = nameB.toLowerCase().removeCharacters (" _-");
+
+    // Check specific numbered/positioned cymbals (e.g. crash1 vs crash2, ride1 vs ride2)
+    for (const char* id : { "crash1", "crash2", "crash3", "crash4", "crashl", "crashr",
+                            "ride1", "ride2", "ride3", "china1", "china2", "splash1", "splash2" })
+    {
+        if (a.contains (id))
+            return b.contains (id);
+    }
+
+    // Generic cymbal families when neither has a number/position
+    if (a.contains ("ride"))
+        return b.contains ("ride") && ! b.contains ("ride1") && ! b.contains ("ride2") && ! b.contains ("ride3");
+    if (a.contains ("china"))
+        return b.contains ("china") && ! b.contains ("china1") && ! b.contains ("china2");
+    if (a.contains ("splash"))
+        return b.contains ("splash") && ! b.contains ("splash1") && ! b.contains ("splash2");
+    if (a.contains ("crash"))
+        return b.contains ("crash") && ! b.contains ("crash1") && ! b.contains ("crash2")
+            && ! b.contains ("crash3") && ! b.contains ("crash4")
+            && ! b.contains ("crashl") && ! b.contains ("crashr");
+
+    return false;
+}
+} // namespace
+
 void Sampler::triggerVoice (int instrument, int note, float velocity, int64_t timeInSamples)
 {
     if (instrument < 0 || instrument >= instrumentCount)
@@ -886,23 +917,34 @@ void Sampler::triggerVoice (int instrument, int note, float velocity, int64_t ti
     if (runtime.hits.empty())
         return;
 
-    // Choke instruments sharing the same group (hi-hats share "hihat"; cymbals must never cross-choke other cymbals)
-    if (runtime.group.isNotEmpty() && ! runtime.group.equalsIgnoreCase ("cymbals"))
-    {
-        for (int i = 0; i < instrumentCount; ++i)
-        {
-            if (i == instrument)
-                continue;
+    // The only zones that stop playback when triggered are chokes (for the same cymbal)
+    // and hi-hat pedal closing.
+    const bool isChoke = runtime.name.containsIgnoreCase ("choke");
+    const bool isHiHatPedal = (instrument == hiHat.pedal);
 
-            if (instruments_[static_cast<size_t> (i)].group == runtime.group)
-                chokeInstrument (i, 20, timeInSamples);
+    if (isChoke)
+    {
+        chokeCymbal (instrument, 30, timeInSamples);
+
+        for (const auto& target : runtime.chokeTargets)
+        {
+            if (target.instrumentIndex >= 0 && target.instrumentIndex < instrumentCount)
+            {
+                const auto& targetInst = instruments_[static_cast<size_t> (target.instrumentIndex)];
+                if (isSameCymbal (runtime.name, targetInst.name))
+                    chokeInstrument (target.instrumentIndex, static_cast<int64_t> (target.chokeTimeMs), timeInSamples);
+            }
         }
     }
-
-    for (const auto& target : runtime.chokeTargets)
+    else if (isHiHatPedal)
     {
-        if (target.instrumentIndex >= 0 && target.instrumentIndex < instrumentCount)
-            chokeInstrument (target.instrumentIndex, static_cast<int64_t> (target.chokeTimeMs), timeInSamples);
+        if (hiHat.open >= 0) chokeInstrument (hiHat.open, 20, timeInSamples);
+        if (hiHat.openEdge >= 0) chokeInstrument (hiHat.openEdge, 20, timeInSamples);
+        if (hiHat.open1 >= 0) chokeInstrument (hiHat.open1, 20, timeInSamples);
+        if (hiHat.open2 >= 0) chokeInstrument (hiHat.open2, 20, timeInSamples);
+        if (hiHat.open3 >= 0) chokeInstrument (hiHat.open3, 20, timeInSamples);
+        if (hiHat.open4 >= 0) chokeInstrument (hiHat.open4, 20, timeInSamples);
+        if (hiHat.semiOpen >= 0) chokeInstrument (hiHat.semiOpen, 20, timeInSamples);
     }
 
     auto* voice = allocateVoice();
@@ -1077,6 +1119,8 @@ void Sampler::setHiHatPedal (float pedalValue) noexcept
     }
 }
 
+
+
 void Sampler::chokeCymbal (int instrumentIndex, int64_t fadeMs, int64_t timeInSamples)
 {
     if (instrumentIndex < 0 || instrumentIndex >= instrumentCount)
@@ -1084,24 +1128,15 @@ void Sampler::chokeCymbal (int instrumentIndex, int64_t fadeMs, int64_t timeInSa
 
     chokeInstrument (instrumentIndex, fadeMs, timeInSamples);
 
-    const auto name = instruments_[static_cast<size_t> (instrumentIndex)].name.toLowerCase();
-    juce::String stem = name;
-    for (const char* suffix : { "edge", "bow", "bell", "choke", "crash", "ride", "splash", "china" })
-    {
-        if (stem.endsWith (suffix) && stem.length() > static_cast<int> (std::strlen (suffix)))
-        {
-            stem = stem.dropLastCharacters (static_cast<int> (std::strlen (suffix)));
-            break;
-        }
-    }
+    const auto name = instruments_[static_cast<size_t> (instrumentIndex)].name;
 
     for (int i = 0; i < instrumentCount; ++i)
     {
         if (i == instrumentIndex)
             continue;
 
-        const auto otherName = instruments_[static_cast<size_t> (i)].name.toLowerCase();
-        if (otherName.startsWith (stem))
+        const auto otherName = instruments_[static_cast<size_t> (i)].name;
+        if (isSameCymbal (name, otherName))
             chokeInstrument (i, fadeMs, timeInSamples);
     }
 }

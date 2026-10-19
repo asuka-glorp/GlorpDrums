@@ -1,56 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<instrument version="2.0">
-  <metadata>
-    <title>Tom2Head</title>
-  </metadata>
+<instrument name="Tom2Head" version="2.0">
   <samples>
-    <sample name="v1_soft_rr1" power="0.25">
-      <audiofile channel="OHL" file="samples/v1_soft_rr1.wav" filechannel="1"/>
-      <audiofile channel="OHR" file="samples/v1_soft_rr1.wav" filechannel="2"/>
+    <sample name="hiTom_OH_F_4" power="0.750">
+      <audiofile channel="OHL" file="hiTom_OH_F_4.wav"/>
+      <audiofile channel="OHR" file="hiTom_OH_F_4.wav"/>
     </sample>
-    <sample name="v1_soft_rr2" power="0.25">
-      <audiofile channel="OHL" file="samples/v1_soft_rr2.wav" filechannel="1"/>
-      <audiofile channel="OHR" file="samples/v1_soft_rr2.wav" filechannel="2"/>
+    <sample name="hiTom_OH_FF_4" power="1.000">
+      <audiofile channel="OHL" file="hiTom_OH_FF_4.wav"/>
+      <audiofile channel="OHR" file="hiTom_OH_FF_4.wav"/>
     </sample>
-    <sample name="v1_soft_rr3" power="0.25">
-      <audiofile channel="OHL" file="samples/v1_soft_rr3.wav" filechannel="1"/>
-      <audiofile channel="OHR" file="samples/v1_soft_rr3.wav" filechannel="2"/>
-    </sample>
-    <sample name="v2_med_rr1" power="0.50">
-      <audiofile channel="OHL" file="samples/v2_med_rr1.wav" filechannel="1"/>
-      <audiofile channel="OHR" file="samples/v2_med_rr1.wav" filechannel="2"/>
-    </sample>
-    <sample name="v2_med_rr2" power="0.50">
-      <audiofile channel="OHL" file="samples/v2_med_rr2.wav" filechannel="1"/>
-      <audiofile channel="OHR" file="samples/v2_med_rr2.wav" filechannel="2"/>
-    </sample>
-    <sample name="v2_med_rr3" power="0.50">
-      <audiofile channel="OHL" file="samples/v2_med_rr3.wav" filechannel="1"/>
-      <audiofile channel="OHR" file="samples/v2_med_rr3.wav" filechannel="2"/>
-    </sample>
-    <sample name="v3_hard_rr1" power="0.75">
-      <audiofile channel="OHL" file="samples/v3_hard_rr1.wav" filechannel="1"/>
-      <audiofile channel="OHR" file="samples/v3_hard_rr1.wav" filechannel="2"/>
-    </sample>
-    <sample name="v3_hard_rr2" power="0.75">
-      <audiofile channel="OHL" file="samples/v3_hard_rr2.wav" filechannel="1"/>
-      <audiofile channel="OHR" file="samples/v3_hard_rr2.wav" filechannel="2"/>
-    </sample>
-    <sample name="v3_hard_rr3" power="0.75">
-      <audiofile channel="OHL" file="samples/v3_hard_rr3.wav" filechannel="1"/>
-      <audiofile channel="OHR" file="samples/v3_hard_rr3.wav" filechannel="2"/>
-    </sample>
-    <sample name="v4_accent_rr1" power="1.00">
-      <audiofile channel="OHL" file="samples/v4_accent_rr1.wav" filechannel="1"/>
-      <audiofile channel="OHR" file="samples/v4_accent_rr1.wav" filechannel="2"/>
-    </sample>
-    <sample name="v4_accent_rr2" power="1.00">
-      <audiofile channel="OHL" file="samples/v4_accent_rr2.wav" filechannel="1"/>
-      <audiofile channel="OHR" file="samples/v4_accent_rr2.wav" filechannel="2"/>
-    </sample>
-    <sample name="v4_accent_rr3" power="1.00">
-      <audiofile channel="OHL" file="samples/v4_accent_rr3.wav" filechannel="1"/>
-      <audiofile channel="OHR" file="samples/v4_accent_rr3.wav" filechannel="2"/>
+    <sample name="hiTom_OH_P_3" power="0.400">
+      <audiofile channel="OHL" file="hiTom_OH_P_3.wav"/>
+      <audiofile channel="OHR" file="hiTom_OH_P_3.wav"/>
     </sample>
   </samples>
 </instrument>

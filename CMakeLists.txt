@@ -147,6 +147,11 @@ target_sources(GlorpDrums PRIVATE
     src/core/Settings.cpp
     src/core/GlorpKit.cpp
     src/core/ChannelFX.cpp
+    src/practice/TempoDetector.cpp
+    src/practice/Metronome.cpp
+    src/practice/AudioRecorder.cpp
+    src/practice/MidiRecorder.cpp
+    src/practice/BackingTrackPlayer.cpp
     src/ui/Editor.cpp
     src/ui/DrumKitView.cpp
     src/ui/CalloutBox.cpp
@@ -154,19 +159,23 @@ target_sources(GlorpDrums PRIVATE
     src/ui/Scope.cpp
     src/ui/EDrumWizard.cpp
     src/ui/MixerView.cpp
+    src/ui/RecordPracticeView.cpp
 )
 
 # Bundled logo and fonts, as a static library so both the VST3/LV2 binaries and
 # the standalone executable can share them.
 target_link_libraries(GlorpDrums PRIVATE GlorpDrumsAssets)
 
-target_include_directories(GlorpDrums PRIVATE src src/core src/plugin src/ui)
+target_include_directories(GlorpDrums PRIVATE src src/core src/plugin src/ui src/practice)
 
-target_compile_definitions(GlorpDrums PRIVATE
+target_compile_definitions(GlorpDrums PUBLIC
     JUCE_WEB_BROWSER=0
     JUCE_USE_CURL=0
     JUCE_VST3_CAN_REPLACE_VST2=0
     JUCE_DISPLAY_SPLASH_SCREEN=0
+    JUCE_USE_MP3AUDIOFORMAT=1
+    JUCE_USE_OGGVORBIS=1
+    JUCE_USE_FLAC=1
     GLORP_MAX_INSTRUMENT_BUSES=${GLORP_MAX_INSTRUMENT_BUSES}
 )
 
@@ -221,19 +230,19 @@ if(GLORP_BUILD_TESTS)
     add_test(NAME core COMMAND glorp_core_tests)
 
     add_executable(test_editor test/test_editor.cpp)
-    target_include_directories(test_editor PRIVATE src src/core src/plugin src/ui)
+    target_include_directories(test_editor PRIVATE src src/core src/plugin src/ui src/practice)
     target_link_libraries(test_editor PRIVATE GlorpDrums GlorpDrumsAssets juce::juce_audio_utils juce::juce_audio_processors juce::juce_recommended_warning_flags)
 
     add_executable(test_zones_knobs test/test_zones_knobs.cpp)
-    target_include_directories(test_zones_knobs PRIVATE src src/core src/plugin src/ui)
+    target_include_directories(test_zones_knobs PRIVATE src src/core src/plugin src/ui src/practice)
     target_link_libraries(test_zones_knobs PRIVATE GlorpDrums GlorpDrumsAssets juce::juce_audio_utils juce::juce_audio_processors juce::juce_recommended_warning_flags)
 
     add_executable(diagnose_crocell_knobs test/diagnose_crocell_knobs.cpp)
-    target_include_directories(diagnose_crocell_knobs PRIVATE src src/core src/plugin src/ui)
+    target_include_directories(diagnose_crocell_knobs PRIVATE src src/core src/plugin src/ui src/practice)
     target_link_libraries(diagnose_crocell_knobs PRIVATE GlorpDrums GlorpDrumsAssets juce::juce_audio_utils juce::juce_audio_processors juce::juce_recommended_warning_flags)
 
     add_executable(verify_fixes test/verify_fixes.cpp)
-    target_include_directories(verify_fixes PRIVATE src src/core src/plugin src/ui)
+    target_include_directories(verify_fixes PRIVATE src src/core src/plugin src/ui src/practice)
     target_link_libraries(verify_fixes PRIVATE GlorpDrums GlorpDrumsAssets juce::juce_audio_utils juce::juce_audio_processors juce::juce_recommended_warning_flags)
 endif()
 

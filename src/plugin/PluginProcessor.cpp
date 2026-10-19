@@ -160,16 +160,26 @@ void PluginProcessor::createParameterLayout()
 void PluginProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
     sampler.setSampleRateAndBlock (sampleRate, samplesPerBlock);
+    backingTrackPlayer.prepareToPlay (sampleRate, samplesPerBlock);
+    metronome.prepareToPlay (sampleRate, samplesPerBlock);
+    audioRecorder.prepareToPlay (sampleRate, samplesPerBlock);
 }
 
 void PluginProcessor::releaseResources()
 {
     sampler.allNotesOff();
+    metronome.stop();
+    backingTrackPlayer.stop();
+    audioRecorder.stopRecording();
+    midiRecorder.stopRecording();
 }
 
 void PluginProcessor::sampleRateChanged (double newRate)
 {
     sampler.setSampleRateAndBlock (newRate, 512);
+    backingTrackPlayer.prepareToPlay (newRate, 512);
+    metronome.prepareToPlay (newRate, 512);
+    audioRecorder.prepareToPlay (newRate, 512);
 }
 
 void PluginProcessor::blockSizeChanged (int)
@@ -252,6 +262,9 @@ void PluginProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Midi
     {
         const auto message = metadata.getMessage();
         const auto sampleOffset = metadata.samplePosition;
+
+        if (midiRecorder.isRecording())
+            midiRecorder.logMessage (message, sampler.currentSamplePosition() + sampleOffset);
 
         // Learn has first refusal on every message, so the first note played after
         // arming a callout's LEARN button is the one that gets bound.
@@ -346,17 +359,9 @@ void PluginProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Midi
             continue;
         }
 
-        // 4. Note-Off choke: some e-drum modules send note-off with high release velocity to indicate choke
+        // 4. Note-Off: acoustic drums and cymbals ring out naturally until natural decay or explicit choke
         if (message.isNoteOff())
-        {
-            if (message.getVelocity() > 64)
-            {
-                const int inst = midiMap.instrumentForNote (message.getNoteNumber());
-                if (inst >= 0)
-                    sampler.chokeCymbal (inst, 20, sampler.currentSamplePosition() + sampleOffset);
-            }
             continue;
-        }
 
         if (! message.isNoteOn() || message.getVelocity() <= 0)
             continue;
@@ -379,6 +384,21 @@ void PluginProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Midi
         channelPointers.push_back (buffer.getWritePointer (c));
 
     sampler.render (channelPointers.data(), numChannels, numSamples);
+
+    // If recording drums only (default), stream rendered drum audio now
+    if (audioRecorder.isRecording() && audioRecorder.getSource() == AudioRecorder::RecordingSource::drumsOnly)
+        audioRecorder.pushAudio (channelPointers.data(), numChannels, numSamples);
+
+    // Play backing track (mixes into buffer)
+    backingTrackPlayer.render (channelPointers.data(), numChannels, numSamples);
+
+    // If recording full mix, stream combined drums + backing track (WITHOUT metronome)
+    if (audioRecorder.isRecording() && audioRecorder.getSource() == AudioRecorder::RecordingSource::fullMix)
+        audioRecorder.pushAudio (channelPointers.data(), numChannels, numSamples);
+
+    // Play metronome / count-in clicks for the player's monitor output ONLY (never recorded)
+    metronome.render (channelPointers.data(), numChannels, numSamples,
+                      backingTrackPlayer.getPlayheadSeconds(), backingTrackPlayer.isPlaying());
 }
 
 //==============================================================================

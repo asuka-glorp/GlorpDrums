@@ -346,7 +346,55 @@ int main()
                 }
             }
 
-            // 7. Test Dark Theme Overhaul (Kit View + Thick White Drumkit Outline + Dark Mixer View)
+            // Create and load a test backing track file for authentic waveforms & beat grid
+            juce::File backingWav ("/tmp/demo_backing_track.wav");
+            backingWav.deleteFile();
+            {
+                const double sr = 44100.0;
+                const int numSamples = static_cast<int> (sr * 16.0); // 16 seconds
+                juce::AudioBuffer<float> backingBuf (2, numSamples);
+                backingBuf.clear();
+                const double bpm = 120.0;
+                const int spb = static_cast<int> (sr * 60.0 / bpm);
+                for (int s = 0; s < numSamples; ++s)
+                {
+                    int beatIndex = s / spb;
+                    int beatOffset = s % spb;
+                    float beatEnv = std::exp (-static_cast<float> (beatOffset) / 1200.0f);
+                    float freq = (beatIndex % 4 == 0) ? 120.0f : 240.0f;
+                    float val = std::sin (2.0f * juce::MathConstants<float>::pi * freq * beatOffset / static_cast<float> (sr)) * beatEnv * 0.75f;
+                    backingBuf.setSample (0, s, val);
+                    backingBuf.setSample (1, s, val);
+                }
+                juce::WavAudioFormat wav;
+                auto fos = backingWav.createOutputStream();
+                if (fos)
+                {
+                    std::unique_ptr<juce::AudioFormatWriter> writer (
+                        wav.createWriterFor (fos.get(), sr, 2, 16, {}, 0));
+                    if (writer)
+                    {
+                        fos.release();
+                        writer->writeFromAudioSampleBuffer (backingBuf, 0, numSamples);
+                    }
+                }
+            }
+            proc.getBackingTrackPlayer().loadFile (backingWav);
+
+            // 7. Test Practice & Record View snapshot (Light Theme)
+            ed->setViewMode (glorp::Editor::EditorView::practiceView);
+            auto imagePractice = pluginEditor->createComponentSnapshot (pluginEditor->getLocalBounds());
+            juce::File outPracticeFile ("/home/servandoc/Documents/DEV/GlorpDrums/docs/practice_view_screenshot.png");
+            outPracticeFile.deleteFile();
+            juce::FileOutputStream fosPractice (outPracticeFile);
+            if (fosPractice.openedOk())
+            {
+                juce::PNGImageFormat png;
+                png.writeImageToStream (imagePractice, fosPractice);
+                std::cout << "Saved Practice View snapshot to: " << outPracticeFile.getFullPathName().toStdString() << std::endl;
+            }
+
+            // 8. Test Dark Theme Overhaul (Kit View + Thick White Drumkit Outline + Dark Mixer View + Dark Practice View)
             ed->applyTheme (glorp::Theme::dark());
             ed->setViewMode (glorp::Editor::EditorView::kitView);
 
@@ -386,6 +434,49 @@ int main()
                 juce::PNGImageFormat png;
                 png.writeImageToStream (darkMixerImg, fosDarkMixer);
                 std::cout << "Saved Dark Mixer View snapshot to: " << darkMixerFile.getFullPathName().toStdString() << std::endl;
+            }
+
+            // Dark Practice View snapshot
+            ed->setViewMode (glorp::Editor::EditorView::practiceView);
+            auto darkPracticeImg = pluginEditor->createComponentSnapshot (pluginEditor->getLocalBounds());
+            juce::File darkPracticeFile ("/home/servandoc/Documents/DEV/GlorpDrums/docs/practice_view_snapshot_dark.png");
+            darkPracticeFile.deleteFile();
+            juce::FileOutputStream fosDarkPractice (darkPracticeFile);
+            if (fosDarkPractice.openedOk())
+            {
+                juce::PNGImageFormat png;
+                png.writeImageToStream (darkPracticeImg, fosDarkPractice);
+                std::cout << "Saved Dark Practice View snapshot to: " << darkPracticeFile.getFullPathName().toStdString() << std::endl;
+            }
+
+            // Dark Practice View with REC armed (red pulsing halo glow)
+            for (auto* edChild : ed->getChildren())
+            {
+                if (auto* pv = dynamic_cast<glorp::RecordPracticeView*> (edChild))
+                {
+                    for (auto* pvChild : pv->getChildren())
+                    {
+                        if (auto* btn = dynamic_cast<juce::Button*> (pvChild))
+                        {
+                            if (btn->getButtonText() == "REC" || btn->getName() == "REC")
+                            {
+                                if (btn->onClick)
+                                    btn->onClick();
+                            }
+                        }
+                    }
+                }
+            }
+
+            auto armedPracticeImg = pluginEditor->createComponentSnapshot (pluginEditor->getLocalBounds());
+            juce::File armedPracticeFile ("/home/servandoc/Documents/DEV/GlorpDrums/docs/practice_view_rec_armed.png");
+            armedPracticeFile.deleteFile();
+            juce::FileOutputStream fosArmed (armedPracticeFile);
+            if (fosArmed.openedOk())
+            {
+                juce::PNGImageFormat png;
+                png.writeImageToStream (armedPracticeImg, fosArmed);
+                std::cout << "Saved Armed Practice View snapshot to: " << armedPracticeFile.getFullPathName().toStdString() << std::endl;
             }
 
             break;

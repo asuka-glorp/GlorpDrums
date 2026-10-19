@@ -361,6 +361,9 @@ Editor::Editor (PluginProcessor& p)
     mixerView = std::make_unique<MixerView> (processor);
     addChildComponent (*mixerView);
 
+    practiceView = std::make_unique<RecordPracticeView> (processor);
+    addChildComponent (*practiceView);
+
     edrumWizard = std::make_unique<EDrumWizard> (processor);
     addChildComponent (*edrumWizard);
     edrumWizard->onClose = [this]
@@ -465,6 +468,7 @@ void Editor::applyTheme (const Theme& newTheme)
             zb->setTheme (theme);
 
     viewToggleButton.setTheme (theme);
+    practiceToggleButton.setTheme (theme);
     fileButton.setTheme (theme);
     presetsButton.setTheme (theme);
     midiButton.setTheme (theme);
@@ -482,6 +486,9 @@ void Editor::applyTheme (const Theme& newTheme)
     if (mixerView != nullptr)
         mixerView->setTheme (theme);
 
+    if (practiceView != nullptr)
+        practiceView->applyTheme (theme);
+
     repaint();
 }
 
@@ -489,12 +496,15 @@ void Editor::setViewMode (EditorView mode)
 {
     currentView = mode;
     const bool isKit = (currentView == EditorView::kitView);
+    const bool isMixer = (currentView == EditorView::mixerView);
+    const bool isPractice = (currentView == EditorView::practiceView);
 
     if (edrumWizard != nullptr)
         edrumWizard->close();
 
     viewToggleButton.setButtonText (isKit ? "MIXER VIEW" : "KIT VIEW");
-    viewToggleButton.setActive (! isKit);
+    viewToggleButton.setActive (isMixer);
+    practiceToggleButton.setActive (isPractice);
 
     kitView.setVisible (isKit);
     kitSelectorButton.setVisible (isKit);
@@ -516,9 +526,14 @@ void Editor::setViewMode (EditorView mode)
 
     if (mixerView != nullptr)
     {
-        mixerView->setVisible (! isKit);
-        if (! isKit)
+        mixerView->setVisible (isMixer);
+        if (isMixer)
             mixerView->refreshChannels();
+    }
+
+    if (practiceView != nullptr)
+    {
+        practiceView->setVisible (isPractice);
     }
 
     resized();
@@ -534,6 +549,13 @@ bool Editor::keyPressed (const juce::KeyPress& key)
         kitView.setEditMode (! kitView.isEditMode());
         return true;
     }
+
+    if (currentView == EditorView::practiceView && practiceView != nullptr)
+    {
+        if (practiceView->keyPressed (key))
+            return true;
+    }
+
     return false;
 }
 
@@ -576,6 +598,7 @@ void Editor::filesDropped (const juce::StringArray& files, int /*x*/, int /*y*/)
 void Editor::buildHeaderMenu()
 {
     addAndMakeVisible (viewToggleButton);
+    addAndMakeVisible (practiceToggleButton);
     addAndMakeVisible (fileButton);
     addAndMakeVisible (presetsButton);
     addAndMakeVisible (midiButton);
@@ -583,7 +606,18 @@ void Editor::buildHeaderMenu()
 
     viewToggleButton.onClick = [this]
     {
-        setViewMode (currentView == EditorView::kitView ? EditorView::mixerView : EditorView::kitView);
+        if (currentView == EditorView::mixerView)
+            setViewMode (EditorView::kitView);
+        else
+            setViewMode (EditorView::mixerView);
+    };
+
+    practiceToggleButton.onClick = [this]
+    {
+        if (currentView == EditorView::practiceView)
+            setViewMode (EditorView::kitView);
+        else
+            setViewMode (EditorView::practiceView);
     };
 
     auto showMenu = [this] (juce::PopupMenu& m, juce::Component* target)
@@ -1505,17 +1539,20 @@ void Editor::resized()
     // 1. Header menu buttons placed in top right section
     const int menuY = 16;
     const int menuH = 30;
-    const int viewW = 114;
-    const int fileW = 54;
-    const int presetsW = 86;
-    const int midiW = 54;
-    const int settingsW = 90;
-    const int gap = 14;
+    const int viewW = 104;
+    const int practiceW = 92;
+    const int fileW = 50;
+    const int presetsW = 80;
+    const int midiW = 50;
+    const int settingsW = 86;
+    const int gap = 10;
 
-    const int totalMenuW = viewW + gap + fileW + gap + presetsW + gap + midiW + gap + settingsW;
+    const int totalMenuW = viewW + gap + practiceW + gap + fileW + gap + presetsW + gap + midiW + gap + settingsW;
     int curX = w - 24 - totalMenuW;
     viewToggleButton.setBounds (curX, menuY, viewW, menuH);
     curX += viewW + gap;
+    practiceToggleButton.setBounds (curX, menuY, practiceW, menuH);
+    curX += practiceW + gap;
     fileButton.setBounds (curX, menuY, fileW, menuH);
     curX += fileW + gap;
     presetsButton.setBounds (curX, menuY, presetsW, menuH);
@@ -1627,6 +1664,9 @@ void Editor::resized()
 
     if (mixerView != nullptr)
         mixerView->setBounds (16, 56, w - 32, h - 68);
+
+    if (practiceView != nullptr)
+        practiceView->setBounds (16, 56, w - 32, h - 68);
 
     if (edrumWizard != nullptr)
         edrumWizard->setBounds (getLocalBounds());

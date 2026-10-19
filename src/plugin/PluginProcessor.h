@@ -17,6 +17,11 @@
 #include "MidiMap.h"
 #include "Sampler.h"
 #include "Settings.h"
+#include "AudioRecorder.h"
+#include "BackingTrackPlayer.h"
+#include "Metronome.h"
+#include "MidiRecorder.h"
+#include "TempoDetector.h"
 
 #include <juce_audio_processors/juce_audio_processors.h>
 
@@ -74,6 +79,11 @@ public:
     Sampler& getSampler() noexcept { return sampler; }
     MidiMap& getMidiMap() noexcept { return midiMap; }
     Settings& getSettings() noexcept { return settings; }
+    BackingTrackPlayer& getBackingTrackPlayer() noexcept { return backingTrackPlayer; }
+    Metronome& getMetronome() noexcept { return metronome; }
+    AudioRecorder& getAudioRecorder() noexcept { return audioRecorder; }
+    MidiRecorder& getMidiRecorder() noexcept { return midiRecorder; }
+    TempoDetector::Worker& getTempoWorker() noexcept { return tempoWorker; }
 
     /// The stable identifier a knob uses when it appears in a MIDI map.
     static juce::String controlIdForInstrument (const juce::String& suffix, int index);
@@ -144,6 +154,11 @@ private:
     Sampler sampler;
     MidiMap midiMap;
     Settings settings;
+    BackingTrackPlayer backingTrackPlayer;
+    Metronome metronome;
+    AudioRecorder audioRecorder;
+    MidiRecorder midiRecorder;
+    TempoDetector::Worker tempoWorker;
 
     std::vector<KitEntry> kitList;
     juce::String currentKitPath;

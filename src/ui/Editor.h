@@ -9,6 +9,7 @@
 #include "Knob.h"
 #include "MixerView.h"
 #include "PluginProcessor.h"
+#include "RecordPracticeView.h"
 #include "Scope.h"
 
 #include <memory>
@@ -29,7 +30,8 @@ public:
     enum class EditorView
     {
         kitView,
-        mixerView
+        mixerView,
+        practiceView
     };
 
     void setViewMode (EditorView mode);
@@ -67,6 +69,7 @@ public:
     void selectZone (int logicalIndex, int zoneIndex, bool triggerPreview = false);
     int getActiveSamplerIndex() const;
     MixerView* getMixerView() noexcept { return mixerView.get(); }
+    RecordPracticeView* getPracticeView() noexcept { return practiceView.get(); }
     void applyTheme (const Theme& newTheme);
 
 private:
@@ -203,6 +206,7 @@ private:
     };
 
     MenuButton viewToggleButton { "MIXER VIEW" };
+    MenuButton practiceToggleButton { "PRACTICE" };
     MenuButton fileButton { "FILE" };
     MenuButton presetsButton { "PRESETS" };
     MenuButton midiButton { "MIDI" };
@@ -213,6 +217,7 @@ private:
     Scope scope;
 
     std::unique_ptr<MixerView> mixerView;
+    std::unique_ptr<RecordPracticeView> practiceView;
     EditorView currentView = EditorView::kitView;
 
     std::unique_ptr<juce::Drawable> logo;
