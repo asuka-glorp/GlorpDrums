@@ -1205,7 +1205,8 @@ void Sampler::render (float* const* output, int numOutputChannels, int numSample
     if (! kitLock.tryEnter())
     {
         for (int c = 0; c < numOutputChannels; ++c)
-            juce::FloatVectorOperations::clear (output[c], numSamples);
+            if (output[c] != nullptr)
+                juce::FloatVectorOperations::clear (output[c], numSamples);
 
         return;
     }
@@ -1213,11 +1214,11 @@ void Sampler::render (float* const* output, int numOutputChannels, int numSample
     KitUnlock unlock { kitLock };
 
     const auto totalBuses = numOutputChannels / 2;
-    const auto activeBuses = std::min (busCount, totalBuses);
     for (int c = 0; c < numOutputChannels; ++c)
-        juce::FloatVectorOperations::clear (output[c], numSamples);
+        if (output[c] != nullptr)
+            juce::FloatVectorOperations::clear (output[c], numSamples);
 
-    if (! kitLoaded.load() || activeBuses <= 0)
+    if (! kitLoaded.load() || totalBuses <= 0)
     {
         sampleClock += numSamples;
         return;
@@ -1289,6 +1290,13 @@ void Sampler::render (float* const* output, int numOutputChannels, int numSample
             v.startSkip = std::max<int64_t> (0, v.startSkip - numSamples);
             const bool fading = v.attackSamples > 0 && v.attackGain < 1.0f;
 
+            const int instBus = (v.instrument >= 0 && v.instrument < static_cast<int> (instrumentBuses.size()))
+                                    ? instrumentBuses[static_cast<size_t> (v.instrument)] : 0;
+            const bool hasAuxBus = multiOutMode.load() && (instBus > 0) && (instBus < totalBuses)
+                                   && (output[instBus * 2] != nullptr) && (output[instBus * 2 + 1] != nullptr);
+            float* const auxDestL = hasAuxBus ? output[instBus * 2] : nullptr;
+            float* const auxDestR = hasAuxBus ? output[instBus * 2 + 1] : nullptr;
+
             for (int i = 0; i < numSamples; ++i)
             {
                 if (v.position >= static_cast<double> (hit.numFrames))
@@ -1352,10 +1360,29 @@ void Sampler::render (float* const* output, int numOutputChannels, int numSample
                         const float c3 = 0.5f * (y3 - y0) + 1.5f * (y1 - y2);
                         const float sample = ((c3 * t + c2) * t + c1) * t + y1;
 
-                        micScratchL[static_cast<size_t> (micIdx)][static_cast<size_t> (i)] +=
-                            sample * channelRef.gainL * instGainL * gain;
-                        micScratchR[static_cast<size_t> (micIdx)][static_cast<size_t> (i)] +=
-                            sample * channelRef.gainR * instGainR * gain;
+                        if (hasAuxBus)
+                        {
+                            float micLvlL = 1.0f, micLvlR = 1.0f;
+                            if (micIdx < numMics)
+                            {
+                                const auto& mp = micChannels[static_cast<size_t> (micIdx)]->params;
+                                float mPanL = 1.0f, mPanR = 1.0f;
+                                if (mp.pan < 0.0f)      { mPanL = 1.0f; mPanR = 1.0f + mp.pan; }
+                                else if (mp.pan > 0.0f) { mPanL = 1.0f - mp.pan; mPanR = 1.0f; }
+                                const float phase = mp.phaseInvert ? -1.0f : 1.0f;
+                                micLvlL = mp.level * mPanL * phase;
+                                micLvlR = mp.level * mPanR * phase;
+                            }
+                            auxDestL[i] += sample * channelRef.gainL * instGainL * gain * micLvlL;
+                            auxDestR[i] += sample * channelRef.gainR * instGainR * gain * micLvlR;
+                        }
+                        else
+                        {
+                            micScratchL[static_cast<size_t> (micIdx)][static_cast<size_t> (i)] +=
+                                sample * channelRef.gainL * instGainL * gain;
+                            micScratchR[static_cast<size_t> (micIdx)][static_cast<size_t> (i)] +=
+                                sample * channelRef.gainR * instGainR * gain;
+                        }
                     }
                 }
                 else
@@ -1367,10 +1394,29 @@ void Sampler::render (float* const* output, int numOutputChannels, int numSample
                         const int micIdx = std::clamp (channelRef.kitChannelIndex, 0, numMics - 1);
                         const float sample = channelRef.handle.readSample (pos, channelRef.channel);
 
-                        micScratchL[static_cast<size_t> (micIdx)][static_cast<size_t> (i)] +=
-                            sample * channelRef.gainL * instGainL * gain;
-                        micScratchR[static_cast<size_t> (micIdx)][static_cast<size_t> (i)] +=
-                            sample * channelRef.gainR * instGainR * gain;
+                        if (hasAuxBus)
+                        {
+                            float micLvlL = 1.0f, micLvlR = 1.0f;
+                            if (micIdx < numMics)
+                            {
+                                const auto& mp = micChannels[static_cast<size_t> (micIdx)]->params;
+                                float mPanL = 1.0f, mPanR = 1.0f;
+                                if (mp.pan < 0.0f)      { mPanL = 1.0f; mPanR = 1.0f + mp.pan; }
+                                else if (mp.pan > 0.0f) { mPanL = 1.0f - mp.pan; mPanR = 1.0f; }
+                                const float phase = mp.phaseInvert ? -1.0f : 1.0f;
+                                micLvlL = mp.level * mPanL * phase;
+                                micLvlR = mp.level * mPanR * phase;
+                            }
+                            auxDestL[i] += sample * channelRef.gainL * instGainL * gain * micLvlL;
+                            auxDestR[i] += sample * channelRef.gainR * instGainR * gain * micLvlR;
+                        }
+                        else
+                        {
+                            micScratchL[static_cast<size_t> (micIdx)][static_cast<size_t> (i)] +=
+                                sample * channelRef.gainL * instGainL * gain;
+                            micScratchR[static_cast<size_t> (micIdx)][static_cast<size_t> (i)] +=
+                                sample * channelRef.gainR * instGainR * gain;
+                        }
                     }
                 }
 
@@ -1457,37 +1503,44 @@ void Sampler::render (float* const* output, int numOutputChannels, int numSample
             const int targetBus = (totalBuses > 1) ? std::clamp (p.outputBus, 0, totalBuses - 1) : 0;
             if (targetBus == 0 || ! multiOutMode.load() || p.sendToMaster)
             {
-                juce::FloatVectorOperations::add (output[0], sL, numSamples);
-                juce::FloatVectorOperations::add (output[1], sR, numSamples);
+                if (output[0] != nullptr)
+                    juce::FloatVectorOperations::add (output[0], sL, numSamples);
+                if (output[1] != nullptr)
+                    juce::FloatVectorOperations::add (output[1], sR, numSamples);
             }
 
             if (multiOutMode.load() && totalBuses > 1 && targetBus > 0)
             {
-                juce::FloatVectorOperations::add (output[targetBus * 2],     sL, numSamples);
-                juce::FloatVectorOperations::add (output[targetBus * 2 + 1], sR, numSamples);
+                if (output[targetBus * 2] != nullptr)
+                    juce::FloatVectorOperations::add (output[targetBus * 2],     sL, numSamples);
+                if (output[targetBus * 2 + 1] != nullptr)
+                    juce::FloatVectorOperations::add (output[targetBus * 2 + 1], sR, numSamples);
             }
         }
 
         // 4. Master processing: Reverb return, Master Pan/Level, Soft Limiter
-        masterFX.process (output[0], output[1], numSamples,
-                          reverbAccumL.data(), reverbAccumR.data(), masterStripParams);
-
-        // Master metering
-        float mPeakL = 0.0f, mPeakR = 0.0f;
-        float mRmsSumL = 0.0f, mRmsSumR = 0.0f;
-        for (int i = 0; i < numSamples; ++i)
+        if (output[0] != nullptr && output[1] != nullptr)
         {
-            mPeakL = std::max (mPeakL, std::abs (output[0][i]));
-            mPeakR = std::max (mPeakR, std::abs (output[1][i]));
-            mRmsSumL += output[0][i] * output[0][i];
-            mRmsSumR += output[1][i] * output[1][i];
+            masterFX.process (output[0], output[1], numSamples,
+                              reverbAccumL.data(), reverbAccumR.data(), masterStripParams);
+
+            // Master metering
+            float mPeakL = 0.0f, mPeakR = 0.0f;
+            float mRmsSumL = 0.0f, mRmsSumR = 0.0f;
+            for (int i = 0; i < numSamples; ++i)
+            {
+                mPeakL = std::max (mPeakL, std::abs (output[0][i]));
+                mPeakR = std::max (mPeakR, std::abs (output[1][i]));
+                mRmsSumL += output[0][i] * output[0][i];
+                mRmsSumR += output[1][i] * output[1][i];
+            }
+            const float prevML = masterPeakL.load (std::memory_order_relaxed);
+            const float prevMR = masterPeakR.load (std::memory_order_relaxed);
+            masterPeakL.store (std::max (mPeakL, prevML * 0.88f), std::memory_order_relaxed);
+            masterPeakR.store (std::max (mPeakR, prevMR * 0.88f), std::memory_order_relaxed);
+            masterRmsL.store (std::sqrt (mRmsSumL / static_cast<float> (numSamples)), std::memory_order_relaxed);
+            masterRmsR.store (std::sqrt (mRmsSumR / static_cast<float> (numSamples)), std::memory_order_relaxed);
         }
-        const float prevML = masterPeakL.load (std::memory_order_relaxed);
-        const float prevMR = masterPeakR.load (std::memory_order_relaxed);
-        masterPeakL.store (std::max (mPeakL, prevML * 0.88f), std::memory_order_relaxed);
-        masterPeakR.store (std::max (mPeakR, prevMR * 0.88f), std::memory_order_relaxed);
-        masterRmsL.store (std::sqrt (mRmsSumL / static_cast<float> (numSamples)), std::memory_order_relaxed);
-        masterRmsR.store (std::sqrt (mRmsSumR / static_cast<float> (numSamples)), std::memory_order_relaxed);
     }
     else
     {
@@ -1578,6 +1631,13 @@ void Sampler::render (float* const* output, int numOutputChannels, int numSample
 
             float* destL = output[targetBus * 2];
             float* destR = output[targetBus * 2 + 1];
+            if (destL == nullptr || destR == nullptr)
+            {
+                destL = output[0];
+                destR = output[1];
+            }
+            if (destL == nullptr || destR == nullptr)
+                continue;
 
             const auto first = static_cast<size_t> (std::min<int64_t> (v.startSkip, numSamples));
             v.startSkip = std::max<int64_t> (0, v.startSkip - numSamples);

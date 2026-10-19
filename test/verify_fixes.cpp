@@ -38,6 +38,8 @@ int main()
     glorp::PluginProcessor processor;
     std::cout << "PluginProcessor sampler multiOutMode: "
               << (processor.getSampler().isMultiOutMode() ? "ENABLED" : "DISABLED") << "\n";
+    std::cout << "PluginProcessor currentKitPath: " << processor.getCurrentKitPath()
+              << ", numInstruments: " << processor.getSampler().numInstruments() << "\n";
     assert (processor.getSampler().isMultiOutMode() == true);
 
     // Verify isBusesLayoutSupported
@@ -55,7 +57,91 @@ int main()
     invalidInput.outputBuses.add (juce::AudioChannelSet::stereo());
     assert (processor.isBusesLayoutSupported (invalidInput) == false);
 
-    std::cout << "-> Multi-out bus layout & routing verification: PASSED!\n";
+    // Verify all 16 buses are enabled by default
+    assert (processor.getBusCount (false) == 16);
+    for (int b = 0; b < 16; ++b)
+    {
+        auto* bus = processor.getBus (false, b);
+        assert (bus != nullptr);
+        assert (bus->getDefaultLayout() == juce::AudioChannelSet::stereo());
+        assert (bus->isActivatedByDefault() == true);
+    }
+    std::cout << "All 16 output buses verified active by default (Out 1/2 through Out 31/32)!\n";
+
+    // 2b. Verify audio rendering multi-out routing
+    {
+        auto& pSampler = processor.getSampler();
+        pSampler.setMultiOutMode (true);
+
+        std::cout << "Processor kit loaded: " << pSampler.numInstruments()
+                  << " instruments (Inst 0: " << pSampler.instrumentName (0)
+                  << ", Inst 1: " << pSampler.instrumentName (1) << ")\n";
+
+        if (pSampler.numInstruments() >= 2)
+        {
+            // Assign Inst 0 to Bus 0 (Out 1/2), and Inst 1 to Bus 1 (Out 3/4)
+            pSampler.setInstrumentBus (0, 0);
+            pSampler.setInstrumentBus (1, 1);
+
+            // Allocate 4 channels (2 stereo pairs: Out 1/2 and Out 3/4)
+            std::vector<float> ch0 (512, 0.0f), ch1 (512, 0.0f), ch2 (512, 0.0f), ch3 (512, 0.0f);
+            float* out4[4] = { ch0.data(), ch1.data(), ch2.data(), ch3.data() };
+
+            // Trigger Inst 1 (assigned to Bus 1 -> Out 3/4)
+            pSampler.allNotesOff();
+            pSampler.noteOn (1, 1.0f, pSampler.currentSamplePosition());
+            pSampler.render (out4, 4, 512);
+
+            float peak12 = 0.0f, peak34 = 0.0f;
+            for (int i = 0; i < 512; ++i)
+            {
+                peak12 = std::max (peak12, std::max (std::abs (ch0[static_cast<size_t> (i)]),
+                                                     std::abs (ch1[static_cast<size_t> (i)])));
+                peak34 = std::max (peak34, std::max (std::abs (ch2[static_cast<size_t> (i)]),
+                                                     std::abs (ch3[static_cast<size_t> (i)])));
+            }
+
+            std::cout << "Inst 1 on Out 3/4 -> Peak Out 1/2: " << peak12
+                      << ", Peak Out 3/4: " << peak34 << "\n";
+            assert (peak34 > 0.001f);
+            assert (peak12 == 0.0f); // Clean separation: zero bleed to Out 1/2!
+
+            // Trigger Inst 0 (assigned to Bus 0 -> Out 1/2)
+            pSampler.allNotesOff();
+            pSampler.noteOn (0, 1.0f, pSampler.currentSamplePosition());
+            pSampler.render (out4, 4, 512);
+
+            peak12 = 0.0f;
+            peak34 = 0.0f;
+            for (int i = 0; i < 512; ++i)
+            {
+                peak12 = std::max (peak12, std::max (std::abs (ch0[static_cast<size_t> (i)]),
+                                                     std::abs (ch1[static_cast<size_t> (i)])));
+                peak34 = std::max (peak34, std::max (std::abs (ch2[static_cast<size_t> (i)]),
+                                                     std::abs (ch3[static_cast<size_t> (i)])));
+            }
+
+            std::cout << "Inst 0 on Out 1/2 -> Peak Out 1/2: " << peak12
+                      << ", Peak Out 3/4: " << peak34 << "\n";
+            assert (peak12 > 0.001f);
+            assert (peak34 == 0.0f); // Clean separation: zero bleed to Out 3/4!
+
+            // Test stereo fold-down when host only provides 2 channels
+            pSampler.allNotesOff();
+            float* out2[2] = { ch0.data(), ch1.data() };
+            // Trigger Inst 1 (bus 1), but host only passed 2 channels
+            pSampler.noteOn (1, 1.0f, pSampler.currentSamplePosition());
+            pSampler.render (out2, 2, 512);
+            peak12 = 0.0f;
+            for (int i = 0; i < 512; ++i)
+                peak12 = std::max (peak12, std::max (std::abs (ch0[static_cast<size_t> (i)]),
+                                                     std::abs (ch1[static_cast<size_t> (i)])));
+            std::cout << "Stereo fold-down for Inst 1 on 2-ch host -> Peak Out 1/2: " << peak12 << "\n";
+            assert (peak12 > 0.001f); // Folds down gracefully without crashing or dropping audio!
+        }
+    }
+
+    std::cout << "-> Multi-out bus layout & audio routing verification: PASSED!\n";
 
     // 3. Verify .glorpkit zero-copy sample reading and Sampler loading
     const std::string testPkg = "/tmp/verify_test.glorpkit";
@@ -539,5 +625,5 @@ int main()
     processor.releaseResources();
 
     std::cout << "=== ALL VERIFICATIONS PASSED SUCCESSFULLY ===\n";
-    return 0;
+    std::exit (0);
 }

@@ -44,7 +44,11 @@ juce::AudioProcessor::BusesProperties PluginProcessor::createBusesProperties()
 {
     BusesProperties bp;
     for (int i = 0; i < maxOutputBuses; ++i)
-        bp = bp.withOutput ("Bus " + juce::String (i + 1), juce::AudioChannelSet::stereo(), i == 0);
+    {
+        const auto busName = (i == 0) ? juce::String ("Out 1/2 (Main)")
+                                      : ("Out " + juce::String (i * 2 + 1) + "/" + juce::String (i * 2 + 2));
+        bp = bp.withOutput (busName, juce::AudioChannelSet::stereo(), true);
+    }
     return bp;
 }
 
@@ -375,29 +379,44 @@ void PluginProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Midi
                         sampler.currentSamplePosition() + sampleOffset);
     }
 
-    // JUCE may hand us fewer channels than the host configured; the sampler only
-    // writes to buses that exist, so this is safe.
-    std::vector<float*> channelPointers;
-    channelPointers.reserve (static_cast<size_t> (numChannels));
+    // Map host output buses to up to 16 stereo bus write pointers (32 channels)
+    std::array<float*, maxOutputBuses * 2> busOutputs {};
+    busOutputs.fill (nullptr);
 
-    for (int c = 0; c < numChannels; ++c)
-        channelPointers.push_back (buffer.getWritePointer (c));
+    const int busCount = getBusCount (false);
+    for (int b = 0; b < maxOutputBuses && b < busCount; ++b)
+    {
+        auto busBuffer = getBusBuffer (buffer, false, b);
+        if (busBuffer.getNumChannels() >= 2)
+        {
+            busOutputs[static_cast<size_t> (b * 2)]     = busBuffer.getWritePointer (0);
+            busOutputs[static_cast<size_t> (b * 2 + 1)] = busBuffer.getWritePointer (1);
+        }
+    }
 
-    sampler.render (channelPointers.data(), numChannels, numSamples);
+    // Fallback for flat buffers or unit tests where buses aren't configured in the host
+    if (busOutputs[0] == nullptr && buffer.getNumChannels() >= 2)
+    {
+        const int available = std::min (buffer.getNumChannels(), maxOutputBuses * 2);
+        for (int c = 0; c < available; ++c)
+            busOutputs[static_cast<size_t> (c)] = buffer.getWritePointer (c);
+    }
 
-    // If recording drums only (default), stream rendered drum audio now
+    sampler.render (busOutputs.data(), maxOutputBuses * 2, numSamples);
+
+    // If recording drums only (default), stream rendered drum audio now (Main mix)
     if (audioRecorder.isRecording() && audioRecorder.getSource() == AudioRecorder::RecordingSource::drumsOnly)
-        audioRecorder.pushAudio (channelPointers.data(), numChannels, numSamples);
+        audioRecorder.pushAudio (busOutputs.data(), 2, numSamples);
 
-    // Play backing track (mixes into buffer)
-    backingTrackPlayer.render (channelPointers.data(), numChannels, numSamples);
+    // Play backing track (mixes into Main Out 1/2)
+    backingTrackPlayer.render (busOutputs.data(), 2, numSamples);
 
     // If recording full mix, stream combined drums + backing track (WITHOUT metronome)
     if (audioRecorder.isRecording() && audioRecorder.getSource() == AudioRecorder::RecordingSource::fullMix)
-        audioRecorder.pushAudio (channelPointers.data(), numChannels, numSamples);
+        audioRecorder.pushAudio (busOutputs.data(), 2, numSamples);
 
-    // Play metronome / count-in clicks for the player's monitor output ONLY (never recorded)
-    metronome.render (channelPointers.data(), numChannels, numSamples,
+    // Play metronome / count-in clicks for the player's monitor output ONLY (Main Out 1/2)
+    metronome.render (busOutputs.data(), 2, numSamples,
                       backingTrackPlayer.getPlayheadSeconds(), backingTrackPlayer.isPlaying());
 }
 
@@ -679,7 +698,7 @@ void PluginProcessor::loadKit (const juce::String& drumkitPath)
     {
         float levelNorm = 0.5f; // default 1.0f (0.5 * 2.0f)
         float panNorm = 0.5f;   // default 0.0f (0.5 * 2.0f - 1.0f)
-        int busIdx = std::min (i, 15);
+        int busIdx = (i < sampler.numInstruments()) ? sampler.getInstrumentBus (i) : std::min (i, 15);
 
         if (currentKit.isNativeGlorpKit && i < static_cast<int> (currentKit.instruments.size()))
         {

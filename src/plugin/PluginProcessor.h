@@ -52,6 +52,8 @@ public:
     double getTailLengthSeconds() const override;
 
     bool isBusesLayoutSupported (const BusesLayout& layouts) const override;
+    bool canAddBus (bool /*isInput*/) const override { return false; }
+    bool canRemoveBus (bool /*isInput*/) const override { return false; }
 
     void processBlock (juce::AudioBuffer<float>&, juce::MidiBuffer&) override;
 

@@ -338,7 +338,7 @@ void Metronome::render (float* const* channels, int numChannels, int numSamples,
             if (voice.amplitude < 0.0005f)
                 voice.active = false;
 
-            for (int ch = 0; ch < numChannels; ++ch)
+            for (int ch = 0; ch < std::min (numChannels, 2); ++ch)
             {
                 if (channels[ch] != nullptr)
                     channels[ch][i] += sampleVal;
