@@ -237,39 +237,91 @@ RecordPracticeView::RecordPracticeView (PluginProcessor& p)
         bool next = ! processor.getMetronome().isEnabled();
         processor.getMetronome().setEnabled (next);
         metroToggleButton.setLabel (next ? "Metronome: ON" : "Metronome: OFF");
-        metroToggleButton.setBaseColour (next ? currentTheme.accent.withAlpha (0.35f) : currentTheme.panel);
+        updateButtonStyles();
     };
 
-    addAndMakeVisible (countInCombo);
-    countInCombo.addItem ("Count-In: OFF", 1);
-    countInCombo.addItem ("Count-In: 1 Bar (4 Beats)", 2);
-    countInCombo.addItem ("Count-In: 2 Bars (8 Beats)", 3);
-    countInCombo.setSelectedId (2); // Default: 1 Bar
-    countInCombo.onChange = [this]()
+    addAndMakeVisible (countInToggleButton);
+    countInToggleButton.onClick = [this]()
     {
-        int id = countInCombo.getSelectedId();
-        auto mode = (id == 1) ? Metronome::CountInMode::off
-                              : (id == 2 ? Metronome::CountInMode::oneBar : Metronome::CountInMode::twoBars);
-        processor.getMetronome().setCountInMode (mode);
+        auto cur = processor.getMetronome().getCountInMode();
+        if (cur == Metronome::CountInMode::off)
+            processor.getMetronome().setCountInMode (Metronome::CountInMode::oneBar);
+        else
+            processor.getMetronome().setCountInMode (Metronome::CountInMode::off);
+
+        updateCountInButtons();
     };
 
-    addAndMakeVisible (clickSoundCombo);
-    clickSoundCombo.addItem ("Click: Woodblock", 1);
-    clickSoundCombo.addItem ("Click: Studio Beep", 2);
-    clickSoundCombo.addItem ("Click: SideStick", 3);
-    clickSoundCombo.addItem ("Click: Cowbell", 4);
-    clickSoundCombo.addItem ("Click: Hi-Hat Pedal", 5);
-    clickSoundCombo.addItem ("Click: Digital Beep", 6);
-    clickSoundCombo.addItem ("Click: Clave", 7);
-    clickSoundCombo.addItem ("Click: Triangle Bell", 8);
-    clickSoundCombo.setSelectedId (1);
-    clickSoundCombo.onChange = [this]()
+    addAndMakeVisible (countIn1BarButton);
+    countIn1BarButton.onClick = [this]()
     {
-        processor.getMetronome().setClickSound (
-            static_cast<Metronome::ClickSound> (clickSoundCombo.getSelectedId() - 1));
+        if (processor.getMetronome().getCountInMode() != Metronome::CountInMode::off)
+        {
+            processor.getMetronome().setCountInMode (Metronome::CountInMode::oneBar);
+            updateCountInButtons();
+        }
     };
 
-    clickVolumeKnob = std::make_unique<Knob> ("Click Vol", 0.0f, 2.5f, 1.0f);
+    addAndMakeVisible (countIn2BarsButton);
+    countIn2BarsButton.onClick = [this]()
+    {
+        if (processor.getMetronome().getCountInMode() != Metronome::CountInMode::off)
+        {
+            processor.getMetronome().setCountInMode (Metronome::CountInMode::twoBars);
+            updateCountInButtons();
+        }
+    };
+
+    addAndMakeVisible (clickPresetButton);
+    clickPresetButton.onClick = [this]()
+    {
+        juce::PopupMenu m;
+        const char* names[] = {
+            "Woodblock", "Studio Click", "Side Stick", "Cowbell",
+            "Hi-Hat Pedal", "Digital Beep", "Clave", "Triangle"
+        };
+        const auto curSound = static_cast<int> (processor.getMetronome().getClickSound());
+        for (int i = 0; i < 8; ++i)
+            m.addItem (i + 1, names[i], true, i == curSound);
+
+        m.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (&clickPresetButton),
+            [this, names](int result)
+            {
+                if (result >= 1 && result <= 8)
+                {
+                    auto sound = static_cast<Metronome::ClickSound> (result - 1);
+                    processor.getMetronome().setClickSound (sound);
+                    clickPresetButton.setLabel (juce::String ("Click Preset: ") + names[result - 1]);
+                    repaint();
+                }
+            });
+    };
+
+    beatsPerMeasure = processor.getMetronome().getTimeSignatureNumerator();
+    addAndMakeVisible (beatsEditor);
+    beatsEditor.setText (juce::String (beatsPerMeasure), false);
+    beatsEditor.setJustification (juce::Justification::centred);
+    beatsEditor.setInputRestrictions (2, "0123456789");
+    beatsEditor.onReturnKey = [this]()
+    {
+        int val = std::clamp (beatsEditor.getText().getIntValue(), 1, 16);
+        beatsPerMeasure = val;
+        beatsEditor.setText (juce::String (val), false);
+        processor.getMetronome().setTimeSignature (beatsPerMeasure, 4);
+        resized();
+        repaint();
+    };
+    beatsEditor.onFocusLost = [this]()
+    {
+        int val = std::clamp (beatsEditor.getText().getIntValue(), 1, 16);
+        beatsPerMeasure = val;
+        beatsEditor.setText (juce::String (val), false);
+        processor.getMetronome().setTimeSignature (beatsPerMeasure, 4);
+        resized();
+        repaint();
+    };
+
+    clickVolumeKnob = std::make_unique<Knob> ("Click Vol.", 0.0f, 2.5f, 1.0f);
     addAndMakeVisible (*clickVolumeKnob);
     clickVolumeKnob->onValueChanged = [this](float val)
     {
@@ -278,6 +330,7 @@ RecordPracticeView::RecordPracticeView (PluginProcessor& p)
 
     // Recording controls
     addAndMakeVisible (recordButton);
+    recordButton.setFontSize (20.0f);
     recordButton.onClick = [this]()
     {
         if (processor.getAudioRecorder().isRecording())
@@ -294,23 +347,26 @@ RecordPracticeView::RecordPracticeView (PluginProcessor& p)
     };
 
     addAndMakeVisible (stopButton);
+    stopButton.setFontSize (18.0f);
     stopButton.onClick = [this]()
     {
         stopTransportAndRecording();
     };
 
-    addAndMakeVisible (recordSourceCombo);
-    recordSourceCombo.addItem ("Source: Drums Only (Default)", 1);
-    recordSourceCombo.addItem ("Source: Full Mix (Drums + Track)", 2);
-    recordSourceCombo.setSelectedId (1);
-    recordSourceCombo.onChange = [this]()
+    addAndMakeVisible (alsoRecordTrackButton);
+    alsoRecordTrackButton.setFontSize (14.0f);
+    alsoRecordTrackButton.onClick = [this]()
     {
-        auto src = (recordSourceCombo.getSelectedId() == 1) ? AudioRecorder::RecordingSource::drumsOnly
-                                                            : AudioRecorder::RecordingSource::fullMix;
-        processor.getAudioRecorder().setSource (src);
+        alsoRecordBackingTrack = ! alsoRecordBackingTrack;
+        processor.getAudioRecorder().setSource (alsoRecordBackingTrack
+            ? AudioRecorder::RecordingSource::fullMix
+            : AudioRecorder::RecordingSource::drumsOnly);
+        updateButtonStyles();
+        repaint();
     };
 
     addAndMakeVisible (exportWavButton);
+    exportWavButton.setFontSize (14.0f);
     exportWavButton.onClick = [this]()
     {
         auto recorded = processor.getAudioRecorder().getRecordedFile();
@@ -331,6 +387,7 @@ RecordPracticeView::RecordPracticeView (PluginProcessor& p)
     };
 
     addAndMakeVisible (exportMidButton);
+    exportMidButton.setFontSize (14.0f);
     exportMidButton.onClick = [this]()
     {
         if (processor.getMidiRecorder().getEventCount() > 0)
@@ -356,9 +413,10 @@ RecordPracticeView::RecordPracticeView (PluginProcessor& p)
     // Metronome beat tick notification
     processor.getMetronome().onBeat = [this](int beat, bool isDownbeat)
     {
-        currentBeatFlash = beat;
+        activeBeatFlash = beat;
         isDownbeatFlash = isDownbeat;
-        lastFlashTime = juce::Time::getMillisecondCounterHiRes() * 0.001;
+        lastBeatFlashTime = juce::Time::getMillisecondCounterHiRes() * 0.001;
+        juce::MessageManager::callAsync ([this] { repaint(); });
     };
 
     applyTheme (Theme::sketch());
@@ -444,6 +502,33 @@ void RecordPracticeView::stopTransportAndRecording()
     repaint();
 }
 
+void RecordPracticeView::setBeatsPerMeasure (int beats)
+{
+    beatsPerMeasure = std::clamp (beats, 1, 16);
+    beatsEditor.setText (juce::String (beatsPerMeasure), false);
+    processor.getMetronome().setTimeSignature (beatsPerMeasure, 4);
+    resized();
+    repaint();
+}
+
+void RecordPracticeView::triggerBeatFlash (int beat, bool isDownbeat)
+{
+    activeBeatFlash = beat;
+    isDownbeatFlash = isDownbeat;
+    lastBeatFlashTime = juce::Time::getMillisecondCounterHiRes() * 0.001;
+    repaint();
+}
+
+void RecordPracticeView::setAlsoRecordBackingTrack (bool alsoRecord)
+{
+    alsoRecordBackingTrack = alsoRecord;
+    processor.getAudioRecorder().setSource (alsoRecordBackingTrack
+        ? AudioRecorder::RecordingSource::fullMix
+        : AudioRecorder::RecordingSource::drumsOnly);
+    updateButtonStyles();
+    repaint();
+}
+
 bool RecordPracticeView::keyPressed (const juce::KeyPress& key)
 {
     if (key.isKeyCode (juce::KeyPress::spaceKey))
@@ -494,20 +579,20 @@ void RecordPracticeView::updateButtonStyles()
         btn.setBaseColour (col);
     };
 
-    const auto greenCol = juce::Colour (0xff2ecc71);
-    const auto blueCol = juce::Colour (0xff3498db);
-    const auto redCol = currentTheme.warning;
-    const auto orangeCol = currentTheme.accent;
+    const auto mintGreen = juce::Colour (0xffa8e6cf);
+    const auto skyBlue   = juce::Colour (0xff89d4f7);
+    const auto tanCol    = juce::Colour (0xfff8d7b3);
+    const auto coralRed  = juce::Colour (0xffe27771);
 
     styleBtn (loadTrackButton, currentTheme.panel);
     styleBtn (clearTrackButton, currentTheme.panel);
-    styleBtn (playButton, greenCol.withAlpha (0.4f));
+    styleBtn (playButton, mintGreen);
     styleBtn (pauseButton, currentTheme.panel);
     styleBtn (rewindButton, currentTheme.panel);
     styleBtn (loopButton, currentTheme.panel);
     styleBtn (muteTrackButton, currentTheme.panel);
 
-    styleBtn (detectBpmButton, blueCol.withAlpha (0.35f));
+    styleBtn (detectBpmButton, skyBlue);
     styleBtn (tapBpmButton, currentTheme.panel);
     styleBtn (alignBeatOneButton, currentTheme.panel);
     styleBtn (halfBpmButton, currentTheme.panel);
@@ -515,56 +600,74 @@ void RecordPracticeView::updateButtonStyles()
     styleBtn (nudgeDownButton, currentTheme.panel);
     styleBtn (nudgeUpButton, currentTheme.panel);
 
-    styleBtn (metroToggleButton, currentTheme.panel);
-    styleBtn (recordButton, redCol.withAlpha (0.6f));
+    // Metronome
+    const bool isMetroOn = processor.getMetronome().isEnabled();
+    metroToggleButton.setLabel (isMetroOn ? "Metronome: ON" : "Metronome: OFF");
+    styleBtn (metroToggleButton, isMetroOn ? tanCol : currentTheme.panel);
+
+    clickPresetButton.setTheme (currentTheme);
+    clickPresetButton.setBaseColour (currentTheme.panel);
+
+    updateCountInButtons();
+
+    // Dual Recording Console
+    styleBtn (recordButton, coralRed);
     styleBtn (stopButton, currentTheme.panel);
-    styleBtn (exportWavButton, greenCol.withAlpha (0.35f));
-    styleBtn (exportMidButton, orangeCol.withAlpha (0.35f));
 
-    auto styleCombo = [&](juce::ComboBox& combo)
-    {
-        combo.setColour (juce::ComboBox::backgroundColourId, currentTheme.panel);
-        combo.setColour (juce::ComboBox::textColourId, currentTheme.ink);
-        combo.setColour (juce::ComboBox::outlineColourId, currentTheme.panelEdge);
-        combo.setColour (juce::ComboBox::arrowColourId, currentTheme.panelEdge);
-    };
+    styleBtn (alsoRecordTrackButton, alsoRecordBackingTrack ? juce::Colour (0xff54c0f8) : currentTheme.panel);
 
-    styleCombo (countInCombo);
-    styleCombo (clickSoundCombo);
-    styleCombo (recordSourceCombo);
+    styleBtn (exportWavButton, mintGreen);
+    styleBtn (exportMidButton, tanCol);
 
-    bpmEditor.setColour (juce::TextEditor::backgroundColourId, currentTheme.panel);
-    bpmEditor.setColour (juce::TextEditor::textColourId, currentTheme.ink);
+    beatsEditor.setColour (juce::TextEditor::backgroundColourId, juce::Colours::white);
+    beatsEditor.setColour (juce::TextEditor::textColourId, juce::Colour (0xff1a1a1a));
+    beatsEditor.setColour (juce::TextEditor::outlineColourId, currentTheme.panelEdge);
+    beatsEditor.setColour (juce::TextEditor::focusedOutlineColourId, skyBlue);
+    beatsEditor.setFont (displayFont (16.0f).boldened());
+    beatsEditor.applyColourToAllText (juce::Colour (0xff1a1a1a));
+    beatsEditor.applyFontToAllText (displayFont (16.0f).boldened());
+
+    bpmEditor.setColour (juce::TextEditor::backgroundColourId, juce::Colours::white);
+    bpmEditor.setColour (juce::TextEditor::textColourId, juce::Colour (0xff1a1a1a));
     bpmEditor.setColour (juce::TextEditor::highlightedTextColourId, currentTheme.panel);
     bpmEditor.setColour (juce::TextEditor::highlightColourId, currentTheme.accent);
     bpmEditor.setColour (juce::TextEditor::outlineColourId, currentTheme.panelEdge);
     bpmEditor.setColour (juce::TextEditor::focusedOutlineColourId, currentTheme.accent);
     bpmEditor.setFont (uiFont (14.0f).boldened());
-    bpmEditor.applyColourToAllText (currentTheme.ink);
+    bpmEditor.applyColourToAllText (juce::Colour (0xff1a1a1a));
     bpmEditor.applyFontToAllText (uiFont (14.0f).boldened());
 }
 
-void RecordPracticeView::recordDrumHit (int instIndex, float vel)
+void RecordPracticeView::updateCountInButtons()
 {
-    // Map instrument to lane:
-    // 0: Kick, 1: Snare, 2: HiHat, 3: Toms, 4: Cymbals, 5: Ride
-    int lane = 1; // Default snare
-    if (instIndex == 0) // Kick
-        lane = 0;
-    else if (instIndex >= 1 && instIndex <= 3) // Snare
-        lane = 1;
-    else if (instIndex >= 4 && instIndex <= 9) // Toms
-        lane = 3;
-    else if (instIndex >= 10 && instIndex <= 13) // HiHat
-        lane = 2;
-    else if (instIndex >= 14 && instIndex <= 19) // Crashes
-        lane = 4;
-    else if (instIndex >= 20) // Ride
-        lane = 5;
+    const auto mode = processor.getMetronome().getCountInMode();
+    const bool isCountInOn = (mode != Metronome::CountInMode::off);
 
-    activeRibbonNotes.push_back ({ lane, 1.0f, std::clamp (vel, 0.2f, 1.0f) });
-    if (activeRibbonNotes.size() > 100)
-        activeRibbonNotes.pop_front();
+    const auto mintGreen = juce::Colour (0xffa8e6cf);
+    const auto skyBlue   = juce::Colour (0xff89d4f7);
+
+    countInToggleButton.setTheme (currentTheme);
+    countInToggleButton.setLabel (isCountInOn ? "Count In: ON" : "Count In: OFF");
+    countInToggleButton.setBaseColour (isCountInOn ? mintGreen : currentTheme.panel);
+
+    countIn1BarButton.setTheme (currentTheme);
+    countIn2BarsButton.setTheme (currentTheme);
+
+    countIn1BarButton.setDisabledStyle (! isCountInOn);
+    countIn2BarsButton.setDisabledStyle (! isCountInOn);
+
+    if (! isCountInOn)
+    {
+        countIn1BarButton.setBaseColour (currentTheme.panel);
+        countIn2BarsButton.setBaseColour (currentTheme.panel);
+    }
+    else
+    {
+        countIn1BarButton.setBaseColour (mode == Metronome::CountInMode::oneBar ? skyBlue : currentTheme.panel);
+        countIn2BarsButton.setBaseColour (mode == Metronome::CountInMode::twoBars ? skyBlue : currentTheme.panel);
+    }
+
+    repaint();
 }
 
 void RecordPracticeView::handleTapTempo()
@@ -657,12 +760,12 @@ void RecordPracticeView::timerCallback()
         }
     }
 
-    // Scroll active rhythm ribbon notes
-    for (auto& note : activeRibbonNotes)
-        note.position -= 0.025f;
-
-    while (! activeRibbonNotes.empty() && activeRibbonNotes.front().position < -0.05f)
-        activeRibbonNotes.pop_front();
+    // Reset beat flash after aura decay (~0.35s)
+    const double now = juce::Time::getMillisecondCounterHiRes() * 0.001;
+    if (activeBeatFlash > 0 && (now - lastBeatFlashTime) > 0.35)
+    {
+        activeBeatFlash = 0;
+    }
 
     const bool isRec = processor.getAudioRecorder().isRecording();
     if (isRecArmed || isRec)
@@ -810,58 +913,56 @@ void RecordPracticeView::resized()
 {
     auto area = getLocalBounds().reduced (12);
 
-    // Top: Backing Track Deck (42% height)
-    auto topArea = area.removeFromTop (static_cast<int> (area.getHeight() * 0.44));
+    // Top: Backing Track Deck (52% height)
+    const int deckH = static_cast<int> (area.getHeight() * 0.52);
+    auto topArea = area.removeFromTop (deckH);
     area.removeFromTop (10);
 
-    // Bottom: 6-Lane Drum Rhythm Ribbon (20% height)
-    auto bottomArea = area.removeFromBottom (static_cast<int> (area.getHeight() * 0.36));
-    area.removeFromBottom (10);
-
-    // Middle: Split into Practice/Metronome (left 50%) and Recording Console (right 50%)
+    // Bottom: Split into Practice/Metronome (left 50%) and Recording Console (right 50%)
     auto leftConsole = area.removeFromLeft (area.getWidth() / 2 - 6);
     area.removeFromLeft (12);
     auto rightConsole = area;
 
     // --- Layout Top Area (Backing Track Deck) ---
     auto deckInner = topArea.reduced (10);
-    auto topRow = deckInner.removeFromTop (32);
-    loadTrackButton.setBounds (topRow.removeFromLeft (100));
-    topRow.removeFromLeft (6);
-    clearTrackButton.setBounds (topRow.removeFromLeft (90));
-    topRow.removeFromLeft (8);
-    playButton.setBounds (topRow.removeFromLeft (65));
-    topRow.removeFromLeft (6);
-    pauseButton.setBounds (topRow.removeFromLeft (65));
-    topRow.removeFromLeft (6);
-    rewindButton.setBounds (topRow.removeFromLeft (70));
-    topRow.removeFromLeft (6);
-    loopButton.setBounds (topRow.removeFromLeft (85));
-    topRow.removeFromLeft (6);
-    muteTrackButton.setBounds (topRow.removeFromLeft (55));
+    auto topRow = deckInner.removeFromTop (54);
+    auto btnRow = topRow.reduced (0, 11);
+    loadTrackButton.setBounds (btnRow.removeFromLeft (95));
+    btnRow.removeFromLeft (6);
+    clearTrackButton.setBounds (btnRow.removeFromLeft (85));
+    btnRow.removeFromLeft (6);
+    playButton.setBounds (btnRow.removeFromLeft (60));
+    btnRow.removeFromLeft (6);
+    pauseButton.setBounds (btnRow.removeFromLeft (60));
+    btnRow.removeFromLeft (6);
+    rewindButton.setBounds (btnRow.removeFromLeft (65));
+    btnRow.removeFromLeft (6);
+    loopButton.setBounds (btnRow.removeFromLeft (80));
+    btnRow.removeFromLeft (6);
+    muteTrackButton.setBounds (btnRow.removeFromLeft (52));
 
-    // Right side of top row: Volume knob
+    // Right side of top row: Large Track Volume knob
     if (trackVolumeKnob != nullptr)
-        trackVolumeKnob->setBounds (topRow.removeFromRight (55));
+        trackVolumeKnob->setBounds (topRow.removeFromRight (56).withHeight (54));
 
-    deckInner.removeFromTop (8);
+    deckInner.removeFromTop (4);
     auto bpmRow = deckInner.removeFromBottom (28);
-    detectBpmButton.setBounds (bpmRow.removeFromLeft (105));
+    detectBpmButton.setBounds (bpmRow.removeFromLeft (95));
     bpmRow.removeFromLeft (6);
     tapBpmButton.setBounds (bpmRow.removeFromLeft (85));
     bpmRow.removeFromLeft (6);
-    alignBeatOneButton.setBounds (bpmRow.removeFromLeft (95));
+    alignBeatOneButton.setBounds (bpmRow.removeFromLeft (90));
     bpmRow.removeFromLeft (6);
-    halfBpmButton.setBounds (bpmRow.removeFromLeft (34));
+    halfBpmButton.setBounds (bpmRow.removeFromLeft (32));
     bpmRow.removeFromLeft (4);
-    doubleBpmButton.setBounds (bpmRow.removeFromLeft (34));
+    doubleBpmButton.setBounds (bpmRow.removeFromLeft (32));
     bpmRow.removeFromLeft (6);
-    nudgeDownButton.setBounds (bpmRow.removeFromLeft (40));
+    nudgeDownButton.setBounds (bpmRow.removeFromLeft (36));
     bpmRow.removeFromLeft (4);
-    nudgeUpButton.setBounds (bpmRow.removeFromLeft (40));
+    nudgeUpButton.setBounds (bpmRow.removeFromLeft (36));
 
     // Right side of bpmRow: editable BPM field
-    bpmEditor.setBounds (bpmRow.removeFromRight (68).reduced (0, 1));
+    bpmEditor.setBounds (bpmRow.removeFromRight (60).reduced (0, 1));
 
     deckInner.removeFromBottom (4);
     timelineBounds = deckInner.removeFromBottom (24);
@@ -869,34 +970,74 @@ void RecordPracticeView::resized()
     waveformBounds = deckInner;
 
     // --- Layout Left Console (Practice & Metronome) ---
-    auto leftInner = leftConsole.reduced (12);
-    leftInner.removeFromTop (26); // Title space
-    auto mRow1 = leftInner.removeFromTop (30);
-    metroToggleButton.setBounds (mRow1.removeFromLeft (130));
-    mRow1.removeFromLeft (8);
-    countInCombo.setBounds (mRow1);
-
-    leftInner.removeFromTop (8);
-    auto mRow2 = leftInner.removeFromTop (30);
-    clickSoundCombo.setBounds (mRow2.removeFromLeft (180));
+    auto leftInner = leftConsole.reduced (12, 10);
+    auto titleRow = leftInner.removeFromTop (54);
     if (clickVolumeKnob != nullptr)
-        clickVolumeKnob->setBounds (mRow2.removeFromRight (55));
+        clickVolumeKnob->setBounds (titleRow.removeFromRight (56).withHeight (54));
+
+    leftInner.removeFromTop (6);
+
+    // Row 1: Metronome toggle + Count-In toggle + 1 bar + 2 bars
+    auto mRow1 = leftInner.removeFromTop (32);
+    metroToggleButton.setBounds (mRow1.removeFromLeft (130));
+    mRow1.removeFromLeft (6);
+    countInToggleButton.setBounds (mRow1.removeFromLeft (115));
+    mRow1.removeFromLeft (6);
+    countIn1BarButton.setBounds (mRow1.removeFromLeft (50));
+    mRow1.removeFromLeft (6);
+    countIn2BarsButton.setBounds (mRow1.removeFromLeft (58));
+
+    leftInner.removeFromTop (6);
+    // Row 2: Click Preset
+    auto mRow2 = leftInner.removeFromTop (32);
+    clickPresetButton.setBounds (mRow2);
+
+    leftInner.removeFromTop (6);
+    // Row 3: Beats per measure
+    auto mRow3 = leftInner.removeFromTop (26);
+    beatsEditor.setBounds (leftInner.getX() + 152, mRow3.getY(), 36, 24);
+
+    leftInner.removeFromTop (6);
+    // Row 4: Beat lights
+    auto lightsArea = leftInner.removeFromTop (46);
+    beatLightBounds.clear();
+    if (beatsPerMeasure > 0)
+    {
+        const int spacing = 6;
+        const int totalSpacing = spacing * (beatsPerMeasure - 1);
+        int cardW = (lightsArea.getWidth() - totalSpacing) / beatsPerMeasure;
+        cardW = std::clamp (cardW, 24, 68);
+        int curX = lightsArea.getX();
+        for (int i = 0; i < beatsPerMeasure; ++i)
+        {
+            beatLightBounds.push_back ({ curX, lightsArea.getY(), cardW, lightsArea.getHeight() });
+            curX += cardW + spacing;
+        }
+    }
 
     // --- Layout Right Console (Dual Recording) ---
-    auto rightInner = rightConsole.reduced (12);
-    rightInner.removeFromTop (26); // Title space
-    auto rRow1 = rightInner.removeFromTop (36);
-    recordButton.setBounds (rRow1.removeFromLeft (120));
-    rRow1.removeFromLeft (8);
-    stopButton.setBounds (rRow1.removeFromLeft (75));
-    rRow1.removeFromLeft (8);
-    recordSourceCombo.setBounds (rRow1);
+    auto rightInner = rightConsole.reduced (12, 10);
+    rightInner.removeFromTop (24); // Title space
 
-    rightInner.removeFromTop (10);
-    auto rRow2 = rightInner.removeFromTop (30);
-    exportWavButton.setBounds (rRow2.removeFromLeft (130));
-    rRow2.removeFromLeft (8);
-    exportMidButton.setBounds (rRow2.removeFromLeft (130));
+    // Row 1: REC and STOP
+    auto rRow1 = rightInner.removeFromTop (50);
+    const int recW = static_cast<int> (rRow1.getWidth() * 0.62);
+    recordButton.setBounds (rRow1.removeFromLeft (recW));
+    rRow1.removeFromLeft (8);
+    stopButton.setBounds (rRow1);
+
+    rightInner.removeFromTop (8);
+    // Row 2: Also record backing track
+    auto rRow2 = rightInner.removeFromTop (34);
+    alsoRecordTrackButton.setBounds (rRow2);
+
+    rightInner.removeFromTop (8);
+    // Row 3: Export WAV & Export MIDI
+    auto rRow3 = rightInner.removeFromTop (34);
+    const int expW = (rRow3.getWidth() - 8) / 2;
+    exportWavButton.setBounds (rRow3.removeFromLeft (expW));
+    rRow3.removeFromLeft (8);
+    exportMidButton.setBounds (rRow3);
 }
 
 //==============================================================================
@@ -905,11 +1046,9 @@ void RecordPracticeView::paint (juce::Graphics& g)
     g.fillAll (currentTheme.background);
 
     auto area = getLocalBounds().reduced (12);
-    auto topArea = area.removeFromTop (static_cast<int> (area.getHeight() * 0.44));
+    const int deckH = static_cast<int> (area.getHeight() * 0.52);
+    auto topArea = area.removeFromTop (deckH);
     area.removeFromTop (10);
-
-    auto bottomArea = area.removeFromBottom (static_cast<int> (area.getHeight() * 0.36));
-    area.removeFromBottom (10);
 
     auto leftConsole = area.removeFromLeft (area.getWidth() / 2 - 6);
     area.removeFromLeft (12);
@@ -918,7 +1057,6 @@ void RecordPracticeView::paint (juce::Graphics& g)
     drawWaveformDeck (g, topArea);
     drawPracticeConsole (g, leftConsole);
     drawRecordingConsole (g, rightConsole);
-    drawRhythmRibbon (g, bottomArea);
 }
 
 void RecordPracticeView::drawWaveformDeck (juce::Graphics& g, juce::Rectangle<int> area)
@@ -1146,47 +1284,89 @@ void RecordPracticeView::drawPracticeConsole (juce::Graphics& g, juce::Rectangle
 {
     g.setColour (currentTheme.panel);
     g.fillRoundedRectangle (area.toFloat(), 8.0f);
-    g.setColour (currentTheme.panelEdge);
-    g.drawRoundedRectangle (area.toFloat(), 8.0f, 2.0f);
+    drawSketchRect (g, area.toFloat(), currentTheme.panelEdge, 2.0f, 101);
 
     // Section title
-    g.setFont (displayFont (15.0f));
+    g.setFont (displayFont (16.0f).boldened());
     g.setColour (currentTheme.ink);
-    g.drawText ("PRACTICE & METRONOME", area.reduced (12, 8), juce::Justification::topLeft);
+    g.drawText ("PRACTICE & METRONOME", area.reduced (14, 10).removeFromTop (24), juce::Justification::topLeft);
 
-    // Flashing Beat Counter (1 - 2 - 3 - 4)
-    auto beatArea = area.removeFromBottom (45).reduced (12, 0);
-    const int beatW = beatArea.getWidth() / 4;
-    const double now = juce::Time::getMillisecondCounterHiRes() * 0.001;
-    const bool isFlashing = (now - lastFlashTime) < 0.18;
-
-    for (int b = 1; b <= 4; ++b)
+    // "Beats per meassure:" label in bright cyan
+    if (! beatsEditor.getBounds().isEmpty())
     {
-        auto circleBounds = juce::Rectangle<float> (
-            static_cast<float> (beatArea.getX() + (b - 1) * beatW + beatW / 2 - 14),
-            static_cast<float> (beatArea.getCentreY() - 14),
-            28.0f, 28.0f);
+        const auto cyanCol = juce::Colour (0xff0099cc);
+        g.setFont (displayFont (14.0f).boldened());
+        g.setColour (cyanCol);
+        auto labelArea = juce::Rectangle<int> (
+            area.getX() + 14,
+            beatsEditor.getY() - 1,
+            beatsEditor.getX() - (area.getX() + 14) - 4,
+            beatsEditor.getHeight() + 2);
+        g.drawText ("Beats per meassure:", labelArea, juce::Justification::centredLeft, false);
+    }
 
-        const bool active = isFlashing && (currentBeatFlash == b);
-        if (active)
+    // Dynamic Beat Lights
+    drawBeatLights (g);
+}
+
+void RecordPracticeView::drawBeatLights (juce::Graphics& g)
+{
+    for (int i = 0; i < static_cast<int> (beatLightBounds.size()); ++i)
+    {
+        const int b = i + 1;
+        const auto card = beatLightBounds[static_cast<size_t> (i)].toFloat();
+        const bool isActive = (activeBeatFlash == b);
+
+        if (isActive && b == 1)
         {
-            g.setColour (isDownbeatFlash ? currentTheme.warning : currentTheme.accent);
-            g.fillEllipse (circleBounds);
-            g.setColour (currentTheme.panelEdge);
-            g.drawEllipse (circleBounds, 2.5f);
+            // Downbeat (Beat 1): radiant red glowing halo aura
+            const auto redCol = juce::Colour (0xffe74c3c);
+            for (int r = 8; r >= 1; --r)
+            {
+                const float alpha = 0.45f / static_cast<float> (r);
+                g.setColour (redCol.withAlpha (alpha));
+                g.drawRoundedRectangle (card.expanded (static_cast<float> (r)), 4.0f + static_cast<float> (r), 2.0f);
+            }
+
+            g.setColour (redCol);
+            g.fillRoundedRectangle (card, 4.0f);
+            drawSketchRect (g, card, juce::Colour (0xff962d22), 2.2f, static_cast<unsigned> (b + 20));
+
+            g.setFont (displayFont (20.0f).boldened());
             g.setColour (juce::Colours::white);
+            g.drawText (juce::String (b), card, juce::Justification::centred, false);
+        }
+        else if (isActive && b > 1)
+        {
+            // Sub-beats: golden yellow glow
+            const auto goldCol = juce::Colour (0xffffd166);
+            for (int r = 6; r >= 1; --r)
+            {
+                const float alpha = 0.35f / static_cast<float> (r);
+                g.setColour (goldCol.withAlpha (alpha));
+                g.drawRoundedRectangle (card.expanded (static_cast<float> (r)), 4.0f + static_cast<float> (r), 1.8f);
+            }
+
+            g.setColour (goldCol);
+            g.fillRoundedRectangle (card, 4.0f);
+            drawSketchRect (g, card, currentTheme.panelEdge, 2.0f, static_cast<unsigned> (b + 20));
+
+            g.setFont (displayFont (20.0f).boldened());
+            g.setColour (juce::Colour (0xff1a1a1a));
+            g.drawText (juce::String (b), card, juce::Justification::centred, false);
         }
         else
         {
-            g.setColour (currentTheme.panelEdge.withAlpha (0.15f));
-            g.fillEllipse (circleBounds);
-            g.setColour (currentTheme.panelEdge.withAlpha (0.5f));
-            g.drawEllipse (circleBounds, 1.5f);
-            g.setColour (currentTheme.ink.withAlpha (0.6f));
-        }
+            // Idle card: amber orange box from mockup
+            const auto amberCol = juce::Colour (0xfff5a623);
+            g.setColour (amberCol);
+            g.fillRoundedRectangle (card, 4.0f);
+            drawSketchRect (g, card, currentTheme.panelEdge, 2.0f, static_cast<unsigned> (b + 20));
 
-        g.setFont (displayFont (14.0f));
-        g.drawText (juce::String (b), circleBounds, juce::Justification::centred);
+            g.setFont (displayFont (20.0f).boldened());
+            g.setColour (currentTheme.ink);
+            g.drawText (juce::String (b), card, juce::Justification::centred, false);
+        }
     }
 }
 
@@ -1194,16 +1374,15 @@ void RecordPracticeView::drawRecordingConsole (juce::Graphics& g, juce::Rectangl
 {
     g.setColour (currentTheme.panel);
     g.fillRoundedRectangle (area.toFloat(), 8.0f);
-    g.setColour (currentTheme.panelEdge);
-    g.drawRoundedRectangle (area.toFloat(), 8.0f, 2.0f);
+    drawSketchRect (g, area.toFloat(), currentTheme.panelEdge, 2.0f, 202);
 
     // Section title
-    g.setFont (displayFont (15.0f));
+    g.setFont (displayFont (16.0f).boldened());
     g.setColour (currentTheme.ink);
-    g.drawText ("DUAL RECORDING CONSOLE", area.reduced (12, 8), juce::Justification::topLeft);
+    g.drawText ("DUAL RECORDING CONSOLE", area.reduced (14, 10).removeFromTop (24), juce::Justification::topLeft);
 
-    // Status readout
-    auto statusArea = area.removeFromBottom (45).reduced (12, 0);
+    // Status readout and MIDI events counter in bottom strip
+    auto statusArea = area.removeFromBottom (34).reduced (14, 0);
     juce::String statusStr = "STATUS: IDLE";
     juce::Colour statusCol = currentTheme.ink.withAlpha (0.6f);
 
@@ -1226,67 +1405,14 @@ void RecordPracticeView::drawRecordingConsole (juce::Graphics& g, juce::Rectangl
         statusCol = juce::Colour (0xffe74c3c);
     }
 
-    g.setFont (displayFont (14.0f));
+    g.setFont (displayFont (13.0f).boldened());
     g.setColour (statusCol);
-    g.drawText (statusStr, statusArea, juce::Justification::centredLeft);
+    g.drawText (statusStr, statusArea, juce::Justification::centredLeft, false);
 
     const int midiEvents = processor.getMidiRecorder().getEventCount();
-    g.setFont (uiFont (14.0f));
-    g.setColour (currentTheme.ink.withAlpha (0.7f));
-    g.drawText (juce::String::formatted ("MIDI Events: %d", midiEvents), statusArea, juce::Justification::centredRight);
-}
-
-void RecordPracticeView::drawRhythmRibbon (juce::Graphics& g, juce::Rectangle<int> area)
-{
-    g.setColour (currentTheme.panel);
-    g.fillRoundedRectangle (area.toFloat(), 8.0f);
-    g.setColour (currentTheme.panelEdge);
-    g.drawRoundedRectangle (area.toFloat(), 8.0f, 2.0f);
-
-    auto inner = area.reduced (10);
-    const int numLanes = 6;
-    const float laneH = static_cast<float> (inner.getHeight()) / static_cast<float> (numLanes);
-    const char* laneNames[] = { "KCK", "SNR", "HH", "TOM", "CYM", "RIDE" };
-    const juce::Colour laneColours[] = {
-        currentTheme.accent,
-        juce::Colour (0xff3498db),
-        juce::Colour (0xff2ecc71),
-        currentTheme.accent.withAlpha (0.7f),
-        currentTheme.warning,
-        juce::Colour (0xff9b59b6)
-    };
-
-    for (int i = 0; i < numLanes; ++i)
-    {
-        const float y = static_cast<float> (inner.getY()) + static_cast<float> (i) * laneH;
-        g.setColour (currentTheme.panelEdge.withAlpha (0.15f));
-        g.drawLine (static_cast<float> (inner.getX()), y, static_cast<float> (inner.getRight()), y, 1.0f);
-
-        // Lane label
-        g.setFont (displayFont (12.0f));
-        g.setColour (currentTheme.ink.withAlpha (0.6f));
-        g.drawText (laneNames[i], static_cast<float> (inner.getX()), y, 36.0f, laneH, juce::Justification::centredLeft);
-    }
-
-    // Draw active moving note capsules
-    const float noteStartX = static_cast<float> (inner.getX() + 40);
-    const float noteTrackW = static_cast<float> (inner.getWidth() - 45);
-
-    for (const auto& note : activeRibbonNotes)
-    {
-        if (note.lane >= 0 && note.lane < numLanes)
-        {
-            const float x = noteStartX + note.position * noteTrackW;
-            const float y = static_cast<float> (inner.getY()) + static_cast<float> (note.lane) * laneH + 2.0f;
-            const float w = 18.0f * note.velocity + 6.0f;
-            const float h = laneH - 4.0f;
-
-            g.setColour (laneColours[note.lane]);
-            g.fillRoundedRectangle (x, y, w, h, 3.0f);
-            g.setColour (currentTheme.panelEdge);
-            g.drawRoundedRectangle (x, y, w, h, 3.0f, 1.2f);
-        }
-    }
+    g.setFont (uiFont (12.0f));
+    g.setColour (currentTheme.inkSoft);
+    g.drawText (juce::String::formatted ("MIDI Events: %d", midiEvents), statusArea, juce::Justification::centredRight, false);
 }
 
 } // namespace glorp

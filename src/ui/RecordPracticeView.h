@@ -41,12 +41,14 @@ public:
 
     void applyTheme (const Theme& theme);
 
-    /// Notify real-time note hit for the rolling rhythm ribbon
-    void recordDrumHit (int instrumentIndex, float velocity);
 
     bool keyPressed (const juce::KeyPress& key) override;
     void togglePlayPause();
     void stopTransportAndRecording();
+
+    void setBeatsPerMeasure (int beats);
+    void triggerBeatFlash (int beat, bool isDownbeat);
+    void setAlsoRecordBackingTrack (bool alsoRecord);
 
 private:
     PluginProcessor& processor;
@@ -90,12 +92,38 @@ private:
         }
         bool getArmed() const noexcept { return isArmed; }
 
+        void setDisabledStyle (bool disabled)
+        {
+            isDisabled = disabled;
+            repaint();
+        }
+        bool getDisabledStyle() const noexcept { return isDisabled; }
+
+        void setFontSize (float sz)
+        {
+            customFontSize = sz;
+            repaint();
+        }
+
         void paintButton (juce::Graphics& g, bool isHover, bool isDown) override
         {
             auto b = getLocalBounds().toFloat().reduced (1.5f);
             juce::Colour bg = baseColour;
             if (bg.getAlpha() == 0)
                 bg = theme.panel;
+
+            if (isDisabled)
+            {
+                bg = theme.panel.withAlpha (0.45f);
+                g.setColour (bg);
+                g.fillRoundedRectangle (b, 4.0f);
+                drawSketchRect (g, b, theme.panelEdge.withAlpha (0.35f), 1.2f, static_cast<unsigned> (label.hashCode()));
+                g.setFont (displayFont (customFontSize > 0.0f ? customFontSize : 14.0f).boldened());
+                g.setColour (theme.inkSoft.withAlpha (0.45f));
+                g.drawText (label, b.reduced (10.0f, 0.0f),
+                            label.startsWith ("Click Preset:") ? juce::Justification::centredLeft : juce::Justification::centred, false);
+                return;
+            }
 
             if (isArmed)
             {
@@ -125,9 +153,10 @@ private:
                             isHover ? 2.0f : 1.4f, static_cast<unsigned> (label.hashCode()));
 
             // Comic display font
-            g.setFont (displayFont (14.0f));
+            g.setFont (displayFont (customFontSize > 0.0f ? customFontSize : 14.0f).boldened());
             g.setColour (isArmed ? juce::Colours::white : theme.ink);
-            g.drawText (label, b, juce::Justification::centred, false);
+            g.drawText (label, b.reduced (10.0f, 0.0f),
+                        label.startsWith ("Click Preset:") ? juce::Justification::centredLeft : juce::Justification::centred, false);
         }
 
     private:
@@ -135,6 +164,8 @@ private:
         juce::Colour baseColour { juce::Colours::transparentBlack };
         Theme theme;
         bool isArmed = false;
+        bool isDisabled = false;
+        float customFontSize = 0.0f;
     };
 
     // Backing track transport
@@ -159,16 +190,26 @@ private:
 
     // Metronome controls
     ComicButton metroToggleButton { "Metronome: OFF" };
-    juce::ComboBox countInCombo;
-    juce::ComboBox clickSoundCombo;
+    ComicButton countInToggleButton { "Count In: ON" };
+    ComicButton countIn1BarButton { "1 bar" };
+    ComicButton countIn2BarsButton { "2 bars" };
+    ComicButton clickPresetButton { "Click Preset: Woodblock" };
+    juce::TextEditor beatsEditor;
     std::unique_ptr<Knob> clickVolumeKnob;
 
     // Recording controls
     ComicButton recordButton { "REC" };
     ComicButton stopButton { "STOP" };
-    juce::ComboBox recordSourceCombo; // Drums Only vs Full Mix
+    ComicButton alsoRecordTrackButton { "Also record backing track" };
     ComicButton exportWavButton { "Export WAV" };
     ComicButton exportMidButton { "Export MIDI" };
+
+    // Beat lights state
+    int beatsPerMeasure = 4;
+    int activeBeatFlash = 0;
+    bool isDownbeatFlash = false;
+    double lastBeatFlashTime = 0.0;
+    std::vector<juce::Rectangle<int>> beatLightBounds;
 
     // Tap tempo calculation
     std::vector<double> tapTimestamps;
@@ -204,27 +245,17 @@ private:
     void drawBeatTimelineBar (juce::Graphics&, juce::Rectangle<int> area);
     void drawPracticeConsole (juce::Graphics&, juce::Rectangle<int> area);
     void drawRecordingConsole (juce::Graphics&, juce::Rectangle<int> area);
-    void drawRhythmRibbon (juce::Graphics&, juce::Rectangle<int> area);
-
-    // Rhythm Ribbon state
-    struct RibbonNote
-    {
-        int lane = 0;       // 0: Kick, 1: Snare, 2: HiHat, 3: Toms, 4: Cymbals, 5: Ride
-        float position = 1.0f; // 1.0 (right) to 0.0 (left)
-        float velocity = 1.0f;
-    };
-    std::deque<RibbonNote> activeRibbonNotes;
+    void drawBeatLights (juce::Graphics&);
 
     // UI state caches
     double detectedBpm = 120.0;
     float bpmConfidence = 0.0f;
     bool isAnalyzing = false;
     bool isRecArmed = false;
-    int currentBeatFlash = 1;
-    bool isDownbeatFlash = false;
-    double lastFlashTime = 0.0;
+    bool alsoRecordBackingTrack = false;
 
     void updateButtonStyles();
+    void updateCountInButtons();
 };
 
 } // namespace glorp

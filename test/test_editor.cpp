@@ -381,8 +381,17 @@ int main()
             }
             proc.getBackingTrackPlayer().loadFile (backingWav);
 
-            // 7. Test Practice & Record View snapshot (Light Theme)
+            // 7. Test Practice & Record View snapshot (Light Theme matching mockup)
             ed->setViewMode (glorp::Editor::EditorView::practiceView);
+            proc.getMetronome().setEnabled (true);
+            proc.getMetronome().setCountInMode (glorp::Metronome::CountInMode::oneBar);
+            if (auto* pv = ed->getPracticeView())
+            {
+                pv->setBeatsPerMeasure (5);
+                pv->setAlsoRecordBackingTrack (true);
+                pv->triggerBeatFlash (1, true);
+            }
+
             auto imagePractice = pluginEditor->createComponentSnapshot (pluginEditor->getLocalBounds());
             juce::File outPracticeFile ("/home/servandoc/Documents/DEV/GlorpDrums/docs/practice_view_screenshot.png");
             outPracticeFile.deleteFile();

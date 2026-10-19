@@ -521,7 +521,7 @@ void Editor::setViewMode (EditorView mode)
     instCurveButton.setVisible (isKit);
     instCurvePreview.setVisible (isKit);
     instLearnButton.setVisible (isKit);
-    scope.setVisible (isKit);
+    scope.setVisible (isKit || isPractice);
     if (masterVolumeKnob != nullptr) masterVolumeKnob->setVisible (isKit);
 
     if (mixerView != nullptr)
@@ -1565,15 +1565,26 @@ void Editor::resized()
     const int bottomH = 135;
     const int bottomY = h - bottomH - 12;
 
-    // Master Volume in bottom right
-    const int masterW = 110;
-    const int masterX = w - masterW - 24;
-    masterVolumeKnob->setBounds (masterX, bottomY + 16, masterW, bottomH - 20);
+    const bool isPractice = (currentView == EditorView::practiceView);
 
-    // MIDI Activity scope spanning bottom
-    const int scopeX = 24;
-    const int scopeW = masterX - scopeX - 18;
-    scope.setBounds (scopeX, bottomY, scopeW, bottomH);
+    if (isPractice)
+    {
+        // In practice mode, MIDI Activity scope spans across the full bottom strip
+        scope.setBounds (24, bottomY, w - 48, bottomH);
+    }
+    else
+    {
+        // Master Volume in bottom right
+        const int masterW = 110;
+        const int masterX = w - masterW - 24;
+        if (masterVolumeKnob != nullptr)
+            masterVolumeKnob->setBounds (masterX, bottomY + 16, masterW, bottomH - 20);
+
+        // MIDI Activity scope spanning bottom
+        const int scopeX = 24;
+        const int scopeW = masterX - scopeX - 18;
+        scope.setBounds (scopeX, bottomY, scopeW, bottomH);
+    }
 
     // 3. Left Panel ("INSTRUMENT SETTINGS")
     const int panelX = 24;
@@ -1666,7 +1677,7 @@ void Editor::resized()
         mixerView->setBounds (16, 56, w - 32, h - 68);
 
     if (practiceView != nullptr)
-        practiceView->setBounds (16, 56, w - 32, h - 68);
+        practiceView->setBounds (16, 56, w - 32, bottomY - 56 - 6);
 
     if (edrumWizard != nullptr)
         edrumWizard->setBounds (getLocalBounds());

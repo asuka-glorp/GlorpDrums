@@ -64,6 +64,7 @@ public:
     float getLevel() const noexcept { return clickLevel.load (std::memory_order_relaxed); }
 
     void setTimeSignature (int numerator, int denominator) noexcept;
+    int getTimeSignatureNumerator() const noexcept { return timeSigNumerator.load (std::memory_order_relaxed); }
 
     void setGridOffset (double offsetSeconds) noexcept;
     double getGridOffset() const noexcept { return gridOffsetSeconds.load (std::memory_order_relaxed); }
