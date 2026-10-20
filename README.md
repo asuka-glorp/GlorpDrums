@@ -170,10 +170,12 @@ GlorpDrums is actively developed following an ambitious multi-phase roadmap:
 ### Prerequisites (Linux)
 * CMake 3.22 or higher
 * C++20 compatible compiler (GCC 11+ or Clang 14+)
-* Linux development headers (ALSA, JACK, FreeType, X11, OpenGL):
+* Linux development headers (ALSA, JACK, FreeType, FontConfig, OpenGL, X11):
   ```bash
-  sudo apt install build-essential cmake libasound2-dev libjack-jackd2-dev \
-                   libfreetype-dev libx11-dev libxcomposite-dev libxcursor-dev \
+  sudo apt install build-essential cmake pkg-config \
+                   libasound2-dev libjack-jackd2-dev \
+                   libfreetype-dev libfontconfig1-dev libgl1-mesa-dev \
+                   libx11-dev libxcomposite-dev libxcursor-dev \
                    libxext-dev libxinerama-dev libxrandr-dev libxrender-dev
   ```
 
