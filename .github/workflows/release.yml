@@ -4,6 +4,15 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Tag name for release (e.g. v0.2.0)'
+        required: true
+        default: 'v0.2.0'
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -76,6 +85,7 @@ jobs:
       - name: Upload release asset
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ inputs.tag_name || github.ref_name }}
           files: |
             build/GlorpDrums_artefacts/Release/GlorpDrums-${{ matrix.os }}.tar.gz
             build/GlorpDrums_artefacts/Release/GlorpDemoKit.tar.gz
