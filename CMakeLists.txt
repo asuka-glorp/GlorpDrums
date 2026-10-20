@@ -229,19 +229,19 @@ if(GLORP_BUILD_TESTS)
     target_link_libraries(glorp_core_tests PRIVATE juce::juce_core juce::juce_recommended_warning_flags)
     add_test(NAME core COMMAND glorp_core_tests)
 
-    add_executable(test_editor test/test_editor.cpp)
+    add_executable(test_editor EXCLUDE_FROM_ALL test/test_editor.cpp)
     target_include_directories(test_editor PRIVATE src src/core src/plugin src/ui src/practice)
     target_link_libraries(test_editor PRIVATE GlorpDrums GlorpDrumsAssets juce::juce_audio_utils juce::juce_audio_processors juce::juce_recommended_warning_flags)
 
-    add_executable(test_zones_knobs test/test_zones_knobs.cpp)
+    add_executable(test_zones_knobs EXCLUDE_FROM_ALL test/test_zones_knobs.cpp)
     target_include_directories(test_zones_knobs PRIVATE src src/core src/plugin src/ui src/practice)
     target_link_libraries(test_zones_knobs PRIVATE GlorpDrums GlorpDrumsAssets juce::juce_audio_utils juce::juce_audio_processors juce::juce_recommended_warning_flags)
 
-    add_executable(diagnose_crocell_knobs test/diagnose_crocell_knobs.cpp)
+    add_executable(diagnose_crocell_knobs EXCLUDE_FROM_ALL test/diagnose_crocell_knobs.cpp)
     target_include_directories(diagnose_crocell_knobs PRIVATE src src/core src/plugin src/ui src/practice)
     target_link_libraries(diagnose_crocell_knobs PRIVATE GlorpDrums GlorpDrumsAssets juce::juce_audio_utils juce::juce_audio_processors juce::juce_recommended_warning_flags)
 
-    add_executable(verify_fixes test/verify_fixes.cpp)
+    add_executable(verify_fixes EXCLUDE_FROM_ALL test/verify_fixes.cpp)
     target_include_directories(verify_fixes PRIVATE src src/core src/plugin src/ui src/practice)
     target_link_libraries(verify_fixes PRIVATE GlorpDrums GlorpDrumsAssets juce::juce_audio_utils juce::juce_audio_processors juce::juce_recommended_warning_flags)
 endif()

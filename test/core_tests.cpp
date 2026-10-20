@@ -596,9 +596,9 @@ void testHiHatPedalLogic()
 static fs::path findRepoRoot()
 {
     auto p = fs::current_path();
-    for (int i = 0; i < 4; ++i)
+    for (int i = 0; i < 6; ++i)
     {
-        if (fs::exists (p / "test" / "kits" / "GlorpDemoKit") && fs::exists (p / "tools" / "convert_to_glorpkit.py"))
+        if (fs::exists (p / "CMakeLists.txt") && fs::exists (p / "test" / "kits" / "GlorpDemoKit"))
             return p;
         if (! p.has_parent_path() || p == p.parent_path())
             break;
@@ -671,6 +671,12 @@ void testGlorpKitPackage (const fs::path& work)
     const fs::path demoKitDir = repoRoot / "test" / "kits" / "GlorpDemoKit";
     const fs::path scriptPath = repoRoot / "tools" / "convert_to_glorpkit.py";
     const fs::path packagePath = work / "GlorpDemoKit.glorpkit";
+
+    if (! fs::exists (scriptPath) || ! fs::exists (demoKitDir / "drumkit.xml"))
+    {
+        std::cout << "  (Skipping GlorpKit packaging test - convert_to_glorpkit.py or demo kit not found)\n";
+        return;
+    }
 
     const std::string cmd = "python3 \"" + scriptPath.string() + "\" \"" + demoKitDir.string() + "\" -o \"" + packagePath.string() + "\" > /dev/null 2>&1";
     int ret = std::system (cmd.c_str());

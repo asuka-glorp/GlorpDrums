@@ -10,6 +10,7 @@ jobs:
   build:
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-22.04, ubuntu-24.04]
 
@@ -25,6 +26,7 @@ jobs:
             build-essential \
             cmake \
             pkg-config \
+            ccache \
             libasound2-dev \
             libfreetype-dev \
             libfontconfig1-dev \
@@ -39,6 +41,11 @@ jobs:
             libcurl4-openssl-dev \
             libjack-jackd2-dev
 
+      - name: Setup ccache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: ${{ matrix.os }}-build-ccache
+
       - name: Fetch JUCE
         run: |
           if [ ! -d "libs/JUCE" ]; then
@@ -46,7 +53,7 @@ jobs:
           fi
 
       - name: Configure
-        run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
 
       - name: Build
         run: cmake --build build -j$(nproc)

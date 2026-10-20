@@ -21,7 +21,6 @@ Thumbs.db
 
 # Private tools & scripts (kept locally, excluded from public repo)
 tools/sample_ripper/
-tools/convert_to_glorpkit.py
 tools/organize_reaperdrummer_kits.py
 tools/generate_advanced_kit.py
 tools/__pycache__/
