@@ -78,6 +78,7 @@ void Sampler::setSampleRateAndBlock (double rate, int blockSize)
     reverbAccumR.resize (static_cast<size_t> (currentBlockSize));
 
     masterFX.prepare (currentSampleRate, currentBlockSize);
+    crosstalk.prepare (currentSampleRate, currentBlockSize);
     for (auto& ch : micChannels)
         ch->fx.prepare (currentSampleRate, currentBlockSize);
 }
@@ -264,6 +265,25 @@ bool Sampler::loadKit (DrumKit kit, juce::String& error)
         micChannels.push_back (std::move (ch));
     }
 
+    // Detect snare top and bottom mics for sympathetic snare wire resonance
+    snareMicIndex = -1;
+    snareBotMicIndex = -1;
+    for (size_t k = 0; k < kitChannels_.size(); ++k)
+    {
+        const auto n = juce::String (kitChannels_[k].name).toLowerCase();
+        if (n.contains ("snare") || n.contains ("sd_") || n.contains ("sn_"))
+        {
+            if (n.contains ("bot") || n.contains ("bottom") || n.contains ("under"))
+                snareBotMicIndex = static_cast<int> (k);
+            else if (snareMicIndex < 0 || n.contains ("top") || n.contains ("up"))
+                snareMicIndex = static_cast<int> (k);
+        }
+    }
+    if (snareMicIndex < 0 && snareBotMicIndex >= 0)
+        snareMicIndex = snareBotMicIndex;
+    if (snareBotMicIndex < 0 && snareMicIndex >= 0)
+        snareBotMicIndex = snareMicIndex;
+
     // A kit with more instruments than buses is a hard error, not a silent
     // truncation, so surface it rather than hiding some of the kit.
     if (missingFiles > 0)
@@ -285,6 +305,10 @@ void Sampler::unloadKit()
 
     kitLoaded.store (false);
     allNotesOff();
+
+    crosstalk.reset();
+    snareMicIndex = -1;
+    snareBotMicIndex = -1;
 
     instruments_.clear();
     kitChannels_.clear();
@@ -572,6 +596,7 @@ void Sampler::resolveInstrumentChannels (const DrumKit& kit, const Instrument& i
 {
     out.name = instrument.displayName;
     out.group = instrument.group;
+    out.piece = instrument.bleedPiece;
 
     for (size_t s = 0; s < instrument.samples.size(); ++s)
     {
@@ -603,6 +628,9 @@ void Sampler::resolveInstrumentChannels (const DrumKit& kit, const Instrument& i
             channelRef.handle = sampleCache.open (instrument.samplePath (ref));
             channelRef.channel = ref.fileChannel;
             channelRef.kitChannelIndex = 0;
+            channelRef.isBleed = ! source.main;
+            channelRef.pieceIdx = static_cast<int> (instrument.bleedPiece);
+            channelRef.channelBleedFactor = source.bleed;
 
             for (size_t k = 0; k < kit.channels.size(); ++k)
             {
@@ -950,6 +978,8 @@ void Sampler::triggerVoice (int instrument, int note, float velocity, int64_t ti
     auto* voice = allocateVoice();
     if (voice == nullptr)
         return;
+
+    crosstalk.triggerSympatheticHit (runtime.piece, velocity);
 
     const auto& p = channelParams[static_cast<size_t> (instrument)];
     if (p.muted)
@@ -1350,6 +1380,14 @@ void Sampler::render (float* const* output, int numOutputChannels, int numSample
                     for (const auto& channelRef : hit.channels)
                     {
                         const int micIdx = std::clamp (channelRef.kitChannelIndex, 0, numMics - 1);
+                        float bleedGain = 1.0f;
+                        if (channelRef.isBleed)
+                        {
+                            bleedGain = bleedMatrix.getEffectiveGain (channelRef.pieceIdx, micIdx) * channelRef.channelBleedFactor;
+                            if (bleedGain <= 0.0f)
+                                continue;
+                        }
+
                         const float y0 = channelRef.handle.readSample (pos - 1, channelRef.channel);
                         const float y1 = channelRef.handle.readSample (pos,     channelRef.channel);
                         const float y2 = channelRef.handle.readSample (pos + 1, channelRef.channel);
@@ -1360,6 +1398,8 @@ void Sampler::render (float* const* output, int numOutputChannels, int numSample
                         const float c3 = 0.5f * (y3 - y0) + 1.5f * (y1 - y2);
                         const float sample = ((c3 * t + c2) * t + c1) * t + y1;
 
+                        const float effGain = gain * bleedGain;
+
                         if (hasAuxBus)
                         {
                             float micLvlL = 1.0f, micLvlR = 1.0f;
@@ -1373,15 +1413,15 @@ void Sampler::render (float* const* output, int numOutputChannels, int numSample
                                 micLvlL = mp.level * mPanL * phase;
                                 micLvlR = mp.level * mPanR * phase;
                             }
-                            auxDestL[i] += sample * channelRef.gainL * instGainL * gain * micLvlL;
-                            auxDestR[i] += sample * channelRef.gainR * instGainR * gain * micLvlR;
+                            auxDestL[i] += sample * channelRef.gainL * instGainL * effGain * micLvlL;
+                            auxDestR[i] += sample * channelRef.gainR * instGainR * effGain * micLvlR;
                         }
                         else
                         {
                             micScratchL[static_cast<size_t> (micIdx)][static_cast<size_t> (i)] +=
-                                sample * channelRef.gainL * instGainL * gain;
+                                sample * channelRef.gainL * instGainL * effGain;
                             micScratchR[static_cast<size_t> (micIdx)][static_cast<size_t> (i)] +=
-                                sample * channelRef.gainR * instGainR * gain;
+                                sample * channelRef.gainR * instGainR * effGain;
                         }
                     }
                 }
@@ -1392,7 +1432,16 @@ void Sampler::render (float* const* output, int numOutputChannels, int numSample
                     for (const auto& channelRef : hit.channels)
                     {
                         const int micIdx = std::clamp (channelRef.kitChannelIndex, 0, numMics - 1);
+                        float bleedGain = 1.0f;
+                        if (channelRef.isBleed)
+                        {
+                            bleedGain = bleedMatrix.getEffectiveGain (channelRef.pieceIdx, micIdx) * channelRef.channelBleedFactor;
+                            if (bleedGain <= 0.0f)
+                                continue;
+                        }
+
                         const float sample = channelRef.handle.readSample (pos, channelRef.channel);
+                        const float effGain = gain * bleedGain;
 
                         if (hasAuxBus)
                         {
@@ -1407,15 +1456,15 @@ void Sampler::render (float* const* output, int numOutputChannels, int numSample
                                 micLvlL = mp.level * mPanL * phase;
                                 micLvlR = mp.level * mPanR * phase;
                             }
-                            auxDestL[i] += sample * channelRef.gainL * instGainL * gain * micLvlL;
-                            auxDestR[i] += sample * channelRef.gainR * instGainR * gain * micLvlR;
+                            auxDestL[i] += sample * channelRef.gainL * instGainL * effGain * micLvlL;
+                            auxDestR[i] += sample * channelRef.gainR * instGainR * effGain * micLvlR;
                         }
                         else
                         {
                             micScratchL[static_cast<size_t> (micIdx)][static_cast<size_t> (i)] +=
-                                sample * channelRef.gainL * instGainL * gain;
+                                sample * channelRef.gainL * instGainL * effGain;
                             micScratchR[static_cast<size_t> (micIdx)][static_cast<size_t> (i)] +=
-                                sample * channelRef.gainR * instGainR * gain;
+                                sample * channelRef.gainR * instGainR * effGain;
                         }
                     }
                 }
@@ -1426,6 +1475,15 @@ void Sampler::render (float* const* output, int numOutputChannels, int numSample
             if (v.position >= static_cast<double> (hit.numFrames))
                 v.active = false;
         }
+
+        // 2b. Acoustic Crosstalk & Sympathetic Snare Wire Simulation (Phase 4)
+        for (int m = 0; m < numMics; ++m)
+        {
+            micScratchLPtrs[static_cast<size_t> (m)] = micScratchL[static_cast<size_t> (m)].data();
+            micScratchRPtrs[static_cast<size_t> (m)] = micScratchR[static_cast<size_t> (m)].data();
+        }
+        crosstalk.render (micScratchLPtrs.data(), micScratchRPtrs.data(), numMics, numSamples,
+                          bleedMatrix, snareMicIndex, snareBotMicIndex);
 
         // 3. Process each mic channel strip (Phase, EQ, Comp, Saturation, Transient, Reverb send)
         bool anyMicSolo = false;

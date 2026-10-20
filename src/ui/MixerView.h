@@ -31,6 +31,10 @@ public:
     void refreshChannels();
     void openChannelFX (int channelIndex);
     void openMasterFX();
+    void openBleedMatrix (int highlightMic = -1);
+    void toggleBleedMatrix();
+    void setBleedMatrixOpen (bool open);
+    bool isBleedMatrixOpen() const noexcept { return bleedMatrixOpen; }
     void closePopups();
     void setTheme (const Theme& newTheme);
 
@@ -39,6 +43,7 @@ private:
 
     PluginProcessor& processor;
     Theme theme = Theme::sketch();
+    bool bleedMatrixOpen = false;
 
     //==========================================================================
     // UI Helpers & Custom Buttons
@@ -134,6 +139,79 @@ private:
     };
 
     //==========================================================================
+    // Bleed Matrix Popup / Panel (Multi-mic Leakage & Acoustic Crosstalk Matrix)
+    //==========================================================================
+    class BleedMatrixPopup : public juce::Component
+    {
+    public:
+        BleedMatrixPopup (MixerView& owner, PluginProcessor& processor);
+        void open (int highlightMic = -1);
+        void close();
+        bool isOpen() const noexcept { return isVisible(); }
+        void updateFromState();
+        void setTheme (const Theme& t);
+
+        void paint (juce::Graphics& g) override;
+        void resized() override;
+        void mouseDown (const juce::MouseEvent& e) override;
+        void mouseDrag (const juce::MouseEvent& e) override;
+        void mouseUp (const juce::MouseEvent& e) override;
+        void mouseDoubleClick (const juce::MouseEvent& e) override;
+        void mouseMove (const juce::MouseEvent& e) override;
+        void mouseExit (const juce::MouseEvent& e) override;
+        void mouseWheelMove (const juce::MouseEvent& e, const juce::MouseWheelDetails& wheel) override;
+
+    private:
+        MixerView& owner;
+        PluginProcessor& processor;
+        Theme theme = Theme::sketch();
+        int highlightedMicIndex = -1;
+
+        HandButton closeBtn { "CLOSE" };
+
+        // Presets
+        HandButton naturalBtn { "NATURAL" };
+        HandButton cleanBtn   { "CLEAN (DRY)" };
+        HandButton liveBtn    { "LIVE ROOM" };
+        HandButton ohOnlyBtn  { "OH ONLY" };
+
+        // Modes
+        HandButton hybridModeBtn   { "HYBRID ACOUSTIC", true };
+        HandButton recordedModeBtn { "RECORDED ONLY",   true };
+        HandButton disabledModeBtn { "MUTE BLEED",      true };
+
+        std::unique_ptr<Knob> masterBleedKnob;
+        std::unique_ptr<Knob> sympResonanceKnob;
+
+        // Matrix Grid Interaction
+        int draggingPiece = -1;
+        int draggingMic = -1;
+        float dragStartGain = 1.0f;
+        juce::Point<int> dragStartPos;
+
+        // Hover & Macro Mutes
+        int hoveredPiece = -1;
+        int hoveredMic = -1;
+        int hoveredRowMutePiece = -1;
+        int hoveredColMuteMic = -1;
+
+        // Tooltip bubble
+        bool isEditingValue = false;
+        float activeEditDb = 0.0f;
+        juce::Point<int> activeEditPos;
+
+        // Cached layout
+        juce::Rectangle<int> gridBounds;
+        int rowHeight = 22;
+        int colWidth = 64;
+        int headerColWidth = 100;
+
+        bool getCellAtPos (juce::Point<int> pos, int& outPiece, int& outMic) const;
+        bool getRowMuteAtPos (juce::Point<int> pos, int& outPiece) const;
+        bool getColMuteAtPos (juce::Point<int> pos, int& outMic) const;
+    };
+
+    //==========================================================================
     // Individual Channel Strip Component
     //==========================================================================
     class ChannelStripComponent : public juce::Component
@@ -159,6 +237,7 @@ private:
 
         HandButton phaseBtn { "0", true };
         HandButton fxBtn    { "FX", true };
+        HandButton bleedBtn { "BLD" };
         HandButton soloBtn  { "S", true };
         HandButton muteBtn  { "M", true };
         HandButton busBtn   { "M 1/2" };
@@ -226,9 +305,13 @@ private:
     HandButton savePresetBtn   { "SAVE .glorpmix" };
     HandButton loadPresetBtn   { "LOAD..." };
 
-    // FX Drawers
+    // Bleed Matrix Button
+    HandButton bleedMatrixBtn  { "BLEED MATRIX" };
+
+    // FX Drawers & Popups
     std::unique_ptr<ChannelFXPopup> channelFXPopup;
     std::unique_ptr<MasterFXPopup> masterFXPopup;
+    std::unique_ptr<BleedMatrixPopup> bleedMatrixPopup;
 
     void applyPreset (int presetIndex);
     void promptSavePreset();

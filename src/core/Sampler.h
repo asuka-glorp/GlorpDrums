@@ -25,6 +25,8 @@
 #include "ChannelFX.h"
 #include "DrumKit.h"
 #include "SampleCache.h"
+#include "BleedMatrix.h"
+#include "AcousticCrosstalk.h"
 
 #include <algorithm>
 #include <atomic>
@@ -187,6 +189,11 @@ public:
     float getMasterRmsL()  const noexcept { return masterRmsL.load  (std::memory_order_relaxed); }
     float getMasterRmsR()  const noexcept { return masterRmsR.load  (std::memory_order_relaxed); }
 
+    // -- Bleed Matrix & Crosstalk (Phase 4) --------------------------------
+    BleedMatrix& getBleedMatrix() noexcept { return bleedMatrix; }
+    const BleedMatrix& getBleedMatrix() const noexcept { return bleedMatrix; }
+    AcousticCrosstalk& getAcousticCrosstalk() noexcept { return crosstalk; }
+
     // -- rendering ---------------------------------------------------------
 
     /** Renders one block. `output` is `numOutputChannels` pointers to
@@ -227,6 +234,9 @@ private:
         float gainL = 0.0f;
         float gainR = 0.0f;
         int kitChannelIndex = 0;    ///< index into kitChannels_ for per-mic mixing
+        bool isBleed = false;       ///< true if this is an off-axis bleed mic channel
+        int pieceIdx = 0;           ///< source BleedPiece integer index
+        float channelBleedFactor = 1.0f; ///< XML bleed attribute (1.0 = default)
     };
 
     /// A resolved round of an instrument: all of its channels, ready to sum.
@@ -249,6 +259,7 @@ private:
         std::vector<ResolvedHit> hits;
         juce::String group;
         juce::String name;
+        BleedPiece piece = BleedPiece::snare;
         std::vector<ChokeTarget> chokeTargets;
     };
 
@@ -403,6 +414,14 @@ private:
     // Preallocated audio-thread scratch buffers for mixing
     std::vector<std::vector<float>> micScratchL, micScratchR;
     std::vector<float> reverbAccumL, reverbAccumR;
+
+    // -- Bleed Matrix & Acoustic Crosstalk (Phase 4) -----------------------
+    BleedMatrix bleedMatrix;
+    AcousticCrosstalk crosstalk;
+    int snareMicIndex = -1;
+    int snareBotMicIndex = -1;
+    std::array<float*, 32> micScratchLPtrs {};
+    std::array<float*, 32> micScratchRPtrs {};
 
     // -- kit state, guarded by kitLock --------------------------------------
     mutable juce::CriticalSection kitLock;

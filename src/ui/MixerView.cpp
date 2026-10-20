@@ -139,6 +139,13 @@ MixerView::ChannelStripComponent::ChannelStripComponent (MixerView& o, PluginPro
     };
     addAndMakeVisible (fxBtn);
 
+    bleedBtn.setButtonText ("BLD");
+    bleedBtn.activeColour = juce::Colour (0xffe67e22);
+    bleedBtn.onClick = [this]() {
+        owner.openBleedMatrix (channelIndex_);
+    };
+    addAndMakeVisible (bleedBtn);
+
     soloBtn.setButtonText ("S");
     soloBtn.activeColour = juce::Colour (0xfff1c40f);
     soloBtn.onClick = [this]() {
@@ -194,6 +201,18 @@ void MixerView::ChannelStripComponent::updateFromState()
                           || std::abs (params.eqHighGainDb) > 0.5f;
     fxBtn.setActive (fxActive);
 
+    const auto& bm = processor.getSampler().getBleedMatrix();
+    bool hasBleed = false;
+    for (int p = 0; p < BleedMatrix::maxPieces; ++p)
+    {
+        if (bm.getCellGain (p, channelIndex_) > 0.05f && ! bm.isCellMuted (p, channelIndex_))
+        {
+            hasBleed = true;
+            break;
+        }
+    }
+    bleedBtn.setActive (hasBleed && bm.getMode() != BleedMatrix::Mode::disabled);
+
     const int b = processor.getSampler().getMicOutputBus (channelIndex_);
     busBtn.setButtonText (b == 0 ? "M 1/2" : (juce::String (b * 2 + 1) + "/" + juce::String (b * 2 + 2)));
     busBtn.activeColour = (b == 0) ? juce::Colour (0xffea8c16) : juce::Colour (0xff3498db);
@@ -205,28 +224,41 @@ void MixerView::ChannelStripComponent::updateFromState()
 void MixerView::ChannelStripComponent::resized()
 {
     const auto r = getLocalBounds().toFloat();
-    phaseBtn.setBounds (r.getX() + 6.0f, 38.0f, (r.getWidth() - 16.0f) * 0.48f, 22.0f);
-    fxBtn.setBounds (r.getX() + 8.0f + (r.getWidth() - 16.0f) * 0.48f, 38.0f, (r.getWidth() - 16.0f) * 0.48f, 22.0f);
+    const bool isCompact = (r.getHeight() < 300.0f);
 
-    panBarBounds = juce::Rectangle<float> (r.getX() + 8.0f, 64.0f, r.getWidth() - 16.0f, 18.0f);
+    const float btnGap = 2.0f;
+    const float topBtnW = (r.getWidth() - 12.0f - btnGap * 2.0f) / 3.0f;
+    const float topBtnY = isCompact ? 30.0f : 38.0f;
+    const float topBtnH = isCompact ? 19.0f : 22.0f;
 
-    soloBtn.setBounds (r.getX() + 6.0f, 86.0f, (r.getWidth() - 16.0f) * 0.48f, 22.0f);
-    muteBtn.setBounds (r.getX() + 8.0f + (r.getWidth() - 16.0f) * 0.48f, 86.0f, (r.getWidth() - 16.0f) * 0.48f, 22.0f);
+    phaseBtn.setBounds (r.getX() + 6.0f, topBtnY, topBtnW, topBtnH);
+    fxBtn.setBounds (r.getX() + 6.0f + topBtnW + btnGap, topBtnY, topBtnW, topBtnH);
+    bleedBtn.setBounds (r.getX() + 6.0f + (topBtnW + btnGap) * 2.0f, topBtnY, topBtnW, topBtnH);
 
-    // Fader & Meter area: height from y=112 to bottom - 56px
-    const float faderTop = 112.0f;
-    const float faderBottom = r.getBottom() - 56.0f;
-    const float faderH = faderBottom - faderTop;
+    const float panY = isCompact ? 52.0f : 64.0f;
+    const float panH = isCompact ? 15.0f : 18.0f;
+    panBarBounds = juce::Rectangle<float> (r.getX() + 8.0f, panY, r.getWidth() - 16.0f, panH);
+
+    const float soloMuteY = isCompact ? 70.0f : 86.0f;
+    const float soloMuteH = isCompact ? 19.0f : 22.0f;
+    soloBtn.setBounds (r.getX() + 6.0f, soloMuteY, (r.getWidth() - 16.0f) * 0.48f, soloMuteH);
+    muteBtn.setBounds (r.getX() + 8.0f + (r.getWidth() - 16.0f) * 0.48f, soloMuteY, (r.getWidth() - 16.0f) * 0.48f, soloMuteH);
+
+    // Fader & Meter area
+    const float faderTop = isCompact ? 94.0f : 112.0f;
+    const float faderBottom = isCompact ? (r.getBottom() - 44.0f) : (r.getBottom() - 56.0f);
+    const float faderH = std::max (30.0f, faderBottom - faderTop);
 
     faderTrackBounds = juce::Rectangle<float> (r.getX() + 14.0f, faderTop, 24.0f, faderH);
     meterBounds      = juce::Rectangle<float> (r.getX() + 46.0f, faderTop, 16.0f, faderH);
 
     const auto params = processor.getSampler().getMicStripParams (channelIndex_);
     const float norm = gainToNormalized (params.level);
-    const float thumbY = faderTrackBounds.getBottom() - norm * faderTrackBounds.getHeight() - 10.0f;
-    faderThumbBounds = juce::Rectangle<float> (faderTrackBounds.getX() - 4.0f, thumbY, faderTrackBounds.getWidth() + 8.0f, 20.0f);
+    const float thumbY = faderTrackBounds.getBottom() - norm * faderTrackBounds.getHeight() - (isCompact ? 8.0f : 10.0f);
+    faderThumbBounds = juce::Rectangle<float> (faderTrackBounds.getX() - 4.0f, thumbY, faderTrackBounds.getWidth() + 8.0f, isCompact ? 16.0f : 20.0f);
 
-    busBtn.setBounds (r.getX() + 6.0f, r.getBottom() - 26.0f, r.getWidth() - 12.0f, 22.0f);
+    const float busH = isCompact ? 18.0f : 22.0f;
+    busBtn.setBounds (r.getX() + 6.0f, r.getBottom() - (busH + 3.0f), r.getWidth() - 12.0f, busH);
 }
 
 void MixerView::ChannelStripComponent::setTheme (const Theme& t)
@@ -234,9 +266,11 @@ void MixerView::ChannelStripComponent::setTheme (const Theme& t)
     theme = t;
     phaseBtn.setTheme (t);
     fxBtn.setTheme (t);
+    bleedBtn.setTheme (t);
     soloBtn.setTheme (t);
     muteBtn.setTheme (t);
     busBtn.setTheme (t);
+    repaint();
     repaint();
 }
 
@@ -260,13 +294,13 @@ void MixerView::ChannelStripComponent::paint (juce::Graphics& g)
     g.fillRoundedRectangle (r, 6.0f);
 
     // Sketched ink border
-    drawSketchRect (g, r, theme.panelEdge, 1.8f, channelIndex_ * 7 + 13);
+    drawSketchRect (g, r, theme.panelEdge, 1.8f, static_cast<uint32_t> (channelIndex_ * 7 + 13));
 
     // Top Channel Badge
     auto badgeR = juce::Rectangle<float> (r.getX() + 4.0f, r.getY() + 4.0f, r.getWidth() - 8.0f, 26.0f);
     g.setColour (accent);
     g.fillRoundedRectangle (badgeR, 4.0f);
-    drawSketchRect (g, badgeR, theme.isDark ? theme.panelEdge : ink, 1.5f, channelIndex_ * 11 + 3);
+    drawSketchRect (g, badgeR, theme.isDark ? theme.panelEdge : ink, 1.5f, static_cast<uint32_t> (channelIndex_ * 11 + 3));
 
     g.setColour (juce::Colours::white);
     g.setFont (displayFont (11.0f));
@@ -372,13 +406,15 @@ void MixerView::ChannelStripComponent::paint (juce::Graphics& g)
     g.fillRect (thumbR.getX() + 2.0f, thumbR.getCentreY() - 1.5f, thumbR.getWidth() - 4.0f, 3.0f);
 
     // Numeric dB Display
-    auto dbRect = juce::Rectangle<float> (r.getX() + 4.0f, r.getBottom() - 50.0f, r.getWidth() - 8.0f, 18.0f);
+    const bool isCompact = (r.getHeight() < 300.0f);
+    const float dbY = isCompact ? (r.getBottom() - 41.0f) : (r.getBottom() - 50.0f);
+    auto dbRect = juce::Rectangle<float> (r.getX() + 4.0f, dbY, r.getWidth() - 8.0f, isCompact ? 16.0f : 18.0f);
     g.setColour (theme.trough);
     g.fillRoundedRectangle (dbRect, 3.0f);
     drawSketchRect (g, dbRect, theme.panelEdge, 1.2f, 77);
 
     g.setColour (params.level > 1.0f ? juce::Colour (0xffd03020) : theme.ink);
-    g.setFont (displayFont (9.5f));
+    g.setFont (displayFont (isCompact ? 8.5f : 9.5f));
     g.drawText (formatDb (params.level), dbRect, juce::Justification::centred, false);
 }
 
@@ -475,13 +511,16 @@ void MixerView::MasterStripComponent::updateFromState()
 void MixerView::MasterStripComponent::resized()
 {
     const auto r = getLocalBounds().toFloat();
-    limiterBtn.setBounds (r.getX() + 8.0f, 40.0f, r.getWidth() - 16.0f, 22.0f);
-    panBarBounds = juce::Rectangle<float> (r.getX() + 8.0f, 68.0f, r.getWidth() - 16.0f, 18.0f);
-    fxBtn.setBounds (r.getX() + 8.0f, 92.0f, r.getWidth() - 16.0f, 22.0f);
+    const bool isCompact = (r.getHeight() < 300.0f);
 
-    const float faderTop = 122.0f;
-    const float faderBottom = r.getBottom() - 32.0f;
-    const float faderH = faderBottom - faderTop;
+    const float btnH = isCompact ? 19.0f : 22.0f;
+    limiterBtn.setBounds (r.getX() + 8.0f, isCompact ? 30.0f : 40.0f, r.getWidth() - 16.0f, btnH);
+    panBarBounds = juce::Rectangle<float> (r.getX() + 8.0f, isCompact ? 52.0f : 68.0f, r.getWidth() - 16.0f, isCompact ? 15.0f : 18.0f);
+    fxBtn.setBounds (r.getX() + 8.0f, isCompact ? 70.0f : 92.0f, r.getWidth() - 16.0f, btnH);
+
+    const float faderTop = isCompact ? 94.0f : 122.0f;
+    const float faderBottom = isCompact ? (r.getBottom() - 28.0f) : (r.getBottom() - 32.0f);
+    const float faderH = std::max (30.0f, faderBottom - faderTop);
 
     faderTrackBounds = juce::Rectangle<float> (r.getX() + 14.0f, faderTop, 28.0f, faderH);
     meterLBounds     = juce::Rectangle<float> (r.getX() + 48.0f, faderTop, 12.0f, faderH);
@@ -563,7 +602,7 @@ void MixerView::MasterStripComponent::paint (juce::Graphics& g)
         const auto mR = (ch == 0 ? meterLBounds : meterRBounds);
         g.setColour (theme.trough);
         g.fillRoundedRectangle (mR, 2.0f);
-        drawSketchRect (g, mR, theme.panelEdge, 1.0f, 94 + ch);
+        drawSketchRect (g, mR, theme.panelEdge, 1.0f, static_cast<uint32_t> (94 + ch));
 
         const float peak = (ch == 0 ? processor.getSampler().getMasterPeakL() : processor.getSampler().getMasterPeakR());
         const float rms  = (ch == 0 ? processor.getSampler().getMasterRmsL()  : processor.getSampler().getMasterRmsR());
@@ -621,13 +660,15 @@ void MixerView::MasterStripComponent::paint (juce::Graphics& g)
     g.fillRect (thumbR.getX() + 2.0f, thumbR.getCentreY() - 1.5f, thumbR.getWidth() - 4.0f, 3.0f);
 
     // Master dB display
-    auto dbRect = juce::Rectangle<float> (r.getX() + 6.0f, r.getBottom() - 26.0f, r.getWidth() - 12.0f, 20.0f);
+    const bool isCompact = (r.getHeight() < 300.0f);
+    auto dbRect = juce::Rectangle<float> (r.getX() + 6.0f, isCompact ? (r.getBottom() - 24.0f) : (r.getBottom() - 26.0f),
+                                          r.getWidth() - 12.0f, isCompact ? 18.0f : 20.0f);
     g.setColour (theme.trough);
     g.fillRoundedRectangle (dbRect, 3.0f);
     drawSketchRect (g, dbRect, theme.panelEdge, 1.2f, 98);
 
     g.setColour (params.level > 1.0f ? juce::Colour (0xffd03020) : theme.ink);
-    g.setFont (displayFont (10.0f));
+    g.setFont (displayFont (isCompact ? 9.0f : 10.0f));
     g.drawText (formatDb (params.level), dbRect, juce::Justification::centred, false);
 }
 
@@ -1039,6 +1080,889 @@ void MixerView::MasterFXPopup::mouseDown (const juce::MouseEvent& e)
 }
 
 //==============================================================================
+// Vector Drum Piece Icon Renderer (Hand-drawn comic/sketch style)
+//==============================================================================
+static void drawPieceVectorIcon (juce::Graphics& g, BleedPiece piece, juce::Rectangle<float> bounds,
+                                 juce::Colour colour, float strokeWidth)
+{
+    g.setColour (colour);
+    const float cx = bounds.getCentreX();
+    const float cy = bounds.getCentreY();
+
+    switch (piece)
+    {
+        case BleedPiece::kick:
+        {
+            const float r = std::min (bounds.getWidth(), bounds.getHeight()) * 0.38f;
+            g.drawEllipse (cx - r, cy - r, r * 2.0f, r * 2.0f, strokeWidth);
+            g.fillEllipse (cx - r * 0.28f, cy - r * 0.28f, r * 0.56f, r * 0.56f);
+            juce::Path spurs;
+            spurs.startNewSubPath (cx - r * 0.707f, cy + r * 0.707f);
+            spurs.lineTo (cx - r * 1.15f, cy + r * 1.15f);
+            spurs.startNewSubPath (cx + r * 0.707f, cy + r * 0.707f);
+            spurs.lineTo (cx + r * 1.15f, cy + r * 1.15f);
+            g.strokePath (spurs, juce::PathStrokeType (strokeWidth, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+            break;
+        }
+        case BleedPiece::snare:
+        {
+            const float w = bounds.getWidth() * 0.82f;
+            const float h = bounds.getHeight() * 0.52f;
+            const float x = cx - w * 0.5f;
+            const float y = cy - h * 0.5f;
+            g.drawEllipse (x, y, w, h * 0.45f, strokeWidth);
+            juce::Path shell;
+            shell.startNewSubPath (x, y + h * 0.225f);
+            shell.lineTo (x, y + h);
+            shell.startNewSubPath (x + w, y + h * 0.225f);
+            shell.lineTo (x + w, y + h);
+            shell.startNewSubPath (x, y + h);
+            shell.quadraticTo (cx, y + h + h * 0.25f, x + w, y + h);
+            // Snare wires across bottom
+            shell.startNewSubPath (x + w * 0.18f, y + h * 0.65f);
+            shell.lineTo (x + w * 0.34f, y + h * 0.52f);
+            shell.lineTo (x + w * 0.50f, y + h * 0.65f);
+            shell.lineTo (x + w * 0.66f, y + h * 0.52f);
+            shell.lineTo (x + w * 0.82f, y + h * 0.65f);
+            g.strokePath (shell, juce::PathStrokeType (strokeWidth, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+            break;
+        }
+        case BleedPiece::tom1:
+        case BleedPiece::tom2:
+        {
+            const float scale = (piece == BleedPiece::tom1 ? 0.72f : 0.80f);
+            const float w = bounds.getWidth() * scale;
+            const float h = bounds.getHeight() * (scale * 0.75f);
+            const float x = cx - w * 0.5f;
+            const float y = cy - h * 0.5f;
+            g.drawEllipse (x, y, w, h * 0.40f, strokeWidth);
+            juce::Path shell;
+            shell.startNewSubPath (x, y + h * 0.20f);
+            shell.lineTo (x, y + h);
+            shell.startNewSubPath (x + w, y + h * 0.20f);
+            shell.lineTo (x + w, y + h);
+            shell.startNewSubPath (x, y + h);
+            shell.quadraticTo (cx, y + h + h * 0.25f, x + w, y + h);
+            g.strokePath (shell, juce::PathStrokeType (strokeWidth, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+            break;
+        }
+        case BleedPiece::floorTom:
+        {
+            const float w = bounds.getWidth() * 0.80f;
+            const float h = bounds.getHeight() * 0.58f;
+            const float x = cx - w * 0.5f;
+            const float y = cy - h * 0.55f;
+            g.drawEllipse (x, y, w, h * 0.38f, strokeWidth);
+            juce::Path shell;
+            shell.startNewSubPath (x, y + h * 0.19f);
+            shell.lineTo (x, y + h);
+            shell.startNewSubPath (x + w, y + h * 0.19f);
+            shell.lineTo (x + w, y + h);
+            shell.startNewSubPath (x, y + h);
+            shell.quadraticTo (cx, y + h + h * 0.22f, x + w, y + h);
+            // 3 Floor Tom legs
+            shell.startNewSubPath (x + w * 0.15f, y + h * 0.6f);
+            shell.lineTo (x - 2.0f, bounds.getBottom() - 1.0f);
+            shell.startNewSubPath (x + w * 0.85f, y + h * 0.6f);
+            shell.lineTo (x + w + 2.0f, bounds.getBottom() - 1.0f);
+            shell.startNewSubPath (cx, y + h * 0.8f);
+            shell.lineTo (cx, bounds.getBottom() - 1.0f);
+            g.strokePath (shell, juce::PathStrokeType (strokeWidth, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+            break;
+        }
+        case BleedPiece::hihat:
+        {
+            const float w = bounds.getWidth() * 0.82f;
+            g.drawLine (cx, bounds.getY() + 1.0f, cx, bounds.getBottom() - 1.0f, strokeWidth);
+            juce::Path cymbals;
+            // Top cymbal arc
+            cymbals.startNewSubPath (cx - w * 0.5f, cy - 2.5f);
+            cymbals.quadraticTo (cx, cy - 6.0f, cx + w * 0.5f, cy - 2.5f);
+            // Bottom cymbal arc
+            cymbals.startNewSubPath (cx - w * 0.5f, cy + 2.5f);
+            cymbals.quadraticTo (cx, cy + 6.0f, cx + w * 0.5f, cy + 2.5f);
+            // Stand pedal base line
+            cymbals.startNewSubPath (cx - w * 0.35f, bounds.getBottom() - 1.0f);
+            cymbals.lineTo (cx + w * 0.35f, bounds.getBottom() - 1.0f);
+            g.strokePath (cymbals, juce::PathStrokeType (strokeWidth, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+            break;
+        }
+        case BleedPiece::ride:
+        {
+            const float w = bounds.getWidth() * 0.86f;
+            juce::Path p;
+            p.startNewSubPath (cx - w * 0.5f, cy + 2.0f);
+            p.quadraticTo (cx - w * 0.14f, cy - 3.5f, cx - w * 0.10f, cy - 3.5f);
+            p.quadraticTo (cx, cy - 8.0f, cx + w * 0.10f, cy - 3.5f);
+            p.quadraticTo (cx + w * 0.14f, cy - 3.5f, cx + w * 0.5f, cy + 2.0f);
+            p.startNewSubPath (cx, cy - 1.0f);
+            p.lineTo (cx, bounds.getBottom() - 1.0f);
+            g.strokePath (p, juce::PathStrokeType (strokeWidth, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+            break;
+        }
+        case BleedPiece::crash1:
+        case BleedPiece::crash2:
+        {
+            const float w = bounds.getWidth() * 0.82f;
+            const float tilt = (piece == BleedPiece::crash1 ? -2.5f : 2.5f);
+            juce::Path p;
+            p.startNewSubPath (cx - w * 0.5f, cy + tilt + 1.5f);
+            p.quadraticTo (cx, cy + tilt - 4.5f, cx + w * 0.5f, cy - tilt - 1.5f);
+            p.startNewSubPath (cx, cy);
+            p.lineTo (cx, bounds.getBottom() - 1.0f);
+            // Vibrato slash accents
+            p.startNewSubPath (cx - w * 0.35f, cy - 5.0f);
+            p.lineTo (cx - w * 0.45f, cy - 8.0f);
+            p.startNewSubPath (cx + w * 0.35f, cy - 5.0f);
+            p.lineTo (cx + w * 0.45f, cy - 8.0f);
+            g.strokePath (p, juce::PathStrokeType (strokeWidth, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+            break;
+        }
+        case BleedPiece::count:
+        default:
+            break;
+    }
+}
+
+//==============================================================================
+// BleedMatrixPopup
+//==============================================================================
+
+MixerView::BleedMatrixPopup::BleedMatrixPopup (MixerView& o, PluginProcessor& proc)
+    : owner (o), processor (proc)
+{
+    closeBtn.onClick = [this]() { close(); };
+    addAndMakeVisible (closeBtn);
+
+    // Preset buttons
+    naturalBtn.setButtonText ("NATURAL");
+    naturalBtn.onClick = [this]() {
+        processor.getSampler().getBleedMatrix().resetToNatural();
+        updateFromState();
+    };
+    addAndMakeVisible (naturalBtn);
+
+    cleanBtn.setButtonText ("CLEAN (DRY)");
+    cleanBtn.onClick = [this]() {
+        processor.getSampler().getBleedMatrix().resetToClean();
+        updateFromState();
+    };
+    addAndMakeVisible (cleanBtn);
+
+    liveBtn.setButtonText ("LIVE ROOM");
+    liveBtn.onClick = [this]() {
+        processor.getSampler().getBleedMatrix().resetToLive();
+        updateFromState();
+    };
+    addAndMakeVisible (liveBtn);
+
+    ohOnlyBtn.setButtonText ("OH ONLY");
+    ohOnlyBtn.onClick = [this]() {
+        const int numMics = processor.getSampler().numMicStrips();
+        std::vector<std::string> names;
+        for (int i = 0; i < numMics; ++i)
+            names.push_back (processor.getSampler().micStripTitle (i).toStdString());
+        processor.getSampler().getBleedMatrix().resetToOverheadsOnly (names);
+        updateFromState();
+    };
+    addAndMakeVisible (ohOnlyBtn);
+
+    // Modes
+    hybridModeBtn.setButtonText ("HYBRID ACOUSTIC");
+    hybridModeBtn.activeColour = juce::Colour (0xff2ecc71);
+    hybridModeBtn.onClick = [this]() {
+        processor.getSampler().getBleedMatrix().setMode (BleedMatrix::Mode::hybridAcoustic);
+        updateFromState();
+    };
+    addAndMakeVisible (hybridModeBtn);
+
+    recordedModeBtn.setButtonText ("RECORDED ONLY");
+    recordedModeBtn.activeColour = juce::Colour (0xff3498db);
+    recordedModeBtn.onClick = [this]() {
+        processor.getSampler().getBleedMatrix().setMode (BleedMatrix::Mode::recordedOnly);
+        updateFromState();
+    };
+    addAndMakeVisible (recordedModeBtn);
+
+    disabledModeBtn.setButtonText ("MUTE BLEED");
+    disabledModeBtn.activeColour = juce::Colour (0xffe74c3c);
+    disabledModeBtn.onClick = [this]() {
+        processor.getSampler().getBleedMatrix().setMode (BleedMatrix::Mode::disabled);
+        updateFromState();
+    };
+    addAndMakeVisible (disabledModeBtn);
+
+    masterBleedKnob = std::make_unique<Knob> ("BLEED LEVEL", 0.0f, 2.0f, 1.0f, "x");
+    masterBleedKnob->onValueChanged = [this](float v) {
+        processor.getSampler().getBleedMatrix().setMasterBleed (v);
+        repaint();
+    };
+    addAndMakeVisible (*masterBleedKnob);
+
+    sympResonanceKnob = std::make_unique<Knob> ("SNARE BUZZ", 0.0f, 1.0f, 0.35f, "");
+    sympResonanceKnob->onValueChanged = [this](float v) {
+        processor.getSampler().getBleedMatrix().setSympatheticResonance (v);
+        repaint();
+    };
+    addAndMakeVisible (*sympResonanceKnob);
+
+    updateFromState();
+    setTheme (owner.theme);
+}
+
+void MixerView::BleedMatrixPopup::open (int highlightMic)
+{
+    highlightedMicIndex = highlightMic;
+    updateFromState();
+    owner.setBleedMatrixOpen (true);
+    repaint();
+}
+
+void MixerView::BleedMatrixPopup::close()
+{
+    highlightedMicIndex = -1;
+    owner.setBleedMatrixOpen (false);
+}
+
+void MixerView::BleedMatrixPopup::updateFromState()
+{
+    const auto& bm = processor.getSampler().getBleedMatrix();
+    if (masterBleedKnob)
+        masterBleedKnob->setValue (bm.getMasterBleed());
+    if (sympResonanceKnob)
+        sympResonanceKnob->setValue (bm.getSympatheticResonance());
+
+    hybridModeBtn.setActive (bm.getMode() == BleedMatrix::Mode::hybridAcoustic);
+    recordedModeBtn.setActive (bm.getMode() == BleedMatrix::Mode::recordedOnly);
+    disabledModeBtn.setActive (bm.getMode() == BleedMatrix::Mode::disabled);
+
+    repaint();
+}
+
+void MixerView::BleedMatrixPopup::setTheme (const Theme& t)
+{
+    theme = t;
+    closeBtn.setTheme (t);
+    naturalBtn.setTheme (t);
+    cleanBtn.setTheme (t);
+    liveBtn.setTheme (t);
+    ohOnlyBtn.setTheme (t);
+    hybridModeBtn.setTheme (t);
+    recordedModeBtn.setTheme (t);
+    disabledModeBtn.setTheme (t);
+    if (masterBleedKnob) masterBleedKnob->setTheme (t);
+    if (sympResonanceKnob) sympResonanceKnob->setTheme (t);
+    repaint();
+}
+
+void MixerView::BleedMatrixPopup::resized()
+{
+    closeBtn.setBounds (getWidth() - 76, 6, 68, 22);
+
+    const int topBtnY = 32;
+    naturalBtn.setBounds (12,  topBtnY, 68, 22);
+    cleanBtn.setBounds   (84,  topBtnY, 82, 22);
+    liveBtn.setBounds    (170, topBtnY, 78, 22);
+    ohOnlyBtn.setBounds  (252, topBtnY, 68, 22);
+
+    hybridModeBtn.setBounds   (326, topBtnY, 116, 22);
+    recordedModeBtn.setBounds (446, topBtnY, 108, 22);
+    disabledModeBtn.setBounds (558, topBtnY, 94,  22);
+
+    if (masterBleedKnob)
+        masterBleedKnob->setBounds (getWidth() - 146, 24, 52, 52);
+    if (sympResonanceKnob)
+        sympResonanceKnob->setBounds (getWidth() - 76,  24, 52, 52);
+
+    gridBounds = juce::Rectangle<int> (12, 80, getWidth() - 24, getHeight() - 102);
+
+    const int numMics = std::min (processor.getSampler().numMicStrips(), 32);
+    headerColWidth = 104;
+    colWidth = (numMics > 0) ? std::max (60, (gridBounds.getWidth() - headerColWidth) / numMics) : 70;
+    rowHeight = std::clamp ((gridBounds.getHeight() - 2) / (BleedMatrix::maxPieces + 1), 16, 24);
+}
+
+bool MixerView::BleedMatrixPopup::getCellAtPos (juce::Point<int> pos, int& outPiece, int& outMic) const
+{
+    const int numMics = std::min (processor.getSampler().numMicStrips(), 32);
+    if (numMics <= 0)
+        return false;
+
+    const int x0 = gridBounds.getX() + headerColWidth;
+    const int y0 = gridBounds.getY() + rowHeight;
+
+    if (pos.x < x0 || pos.y < y0)
+        return false;
+
+    const int c = (pos.x - x0) / colWidth;
+    const int r = (pos.y - y0) / rowHeight;
+
+    if (c >= 0 && c < numMics && r >= 0 && r < BleedMatrix::maxPieces)
+    {
+        outPiece = r;
+        outMic = c;
+        return true;
+    }
+    return false;
+}
+
+bool MixerView::BleedMatrixPopup::getRowMuteAtPos (juce::Point<int> pos, int& outPiece) const
+{
+    const int startX = gridBounds.getX();
+    const int startY = gridBounds.getY();
+    const int y0 = startY + rowHeight;
+
+    if (pos.x < startX || pos.x > startX + headerColWidth || pos.y < y0)
+        return false;
+
+    const int r = (pos.y - y0) / rowHeight;
+    if (r >= 0 && r < BleedMatrix::maxPieces)
+    {
+        // [M] button sits in the rightmost 20px of the row header cell
+        if (pos.x >= (startX + headerColWidth - 22) && pos.x <= (startX + headerColWidth - 4))
+        {
+            outPiece = r;
+            return true;
+        }
+    }
+    return false;
+}
+
+bool MixerView::BleedMatrixPopup::getColMuteAtPos (juce::Point<int> pos, int& outMic) const
+{
+    const int numMics = std::min (processor.getSampler().numMicStrips(), 32);
+    if (numMics <= 0)
+        return false;
+
+    const int startX = gridBounds.getX() + headerColWidth;
+    const int startY = gridBounds.getY();
+
+    if (pos.x < startX || pos.y < startY || pos.y > startY + rowHeight)
+        return false;
+
+    const int c = (pos.x - startX) / colWidth;
+    if (c >= 0 && c < numMics)
+    {
+        const int colX = startX + c * colWidth;
+        // [M] button sits in the rightmost 20px of the col header cell
+        if (pos.x >= (colX + colWidth - 20) && pos.x <= (colX + colWidth - 2))
+        {
+            outMic = c;
+            return true;
+        }
+    }
+    return false;
+}
+
+void MixerView::BleedMatrixPopup::paint (juce::Graphics& g)
+{
+    const auto r = getLocalBounds().toFloat().reduced (1.0f);
+    const auto ink = theme.ink;
+
+    // Drop shadow (light mode)
+    if (! theme.isDark)
+    {
+        g.setColour (ink.withAlpha (0.30f));
+        g.fillRoundedRectangle (r.translated (3.0f, 3.0f), 6.0f);
+    }
+
+    // Panel background
+    g.setColour (theme.panel);
+    g.fillRoundedRectangle (r, 6.0f);
+    drawSketchRect (g, r, theme.panelEdge, 2.0f, 204);
+
+    // Header banner
+    auto headerR = juce::Rectangle<float> (r.getX() + 4.0f, r.getY() + 3.0f, r.getWidth() - 8.0f, 26.0f);
+    g.setColour (theme.isDark ? juce::Colour (0xff34363d) : juce::Colour (0xffdfe6e9));
+    g.fillRoundedRectangle (headerR, 5.0f);
+    drawSketchRect (g, headerR, theme.isDark ? theme.panelEdge : ink, 1.4f, 205);
+
+    g.setColour (theme.isDark ? juce::Colours::white : ink);
+    g.setFont (displayFont (13.5f));
+    g.drawText ("ACOUSTIC BLEED & LEAKAGE MATRIX", 16, 7, 300, 18, juce::Justification::left, false);
+
+    g.setColour (theme.ink.withAlpha (0.65f));
+    g.setFont (displayFont (9.5f));
+    g.drawText ("Logical Pieces x Mic Channels Leakage Factor", 305, 8, 300, 16, juce::Justification::left, false);
+
+    const int numMics = std::min (processor.getSampler().numMicStrips(), 32);
+    if (numMics <= 0)
+    {
+        g.setColour (theme.ink);
+        g.setFont (displayFont (13.0f));
+        g.drawText ("(Load a multi-microphone drum kit to view and tweak acoustic bleed)",
+                    getLocalBounds(), juce::Justification::centred, false);
+        return;
+    }
+
+    auto& bm = processor.getSampler().getBleedMatrix();
+
+    // Table Header Row
+    const int startX = gridBounds.getX();
+    const int startY = gridBounds.getY();
+
+    // Corner cell
+    auto cornerR = juce::Rectangle<float> (static_cast<float> (startX), static_cast<float> (startY),
+                                           static_cast<float> (headerColWidth), static_cast<float> (rowHeight));
+    g.setColour (theme.trough);
+    g.fillRoundedRectangle (cornerR, 3.0f);
+    drawSketchRect (g, cornerR, theme.panelEdge, 1.2f, 301);
+    g.setColour (theme.ink);
+    g.setFont (displayFont (9.5f));
+    g.drawText ("PIECE \\ MIC", cornerR, juce::Justification::centred, false);
+
+    // Column Headers (Mic names with channel accent color matching top strips)
+    for (int m = 0; m < numMics; ++m)
+    {
+        auto colR = juce::Rectangle<float> (static_cast<float> (startX + headerColWidth + m * colWidth),
+                                            static_cast<float> (startY),
+                                            static_cast<float> (colWidth - 1),
+                                            static_cast<float> (rowHeight));
+        const bool isHighlighted = (m == highlightedMicIndex || m == hoveredMic);
+        const auto micName = processor.getSampler().micStripTitle (m);
+        const auto micAccent = getMicColor (micName);
+
+        // Header background with strip accent tint
+        g.setColour (isHighlighted ? micAccent.withAlpha (0.35f) : theme.trough);
+        g.fillRoundedRectangle (colR, 3.0f);
+
+        // Top accent strip matching the channel strip header above
+        g.setColour (micAccent);
+        g.fillRect (colR.getX(), colR.getY(), colR.getWidth(), 3.0f);
+
+        drawSketchRect (g, colR, isHighlighted ? juce::Colour (0xffe67e22) : theme.panelEdge, isHighlighted ? 1.6f : 1.1f, static_cast<uint32_t> (310 + m));
+
+        // Check if all cells in column are muted
+        bool allColMuted = true;
+        for (int p = 0; p < BleedMatrix::maxPieces; ++p)
+        {
+            if (! bm.isCellMuted (p, m))
+            {
+                allColMuted = false;
+                break;
+            }
+        }
+
+        // Column Mute button [M]
+        auto colMuteR = juce::Rectangle<float> (colR.getRight() - 17.0f, colR.getY() + 4.0f, 14.0f, static_cast<float> (rowHeight - 6));
+        if (allColMuted)
+        {
+            g.setColour (juce::Colour (0xffe74c3c));
+            g.fillRoundedRectangle (colMuteR, 2.0f);
+            g.setColour (juce::Colours::white);
+        }
+        else
+        {
+            g.setColour (hoveredColMuteMic == m ? theme.ink.withAlpha (0.25f) : theme.panel.withAlpha (0.4f));
+            g.fillRoundedRectangle (colMuteR, 2.0f);
+            g.setColour (theme.ink.withAlpha (0.7f));
+        }
+        g.setFont (displayFont (8.0f));
+        g.drawText ("M", colMuteR, juce::Justification::centred, false);
+
+        // Column label
+        auto textR = juce::Rectangle<int> (static_cast<int> (colR.getX() + 2.0f), static_cast<int> (colR.getY() + 2.0f),
+                                           static_cast<int> (colR.getWidth() - 18.0f), static_cast<int> (colR.getHeight() - 2.0f));
+        g.setColour (isHighlighted ? (theme.isDark ? juce::Colours::white : theme.ink) : theme.ink);
+        g.setFont (displayFont (9.0f));
+        g.drawFittedText (micName, textR, juce::Justification::centred, 1);
+    }
+
+    // Rows (9 logical pieces)
+    for (int p = 0; p < BleedMatrix::maxPieces; ++p)
+    {
+        const int rowY = startY + (p + 1) * rowHeight;
+        const auto pieceEnum = static_cast<BleedPiece> (p);
+
+        // Row Header (Piece vector icon + name + macro mute)
+        auto rowHdrR = juce::Rectangle<float> (static_cast<float> (startX),
+                                               static_cast<float> (rowY),
+                                               static_cast<float> (headerColWidth),
+                                               static_cast<float> (rowHeight - 1));
+        const bool isRowHovered = (hoveredPiece == p);
+        g.setColour (isRowHovered ? theme.trough.brighter (0.08f) : theme.trough);
+        g.fillRoundedRectangle (rowHdrR, 3.0f);
+        drawSketchRect (g, rowHdrR, theme.panelEdge, 1.1f, static_cast<uint32_t> (400 + p));
+
+        // Vector Icon on the left
+        auto iconR = juce::Rectangle<float> (rowHdrR.getX() + 3.0f, rowHdrR.getY() + 2.0f,
+                                             static_cast<float> (rowHeight - 5), static_cast<float> (rowHeight - 5));
+        drawPieceVectorIcon (g, pieceEnum, iconR, theme.ink, 1.3f);
+
+        // Piece Name text
+        auto nameR = juce::Rectangle<float> (rowHdrR.getX() + static_cast<float> (rowHeight), rowHdrR.getY(),
+                                             rowHdrR.getWidth() - static_cast<float> (rowHeight) - 20.0f, rowHdrR.getHeight());
+        g.setColour (theme.ink);
+        g.setFont (displayFont (9.5f));
+        g.drawText (bleedPieceDisplayName (pieceEnum), nameR, juce::Justification::centredLeft, false);
+
+        // Check if all cells in row are muted
+        bool allRowMuted = true;
+        for (int m = 0; m < numMics; ++m)
+        {
+            if (! bm.isCellMuted (p, m))
+            {
+                allRowMuted = false;
+                break;
+            }
+        }
+
+        // Row Mute button [M]
+        auto rowMuteR = juce::Rectangle<float> (rowHdrR.getRight() - 17.0f, rowHdrR.getY() + 3.0f, 14.0f, static_cast<float> (rowHeight - 6));
+        if (allRowMuted)
+        {
+            g.setColour (juce::Colour (0xffe74c3c));
+            g.fillRoundedRectangle (rowMuteR, 2.0f);
+            g.setColour (juce::Colours::white);
+        }
+        else
+        {
+            g.setColour (hoveredRowMutePiece == p ? theme.ink.withAlpha (0.25f) : theme.panel.withAlpha (0.4f));
+            g.fillRoundedRectangle (rowMuteR, 2.0f);
+            g.setColour (theme.ink.withAlpha (0.7f));
+        }
+        g.setFont (displayFont (8.0f));
+        g.drawText ("M", rowMuteR, juce::Justification::centred, false);
+
+        // Cells for this piece
+        for (int m = 0; m < numMics; ++m)
+        {
+            auto cellR = juce::Rectangle<float> (static_cast<float> (startX + headerColWidth + m * colWidth),
+                                                 static_cast<float> (rowY),
+                                                 static_cast<float> (colWidth - 1),
+                                                 static_cast<float> (rowHeight - 1));
+            const float cellGain = bm.getCellGain (p, m);
+            const bool isMuted = bm.isCellMuted (p, m);
+            const bool isCellHovered = (hoveredPiece == p && hoveredMic == m);
+            const bool isHighlighted = (m == highlightedMicIndex) || isCellHovered;
+
+            // Background base
+            g.setColour (theme.panel.withAlpha (0.85f));
+            g.fillRoundedRectangle (cellR, 2.0f);
+
+            if (isMuted)
+            {
+                // Muted state: soft red fill + slash
+                g.setColour (juce::Colour (0x28e74c3c));
+                g.fillRoundedRectangle (cellR, 2.0f);
+                g.setColour (juce::Colour (0x60e74c3c));
+                g.drawLine (cellR.getX() + 4.0f, cellR.getBottom() - 4.0f, cellR.getRight() - 4.0f, cellR.getY() + 4.0f, 1.2f);
+            }
+            else
+            {
+                // Heatmap fill bar: bipolar around unity 1.0f (0 dB)
+                const float centerTick = cellR.getX() + cellR.getWidth() * 0.5f;
+                if (cellGain > 1.02f)
+                {
+                    // Boost: extends to the right in warm amber
+                    const float boostRatio = std::clamp ((cellGain - 1.0f) / 1.0f, 0.0f, 1.0f);
+                    const float barW = (cellR.getWidth() * 0.48f) * boostRatio;
+                    auto barR = juce::Rectangle<float> (centerTick, cellR.getY() + 1.0f, barW, cellR.getHeight() - 2.0f);
+                    g.setColour (juce::Colour (0x45f39c12));
+                    g.fillRoundedRectangle (barR, 1.5f);
+                }
+                else if (cellGain < 0.98f)
+                {
+                    // Cut: extends to the left in cool cyan
+                    const float cutRatio = std::clamp ((1.0f - cellGain) / 1.0f, 0.0f, 1.0f);
+                    const float barW = (cellR.getWidth() * 0.48f) * cutRatio;
+                    auto barR = juce::Rectangle<float> (centerTick - barW, cellR.getY() + 1.0f, barW, cellR.getHeight() - 2.0f);
+                    g.setColour (juce::Colour (0x353498db));
+                    g.fillRoundedRectangle (barR, 1.5f);
+                }
+
+                // Unity center tick
+                g.setColour (theme.panelEdge.withAlpha (0.4f));
+                g.drawVerticalLine (static_cast<int> (centerTick), cellR.getY() + 2.0f, cellR.getBottom() - 2.0f);
+            }
+
+            // Cell border
+            drawSketchRect (g, cellR, isHighlighted ? juce::Colour (0xffe67e22) : theme.panelEdge, isHighlighted ? 1.5f : 1.0f, static_cast<uint32_t> (500 + p * 32 + m));
+
+            // Cell Text
+            g.setFont (displayFont (8.5f));
+            if (isMuted)
+            {
+                g.setColour (juce::Colour (0xffe74c3c));
+                g.drawText ("MUTE", cellR, juce::Justification::centred, false);
+            }
+            else
+            {
+                g.setColour (cellGain > 1.05f ? juce::Colour (0xffd35400) : theme.ink);
+                const float db = (cellGain <= 0.001f) ? -60.0f : linearToDb (cellGain);
+                juce::String label = (std::abs (db) < 0.05f) ? "0.0 dB" : ((db > 0.0f ? "+" : "") + juce::String (db, 1) + " dB");
+                g.drawText (label, cellR, juce::Justification::centred, false);
+            }
+        }
+    }
+
+    // Floating Tooltip Bubble when dragging or wheeling a cell
+    if (isEditingValue && draggingPiece >= 0 && draggingMic >= 0)
+    {
+        auto bubbleR = juce::Rectangle<float> (static_cast<float> (activeEditPos.x - 34),
+                                               static_cast<float> (activeEditPos.y - 32),
+                                               68.0f, 22.0f);
+        // Keep inside bounds
+        bubbleR.setX (std::clamp (bubbleR.getX(), 4.0f, static_cast<float> (getWidth() - 74)));
+        bubbleR.setY (std::max (4.0f, bubbleR.getY()));
+
+        // Bubble drop shadow
+        g.setColour (juce::Colours::black.withAlpha (0.35f));
+        g.fillRoundedRectangle (bubbleR.translated (2.0f, 2.0f), 5.0f);
+
+        // Bubble body
+        g.setColour (theme.isDark ? juce::Colour (0xff2d3436) : juce::Colour (0xff2c3e50));
+        g.fillRoundedRectangle (bubbleR, 5.0f);
+        drawSketchRect (g, bubbleR, juce::Colour (0xffe67e22), 1.5f, 999);
+
+        g.setColour (juce::Colours::white);
+        g.setFont (displayFont (10.0f));
+        juce::String tipText = (bm.isCellMuted (draggingPiece, draggingMic))
+                                 ? "MUTED"
+                                 : ((activeEditDb > 0.0f ? "+" : "") + juce::String (activeEditDb, 1) + " dB");
+        g.drawText (tipText, bubbleR, juce::Justification::centred, false);
+    }
+
+    // Bottom Help Hint
+    auto hintR = juce::Rectangle<float> (static_cast<float> (startX),
+                                         static_cast<float> (getHeight() - 20),
+                                         static_cast<float> (getWidth() - 24), 16.0f);
+    g.setColour (theme.ink.withAlpha (0.6f));
+    g.setFont (displayFont (9.0f));
+    g.drawText ("Drag cell up/down or scroll wheel | Right-click/Shift-click to toggle MUTE | Double-click to reset (0 dB) | [M] buttons for row/col mute",
+                hintR, juce::Justification::centred, false);
+}
+
+void MixerView::BleedMatrixPopup::mouseDown (const juce::MouseEvent& e)
+{
+    auto& bm = processor.getSampler().getBleedMatrix();
+    const auto pos = e.getPosition();
+
+    // 1. Check Row Mute [M] click
+    int pMute = -1;
+    if (getRowMuteAtPos (pos, pMute))
+    {
+        const int numMics = std::min (processor.getSampler().numMicStrips(), 32);
+        bool anyUnmuted = false;
+        for (int m = 0; m < numMics; ++m)
+        {
+            if (! bm.isCellMuted (pMute, m))
+            {
+                anyUnmuted = true;
+                break;
+            }
+        }
+        for (int m = 0; m < numMics; ++m)
+            bm.setCellMute (pMute, m, anyUnmuted);
+
+        repaint();
+        return;
+    }
+
+    // 2. Check Col Mute [M] click
+    int colMute = -1;
+    if (getColMuteAtPos (pos, colMute))
+    {
+        bool anyUnmuted = false;
+        for (int p = 0; p < BleedMatrix::maxPieces; ++p)
+        {
+            if (! bm.isCellMuted (p, colMute))
+            {
+                anyUnmuted = true;
+                break;
+            }
+        }
+        for (int p = 0; p < BleedMatrix::maxPieces; ++p)
+            bm.setCellMute (p, colMute, anyUnmuted);
+
+        repaint();
+        return;
+    }
+
+    // 3. Check Cell click
+    int p = -1, m = -1;
+    if (getCellAtPos (pos, p, m))
+    {
+        if (e.mods.isRightButtonDown() || e.mods.isShiftDown() || e.mods.isAltDown())
+        {
+            bm.setCellMute (p, m, ! bm.isCellMuted (p, m));
+            repaint();
+            return;
+        }
+
+        draggingPiece = p;
+        draggingMic = m;
+        dragStartGain = bm.getCellGain (p, m);
+        dragStartPos = pos;
+        isEditingValue = true;
+        const float db = (dragStartGain <= 0.001f) ? -60.0f : linearToDb (dragStartGain);
+        activeEditDb = db;
+        activeEditPos = pos;
+        repaint();
+    }
+}
+
+void MixerView::BleedMatrixPopup::mouseDrag (const juce::MouseEvent& e)
+{
+    if (draggingPiece >= 0 && draggingMic >= 0)
+    {
+        const int deltaY = dragStartPos.y - e.y;
+        const float newGain = std::clamp (dragStartGain + static_cast<float> (deltaY) * 0.015f, 0.0f, 2.0f);
+        auto& bm = processor.getSampler().getBleedMatrix();
+        bm.setCellGain (draggingPiece, draggingMic, newGain);
+        if (bm.isCellMuted (draggingPiece, draggingMic) && newGain > 0.01f)
+            bm.setCellMute (draggingPiece, draggingMic, false);
+
+        activeEditDb = (newGain <= 0.001f) ? -60.0f : linearToDb (newGain);
+        activeEditPos = e.getPosition();
+        isEditingValue = true;
+        repaint();
+    }
+}
+
+void MixerView::BleedMatrixPopup::mouseUp (const juce::MouseEvent& /*e*/)
+{
+    draggingPiece = -1;
+    draggingMic = -1;
+    isEditingValue = false;
+    repaint();
+}
+
+void MixerView::BleedMatrixPopup::mouseDoubleClick (const juce::MouseEvent& e)
+{
+    auto& bm = processor.getSampler().getBleedMatrix();
+    const auto pos = e.getPosition();
+
+    // Double-click row header -> reset row to 0 dB
+    int pRow = -1;
+    if (getRowMuteAtPos (pos, pRow) || (pos.x >= gridBounds.getX() && pos.x <= gridBounds.getX() + headerColWidth
+        && pos.y >= gridBounds.getY() + rowHeight))
+    {
+        const int p = (pos.y - (gridBounds.getY() + rowHeight)) / rowHeight;
+        if (p >= 0 && p < BleedMatrix::maxPieces)
+        {
+            const int numMics = std::min (processor.getSampler().numMicStrips(), 32);
+            for (int m = 0; m < numMics; ++m)
+            {
+                bm.setCellGain (p, m, 1.0f);
+                bm.setCellMute (p, m, false);
+            }
+            repaint();
+            return;
+        }
+    }
+
+    // Double-click col header -> reset col to 0 dB
+    int colMute = -1;
+    if (getColMuteAtPos (pos, colMute) || (pos.y >= gridBounds.getY() && pos.y <= gridBounds.getY() + rowHeight
+        && pos.x >= gridBounds.getX() + headerColWidth))
+    {
+        const int m = (pos.x - (gridBounds.getX() + headerColWidth)) / colWidth;
+        const int numMics = std::min (processor.getSampler().numMicStrips(), 32);
+        if (m >= 0 && m < numMics)
+        {
+            for (int p = 0; p < BleedMatrix::maxPieces; ++p)
+            {
+                bm.setCellGain (p, m, 1.0f);
+                bm.setCellMute (p, m, false);
+            }
+            repaint();
+            return;
+        }
+    }
+
+    // Double-click cell -> reset cell to 0 dB
+    int p = -1, m = -1;
+    if (getCellAtPos (pos, p, m))
+    {
+        bm.setCellGain (p, m, 1.0f);
+        bm.setCellMute (p, m, false);
+        repaint();
+    }
+}
+
+void MixerView::BleedMatrixPopup::mouseMove (const juce::MouseEvent& e)
+{
+    const auto pos = e.getPosition();
+    int p = -1, m = -1;
+    bool needRepaint = false;
+
+    if (getRowMuteAtPos (pos, p))
+    {
+        if (hoveredRowMutePiece != p) { hoveredRowMutePiece = p; needRepaint = true; }
+        hoveredColMuteMic = -1;
+        hoveredPiece = -1;
+        hoveredMic = -1;
+        setMouseCursor (juce::MouseCursor::PointingHandCursor);
+    }
+    else if (getColMuteAtPos (pos, m))
+    {
+        if (hoveredColMuteMic != m) { hoveredColMuteMic = m; needRepaint = true; }
+        hoveredRowMutePiece = -1;
+        hoveredPiece = -1;
+        hoveredMic = -1;
+        setMouseCursor (juce::MouseCursor::PointingHandCursor);
+    }
+    else if (getCellAtPos (pos, p, m))
+    {
+        if (hoveredPiece != p || hoveredMic != m) { hoveredPiece = p; hoveredMic = m; needRepaint = true; }
+        hoveredRowMutePiece = -1;
+        hoveredColMuteMic = -1;
+        setMouseCursor (juce::MouseCursor::UpDownResizeCursor);
+    }
+    else
+    {
+        if (hoveredPiece != -1 || hoveredMic != -1 || hoveredRowMutePiece != -1 || hoveredColMuteMic != -1)
+        {
+            hoveredPiece = -1;
+            hoveredMic = -1;
+            hoveredRowMutePiece = -1;
+            hoveredColMuteMic = -1;
+            needRepaint = true;
+        }
+        setMouseCursor (juce::MouseCursor::NormalCursor);
+    }
+
+    if (needRepaint)
+        repaint();
+}
+
+void MixerView::BleedMatrixPopup::mouseExit (const juce::MouseEvent& /*e*/)
+{
+    hoveredPiece = -1;
+    hoveredMic = -1;
+    hoveredRowMutePiece = -1;
+    hoveredColMuteMic = -1;
+    isEditingValue = false;
+    setMouseCursor (juce::MouseCursor::NormalCursor);
+    repaint();
+}
+
+void MixerView::BleedMatrixPopup::mouseWheelMove (const juce::MouseEvent& e, const juce::MouseWheelDetails& wheel)
+{
+    int p = -1, m = -1;
+    if (getCellAtPos (e.getPosition(), p, m))
+    {
+        auto& bm = processor.getSampler().getBleedMatrix();
+        const float currentGain = bm.getCellGain (p, m);
+        const float delta = (wheel.deltaY > 0.0f ? 0.06f : -0.06f);
+        const float newGain = std::clamp (currentGain + delta, 0.0f, 2.0f);
+        bm.setCellGain (p, m, newGain);
+        if (bm.isCellMuted (p, m) && newGain > 0.01f)
+            bm.setCellMute (p, m, false);
+
+        hoveredPiece = p;
+        hoveredMic = m;
+        draggingPiece = p;
+        draggingMic = m;
+        isEditingValue = true;
+        activeEditDb = (newGain <= 0.001f) ? -60.0f : linearToDb (newGain);
+        activeEditPos = e.getPosition();
+        repaint();
+    }
+}
+
+//==============================================================================
 // MixerView
 //==============================================================================
 
@@ -1071,10 +1995,19 @@ MixerView::MixerView (PluginProcessor& proc)
     addAndMakeVisible (savePresetBtn);
     addAndMakeVisible (loadPresetBtn);
 
-    channelFXPopup = std::make_unique<ChannelFXPopup> (*this, processor);
-    masterFXPopup  = std::make_unique<MasterFXPopup> (*this, processor);
+    bleedMatrixBtn.setButtonText ("BLEED MATRIX");
+    bleedMatrixBtn.activeColour = juce::Colour (0xffe67e22);
+    bleedMatrixBtn.onClick = [this]() {
+        toggleBleedMatrix();
+    };
+    addAndMakeVisible (bleedMatrixBtn);
+
+    channelFXPopup   = std::make_unique<ChannelFXPopup> (*this, processor);
+    masterFXPopup    = std::make_unique<MasterFXPopup> (*this, processor);
+    bleedMatrixPopup = std::make_unique<BleedMatrixPopup> (*this, processor);
     addChildComponent (*channelFXPopup);
     addChildComponent (*masterFXPopup);
+    addChildComponent (*bleedMatrixPopup);
 
     refreshChannels();
     startTimerHz (30); // 30Hz meter redraw
@@ -1115,6 +2048,40 @@ void MixerView::openMasterFX()
 {
     if (masterFXPopup != nullptr)
         masterFXPopup->open();
+}
+
+void MixerView::setBleedMatrixOpen (bool open)
+{
+    if (bleedMatrixOpen == open)
+        return;
+
+    bleedMatrixOpen = open;
+    bleedMatrixBtn.setActive (bleedMatrixOpen);
+
+    if (bleedMatrixPopup != nullptr)
+    {
+        bleedMatrixPopup->setVisible (bleedMatrixOpen);
+        if (bleedMatrixOpen)
+            bleedMatrixPopup->updateFromState();
+    }
+
+    resized();
+    repaint();
+}
+
+void MixerView::toggleBleedMatrix()
+{
+    setBleedMatrixOpen (! bleedMatrixOpen);
+}
+
+void MixerView::openBleedMatrix (int highlightMic)
+{
+    bleedMatrixOpen = true;
+    bleedMatrixBtn.setActive (true);
+    if (bleedMatrixPopup != nullptr)
+        bleedMatrixPopup->open (highlightMic);
+    resized();
+    repaint();
 }
 
 void MixerView::closePopups()
@@ -1225,15 +2192,23 @@ void MixerView::resized()
     presetPunchBtn.setBounds (232, btnY, 68, btnH);
     presetDryBtn.setBounds   (304, btnY, 68, btnH);
 
-    savePresetBtn.setBounds  (386, btnY, 110, btnH);
-    loadPresetBtn.setBounds  (500, btnY, 80,  btnH);
+    savePresetBtn.setBounds  (386, btnY, 104, btnH);
+    loadPresetBtn.setBounds  (494, btnY, 74,  btnH);
+    bleedMatrixBtn.setBounds (574, btnY, 114, btnH);
 
     // Channel Area vs Master Strip
     const float contentY = 46.0f;
-    const float contentH = r.getHeight() - contentY - 8.0f;
+    const float totalAvailH = r.getHeight() - contentY - 8.0f;
     const float masterW = 100.0f;
-
     const float viewW = r.getWidth() - masterW - 20.0f;
+
+    float contentH = totalAvailH;
+    if (bleedMatrixOpen)
+    {
+        contentH = std::round (totalAvailH * 0.44f);
+        contentH = std::clamp (contentH, 205.0f, 255.0f);
+    }
+
     channelViewport.setBounds (12, static_cast<int> (contentY), static_cast<int> (viewW), static_cast<int> (contentH));
 
     const float stripW = 86.0f;
@@ -1255,6 +2230,21 @@ void MixerView::resized()
 
     if (masterFXPopup != nullptr)
         masterFXPopup->setBounds (getWidth() - 460, 40, 430, 130);
+
+    if (bleedMatrixPopup != nullptr)
+    {
+        if (bleedMatrixOpen)
+        {
+            const float matrixY = contentY + contentH + 6.0f;
+            const float matrixH = r.getHeight() - matrixY - 6.0f;
+            bleedMatrixPopup->setBounds (12, static_cast<int> (matrixY), static_cast<int> (r.getWidth() - 24.0f), static_cast<int> (matrixH));
+            bleedMatrixPopup->setVisible (true);
+        }
+        else
+        {
+            bleedMatrixPopup->setVisible (false);
+        }
+    }
 }
 
 void MixerView::setTheme (const Theme& newTheme)
@@ -1268,6 +2258,7 @@ void MixerView::setTheme (const Theme& newTheme)
     presetDryBtn.setTheme (theme);
     savePresetBtn.setTheme (theme);
     loadPresetBtn.setTheme (theme);
+    bleedMatrixBtn.setTheme (theme);
 
     for (auto& strip : channelStrips)
         if (strip != nullptr)
@@ -1281,6 +2272,9 @@ void MixerView::setTheme (const Theme& newTheme)
 
     if (masterFXPopup != nullptr)
         masterFXPopup->setTheme (theme);
+
+    if (bleedMatrixPopup != nullptr)
+        bleedMatrixPopup->setTheme (theme);
 
     repaint();
 }
@@ -1300,11 +2294,14 @@ void MixerView::paint (juce::Graphics& g)
 void MixerView::mouseDown (const juce::MouseEvent& e)
 {
     // Dismiss popups if clicking outside
-    if (channelFXPopup->isOpen() && ! channelFXPopup->getBounds().contains (e.position.toInt()))
+    if (channelFXPopup && channelFXPopup->isOpen() && ! channelFXPopup->getBounds().contains (e.position.toInt()))
         channelFXPopup->close();
 
-    if (masterFXPopup->isOpen() && ! masterFXPopup->getBounds().contains (e.position.toInt()))
+    if (masterFXPopup && masterFXPopup->isOpen() && ! masterFXPopup->getBounds().contains (e.position.toInt()))
         masterFXPopup->close();
+
+    if (bleedMatrixPopup && bleedMatrixPopup->isOpen() && ! bleedMatrixPopup->getBounds().contains (e.position.toInt()))
+        bleedMatrixPopup->close();
 }
 
 } // namespace glorp

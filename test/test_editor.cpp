@@ -445,6 +445,42 @@ int main()
                 std::cout << "Saved Dark Mixer View snapshot to: " << darkMixerFile.getFullPathName().toStdString() << std::endl;
             }
 
+            // Dark Mixer View with Split Bleed Matrix open
+            if (auto* mv = ed->getMixerView())
+            {
+                mv->setBleedMatrixOpen (true);
+            }
+            auto darkSplitMixerImg = pluginEditor->createComponentSnapshot (pluginEditor->getLocalBounds());
+            juce::File darkSplitMixerFile ("/home/servandoc/Documents/DEV/GlorpDrums/docs/mixer_bleed_matrix_dark.png");
+            darkSplitMixerFile.deleteFile();
+            juce::FileOutputStream fosDarkSplit (darkSplitMixerFile);
+            if (fosDarkSplit.openedOk())
+            {
+                juce::PNGImageFormat png;
+                png.writeImageToStream (darkSplitMixerImg, fosDarkSplit);
+                std::cout << "Saved Dark Split Mixer View snapshot to: " << darkSplitMixerFile.getFullPathName().toStdString() << std::endl;
+            }
+
+            // Light (Sketch) Mixer View with Split Bleed Matrix open
+            ed->applyTheme (glorp::Theme::sketch());
+            auto lightSplitMixerImg = pluginEditor->createComponentSnapshot (pluginEditor->getLocalBounds());
+            juce::File lightSplitMixerFile ("/home/servandoc/Documents/DEV/GlorpDrums/docs/mixer_bleed_matrix_light.png");
+            lightSplitMixerFile.deleteFile();
+            juce::FileOutputStream fosLightSplit (lightSplitMixerFile);
+            if (fosLightSplit.openedOk())
+            {
+                juce::PNGImageFormat png;
+                png.writeImageToStream (lightSplitMixerImg, fosLightSplit);
+                std::cout << "Saved Light Split Mixer View snapshot to: " << lightSplitMixerFile.getFullPathName().toStdString() << std::endl;
+            }
+
+            // Re-apply dark theme before practice view tests
+            ed->applyTheme (glorp::Theme::dark());
+            if (auto* mv = ed->getMixerView())
+            {
+                mv->setBleedMatrixOpen (false);
+            }
+
             // Dark Practice View snapshot
             ed->setViewMode (glorp::Editor::EditorView::practiceView);
             auto darkPracticeImg = pluginEditor->createComponentSnapshot (pluginEditor->getLocalBounds());

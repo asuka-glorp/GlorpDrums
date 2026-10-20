@@ -5,6 +5,8 @@
     loading logic is sound regardless of how the audio engine turns out.
 */
 
+#include "BleedMatrix.h"
+#include "AcousticCrosstalk.h"
 #include "DrumKit.h"
 #include "GlorpKit.h"
 #include "KitScanner.h"
@@ -57,6 +59,17 @@ namespace
         {
             ++failures;
             std::cerr << "  FAIL: " << what << " (expected " << expected << ", got " << actual << ")\n";
+        }
+    }
+
+    void checkNear (float actual, float expected, float tolerance, const std::string& what)
+    {
+        ++checks;
+
+        if (std::abs (actual - expected) > tolerance)
+        {
+            ++failures;
+            std::cerr << "  FAIL: " << what << " (expected ~" << expected << ", got " << actual << ")\n";
         }
     }
 
@@ -759,6 +772,136 @@ void testGlorpKitPackage (const fs::path& work)
     }
 }
 
+void testBleedMatrixAndCrosstalk()
+{
+    section ("Bleed Matrix & Acoustic Crosstalk Engine");
+
+    // 1. Piece heuristics
+    check (pieceForInstrumentName ("Kick") == BleedPiece::kick, "pieceForInstrumentName Kick");
+    check (pieceForInstrumentName ("BassDrum") == BleedPiece::kick, "pieceForInstrumentName BassDrum");
+    check (pieceForInstrumentName ("Snare") == BleedPiece::snare, "pieceForInstrumentName Snare");
+    check (pieceForInstrumentName ("SnareTop") == BleedPiece::snare, "pieceForInstrumentName SnareTop");
+    check (pieceForInstrumentName ("Tom 1") == BleedPiece::tom1, "pieceForInstrumentName Tom 1");
+    check (pieceForInstrumentName ("RackTom") == BleedPiece::tom1, "pieceForInstrumentName RackTom");
+    check (pieceForInstrumentName ("Floor Tom") == BleedPiece::floorTom, "pieceForInstrumentName Floor Tom");
+    check (pieceForInstrumentName ("HiHat") == BleedPiece::hihat, "pieceForInstrumentName HiHat");
+    check (pieceForInstrumentName ("Ride") == BleedPiece::ride, "pieceForInstrumentName Ride");
+    check (pieceForInstrumentName ("Crash 1") == BleedPiece::crash1, "pieceForInstrumentName Crash 1");
+    check (pieceForInstrumentName ("Crash 2") == BleedPiece::crash2, "pieceForInstrumentName Crash 2");
+
+    checkEq (std::string (bleedPieceDisplayName (BleedPiece::snare)), "Snare", "displayName snare");
+    checkEq (std::string (bleedPieceIdentifier (BleedPiece::snare)), "snare", "identifier snare");
+
+    // 2. BleedMatrix initial state & gain calculations
+    BleedMatrix matrix;
+    check (matrix.getMode() == BleedMatrix::Mode::hybridAcoustic, "default mode is hybridAcoustic");
+    checkNear (matrix.getMasterBleed(), 1.0f, 0.001f, "default master bleed 1.0");
+    checkNear (matrix.getSympatheticResonance(), 0.35f, 0.001f, "default sympathetic resonance 0.35");
+    checkNear (matrix.getCellGain (0, 0), 1.0f, 0.001f, "default cell gain 1.0");
+    check (! matrix.isCellMuted (0, 0), "default cell not muted");
+    checkNear (matrix.getEffectiveGain (0, 0), 1.0f, 0.001f, "default effective gain 1.0");
+
+    // Cell gain scaling
+    matrix.setCellGain (0, 1, 0.5f);
+    checkNear (matrix.getCellGain (0, 1), 0.5f, 0.001f, "cell gain set to 0.5");
+    checkNear (matrix.getEffectiveGain (0, 1), 0.5f, 0.001f, "effective gain with master=1.0 is 0.5");
+
+    // Master bleed scaling
+    matrix.setMasterBleed (0.8f);
+    checkNear (matrix.getEffectiveGain (0, 1), 0.4f, 0.001f, "effective gain with master=0.8 is 0.4");
+
+    // Cell mute
+    matrix.setCellMute (0, 1, true);
+    check (matrix.isCellMuted (0, 1), "cell is muted");
+    checkNear (matrix.getEffectiveGain (0, 1), 0.0f, 0.001f, "effective gain when muted is 0.0");
+    matrix.setCellMute (0, 1, false);
+
+    // Matrix disabled mode
+    matrix.setMode (BleedMatrix::Mode::disabled);
+    checkNear (matrix.getEffectiveGain (0, 1), 0.0f, 0.001f, "effective gain when disabled is 0.0");
+
+    // 3. Presets
+    matrix.resetToNatural();
+    check (matrix.getMode() == BleedMatrix::Mode::hybridAcoustic, "resetToNatural restores hybridAcoustic");
+    checkNear (matrix.getMasterBleed(), 1.0f, 0.001f, "resetToNatural masterBleed 1.0");
+    checkNear (matrix.getEffectiveGain (0, 1), 1.0f, 0.001f, "resetToNatural un-mutes and restores gain 1.0");
+
+    matrix.resetToLive();
+    checkNear (matrix.getMasterBleed(), 1.35f, 0.001f, "resetToLive masterBleed 1.35");
+    checkNear (matrix.getSympatheticResonance(), 0.60f, 0.001f, "resetToLive sympathetic 0.60");
+
+    std::vector<std::string> micNames = { "Kick_In", "Snare_Top", "OH_L", "OH_R", "Room" };
+    matrix.resetToOverheadsOnly (micNames);
+    checkNear (matrix.getCellGain (0, 0), 0.0f, 0.001f, "overheads-only mutes kick close mic bleed");
+    checkNear (matrix.getCellGain (0, 1), 0.0f, 0.001f, "overheads-only mutes snare close mic bleed");
+    checkNear (matrix.getCellGain (0, 2), 1.0f, 0.001f, "overheads-only preserves OH_L bleed");
+    checkNear (matrix.getCellGain (0, 4), 1.0f, 0.001f, "overheads-only preserves Room bleed");
+
+    matrix.resetToClean();
+    check (matrix.getMode() == BleedMatrix::Mode::disabled, "resetToClean disables bleed");
+    checkNear (matrix.getMasterBleed(), 0.0f, 0.001f, "resetToClean masterBleed 0.0");
+
+    // 4. XML serialization
+    matrix.resetToNatural();
+    matrix.setMasterBleed (0.75f);
+    matrix.setSympatheticResonance (0.42f);
+    matrix.setCellGain (1, 2, 0.65f);
+    matrix.setCellMute (1, 3, true);
+
+    juce::XmlElement xml ("BLEED_STATE");
+    matrix.writeXml (xml);
+
+    BleedMatrix restored;
+    restored.resetToClean(); // Start from clean to ensure XML overrides
+    restored.readXml (xml);
+
+    checkNear (restored.getMasterBleed(), 0.75f, 0.001f, "XML restored masterBleed");
+    checkNear (restored.getSympatheticResonance(), 0.42f, 0.001f, "XML restored sympatheticResonance");
+    check (restored.getMode() == BleedMatrix::Mode::hybridAcoustic, "XML restored mode");
+    checkNear (restored.getCellGain (1, 2), 0.65f, 0.001f, "XML restored cell gain");
+    check (restored.isCellMuted (1, 3), "XML restored cell mute");
+
+    // 5. AcousticCrosstalk Engine & Sympathetic Snare Rattle
+    AcousticCrosstalk crosstalk;
+    crosstalk.prepare (44100.0, 512);
+
+    constexpr size_t numMics = 4;
+    constexpr size_t blockSize = 128;
+    std::vector<std::vector<float>> bufL (numMics, std::vector<float> (blockSize, 0.0f));
+    std::vector<std::vector<float>> bufR (numMics, std::vector<float> (blockSize, 0.0f));
+    std::vector<float*> ptrL (numMics);
+    std::vector<float*> ptrR (numMics);
+    for (size_t m = 0; m < numMics; ++m)
+    {
+        ptrL[m] = bufL[m].data();
+        ptrR[m] = bufR[m].data();
+    }
+
+    // Hit Kick drum -> should trigger sympathetic snare buzz on mic 1 (snare)
+    crosstalk.triggerSympatheticHit (BleedPiece::kick, 0.9f);
+    crosstalk.render (ptrL.data(), ptrR.data(), static_cast<int> (numMics), static_cast<int> (blockSize), matrix, 1, -1);
+
+    // Verify snare mic (mic 1) received buzz energy while mic 0 (kick) has none from sympathetic buzz
+    float kickEnergy = 0.0f;
+    float snareEnergy = 0.0f;
+    for (size_t i = 0; i < blockSize; ++i)
+    {
+        kickEnergy += std::abs (bufL[0][i]);
+        snareEnergy += std::abs (bufL[1][i]);
+    }
+    checkNear (kickEnergy, 0.0f, 1e-6f, "kick mic has no sympathetic rattle");
+    check (snareEnergy > 0.0001f, "snare mic received sympathetic rattle from kick hit");
+
+    // Test reset clears energy
+    crosstalk.reset();
+    std::fill (bufL[1].begin(), bufL[1].end(), 0.0f);
+    crosstalk.render (ptrL.data(), ptrR.data(), static_cast<int> (numMics), static_cast<int> (blockSize), matrix, 1, -1);
+    float snareEnergyAfterReset = 0.0f;
+    for (size_t i = 0; i < blockSize; ++i)
+        snareEnergyAfterReset += std::abs (bufL[1][i]);
+    checkNear (snareEnergyAfterReset, 0.0f, 1e-6f, "sympathetic rattle cleared after reset");
+}
+
 int main (int argc, char** argv)
 {
     const fs::path work = argc > 1 ? fs::path (argv[1])
@@ -781,6 +924,7 @@ int main (int argc, char** argv)
     testHiHatPedalLogic();
     testDemoKit();
     testGlorpKitPackage (work);
+    testBleedMatrixAndCrosstalk();
 
     std::cout << "\n" << (checks - failures) << "/" << checks << " checks passed\n";
 

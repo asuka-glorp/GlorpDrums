@@ -21,6 +21,7 @@
 #pragma once
 
 #include "XmlLite.h"
+#include "BleedMatrix.h"
 
 #include <map>
 #include <string>
@@ -100,6 +101,7 @@ struct Instrument
         std::string kitChannel;   ///< which kit channel this feeds
         int audioFileIndex = 0;   ///< index into SampleHit::audioFiles
         bool main = false;
+        float bleed = 1.0f;       ///< bleed attribute from channelmap
     };
     std::vector<std::vector<ChannelSource>> resolvedChannels;
 
@@ -108,6 +110,7 @@ struct Instrument
 
     std::string logicalName;    ///< Logical piece name (e.g. "Snare")
     std::string zoneName;       ///< Zone name (e.g. "head", "rimshot")
+    BleedPiece bleedPiece = BleedPiece::snare; ///< Bleed piece classification
     int outputBus = 0;          ///< Target output bus
 
     /// Absolute path of an audio file, resolved against the instrument's directory.

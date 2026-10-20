@@ -132,6 +132,25 @@ Access the integrated practice suite directly via the **[PRACTICE]** header butt
 
 ---
 
+### 🎚️ Phase 4 — Multi-Mic Leakage & Bleed Matrix
+GlorpDrums provides studio-grade acoustic bleed control to bridge the gap between sterile isolated multi-samples and natural live acoustic drum kits. Open the matrix at any time using the **[BLEED MATRIX]** button in the mixer header or via the per-channel **BLD** strip buttons:
+
+* **Logical Drum Piece Grid ($9 \times N$)**:
+  * Rows organized cleanly by logical kit pieces (**Kick**, **Snare**, **Tom 1**, **Tom 2**, **Floor Tom**, **Hi-Hat**, **Ride**, **Crash 1**, **Crash 2**) mapped against all loaded kit mic channels.
+  * **Tactile Cell Editing**: Click and drag up/down on any cell to adjust bleed gain (default $0\text{ dB}$, adjustable $- \infty$ to $+6\text{ dB}$), right-click or Shift-click to instantly mute an individual leakage path, and double-click to reset.
+* **Physical Acoustic Crosstalk Engine**:
+  * **Inter-Mic Acoustic Delay**: Emulates physical acoustic sound wave travel times across the drum kit ($1.5 - 5\text{ ms}$ delay ring buffer).
+  * **Off-Axis Cardioid Filtering**: Simulates acoustic shadow and frequency-dependent polar patterns with 1-pole low-pass filtering on off-axis bleed signals.
+  * **Sympathetic Snare Wire Rattle**: Physical acoustic synthesis model simulating sympathetic bottom snare wire vibration and buzz when the Kick drum or Low Toms are struck, featuring an active 3.2 kHz resonant bandpass filter and exponential envelope decay.
+* **Engine Modes & Production Presets**:
+  * **Hybrid Acoustic**: Scales recorded multi-mic sample bleeds while augmenting dry mics with synthetic physical crosstalk and sympathetic resonance.
+  * **Recorded Only**: Exclusively scales multi-mic spill captured in sample archives.
+  * **Mute Bleed**: Complete isolation for razor-sharp modern metal and pop productions.
+  * **One-Click Presets**: **Natural** (default studio spill), **Clean** (bleed muted), **Live** (+3 dB extra room and shell spill with prominent snare buzz), and **OH Only** (mutes close mic spill while retaining overhead and room ambiance).
+* **Zero Real-Time Overhead**: Inactive or muted bleed paths are dynamically bypassed before sample accumulation, preventing unnecessary CPU load.
+
+---
+
 ## E-Drum Calibration & Setup Wizard
 
 GlorpDrums is purpose-built for electronic drum kits. An integrated **E-Drum Setup Wizard** calibrates pads, cymbals, and pedals in seconds:
@@ -152,7 +171,7 @@ GlorpDrums is actively developed following an ambitious multi-phase roadmap:
 * [x] **Phase 1 — E-Drum Input Engine**: Continuous CC#4 hi-hat crossfading, foot chick/splash gestures, and 15ms anti-click cymbal choke damping.
 * [x] **Phase 2 — Full Per-Mic Mixer Tab & Built-in DSP**: Dual-view UI switch ([KIT VIEW] / [MIXER VIEW]), per-mic strips, 3-band EQ, VCA compressor, saturation, transient shaper, master limiter, reverb, and `.glorpmix` presets.
 * [x] **Phase 3 — Recording Mode & Practice Assistant**: Synchronized 24-bit WAV + SMF Type 1 MIDI recording, backing track player with interactive waveform navigation (middle-click pan & auto-following playhead), spectral-flux tempo detection, sample-accurate metronome with customizable beats per measure, dynamic LED count lights, pre-roll count-in, and 6-lane rolling rhythm ribbon.
-* [ ] **Phase 4 — Multi-Mic Leakage & Bleed Matrix**: Realistic snare top bleed into kick mic, tom bleed into overheads, and controllable acoustic crosstalk.
+* [x] **Phase 4 — Multi-Mic Leakage & Bleed Matrix**: Matrix routing by logical drum pieces ($9 \times N$ mic columns), physical acoustic crosstalk engine (delay & off-axis filtering), sympathetic snare wire rattle synthesis, master bleed/buzz controls, and production presets (Natural, Clean, Live, OH Only).
 * [ ] **Phase 5 — Cross-Platform Port (Windows & macOS)**:
   * Port standalone application and plugin formats (VST3 and CLAP) to **Windows 10/11** with low-latency ASIO and WASAPI audio driver support.
   * Port standalone application and plugin formats (VST3, CLAP, and **AU / Audio Unit**) to **macOS** with CoreAudio and CoreMIDI support.

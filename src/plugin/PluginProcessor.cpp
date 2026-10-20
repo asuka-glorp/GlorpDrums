@@ -826,6 +826,8 @@ void PluginProcessor::getStateInformation (juce::MemoryBlock& destination)
         state.addChildElement (mixerXml.release());
     }
 
+    sampler.getBleedMatrix().writeXml (state);
+
     auto* parameters = state.createNewChildElement ("Parameters");
 
     for (const auto* parameter : getParameters())
@@ -871,6 +873,8 @@ void PluginProcessor::setStateInformation (const void* data, int sizeInBytes)
         if (MixerPreset::fromXmlString (mixerXml->toString(), p))
             sampler.applyMixerPreset (p);
     }
+
+    sampler.getBleedMatrix().readXml (*xml);
 
     if (auto* parameters = xml->getChildByName ("Parameters"))
     {

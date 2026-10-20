@@ -109,6 +109,7 @@ bool DrumKit::parseInstrument (Instrument& instrument, const XmlNode& node,
     instrument.xmlPath = joinPath (kitDir, fileAttr);
     instrument.baseDir = parentDirectory (instrument.xmlPath);
     instrument.displayName = prettifyName (instrument.name);
+    instrument.bleedPiece = pieceForInstrumentName (instrument.name);
 
     for (auto* cm : node.childrenNamed ("channelmap"))
     {
@@ -117,8 +118,9 @@ bool DrumKit::parseInstrument (Instrument& instrument, const XmlNode& node,
         m.out  = cm->attribute ("out");
         m.main = cm->attributeBool ("main", false);
 
-        // Pre-0.9.17 kits encoded bleed as a trailing element rather than an attribute.
-        if (auto* b = cm->child ("bleed"))
+        if (cm->hasAttribute ("bleed"))
+            m.bleed = cm->attributeFloat ("bleed", 1.0f);
+        else if (auto* b = cm->child ("bleed"))
             m.bleed = static_cast<float> (std::atof (b->text.c_str()));
 
         if (m.in.empty() || m.out.empty())
@@ -245,11 +247,13 @@ bool DrumKit::resolveChannels (Instrument& instrument, std::string& error)
 
             std::string destination;
             bool main = false;
+            float bleed = 1.0f;
 
             if (map != nullptr)
             {
                 destination = map->out;
                 main = map->main;
+                bleed = map->bleed;
             }
             else if (indexOfKitChannel (ref.channel) >= 0)
             {
@@ -273,6 +277,7 @@ bool DrumKit::resolveChannels (Instrument& instrument, std::string& error)
             src.kitChannel = destination;
             src.audioFileIndex = static_cast<int> (a);
             src.main = main;
+            src.bleed = bleed;
 
             instrument.resolvedChannels[s].push_back (std::move (src));
         }
@@ -355,6 +360,7 @@ DrumKit DrumKit::loadNativeGlorpKit (GlorpKitReader& reader, const std::string& 
             inst.displayName = pieceSpec.name + " " + zoneSpec.name;
             inst.logicalName = pieceSpec.name;
             inst.zoneName = zoneSpec.name;
+            inst.bleedPiece = pieceForInstrumentName (pieceSpec.name);
             inst.group = pieceSpec.chokeGroup;
             inst.outputBus = pieceSpec.outputBus;
             inst.archivePath = archivePath;
