@@ -154,6 +154,8 @@ target_sources(GlorpDrums PRIVATE
     src/practice/AudioRecorder.cpp
     src/practice/MidiRecorder.cpp
     src/practice/BackingTrackPlayer.cpp
+    src/practice/SongDatabase.cpp
+    src/practice/SetlistPlayer.cpp
     src/ui/Editor.cpp
     src/ui/DrumKitView.cpp
     src/ui/CalloutBox.cpp

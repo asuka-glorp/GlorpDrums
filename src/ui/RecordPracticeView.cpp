@@ -1,5 +1,5 @@
 /*
-    RecordPracticeView.cpp - Hand-drawn comic dashboard for GlorpDrums recording and practice.
+    RecordPracticeView.cpp - Hand-drawn comic dashboard for GlorpDrums recording, setlists, and practice.
 */
 
 #include "RecordPracticeView.h"
@@ -18,7 +18,34 @@ RecordPracticeView::RecordPracticeView (PluginProcessor& p)
 {
     setWantsKeyboardFocus (true);
 
-    // Backing track transport buttons
+    // Default count-in to 1 bar so setlists and practice sessions have count-in ready
+    if (processor.getMetronome().getCountInMode() == Metronome::CountInMode::off)
+        processor.getMetronome().setCountInMode (Metronome::CountInMode::oneBar);
+
+    // Sync UI whenever SetlistPlayer loads/advances to a song
+    processor.getSetlistPlayer().onSongLoaded = [this](int /*newSongIndex*/, const SongEntry& song, double effectiveBpm)
+    {
+        auto* mm = juce::MessageManager::getInstanceWithoutCreating();
+        if (mm == nullptr || mm->isThisTheMessageThread())
+        {
+            syncUiFromSongEntry (song, effectiveBpm);
+            refreshSetlistSelectorLabel();
+            rebuildSetlistRowGeometries();
+            repaint();
+        }
+        else
+        {
+            juce::MessageManager::callAsync ([this, song, effectiveBpm]()
+            {
+                syncUiFromSongEntry (song, effectiveBpm);
+                refreshSetlistSelectorLabel();
+                rebuildSetlistRowGeometries();
+                repaint();
+            });
+        }
+    };
+
+    // -- Top Deck: Backing track & Setlist transport buttons ------------------
     addAndMakeVisible (loadTrackButton);
     loadTrackButton.onClick = [this]()
     {
@@ -32,45 +59,16 @@ RecordPracticeView::RecordPracticeView (PluginProcessor& p)
             {
                 auto file = fc.getResult();
                 if (file.existsAsFile())
-                {
-                    processor.getBackingTrackPlayer().loadFile (file);
-                    // Automatically trigger tempo detection
-                    isAnalyzing = true;
-                    processor.getTempoWorker().startDetection (
-                        processor.getBackingTrackPlayer().getDecodedBuffer(),
-                        processor.getSampleRate(),
-                        [this](const TempoDetector::Result& res)
-                        {
-                            isAnalyzing = false;
-                            if (res.isValid)
-                            {
-                                detectedBpm = res.bpm;
-                                bpmConfidence = res.confidence;
-                                processor.getMetronome().setBpm (detectedBpm);
-                                bpmEditor.setText (juce::String::formatted ("%.1f", detectedBpm), false);
-                                metronomeOffsetSec = std::max (0.0, res.firstDownbeatSeconds);
-                                processor.getMetronome().setGridOffset (metronomeOffsetSec);
-                            }
-                            repaint();
-                        });
-                    repaint();
-                }
+                    loadTrackAndSyncDatabase (file, true);
             });
     };
 
-    addAndMakeVisible (clearTrackButton);
-    clearTrackButton.onClick = [this]()
+    addAndMakeVisible (prevSongButton);
+    prevSongButton.onClick = [this]()
     {
-        stopTransportAndRecording();
-        processor.getBackingTrackPlayer().clear();
-        detectedBpm = 120.0;
-        bpmConfidence = 0.0f;
-        processor.getMetronome().setBpm (120.0);
-        bpmEditor.setText ("120.0", false);
-        metronomeOffsetSec = 0.0;
-        zoomFactor = 1.0f;
-        viewStartSec = 0.0;
-        processor.getMetronome().setGridOffset (0.0);
+        const bool wasPlaying = processor.getBackingTrackPlayer().isPlaying()
+                                || processor.getMetronome().isCountingIn();
+        processor.getSetlistPlayer().previousSong (wasPlaying);
         repaint();
     };
 
@@ -79,6 +77,15 @@ RecordPracticeView::RecordPracticeView (PluginProcessor& p)
 
     addAndMakeVisible (pauseButton);
     pauseButton.onClick = [this]() { pauseTransport(); };
+
+    addAndMakeVisible (nextSongButton);
+    nextSongButton.onClick = [this]()
+    {
+        const bool wasPlaying = processor.getBackingTrackPlayer().isPlaying()
+                                || processor.getMetronome().isCountingIn();
+        processor.getSetlistPlayer().nextSong (wasPlaying);
+        repaint();
+    };
 
     addAndMakeVisible (rewindButton);
     rewindButton.onClick = [this]()
@@ -94,7 +101,7 @@ RecordPracticeView::RecordPracticeView (PluginProcessor& p)
     {
         bool nextState = ! processor.getBackingTrackPlayer().isLooping();
         processor.getBackingTrackPlayer().setLooping (nextState);
-        loopButton.setLabel (nextState ? "Loop: ON" : "Loop: OFF");
+        loopButton.setLabel (nextState ? "Loop Song: ON" : "Loop Song: OFF");
         loopButton.setBaseColour (nextState ? currentTheme.accent.withAlpha (0.35f) : currentTheme.panel);
     };
 
@@ -107,14 +114,15 @@ RecordPracticeView::RecordPracticeView (PluginProcessor& p)
         muteTrackButton.setBaseColour (nextMute ? currentTheme.warning.withAlpha (0.4f) : currentTheme.panel);
     };
 
-    trackVolumeKnob = std::make_unique<Knob> ("Track Vol", 0.0f, 1.5f, 0.8f);
+    trackVolumeKnob = std::make_unique<Knob> ("Track Vol.", 0.0f, 1.5f, 0.8f);
     addAndMakeVisible (*trackVolumeKnob);
     trackVolumeKnob->onValueChanged = [this](float val)
     {
         processor.getBackingTrackPlayer().setLevel (val);
+        saveCurrentTrackToDatabase();
     };
 
-    // Tempo controls
+    // -- Top Deck: Tempo & Beat Grid controls ---------------------------------
     addAndMakeVisible (detectBpmButton);
     detectBpmButton.onClick = [this]()
     {
@@ -135,6 +143,7 @@ RecordPracticeView::RecordPracticeView (PluginProcessor& p)
                     bpmEditor.setText (juce::String::formatted ("%.1f", detectedBpm), false);
                     metronomeOffsetSec = std::max (0.0, res.firstDownbeatSeconds);
                     processor.getMetronome().setGridOffset (metronomeOffsetSec);
+                    saveCurrentTrackToDatabase();
                 }
                 repaint();
             };
@@ -170,6 +179,7 @@ RecordPracticeView::RecordPracticeView (PluginProcessor& p)
             const double playheadSec = processor.getBackingTrackPlayer().getPlayheadSeconds();
             metronomeOffsetSec = playheadSec;
             processor.getMetronome().setGridOffset (metronomeOffsetSec);
+            saveCurrentTrackToDatabase();
             repaint();
         }
     };
@@ -180,6 +190,7 @@ RecordPracticeView::RecordPracticeView (PluginProcessor& p)
         detectedBpm = std::clamp (detectedBpm * 0.5, 30.0, 300.0);
         processor.getMetronome().setBpm (detectedBpm);
         bpmEditor.setText (juce::String::formatted ("%.1f", detectedBpm), false);
+        saveCurrentTrackToDatabase();
         repaint();
     };
 
@@ -189,6 +200,7 @@ RecordPracticeView::RecordPracticeView (PluginProcessor& p)
         detectedBpm = std::clamp (detectedBpm * 2.0, 30.0, 300.0);
         processor.getMetronome().setBpm (detectedBpm);
         bpmEditor.setText (juce::String::formatted ("%.1f", detectedBpm), false);
+        saveCurrentTrackToDatabase();
         repaint();
     };
 
@@ -198,6 +210,7 @@ RecordPracticeView::RecordPracticeView (PluginProcessor& p)
         detectedBpm = std::clamp (detectedBpm - 0.5, 30.0, 300.0);
         processor.getMetronome().setBpm (detectedBpm);
         bpmEditor.setText (juce::String::formatted ("%.1f", detectedBpm), false);
+        saveCurrentTrackToDatabase();
         repaint();
     };
 
@@ -207,6 +220,7 @@ RecordPracticeView::RecordPracticeView (PluginProcessor& p)
         detectedBpm = std::clamp (detectedBpm + 0.5, 30.0, 300.0);
         processor.getMetronome().setBpm (detectedBpm);
         bpmEditor.setText (juce::String::formatted ("%.1f", detectedBpm), false);
+        saveCurrentTrackToDatabase();
         repaint();
     };
 
@@ -222,15 +236,157 @@ RecordPracticeView::RecordPracticeView (PluginProcessor& p)
             detectedBpm = std::clamp (std::round (val * 10.0) / 10.0, 30.0, 300.0);
             processor.getMetronome().setBpm (detectedBpm);
             bpmEditor.setText (juce::String::formatted ("%.1f", detectedBpm), false);
+            saveCurrentTrackToDatabase();
             repaint();
         }
     };
     bpmEditor.onFocusLost = [this]()
     {
+        const double val = bpmEditor.getText().getDoubleValue();
+        if (val >= 30.0 && val <= 300.0)
+        {
+            detectedBpm = std::clamp (std::round (val * 10.0) / 10.0, 30.0, 300.0);
+            processor.getMetronome().setBpm (detectedBpm);
+            saveCurrentTrackToDatabase();
+        }
         bpmEditor.setText (juce::String::formatted ("%.1f", detectedBpm), false);
+        repaint();
     };
 
-    // Metronome controls
+    // -- Column 1: Setlist & Song Queue controls ------------------------------
+    addAndMakeVisible (autoNextToggleButton);
+    autoNextToggleButton.setFontSize (12.0f);
+    autoNextToggleButton.onClick = [this]()
+    {
+        bool next = ! processor.getSetlistPlayer().isAutoNextEnabled();
+        processor.getSetlistPlayer().setAutoNextEnabled (next);
+        autoNextToggleButton.setLabel (next ? "Auto-Next: Count-In ON" : "Auto-Next: OFF");
+        updateButtonStyles();
+        repaint();
+    };
+
+    addAndMakeVisible (setlistSelectButton);
+    setlistSelectButton.setFontSize (12.0f);
+    setlistSelectButton.setLeftAligned (true);
+    setlistSelectButton.onClick = [this]()
+    {
+        juce::PopupMenu m;
+        auto& db = processor.getSongDatabase();
+        const auto& setlists = db.getSetlists();
+        const int activeIdx = db.getActiveSetlistIndex();
+
+        for (int i = 0; i < static_cast<int> (setlists.size()); ++i)
+        {
+            const auto label = setlists[static_cast<size_t> (i)].name
+                               + " (" + juce::String (setlists[static_cast<size_t> (i)].items.size()) + " songs)";
+            m.addItem (i + 1, label, true, i == activeIdx);
+        }
+
+        m.addSeparator();
+        m.addItem (1000, "Create New Setlist...");
+        if (setlists.size() > 1)
+            m.addItem (1001, "Delete Current Setlist");
+
+        m.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (&setlistSelectButton),
+            [this](int result)
+            {
+                auto& dbRef = processor.getSongDatabase();
+                if (result >= 1 && result <= static_cast<int> (dbRef.getSetlists().size()))
+                {
+                    dbRef.setActiveSetlistIndex (result - 1);
+                    setlistScrollOffset = 0;
+                    refreshSetlistSelectorLabel();
+                    rebuildSetlistRowGeometries();
+                    if (! dbRef.getActiveSetlist().items.empty())
+                        processor.getSetlistPlayer().selectSong (0);
+                    repaint();
+                }
+                else if (result == 1000)
+                {
+                    const int newNum = static_cast<int> (dbRef.getSetlists().size()) + 1;
+                    dbRef.createSetlist ("Practice Setlist " + juce::String (newNum));
+                    setlistScrollOffset = 0;
+                    refreshSetlistSelectorLabel();
+                    rebuildSetlistRowGeometries();
+                    repaint();
+                }
+                else if (result == 1001)
+                {
+                    dbRef.deleteSetlist (dbRef.getActiveSetlistIndex());
+                    setlistScrollOffset = 0;
+                    refreshSetlistSelectorLabel();
+                    rebuildSetlistRowGeometries();
+                    repaint();
+                }
+            });
+    };
+
+    addAndMakeVisible (saveSetlistButton);
+    saveSetlistButton.setFontSize (12.0f);
+    saveSetlistButton.onClick = [this]()
+    {
+        saveCurrentTrackToDatabase();
+        processor.getSongDatabase().save();
+        repaint();
+    };
+
+    addAndMakeVisible (newSetlistButton);
+    newSetlistButton.setFontSize (12.0f);
+    newSetlistButton.onClick = [this]()
+    {
+        auto& db = processor.getSongDatabase();
+        const int newNum = static_cast<int> (db.getSetlists().size()) + 1;
+        db.createSetlist ("Practice Setlist " + juce::String (newNum));
+        setlistScrollOffset = 0;
+        refreshSetlistSelectorLabel();
+        rebuildSetlistRowGeometries();
+        repaint();
+    };
+
+    addAndMakeVisible (addFileToSetlistButton);
+    addFileToSetlistButton.setFontSize (12.0f);
+    addFileToSetlistButton.onClick = [this]()
+    {
+        auto chooser = std::make_shared<juce::FileChooser> (
+            "Add Backing Track Audio Files to Setlist",
+            juce::File::getSpecialLocation (juce::File::userHomeDirectory),
+            "*.wav;*.mp3;*.flac;*.aiff;*.ogg");
+
+        chooser->launchAsync (juce::FileBrowserComponent::openMode
+                              | juce::FileBrowserComponent::canSelectFiles
+                              | juce::FileBrowserComponent::canSelectMultipleItems,
+            [this, chooser](const juce::FileChooser& fc)
+            {
+                auto results = fc.getResults();
+                bool firstLoaded = false;
+                for (const auto& file : results)
+                {
+                    if (file.existsAsFile())
+                    {
+                        if (! firstLoaded)
+                        {
+                            loadTrackAndSyncDatabase (file, true);
+                            firstLoaded = true;
+                        }
+                        else
+                        {
+                            processor.getSongDatabase().addSongToActiveSetlist (file);
+                        }
+                    }
+                }
+                rebuildSetlistRowGeometries();
+                repaint();
+            });
+    };
+
+    addAndMakeVisible (openSongDbButton);
+    openSongDbButton.setFontSize (12.0f);
+    openSongDbButton.onClick = [this]()
+    {
+        setSongDatabaseModalOpen (! isSongDbModalOpen);
+    };
+
+    // -- Column 2: Practice & Metronome controls ------------------------------
     addAndMakeVisible (metroToggleButton);
     metroToggleButton.onClick = [this]()
     {
@@ -308,6 +464,7 @@ RecordPracticeView::RecordPracticeView (PluginProcessor& p)
         beatsPerMeasure = val;
         beatsEditor.setText (juce::String (val), false);
         processor.getMetronome().setTimeSignature (beatsPerMeasure, 4);
+        saveCurrentTrackToDatabase();
         resized();
         repaint();
     };
@@ -317,6 +474,7 @@ RecordPracticeView::RecordPracticeView (PluginProcessor& p)
         beatsPerMeasure = val;
         beatsEditor.setText (juce::String (val), false);
         processor.getMetronome().setTimeSignature (beatsPerMeasure, 4);
+        saveCurrentTrackToDatabase();
         resized();
         repaint();
     };
@@ -328,9 +486,9 @@ RecordPracticeView::RecordPracticeView (PluginProcessor& p)
         processor.getMetronome().setLevel (val);
     };
 
-    // Recording controls
+    // -- Column 3: Dual Recording Console controls ----------------------------
     addAndMakeVisible (recordButton);
-    recordButton.setFontSize (20.0f);
+    recordButton.setFontSize (18.0f);
     recordButton.onClick = [this]()
     {
         if (processor.getAudioRecorder().isRecording())
@@ -339,7 +497,6 @@ RecordPracticeView::RecordPracticeView (PluginProcessor& p)
             return;
         }
 
-        // Toggle armed recording state
         isRecArmed = ! isRecArmed;
         recordButton.setArmed (isRecArmed);
         recordButton.setLabel (isRecArmed ? "REC ARMED" : "REC");
@@ -347,14 +504,14 @@ RecordPracticeView::RecordPracticeView (PluginProcessor& p)
     };
 
     addAndMakeVisible (stopButton);
-    stopButton.setFontSize (18.0f);
+    stopButton.setFontSize (16.0f);
     stopButton.onClick = [this]()
     {
         stopTransportAndRecording();
     };
 
     addAndMakeVisible (alsoRecordTrackButton);
-    alsoRecordTrackButton.setFontSize (14.0f);
+    alsoRecordTrackButton.setFontSize (13.0f);
     alsoRecordTrackButton.onClick = [this]()
     {
         alsoRecordBackingTrack = ! alsoRecordBackingTrack;
@@ -365,8 +522,17 @@ RecordPracticeView::RecordPracticeView (PluginProcessor& p)
         repaint();
     };
 
+    addAndMakeVisible (recordEntireSetlistButton);
+    recordEntireSetlistButton.setFontSize (13.0f);
+    recordEntireSetlistButton.onClick = [this]()
+    {
+        recordEntireSetlistTake = ! recordEntireSetlistTake;
+        updateButtonStyles();
+        repaint();
+    };
+
     addAndMakeVisible (exportWavButton);
-    exportWavButton.setFontSize (14.0f);
+    exportWavButton.setFontSize (13.0f);
     exportWavButton.onClick = [this]()
     {
         auto recorded = processor.getAudioRecorder().getRecordedFile();
@@ -387,7 +553,7 @@ RecordPracticeView::RecordPracticeView (PluginProcessor& p)
     };
 
     addAndMakeVisible (exportMidButton);
-    exportMidButton.setFontSize (14.0f);
+    exportMidButton.setFontSize (13.0f);
     exportMidButton.onClick = [this]()
     {
         if (processor.getMidiRecorder().getEventCount() > 0)
@@ -410,6 +576,60 @@ RecordPracticeView::RecordPracticeView (PluginProcessor& p)
         }
     };
 
+    // -- Persistent Song Database Modal Child Controls ------------------------
+    addChildComponent (songDbModalOverlay);
+    songDbModalOverlay.addAndMakeVisible (songDbSearchEditor);
+    songDbSearchEditor.setTextToShowWhenEmpty ("Search Song Library...", juce::Colour (0xff666a73));
+    songDbSearchEditor.onTextChange = [this]() { songDbModalOverlay.repaint(); };
+
+    songDbModalOverlay.addAndMakeVisible (songDbImportButton);
+    songDbImportButton.setFontSize (13.0f);
+    songDbImportButton.onClick = [this]()
+    {
+        auto chooser = std::make_shared<juce::FileChooser> (
+            "Import Backing Tracks into Persistent Song Database",
+            juce::File::getSpecialLocation (juce::File::userHomeDirectory),
+            "*.wav;*.mp3;*.flac;*.aiff;*.ogg");
+
+        chooser->launchAsync (juce::FileBrowserComponent::openMode
+                              | juce::FileBrowserComponent::canSelectFiles
+                              | juce::FileBrowserComponent::canSelectMultipleItems,
+            [this, chooser](const juce::FileChooser& fc)
+            {
+                for (const auto& f : fc.getResults())
+                {
+                    if (f.existsAsFile())
+                    {
+                        const auto entry = processor.getSongDatabase().findOrRegisterSong (f);
+                        selectedSongDbIds.insert (entry.songId);
+                    }
+                }
+                songDbAddSelectedButton.setLabel ("Add Selected (" + juce::String (selectedSongDbIds.size()) + ") to Setlist");
+                songDbModalOverlay.repaint();
+            });
+    };
+
+    songDbModalOverlay.addAndMakeVisible (songDbAddSelectedButton);
+    songDbAddSelectedButton.setFontSize (13.0f);
+    songDbAddSelectedButton.onClick = [this]()
+    {
+        auto& db = processor.getSongDatabase();
+        for (const auto& id : selectedSongDbIds)
+            db.addSongIdToActiveSetlist (id);
+
+        selectedSongDbIds.clear();
+        setSongDatabaseModalOpen (false);
+        rebuildSetlistRowGeometries();
+        repaint();
+    };
+
+    songDbModalOverlay.addAndMakeVisible (songDbCloseButton);
+    songDbCloseButton.setFontSize (13.0f);
+    songDbCloseButton.onClick = [this]()
+    {
+        setSongDatabaseModalOpen (false);
+    };
+
     // Metronome beat tick notification
     processor.getMetronome().onBeat = [this](int beat, bool isDownbeat)
     {
@@ -419,6 +639,7 @@ RecordPracticeView::RecordPracticeView (PluginProcessor& p)
         juce::MessageManager::callAsync ([this] { repaint(); });
     };
 
+    refreshSetlistSelectorLabel();
     applyTheme (Theme::sketch());
     startTimerHz (30);
 }
@@ -428,6 +649,148 @@ RecordPracticeView::~RecordPracticeView()
     stopTimer();
     processor.getMetronome().onBeat = nullptr;
     processor.getMetronome().onCountInComplete = nullptr;
+    processor.getSetlistPlayer().onSongLoaded = nullptr;
+}
+
+//==============================================================================
+void RecordPracticeView::loadTrackAndSyncDatabase (const juce::File& file, bool addToActiveSetlist)
+{
+    if (! file.existsAsFile())
+        return;
+
+    auto& db = processor.getSongDatabase();
+    auto& trackPlayer = processor.getBackingTrackPlayer();
+
+    if (! trackPlayer.loadFile (file))
+        return;
+
+    const double durSec = trackPlayer.getDurationSeconds();
+    SongEntry entry = db.findOrRegisterSong (file, durSec);
+
+    if (addToActiveSetlist)
+    {
+        const auto& active = db.getActiveSetlist();
+        bool alreadyInSetlist = false;
+        int foundIdx = -1;
+        for (size_t i = 0; i < active.items.size(); ++i)
+        {
+            if (active.items[i].songId == entry.songId || juce::File (active.items[i].filePath) == file)
+            {
+                alreadyInSetlist = true;
+                foundIdx = static_cast<int> (i);
+                break;
+            }
+        }
+
+        if (! alreadyInSetlist)
+            foundIdx = db.addSongIdToActiveSetlist (entry.songId);
+
+        if (foundIdx >= 0)
+            processor.getSetlistPlayer().selectSong (foundIdx);
+    }
+
+    if (entry.isConfigured)
+    {
+        // Song was already configured in a past session or setlist — restore immediately with zero re-setup!
+        syncUiFromSongEntry (entry, entry.bpm);
+    }
+    else
+    {
+        // Brand-new song: run automatic BPM & downbeat detection and save to SongDatabase on completion
+        isAnalyzing = true;
+        processor.getTempoWorker().startDetection (
+            trackPlayer.getDecodedBuffer(),
+            processor.getSampleRate(),
+            [this, file, durSec](const TempoDetector::Result& res)
+            {
+                isAnalyzing = false;
+                if (res.isValid)
+                {
+                    detectedBpm = res.bpm;
+                    bpmConfidence = res.confidence;
+                    processor.getMetronome().setBpm (detectedBpm);
+                    bpmEditor.setText (juce::String::formatted ("%.1f", detectedBpm), false);
+                    metronomeOffsetSec = std::max (0.0, res.firstDownbeatSeconds);
+                    processor.getMetronome().setGridOffset (metronomeOffsetSec);
+
+                    processor.getSongDatabase().updateSongConfig (
+                        file,
+                        detectedBpm,
+                        metronomeOffsetSec,
+                        beatsPerMeasure,
+                        processor.getBackingTrackPlayer().getLevel(),
+                        durSec);
+                }
+                repaint();
+            });
+    }
+
+    rebuildSetlistRowGeometries();
+    repaint();
+}
+
+void RecordPracticeView::saveCurrentTrackToDatabase()
+{
+    auto& trackPlayer = processor.getBackingTrackPlayer();
+    if (! trackPlayer.hasTrack())
+        return;
+
+    const auto file = trackPlayer.getLoadedFile();
+    if (! file.existsAsFile())
+        return;
+
+    processor.getSongDatabase().updateSongConfig (
+        file,
+        detectedBpm,
+        metronomeOffsetSec,
+        beatsPerMeasure,
+        trackPlayer.getLevel(),
+        trackPlayer.getDurationSeconds());
+}
+
+void RecordPracticeView::syncUiFromSongEntry (const SongEntry& entry, double effectiveBpm)
+{
+    detectedBpm = std::clamp (effectiveBpm > 0.0 ? effectiveBpm : entry.bpm, 30.0, 300.0);
+    metronomeOffsetSec = entry.firstBeatOffsetSec;
+    beatsPerMeasure = std::clamp (entry.beatsPerBar, 1, 16);
+
+    processor.getMetronome().setBpm (detectedBpm);
+    processor.getMetronome().setGridOffset (metronomeOffsetSec);
+    processor.getMetronome().setTimeSignature (beatsPerMeasure, 4);
+    processor.getBackingTrackPlayer().setLevel (entry.backingLevel);
+
+    bpmEditor.setText (juce::String::formatted ("%.1f", detectedBpm), false);
+    beatsEditor.setText (juce::String (beatsPerMeasure), false);
+    if (trackVolumeKnob != nullptr)
+        trackVolumeKnob->setValue (entry.backingLevel);
+
+    zoomFactor = 1.0f;
+    viewStartSec = 0.0;
+    resized();
+}
+
+void RecordPracticeView::refreshSetlistSelectorLabel()
+{
+    const auto& active = processor.getSongDatabase().getActiveSetlist();
+    setlistSelectButton.setLabel ("Set: " + active.name + " v");
+}
+
+void RecordPracticeView::setSongDatabaseModalOpen (bool open)
+{
+    isSongDbModalOpen = open;
+    songDbModalOverlay.setVisible (open);
+
+    if (open)
+    {
+        songDbModalOverlay.toFront (false);
+        songDbAddSelectedButton.setLabel (
+            selectedSongDbIds.empty()
+                ? "Add Selected to Setlist"
+                : ("Add Selected (" + juce::String (selectedSongDbIds.size()) + ") to Setlist"));
+    }
+
+    resized();
+    repaint();
 }
 
 //==============================================================================
@@ -458,6 +821,14 @@ void RecordPracticeView::startTransportWithCountIn()
             processor.getMetronome().getBpm());
     }
 
+    const auto& activeSetlist = processor.getSongDatabase().getActiveSetlist();
+    if (! activeSetlist.items.empty())
+    {
+        processor.getSetlistPlayer().startSetlistPlayback (-1, false);
+        repaint();
+        return;
+    }
+
     if (processor.getMetronome().getCountInMode() != Metronome::CountInMode::off)
     {
         processor.getMetronome().setTransportPlaying (false);
@@ -481,16 +852,13 @@ void RecordPracticeView::startTransportWithCountIn()
 
 void RecordPracticeView::pauseTransport()
 {
-    processor.getBackingTrackPlayer().pause();
-    processor.getMetronome().setTransportPlaying (false);
-    processor.getMetronome().stop();
+    processor.getSetlistPlayer().pause();
     repaint();
 }
 
 void RecordPracticeView::stopTransportAndRecording()
 {
-    processor.getMetronome().stop();
-    processor.getBackingTrackPlayer().stop();
+    processor.getSetlistPlayer().stop();
     if (processor.getAudioRecorder().isRecording())
         processor.getAudioRecorder().stopRecording();
     if (processor.getMidiRecorder().isRecording())
@@ -507,6 +875,7 @@ void RecordPracticeView::setBeatsPerMeasure (int beats)
     beatsPerMeasure = std::clamp (beats, 1, 16);
     beatsEditor.setText (juce::String (beatsPerMeasure), false);
     processor.getMetronome().setTimeSignature (beatsPerMeasure, 4);
+    saveCurrentTrackToDatabase();
     resized();
     repaint();
 }
@@ -531,6 +900,11 @@ void RecordPracticeView::setAlsoRecordBackingTrack (bool alsoRecord)
 
 bool RecordPracticeView::keyPressed (const juce::KeyPress& key)
 {
+    if (isSongDbModalOpen && key.isKeyCode (juce::KeyPress::escapeKey))
+    {
+        setSongDatabaseModalOpen (false);
+        return true;
+    }
     if (key.isKeyCode (juce::KeyPress::spaceKey))
     {
         togglePlayPause();
@@ -551,6 +925,7 @@ bool RecordPracticeView::keyPressed (const juce::KeyPress& key)
             const double playheadSec = processor.getBackingTrackPlayer().getPlayheadSeconds();
             metronomeOffsetSec = playheadSec;
             processor.getMetronome().setGridOffset (metronomeOffsetSec);
+            saveCurrentTrackToDatabase();
             repaint();
             return true;
         }
@@ -579,18 +954,20 @@ void RecordPracticeView::updateButtonStyles()
         btn.setBaseColour (col);
     };
 
-    const auto mintGreen = juce::Colour (0xffa8e6cf);
-    const auto skyBlue   = juce::Colour (0xff89d4f7);
-    const auto tanCol    = juce::Colour (0xfff8d7b3);
-    const auto coralRed  = juce::Colour (0xffe27771);
+    const auto mintGreen  = juce::Colour (0xffa8e6cf);
+    const auto skyBlue    = juce::Colour (0xff7ec8f8);
+    const auto tanCol     = juce::Colour (0xfff7d9b5);
+    const auto coralRed   = juce::Colour (0xffe2786f);
+    const auto warmOrange = juce::Colour (0xffea8c16);
 
     styleBtn (loadTrackButton, currentTheme.panel);
-    styleBtn (clearTrackButton, currentTheme.panel);
+    styleBtn (prevSongButton, currentTheme.panel);
     styleBtn (playButton, mintGreen);
     styleBtn (pauseButton, currentTheme.panel);
+    styleBtn (nextSongButton, currentTheme.panel);
     styleBtn (rewindButton, currentTheme.panel);
-    styleBtn (loopButton, currentTheme.panel);
-    styleBtn (muteTrackButton, currentTheme.panel);
+    styleBtn (loopButton, processor.getBackingTrackPlayer().isLooping() ? currentTheme.accent.withAlpha (0.35f) : currentTheme.panel);
+    styleBtn (muteTrackButton, processor.getBackingTrackPlayer().getMuted() ? currentTheme.warning.withAlpha (0.4f) : currentTheme.panel);
 
     styleBtn (detectBpmButton, skyBlue);
     styleBtn (tapBpmButton, currentTheme.panel);
@@ -599,6 +976,16 @@ void RecordPracticeView::updateButtonStyles()
     styleBtn (doubleBpmButton, currentTheme.panel);
     styleBtn (nudgeDownButton, currentTheme.panel);
     styleBtn (nudgeUpButton, currentTheme.panel);
+
+    // Setlist & Song Queue buttons
+    const bool autoNext = processor.getSetlistPlayer().isAutoNextEnabled();
+    autoNextToggleButton.setLabel (autoNext ? "Auto-Next: Count-In ON" : "Auto-Next: OFF");
+    styleBtn (autoNextToggleButton, autoNext ? mintGreen : currentTheme.panel);
+    styleBtn (setlistSelectButton, tanCol);
+    styleBtn (saveSetlistButton, currentTheme.panel);
+    styleBtn (newSetlistButton, currentTheme.panel);
+    styleBtn (addFileToSetlistButton, skyBlue);
+    styleBtn (openSongDbButton, warmOrange);
 
     // Metronome
     const bool isMetroOn = processor.getMetronome().isEnabled();
@@ -613,19 +1000,29 @@ void RecordPracticeView::updateButtonStyles()
     // Dual Recording Console
     styleBtn (recordButton, coralRed);
     styleBtn (stopButton, currentTheme.panel);
-
-    styleBtn (alsoRecordTrackButton, alsoRecordBackingTrack ? juce::Colour (0xff54c0f8) : currentTheme.panel);
-
+    styleBtn (alsoRecordTrackButton, alsoRecordBackingTrack ? skyBlue : currentTheme.panel);
+    styleBtn (recordEntireSetlistButton, recordEntireSetlistTake ? tanCol : currentTheme.panel);
     styleBtn (exportWavButton, mintGreen);
     styleBtn (exportMidButton, tanCol);
+
+    // Song DB Modal buttons
+    styleBtn (songDbImportButton, skyBlue);
+    styleBtn (songDbAddSelectedButton, mintGreen);
+    styleBtn (songDbCloseButton, currentTheme.panel);
+
+    songDbSearchEditor.setColour (juce::TextEditor::backgroundColourId, juce::Colours::white);
+    songDbSearchEditor.setColour (juce::TextEditor::textColourId, juce::Colour (0xff1a1a1a));
+    songDbSearchEditor.setColour (juce::TextEditor::outlineColourId, currentTheme.panelEdge);
+    songDbSearchEditor.setColour (juce::TextEditor::focusedOutlineColourId, warmOrange);
+    songDbSearchEditor.setFont (uiFont (15.0f));
 
     beatsEditor.setColour (juce::TextEditor::backgroundColourId, juce::Colours::white);
     beatsEditor.setColour (juce::TextEditor::textColourId, juce::Colour (0xff1a1a1a));
     beatsEditor.setColour (juce::TextEditor::outlineColourId, currentTheme.panelEdge);
     beatsEditor.setColour (juce::TextEditor::focusedOutlineColourId, skyBlue);
-    beatsEditor.setFont (displayFont (16.0f).boldened());
+    beatsEditor.setFont (displayFont (15.0f).boldened());
     beatsEditor.applyColourToAllText (juce::Colour (0xff1a1a1a));
-    beatsEditor.applyFontToAllText (displayFont (16.0f).boldened());
+    beatsEditor.applyFontToAllText (displayFont (15.0f).boldened());
 
     bpmEditor.setColour (juce::TextEditor::backgroundColourId, juce::Colours::white);
     bpmEditor.setColour (juce::TextEditor::textColourId, juce::Colour (0xff1a1a1a));
@@ -633,9 +1030,9 @@ void RecordPracticeView::updateButtonStyles()
     bpmEditor.setColour (juce::TextEditor::highlightColourId, currentTheme.accent);
     bpmEditor.setColour (juce::TextEditor::outlineColourId, currentTheme.panelEdge);
     bpmEditor.setColour (juce::TextEditor::focusedOutlineColourId, currentTheme.accent);
-    bpmEditor.setFont (uiFont (14.0f).boldened());
+    bpmEditor.setFont (displayFont (14.0f).boldened());
     bpmEditor.applyColourToAllText (juce::Colour (0xff1a1a1a));
-    bpmEditor.applyFontToAllText (uiFont (14.0f).boldened());
+    bpmEditor.applyFontToAllText (displayFont (14.0f).boldened());
 }
 
 void RecordPracticeView::updateCountInButtons()
@@ -644,7 +1041,7 @@ void RecordPracticeView::updateCountInButtons()
     const bool isCountInOn = (mode != Metronome::CountInMode::off);
 
     const auto mintGreen = juce::Colour (0xffa8e6cf);
-    const auto skyBlue   = juce::Colour (0xff89d4f7);
+    const auto skyBlue   = juce::Colour (0xff7ec8f8);
 
     countInToggleButton.setTheme (currentTheme);
     countInToggleButton.setLabel (isCountInOn ? "Count In: ON" : "Count In: OFF");
@@ -692,6 +1089,7 @@ void RecordPracticeView::handleTapTempo()
             detectedBpm = std::clamp (std::round (60.0 / avgInterval * 10.0) / 10.0, 40.0, 240.0);
             processor.getMetronome().setBpm (detectedBpm);
             bpmEditor.setText (juce::String::formatted ("%.1f", detectedBpm), false);
+            saveCurrentTrackToDatabase();
         }
     }
     repaint();
@@ -711,39 +1109,47 @@ bool RecordPracticeView::isInterestedInFileDrag (const juce::StringArray& files)
 
 void RecordPracticeView::filesDropped (const juce::StringArray& files, int /*x*/, int /*y*/)
 {
+    bool firstLoaded = false;
     for (const auto& f : files)
     {
         const auto ext = juce::File (f).getFileExtension().toLowerCase();
         if (ext == ".wav" || ext == ".mp3" || ext == ".flac" || ext == ".aiff" || ext == ".ogg")
         {
-            processor.getBackingTrackPlayer().loadFile (juce::File (f));
-            isAnalyzing = true;
-            processor.getTempoWorker().startDetection (
-                processor.getBackingTrackPlayer().getDecodedBuffer(),
-                processor.getSampleRate(),
-                [this](const TempoDetector::Result& res)
-                {
-                    isAnalyzing = false;
-                    if (res.isValid)
-                    {
-                        detectedBpm = res.bpm;
-                        bpmConfidence = res.confidence;
-                        processor.getMetronome().setBpm (detectedBpm);
-                        bpmEditor.setText (juce::String::formatted ("%.1f", detectedBpm), false);
-                        metronomeOffsetSec = std::max (0.0, res.firstDownbeatSeconds);
-                        processor.getMetronome().setGridOffset (metronomeOffsetSec);
-                    }
-                    repaint();
-                });
-            repaint();
-            break;
+            juce::File audioFile (f);
+            if (! firstLoaded)
+            {
+                loadTrackAndSyncDatabase (audioFile, true);
+                firstLoaded = true;
+            }
+            else
+            {
+                processor.getSongDatabase().addSongToActiveSetlist (audioFile);
+            }
         }
     }
+    rebuildSetlistRowGeometries();
+    repaint();
 }
 
 //==============================================================================
 void RecordPracticeView::timerCallback()
 {
+    // Advance setlist if current track finished at EOF
+    if (processor.getSetlistPlayer().checkAndAdvanceOnEOF())
+    {
+        // If setlist completed and we were recording, stop recording cleanly
+        if (processor.getSetlistPlayer().getState() == SetlistPlayer::State::completed
+            || ! recordEntireSetlistTake)
+        {
+            if (processor.getAudioRecorder().isRecording())
+                processor.getAudioRecorder().stopRecording();
+            if (processor.getMidiRecorder().isRecording())
+                processor.getMidiRecorder().stopRecording();
+            isRecArmed = false;
+        }
+        repaint();
+    }
+
     if (! isVisible())
         return;
 
@@ -760,7 +1166,6 @@ void RecordPracticeView::timerCallback()
             const double totalDur = std::max (0.01, processor.getBackingTrackPlayer().getDurationSeconds());
             const double visibleDur = totalDur / static_cast<double> (zoomFactor);
 
-            // If playhead moved past 75% of visible window, or is behind viewStartSec
             if (curSec < viewStartSec || curSec > (viewStartSec + visibleDur * 0.75))
             {
                 const double targetViewStart = std::clamp (curSec - visibleDur * 0.25, 0.0, std::max (0.0, totalDur - visibleDur));
@@ -769,7 +1174,6 @@ void RecordPracticeView::timerCallback()
         }
     }
 
-    // Reset beat flash after aura decay (~0.35s)
     const double now = juce::Time::getMillisecondCounterHiRes() * 0.001;
     if (activeBeatFlash > 0)
     {
@@ -786,10 +1190,7 @@ void RecordPracticeView::timerCallback()
     {
         needsRepaint = true;
         recordButton.setArmed (true);
-        if (isRec)
-            recordButton.setLabel ("RECORDING");
-        else
-            recordButton.setLabel ("REC ARMED");
+        recordButton.setLabel (isRec ? "RECORDING" : "REC ARMED");
     }
     else
     {
@@ -801,15 +1202,122 @@ void RecordPracticeView::timerCallback()
         repaint();
 }
 
+//==============================================================================
+void RecordPracticeView::handleSongDbModalMouseDown (const juce::MouseEvent& e)
+{
+    const auto pos = e.getPosition();
+    if (! songDbModalBounds.contains (pos))
+    {
+        setSongDatabaseModalOpen (false);
+        return;
+    }
+
+    for (const auto& rg : songDbRowGeometries)
+    {
+        if (rg.addBtnBounds.contains (pos))
+        {
+            processor.getSongDatabase().addSongIdToActiveSetlist (rg.songId);
+            selectedSongDbIds.insert (rg.songId);
+            rebuildSetlistRowGeometries();
+            songDbModalOverlay.repaint();
+            repaint();
+            return;
+        }
+        if (rg.rowBounds.contains (pos))
+        {
+            if (selectedSongDbIds.count (rg.songId) > 0)
+                selectedSongDbIds.erase (rg.songId);
+            else
+                selectedSongDbIds.insert (rg.songId);
+
+            songDbAddSelectedButton.setLabel (
+                selectedSongDbIds.empty()
+                    ? "Add Selected to Setlist"
+                    : ("Add Selected (" + juce::String (selectedSongDbIds.size()) + ") to Setlist"));
+            songDbModalOverlay.repaint();
+            return;
+        }
+    }
+}
+
+void RecordPracticeView::handleSongDbModalMouseWheel (const juce::MouseEvent& e, const juce::MouseWheelDetails& wheel)
+{
+    if (songDbModalBounds.contains (e.getPosition()))
+    {
+        const int totalSongs = static_cast<int> (processor.getSongDatabase().getSongs().size());
+        const int maxScroll = std::max (0, totalSongs - 7);
+        if (wheel.deltaY < 0.0f)
+            songDbScrollOffset = std::min (maxScroll, songDbScrollOffset + 1);
+        else if (wheel.deltaY > 0.0f)
+            songDbScrollOffset = std::max (0, songDbScrollOffset - 1);
+        songDbModalOverlay.repaint();
+    }
+}
+
 void RecordPracticeView::mouseDown (const juce::MouseEvent& e)
 {
-    const bool inWave = waveformBounds.contains (e.getPosition());
-    const bool inTime = timelineBounds.contains (e.getPosition());
+    const auto pos = e.getPosition();
+
+    if (isSongDbModalOpen)
+    {
+        handleSongDbModalMouseDown (e);
+        return;
+    }
+
+    // 2. Check clicks inside the Setlist & Song Queue table
+    if (setlistTableBodyBounds.contains (pos))
+    {
+        auto& db = processor.getSongDatabase();
+        for (const auto& rg : setlistRowGeometries)
+        {
+            if (rg.rowBounds.contains (pos))
+            {
+                if (rg.moveUpBounds.contains (pos))
+                {
+                    if (db.moveItemInActiveSetlist (rg.itemIndex, rg.itemIndex - 1))
+                    {
+                        if (processor.getSetlistPlayer().getCurrentSongIndex() == rg.itemIndex)
+                            processor.getSetlistPlayer().selectSong (rg.itemIndex - 1);
+                        rebuildSetlistRowGeometries();
+                        repaint();
+                    }
+                    return;
+                }
+                if (rg.moveDownBounds.contains (pos))
+                {
+                    if (db.moveItemInActiveSetlist (rg.itemIndex, rg.itemIndex + 1))
+                    {
+                        if (processor.getSetlistPlayer().getCurrentSongIndex() == rg.itemIndex)
+                            processor.getSetlistPlayer().selectSong (rg.itemIndex + 1);
+                        rebuildSetlistRowGeometries();
+                        repaint();
+                    }
+                    return;
+                }
+                if (rg.removeBounds.contains (pos))
+                {
+                    db.removeItemFromActiveSetlist (rg.itemIndex);
+                    rebuildSetlistRowGeometries();
+                    repaint();
+                    return;
+                }
+
+                // Single-clicking a row selects & loads that song into the Waveform Deck
+                processor.getSetlistPlayer().selectSong (rg.itemIndex);
+                repaint();
+                return;
+            }
+        }
+        return;
+    }
+
+    // 3. Waveform & Synchronized Beat Timeline interaction
+    const bool inWave = waveformBounds.contains (pos);
+    const bool inTime = timelineBounds.contains (pos);
 
     if (! inWave && ! inTime)
         return;
 
-    // Middle click: initiate view panning
     if (e.mods.isMiddleButtonDown())
     {
         isPanningView = true;
@@ -826,7 +1334,6 @@ void RecordPracticeView::mouseDown (const juce::MouseEvent& e)
     const double totalDur = std::max (0.01, processor.getBackingTrackPlayer().getDurationSeconds());
     const double visibleDur = totalDur / std::max (1.0f, zoomFactor);
 
-    // If holding Shift OR clicking inside timeline bar: slide metronome grid offset
     if (e.mods.isShiftDown() || inTime)
     {
         isOffsettingGrid = true;
@@ -848,6 +1355,9 @@ void RecordPracticeView::mouseDown (const juce::MouseEvent& e)
 
 void RecordPracticeView::mouseDrag (const juce::MouseEvent& e)
 {
+    if (isSongDbModalOpen)
+        return;
+
     const double totalDur = std::max (0.01, processor.getBackingTrackPlayer().getDurationSeconds());
     const double visibleDur = totalDur / std::max (1.0f, zoomFactor);
 
@@ -885,6 +1395,10 @@ void RecordPracticeView::mouseUp (const juce::MouseEvent& /*e*/)
         isPanningView = false;
         setMouseCursor (juce::MouseCursor::NormalCursor);
     }
+    if (isOffsettingGrid)
+    {
+        saveCurrentTrackToDatabase();
+    }
     isDraggingPlayhead = false;
     isOffsettingGrid = false;
     isDraggingTimeline = false;
@@ -892,17 +1406,65 @@ void RecordPracticeView::mouseUp (const juce::MouseEvent& /*e*/)
 
 void RecordPracticeView::mouseDoubleClick (const juce::MouseEvent& e)
 {
-    if (timelineBounds.contains (e.getPosition()))
+    if (isSongDbModalOpen)
+        return;
+
+    const auto pos = e.getPosition();
+    if (setlistTableBodyBounds.contains (pos))
+    {
+        for (const auto& rg : setlistRowGeometries)
+        {
+            if (rg.rowBounds.contains (pos)
+                && ! rg.moveUpBounds.contains (pos)
+                && ! rg.moveDownBounds.contains (pos)
+                && ! rg.removeBounds.contains (pos))
+            {
+                processor.getSetlistPlayer().startSetlistPlayback (rg.itemIndex, false);
+                repaint();
+                return;
+            }
+        }
+    }
+
+    if (timelineBounds.contains (pos))
     {
         metronomeOffsetSec = 0.0;
         processor.getMetronome().setGridOffset (0.0);
+        saveCurrentTrackToDatabase();
         repaint();
     }
 }
 
 void RecordPracticeView::mouseWheelMove (const juce::MouseEvent& e, const juce::MouseWheelDetails& wheel)
 {
-    if (waveformBounds.contains (e.getPosition()) || timelineBounds.contains (e.getPosition()))
+    const auto pos = e.getPosition();
+
+    if (isSongDbModalOpen && songDbModalBounds.contains (pos))
+    {
+        const int totalSongs = static_cast<int> (processor.getSongDatabase().getSongs().size());
+        const int maxScroll = std::max (0, totalSongs - 7);
+        if (wheel.deltaY < 0.0f)
+            songDbScrollOffset = std::min (maxScroll, songDbScrollOffset + 1);
+        else if (wheel.deltaY > 0.0f)
+            songDbScrollOffset = std::max (0, songDbScrollOffset - 1);
+        repaint();
+        return;
+    }
+
+    if (setlistConsoleBounds.contains (pos))
+    {
+        const int totalItems = static_cast<int> (processor.getSongDatabase().getActiveSetlist().items.size());
+        const int maxScroll = std::max (0, totalItems - 5);
+        if (wheel.deltaY < 0.0f)
+            setlistScrollOffset = std::min (maxScroll, setlistScrollOffset + 1);
+        else if (wheel.deltaY > 0.0f)
+            setlistScrollOffset = std::max (0, setlistScrollOffset - 1);
+        rebuildSetlistRowGeometries();
+        repaint();
+        return;
+    }
+
+    if (waveformBounds.contains (pos) || timelineBounds.contains (pos))
     {
         const double totalDur = std::max (0.01, processor.getBackingTrackPlayer().getDurationSeconds());
         const double visibleDur = totalDur / std::max (1.0f, zoomFactor);
@@ -925,104 +1487,175 @@ void RecordPracticeView::mouseWheelMove (const juce::MouseEvent& e, const juce::
 }
 
 //==============================================================================
+void RecordPracticeView::rebuildSetlistRowGeometries()
+{
+    setlistRowGeometries.clear();
+    if (setlistTableBodyBounds.isEmpty())
+        return;
+
+    const auto& items = processor.getSongDatabase().getActiveSetlist().items;
+    const int n = static_cast<int> (items.size());
+    const int maxScroll = std::max (0, n - 5);
+    setlistScrollOffset = std::clamp (setlistScrollOffset, 0, maxScroll);
+
+    const int rowH = 37;
+    const int rowGap = 3;
+    const int x1 = setlistTableBodyBounds.getX();
+    const int x2 = setlistTableBodyBounds.getRight();
+
+    for (int visIdx = 0; visIdx < 5; ++visIdx)
+    {
+        const int itemIdx = setlistScrollOffset + visIdx;
+        if (itemIdx >= n)
+            break;
+
+        const int ry1 = setlistTableBodyBounds.getY() + visIdx * (rowH + rowGap);
+        const int ry2 = ry1 + rowH;
+        if (ry2 > setlistTableBodyBounds.getBottom() + 4)
+            break;
+
+        SetlistRowGeometry rg;
+        rg.itemIndex = itemIdx;
+        rg.rowBounds = { x1, ry1, x2 - x1, rowH };
+        rg.moveUpBounds   = { x2 - 42, ry1 + 7, 13, rowH - 14 };
+        rg.moveDownBounds = { x2 - 27, ry1 + 7, 13, rowH - 14 };
+        rg.removeBounds   = { x2 - 12, ry1 + 7, 10, rowH - 14 };
+        setlistRowGeometries.push_back (rg);
+    }
+}
+
 void RecordPracticeView::resized()
 {
-    auto area = getLocalBounds().reduced (12);
+    auto area = getLocalBounds().reduced (12, 6);
 
-    // Top: Backing Track Deck (52% height)
-    const int deckH = static_cast<int> (area.getHeight() * 0.52);
-    auto topArea = area.removeFromTop (deckH);
+    // 1. Top Full-Width Waveform & Tempo Deck (~47.5% height)
+    const int deckH = static_cast<int> (area.getHeight() * 0.475);
+    topDeckBounds = area.removeFromTop (deckH);
     area.removeFromTop (10);
 
-    // Bottom: Split into Practice/Metronome (left 50%) and Recording Console (right 50%)
-    auto leftConsole = area.removeFromLeft (area.getWidth() / 2 - 6);
-    area.removeFromLeft (12);
-    auto rightConsole = area;
+    // 2. Bottom 3-Column Console:
+    //    Col 1: SETLIST & SONG QUEUE (~45% width)
+    //    Col 2: PRACTICE & METRONOME (~29% width)
+    //    Col 3: DUAL RECORDING CONSOLE (~26% width)
+    const int totalW = area.getWidth();
+    const int col1W = static_cast<int> (totalW * 0.45);
+    const int col2W = static_cast<int> (totalW * 0.285);
 
-    // --- Layout Top Area (Backing Track Deck) ---
-    auto deckInner = topArea.reduced (10);
-    auto topRow = deckInner.removeFromTop (54);
-    auto btnRow = topRow.reduced (0, 11);
-    loadTrackButton.setBounds (btnRow.removeFromLeft (95));
-    btnRow.removeFromLeft (6);
-    clearTrackButton.setBounds (btnRow.removeFromLeft (85));
-    btnRow.removeFromLeft (6);
-    playButton.setBounds (btnRow.removeFromLeft (60));
-    btnRow.removeFromLeft (6);
-    pauseButton.setBounds (btnRow.removeFromLeft (60));
-    btnRow.removeFromLeft (6);
-    rewindButton.setBounds (btnRow.removeFromLeft (65));
-    btnRow.removeFromLeft (6);
-    loopButton.setBounds (btnRow.removeFromLeft (80));
-    btnRow.removeFromLeft (6);
-    muteTrackButton.setBounds (btnRow.removeFromLeft (52));
+    setlistConsoleBounds = area.removeFromLeft (col1W);
+    area.removeFromLeft (10);
+    practiceConsoleBounds = area.removeFromLeft (col2W);
+    area.removeFromLeft (10);
+    recordingConsoleBounds = area;
 
-    // Right side of top row: Large Track Volume knob
+    // --- Layout Top Deck (Waveform & Transport) ---
+    auto deckInner = topDeckBounds.reduced (12, 8);
+    auto topRow = deckInner.removeFromTop (44);
     if (trackVolumeKnob != nullptr)
-        trackVolumeKnob->setBounds (topRow.removeFromRight (56).withHeight (54));
+        trackVolumeKnob->setBounds (topRow.removeFromRight (52).withHeight (44));
 
-    deckInner.removeFromTop (4);
+    topRow.removeFromRight (8);
+    auto btnRow = topRow.withTrimmedTop (4).withTrimmedBottom (10);
+
+    loadTrackButton.setBounds (btnRow.removeFromLeft (98));
+    btnRow.removeFromLeft (6);
+    prevSongButton.setBounds (btnRow.removeFromLeft (66));
+    btnRow.removeFromLeft (6);
+    playButton.setBounds (btnRow.removeFromLeft (106));
+    btnRow.removeFromLeft (6);
+    pauseButton.setBounds (btnRow.removeFromLeft (64));
+    btnRow.removeFromLeft (6);
+    nextSongButton.setBounds (btnRow.removeFromLeft (68));
+    btnRow.removeFromLeft (6);
+    rewindButton.setBounds (btnRow.removeFromLeft (68));
+    btnRow.removeFromLeft (6);
+    loopButton.setBounds (btnRow.removeFromLeft (104));
+    btnRow.removeFromLeft (6);
+    muteTrackButton.setBounds (btnRow.removeFromLeft (56));
+    btnRow.removeFromLeft (8);
+    setlistStatusPillBounds = btnRow;
+
+    deckInner.removeFromTop (2);
     auto bpmRow = deckInner.removeFromBottom (28);
-    detectBpmButton.setBounds (bpmRow.removeFromLeft (95));
+    detectBpmButton.setBounds (bpmRow.removeFromLeft (94));
     bpmRow.removeFromLeft (6);
-    tapBpmButton.setBounds (bpmRow.removeFromLeft (85));
+    tapBpmButton.setBounds (bpmRow.removeFromLeft (84));
     bpmRow.removeFromLeft (6);
-    alignBeatOneButton.setBounds (bpmRow.removeFromLeft (90));
+    alignBeatOneButton.setBounds (bpmRow.removeFromLeft (92));
     bpmRow.removeFromLeft (6);
-    halfBpmButton.setBounds (bpmRow.removeFromLeft (32));
+    halfBpmButton.setBounds (bpmRow.removeFromLeft (36));
     bpmRow.removeFromLeft (4);
-    doubleBpmButton.setBounds (bpmRow.removeFromLeft (32));
+    doubleBpmButton.setBounds (bpmRow.removeFromLeft (36));
     bpmRow.removeFromLeft (6);
-    nudgeDownButton.setBounds (bpmRow.removeFromLeft (36));
+    nudgeDownButton.setBounds (bpmRow.removeFromLeft (48));
     bpmRow.removeFromLeft (4);
-    nudgeUpButton.setBounds (bpmRow.removeFromLeft (36));
+    nudgeUpButton.setBounds (bpmRow.removeFromLeft (48));
 
-    // Right side of bpmRow: editable BPM field
-    bpmEditor.setBounds (bpmRow.removeFromRight (60).reduced (0, 1));
+    bpmEditor.setBounds (bpmRow.removeFromRight (74).reduced (0, 1));
 
     deckInner.removeFromBottom (4);
-    timelineBounds = deckInner.removeFromBottom (24);
-    deckInner.removeFromBottom (2);
+    timelineBounds = deckInner.removeFromBottom (22);
     waveformBounds = deckInner;
 
-    // --- Layout Left Console (Practice & Metronome) ---
-    auto leftInner = leftConsole.reduced (12, 10);
-    auto titleRow = leftInner.removeFromTop (54);
+    // --- Layout Column 1: SETLIST & SONG QUEUE ---
+    auto c1Inner = setlistConsoleBounds.reduced (12, 8);
+    auto c1Header = c1Inner.removeFromTop (26);
+    autoNextToggleButton.setBounds (c1Header.removeFromRight (188));
+
+    c1Inner.removeFromTop (6);
+    auto c1Toolbar = c1Inner.removeFromTop (26);
+    openSongDbButton.setBounds (c1Toolbar.removeFromRight (88));
+    c1Toolbar.removeFromRight (5);
+    addFileToSetlistButton.setBounds (c1Toolbar.removeFromRight (78));
+    c1Toolbar.removeFromRight (5);
+    newSetlistButton.setBounds (c1Toolbar.removeFromRight (46));
+    c1Toolbar.removeFromRight (5);
+    saveSetlistButton.setBounds (c1Toolbar.removeFromRight (48));
+    c1Toolbar.removeFromRight (5);
+    setlistSelectButton.setBounds (c1Toolbar);
+
+    c1Inner.removeFromTop (6);
+    setlistTableHeaderBounds = c1Inner.removeFromTop (20);
+    c1Inner.removeFromTop (3);
+    c1Inner.removeFromBottom (22); // Reserve footer strip
+    setlistTableBodyBounds = c1Inner;
+    rebuildSetlistRowGeometries();
+
+    // --- Layout Column 2: PRACTICE & METRONOME ---
+    auto c2Inner = practiceConsoleBounds.reduced (12, 8);
+    auto c2Header = c2Inner.removeFromTop (44);
     if (clickVolumeKnob != nullptr)
-        clickVolumeKnob->setBounds (titleRow.removeFromRight (56).withHeight (54));
+        clickVolumeKnob->setBounds (c2Header.removeFromRight (50).withHeight (44));
 
-    leftInner.removeFromTop (6);
-
-    // Row 1: Metronome toggle + Count-In toggle + 1 bar + 2 bars
-    auto mRow1 = leftInner.removeFromTop (32);
-    metroToggleButton.setBounds (mRow1.removeFromLeft (130));
+    auto mRow1 = c2Inner.removeFromTop (30);
+    const int halfM = (mRow1.getWidth() - 6) / 2;
+    metroToggleButton.setBounds (mRow1.removeFromLeft (halfM));
     mRow1.removeFromLeft (6);
-    countInToggleButton.setBounds (mRow1.removeFromLeft (115));
-    mRow1.removeFromLeft (6);
-    countIn1BarButton.setBounds (mRow1.removeFromLeft (50));
-    mRow1.removeFromLeft (6);
-    countIn2BarsButton.setBounds (mRow1.removeFromLeft (58));
+    countInToggleButton.setBounds (mRow1);
 
-    leftInner.removeFromTop (6);
-    // Row 2: Click Preset
-    auto mRow2 = leftInner.removeFromTop (32);
-    clickPresetButton.setBounds (mRow2);
+    c2Inner.removeFromTop (6);
+    auto mRow2 = c2Inner.removeFromTop (28);
+    mRow2.removeFromLeft (106); // Space for "Between Songs:" label
+    const int barBtnW = (mRow2.getWidth() - 6) / 2;
+    countIn1BarButton.setBounds (mRow2.removeFromLeft (barBtnW));
+    mRow2.removeFromLeft (6);
+    countIn2BarsButton.setBounds (mRow2);
 
-    leftInner.removeFromTop (6);
-    // Row 3: Beats per measure
-    auto mRow3 = leftInner.removeFromTop (26);
-    beatsEditor.setBounds (leftInner.getX() + 152, mRow3.getY(), 36, 24);
+    c2Inner.removeFromTop (6);
+    clickPresetButton.setBounds (c2Inner.removeFromTop (30));
 
-    leftInner.removeFromTop (6);
-    // Row 4: Beat lights
-    auto lightsArea = leftInner.removeFromTop (46);
+    c2Inner.removeFromTop (8);
+    auto mRow4 = c2Inner.removeFromTop (26);
+    beatsEditor.setBounds (mRow4.getX() + 146, mRow4.getY(), 46, 26);
+
+    c2Inner.removeFromTop (8);
+    auto lightsArea = c2Inner.removeFromTop (56);
     beatLightBounds.clear();
     if (beatsPerMeasure > 0)
     {
-        const int spacing = 6;
+        const int spacing = 5;
         const int totalSpacing = spacing * (beatsPerMeasure - 1);
         int cardW = (lightsArea.getWidth() - totalSpacing) / beatsPerMeasure;
-        cardW = std::clamp (cardW, 24, 68);
+        cardW = std::clamp (cardW, 20, 62);
         int curX = lightsArea.getX();
         for (int i = 0; i < beatsPerMeasure; ++i)
         {
@@ -1031,29 +1664,48 @@ void RecordPracticeView::resized()
         }
     }
 
-    // --- Layout Right Console (Dual Recording) ---
-    auto rightInner = rightConsole.reduced (12, 10);
-    rightInner.removeFromTop (24); // Title space
+    // --- Layout Column 3: DUAL RECORDING CONSOLE ---
+    auto c3Inner = recordingConsoleBounds.reduced (12, 8);
+    c3Inner.removeFromTop (34); // Header space
 
-    // Row 1: REC and STOP
-    auto rRow1 = rightInner.removeFromTop (50);
+    auto rRow1 = c3Inner.removeFromTop (52);
     const int recW = static_cast<int> (rRow1.getWidth() * 0.62);
     recordButton.setBounds (rRow1.removeFromLeft (recW));
-    rRow1.removeFromLeft (8);
+    rRow1.removeFromLeft (6);
     stopButton.setBounds (rRow1);
 
-    rightInner.removeFromTop (8);
-    // Row 2: Also record backing track
-    auto rRow2 = rightInner.removeFromTop (34);
-    alsoRecordTrackButton.setBounds (rRow2);
+    c3Inner.removeFromTop (8);
+    alsoRecordTrackButton.setBounds (c3Inner.removeFromTop (34));
 
-    rightInner.removeFromTop (8);
-    // Row 3: Export WAV & Export MIDI
-    auto rRow3 = rightInner.removeFromTop (34);
-    const int expW = (rRow3.getWidth() - 8) / 2;
-    exportWavButton.setBounds (rRow3.removeFromLeft (expW));
-    rRow3.removeFromLeft (8);
-    exportMidButton.setBounds (rRow3);
+    c3Inner.removeFromTop (8);
+    recordEntireSetlistButton.setBounds (c3Inner.removeFromTop (34));
+
+    c3Inner.removeFromTop (8);
+    auto rRow4 = c3Inner.removeFromTop (38);
+    const int expW = (rRow4.getWidth() - 6) / 2;
+    exportWavButton.setBounds (rRow4.removeFromLeft (expW));
+    rRow4.removeFromLeft (6);
+    exportMidButton.setBounds (rRow4);
+
+    // --- Layout Persistent Song Database Modal Overlay ---
+    songDbModalOverlay.setBounds (getLocalBounds());
+    const int mw = std::min (840, getWidth() - 60);
+    const int mh = std::min (560, getHeight() - 40);
+    songDbModalBounds = juce::Rectangle<int> ((getWidth() - mw) / 2, (getHeight() - mh) / 2, mw, mh);
+
+    if (isSongDbModalOpen)
+    {
+        const int mx = songDbModalBounds.getX() + 24;
+        const int my = songDbModalBounds.getY() + 14;
+        const int mr = songDbModalBounds.getRight() - 24;
+
+        songDbCloseButton.setBounds (mr - 88, my, 88, 30);
+
+        const int barY = my + 66;
+        songDbAddSelectedButton.setBounds (mr - 172, barY, 172, 32);
+        songDbImportButton.setBounds (mr - 172 - 8 - 178, barY, 178, 32);
+        songDbSearchEditor.setBounds (mx, barY, (mr - 172 - 8 - 178 - 10) - mx, 32);
+    }
 }
 
 //==============================================================================
@@ -1061,35 +1713,70 @@ void RecordPracticeView::paint (juce::Graphics& g)
 {
     g.fillAll (currentTheme.background);
 
-    auto area = getLocalBounds().reduced (12);
-    const int deckH = static_cast<int> (area.getHeight() * 0.52);
-    auto topArea = area.removeFromTop (deckH);
-    area.removeFromTop (10);
-
-    auto leftConsole = area.removeFromLeft (area.getWidth() / 2 - 6);
-    area.removeFromLeft (12);
-    auto rightConsole = area;
-
-    drawWaveformDeck (g, topArea);
-    drawPracticeConsole (g, leftConsole);
-    drawRecordingConsole (g, rightConsole);
+    drawWaveformDeck (g, topDeckBounds);
+    drawSetlistConsole (g, setlistConsoleBounds);
+    drawPracticeConsole (g, practiceConsoleBounds);
+    drawRecordingConsole (g, recordingConsoleBounds);
 }
 
 void RecordPracticeView::drawWaveformDeck (juce::Graphics& g, juce::Rectangle<int> area)
 {
     g.setColour (currentTheme.panel);
-    g.fillRoundedRectangle (area.toFloat(), 8.0f);
-    g.setColour (currentTheme.panelEdge);
-    g.drawRoundedRectangle (area.toFloat(), 8.0f, 2.0f);
+    g.fillRoundedRectangle (area.toFloat(), 6.0f);
+    drawSketchRect (g, area.toFloat(), currentTheme.panelEdge, 2.0f, 10);
 
     const auto blueCol = juce::Colour (0xff3498db);
+    const auto warmOrange = juce::Colour (0xffea8c16);
+
+    // Update Play button label based on setlist
+    const auto& activeSetlist = processor.getSongDatabase().getActiveSetlist();
+    playButton.setLabel (activeSetlist.items.empty() ? "Play" : "Play Setlist");
+
+    // Draw Live Setlist Status Pill in top transport bar
+    if (! setlistStatusPillBounds.isEmpty())
+    {
+        const auto pillBg = currentTheme.background.getPerceivedBrightness() < 0.35f
+                                ? juce::Colour (0xff2b2218)
+                                : juce::Colour (0xfffff3db);
+        g.setColour (pillBg);
+        g.fillRoundedRectangle (setlistStatusPillBounds.toFloat(), 4.0f);
+        drawSketchRect (g, setlistStatusPillBounds.toFloat(), warmOrange, 1.5f, 44);
+
+        juce::String statusTxt = "SETLIST READY  |  ADD SONGS BELOW";
+        if (! activeSetlist.items.empty())
+        {
+            const int curIdx = std::clamp (processor.getSetlistPlayer().getCurrentSongIndex(),
+                                           0, static_cast<int> (activeSetlist.items.size()) - 1);
+            const int total = static_cast<int> (activeSetlist.items.size());
+            if (curIdx + 1 < total)
+            {
+                const auto& nextItem = activeSetlist.items[static_cast<size_t> (curIdx + 1)];
+                juce::String nextTitle = juce::File (nextItem.filePath).getFileNameWithoutExtension();
+                if (const auto* s = processor.getSongDatabase().findSongById (nextItem.songId))
+                    nextTitle = juce::File (s->title).getFileNameWithoutExtension();
+                if (nextTitle.length() > 18)
+                    nextTitle = nextTitle.substring (0, 16) + "..";
+                const double nextBpm = processor.getSongDatabase().getEffectiveBpmForItem (nextItem);
+                statusTxt = juce::String::formatted ("SETLIST #%d/%d  |  NEXT: %02d. ", curIdx + 1, total, curIdx + 2)
+                            + nextTitle + juce::String::formatted (" (%.0f BPM)", nextBpm);
+            }
+            else
+            {
+                statusTxt = juce::String::formatted ("SETLIST #%d/%d  |  FINAL SONG IN SETLIST", curIdx + 1, total);
+            }
+        }
+
+        g.setFont (displayFont (11.5f).boldened());
+        g.setColour (currentTheme.background.getPerceivedBrightness() < 0.35f ? juce::Colour (0xffffb84d) : juce::Colour (0xffb35c00));
+        g.drawText (statusTxt, setlistStatusPillBounds.reduced (6, 0), juce::Justification::centred, true);
+    }
 
     // Waveform box
     if (! waveformBounds.isEmpty())
     {
         g.setColour (currentTheme.background);
         g.fillRect (waveformBounds);
-        g.setColour (currentTheme.panelEdge.withAlpha (0.4f));
+        g.setColour (currentTheme.panelEdge.withAlpha (0.5f));
         g.drawRect (waveformBounds, 1);
 
         auto& trackPlayer = processor.getBackingTrackPlayer();
@@ -1098,6 +1785,7 @@ void RecordPracticeView::drawWaveformDeck (juce::Graphics& g, juce::Rectangle<in
         const int w = waveformBounds.getWidth();
         const int h = waveformBounds.getHeight();
         const int midY = waveformBounds.getCentreY();
+        const int numSig = std::max (1, beatsPerMeasure);
 
         auto timeToX = [&](double tSec) -> float
         {
@@ -1112,7 +1800,6 @@ void RecordPracticeView::drawWaveformDeck (juce::Graphics& g, juce::Rectangle<in
             const int totalSamples = buf.getNumSamples();
             const float* l = buf.getReadPointer (0);
 
-            // Draw audio waveform bars
             g.setColour (blueCol);
             const double samplesPerSec = totalDur > 0.0 ? (static_cast<double> (totalSamples) / totalDur) : 44100.0;
             const double visibleSamples = visibleDur * samplesPerSec;
@@ -1140,7 +1827,7 @@ void RecordPracticeView::drawWaveformDeck (juce::Graphics& g, juce::Rectangle<in
                 }
             }
 
-            // Draw vertical beat grid guidelines through waveform
+            // Draw vertical beat grid guidelines using actual beatsPerMeasure
             const double secPerBeat = 60.0 / std::max (20.0, detectedBpm);
             const int64_t kStart = static_cast<int64_t> (std::floor ((viewStartSec - metronomeOffsetSec) / secPerBeat));
             const int64_t kEnd = static_cast<int64_t> (std::ceil ((viewStartSec + visibleDur - metronomeOffsetSec) / secPerBeat));
@@ -1151,18 +1838,16 @@ void RecordPracticeView::drawWaveformDeck (juce::Graphics& g, juce::Rectangle<in
                 const float bx = timeToX (tBeat);
                 if (bx >= static_cast<float> (waveformBounds.getX()) && bx <= static_cast<float> (waveformBounds.getRight()))
                 {
-                    const int mBeat = static_cast<int> (((k % 4) + 4) % 4) + 1;
+                    const int mBeat = static_cast<int> (((k % numSig) + numSig) % numSig) + 1;
                     if (mBeat == 1)
                     {
-                        // Beat 1: thicker guideline in accent colour
-                        g.setColour (currentTheme.accent.withAlpha (0.42f));
+                        g.setColour (warmOrange.withAlpha (0.65f));
                         g.drawLine (bx, static_cast<float> (waveformBounds.getY()),
                                     bx, static_cast<float> (waveformBounds.getBottom()), 2.0f);
                     }
                     else
                     {
-                        // Other beats: thinner guideline
-                        g.setColour (currentTheme.inkSoft.withAlpha (0.16f));
+                        g.setColour (currentTheme.inkSoft.withAlpha (0.22f));
                         g.drawLine (bx, static_cast<float> (waveformBounds.getY()),
                                     bx, static_cast<float> (waveformBounds.getBottom()), 1.0f);
                     }
@@ -1175,44 +1860,123 @@ void RecordPracticeView::drawWaveformDeck (juce::Graphics& g, juce::Rectangle<in
 
             if (playheadX >= static_cast<float> (waveformBounds.getX()) && playheadX <= static_cast<float> (waveformBounds.getRight()))
             {
-                g.setColour (currentTheme.accent);
+                g.setColour (juce::Colour (0xffe74c3c));
                 g.drawLine (playheadX, static_cast<float> (waveformBounds.getY()),
                             playheadX, static_cast<float> (waveformBounds.getBottom()), 2.5f);
 
                 juce::Path cap;
-                cap.addTriangle (playheadX - 5.0f, static_cast<float> (waveformBounds.getY()),
-                                 playheadX + 5.0f, static_cast<float> (waveformBounds.getY()),
-                                 playheadX, static_cast<float> (waveformBounds.getY() + 7.0f));
+                cap.addTriangle (playheadX - 5.5f, static_cast<float> (waveformBounds.getY()),
+                                 playheadX + 5.5f, static_cast<float> (waveformBounds.getY()),
+                                 playheadX, static_cast<float> (waveformBounds.getY() + 8.0f));
                 g.fillPath (cap);
             }
 
-            // Time badge
-            g.setFont (displayFont (13.0f));
+            // Top-left Track Title Pill + [DB SAVED] badge
+            const bool isSavedInDb = processor.getSongDatabase().isSongConfigured (trackPlayer.getLoadedFile());
+            juce::String trackDisplay = trackPlayer.getTrackName();
+            if (isSavedInDb)
+                trackDisplay += "  [ DB SAVED ]";
+            if (zoomFactor > 1.05f)
+                trackDisplay += juce::String::formatted ("  [%.1fx]", zoomFactor);
+
+            juce::Rectangle<float> titlePill (static_cast<float> (waveformBounds.getX() + 8),
+                                              static_cast<float> (waveformBounds.getY() + 6),
+                                              310.0f, 22.0f);
+            g.setColour (currentTheme.panel);
+            g.fillRoundedRectangle (titlePill, 4.0f);
+            g.setColour (currentTheme.panelEdge);
+            g.drawRoundedRectangle (titlePill, 4.0f, 1.2f);
+            g.setFont (displayFont (12.5f));
             g.setColour (currentTheme.ink);
+            g.drawText (trackDisplay, titlePill.reduced (8.0f, 0.0f), juce::Justification::centredLeft, true);
+
+            // Top-right Grid Offset Pill + Time Pill
+            const double ms = metronomeOffsetSec * 1000.0;
+            const auto gridStr = juce::String::formatted ("Grid: %+.1f ms (DB Saved)", ms);
+            juce::Rectangle<float> gridPill (static_cast<float> (waveformBounds.getRight() - 304),
+                                             static_cast<float> (waveformBounds.getY() + 6),
+                                             178.0f, 22.0f);
+            g.setColour (currentTheme.panel);
+            g.fillRoundedRectangle (gridPill, 4.0f);
+            g.setColour (currentTheme.panelEdge);
+            g.drawRoundedRectangle (gridPill, 4.0f, 1.2f);
+            g.setFont (displayFont (11.5f));
+            g.setColour (warmOrange);
+            g.drawText (gridStr, gridPill, juce::Justification::centred, false);
+
             const auto timeStr = juce::String::formatted ("%02d:%02d / %02d:%02d",
                 static_cast<int> (curSec) / 60, static_cast<int> (curSec) % 60,
                 static_cast<int> (totalDur) / 60, static_cast<int> (totalDur) % 60);
-            g.drawText (timeStr, waveformBounds.reduced (6), juce::Justification::topRight);
-
-            juce::String trackDisplay = trackPlayer.getTrackName();
-            if (zoomFactor > 1.05f)
-                trackDisplay += juce::String::formatted ("  [Zoom: %.1fx]", zoomFactor);
-            g.drawText (trackDisplay, waveformBounds.reduced (6), juce::Justification::topLeft);
+            juce::Rectangle<float> timePill (static_cast<float> (waveformBounds.getRight() - 120),
+                                             static_cast<float> (waveformBounds.getY() + 6),
+                                             112.0f, 22.0f);
+            g.setColour (currentTheme.panel);
+            g.fillRoundedRectangle (timePill, 4.0f);
+            g.setColour (currentTheme.panelEdge);
+            g.drawRoundedRectangle (timePill, 4.0f, 1.2f);
+            g.setFont (displayFont (12.5f));
+            g.setColour (currentTheme.ink);
+            g.drawText (timeStr, timePill, juce::Justification::centred, false);
         }
         else
         {
             g.setFont (uiFont (16.0f));
-            g.setColour (currentTheme.ink.withAlpha (0.6f));
-            g.drawText ("Drag & Drop WAV / MP3 / FLAC Backing Track Here", waveformBounds, juce::Justification::centred);
+            g.setColour (currentTheme.ink.withAlpha (0.65f));
+            g.drawText ("Drag & Drop Audio Tracks Here, Click 'Load Track...', or Pick From '+ Song DB'",
+                        waveformBounds, juce::Justification::centred);
         }
 
-        // Draw synchronized beat timeline bar
+        // Between-Song Count-In Banner Overlay
+        if (processor.getMetronome().isCountingIn())
+        {
+            const int curBeat = std::max (1, activeBeatFlash > 0 ? activeBeatFlash : 1);
+            juce::String beatSeq;
+            for (int b = 1; b <= numSig; ++b)
+            {
+                if (b > 1) beatSeq += " - ";
+                if (b == curBeat)
+                    beatSeq += "[ " + juce::String (b) + " ]";
+                else
+                    beatSeq += juce::String (b);
+            }
+
+            const int songNum = processor.getSetlistPlayer().getCurrentSongIndex() + 1;
+            const auto bannerTxt = juce::String::formatted ("COUNT-IN TO SONG #%d:  ", songNum)
+                                   + beatSeq + juce::String::formatted ("  (%.1f BPM)", detectedBpm);
+
+            juce::Rectangle<float> bannerRect (
+                static_cast<float> (waveformBounds.getCentreX() - 230),
+                static_cast<float> (waveformBounds.getCentreY() - 18),
+                460.0f, 36.0f);
+            g.setColour (warmOrange);
+            g.fillRoundedRectangle (bannerRect, 6.0f);
+            drawSketchRect (g, bannerRect, juce::Colours::white, 2.0f, 99);
+            g.setFont (displayFont (14.5f).boldened());
+            g.setColour (juce::Colour (0xff101114));
+            g.drawText (bannerTxt, bannerRect, juce::Justification::centred, false);
+        }
+
         drawBeatTimelineBar (g, timelineBounds);
 
-        // Label beside bpmEditor
+        // Auto-saved status note in bottom tempo bar + BPM label
         if (! bpmEditor.getBounds().isEmpty())
         {
-            g.setFont (displayFont (13.0f));
+            if (trackPlayer.hasTrack() && processor.getSongDatabase().isSongConfigured (trackPlayer.getLoadedFile()))
+            {
+                g.setFont (uiFont (14.5f));
+                g.setColour (juce::Colour (0xff27ae60));
+                const auto savedNote = juce::String::formatted (
+                    "Song settings auto-saved to Library (BPM, %+.1fms Beat 1 Offset, %d/4 Meter)",
+                    metronomeOffsetSec * 1000.0, beatsPerMeasure);
+                juce::Rectangle<int> noteArea (
+                    nudgeUpButton.getRight() + 14,
+                    bpmEditor.getY(),
+                    bpmEditor.getX() - 80 - (nudgeUpButton.getRight() + 14),
+                    bpmEditor.getHeight());
+                g.drawText (savedNote, noteArea, juce::Justification::centred, true);
+            }
+
+            g.setFont (displayFont (13.5f).boldened());
             g.setColour (blueCol);
             juce::String bpmInfo = "BPM:";
             if (isAnalyzing)
@@ -1220,7 +1984,7 @@ void RecordPracticeView::drawWaveformDeck (juce::Graphics& g, juce::Rectangle<in
             else if (bpmConfidence > 0.0f)
                 bpmInfo = juce::String::formatted ("(%.0f%%) BPM:", bpmConfidence * 100.0f);
 
-            auto labelArea = bpmEditor.getBounds().translated (-105, 0).withWidth (100);
+            auto labelArea = bpmEditor.getBounds().translated (-96, 0).withWidth (90);
             g.drawText (bpmInfo, labelArea, juce::Justification::centredRight);
         }
     }
@@ -1232,13 +1996,14 @@ void RecordPracticeView::drawBeatTimelineBar (juce::Graphics& g, juce::Rectangle
         return;
 
     g.setColour (currentTheme.background.interpolatedWith (currentTheme.panel, 0.45f));
-    g.fillRoundedRectangle (area.toFloat(), 3.0f);
+    g.fillRoundedRectangle (area.toFloat(), 2.0f);
     g.setColour (currentTheme.panelEdge.withAlpha (0.55f));
-    g.drawRoundedRectangle (area.toFloat(), 3.0f, 1.2f);
+    g.drawRoundedRectangle (area.toFloat(), 2.0f, 1.0f);
 
     const double totalDur = std::max (0.01, processor.getBackingTrackPlayer().getDurationSeconds());
     const double visibleDur = totalDur / std::max (1.0f, zoomFactor);
     const int w = area.getWidth();
+    const int numSig = std::max (1, beatsPerMeasure);
 
     auto timeToX = [&](double tSec) -> float
     {
@@ -1257,72 +2022,234 @@ void RecordPracticeView::drawBeatTimelineBar (juce::Graphics& g, juce::Rectangle
         const float bx = timeToX (tBeat);
         if (bx >= static_cast<float> (area.getX()) && bx <= static_cast<float> (area.getRight()))
         {
-            const int mBeat = static_cast<int> (((k % 4) + 4) % 4) + 1;
-            const int barNum = static_cast<int> (std::floor (static_cast<double> (k) / 4.0)) + 1;
+            const int mBeat = static_cast<int> (((k % numSig) + numSig) % numSig) + 1;
+            const int barNum = static_cast<int> (std::floor (static_cast<double> (k) / static_cast<double> (numSig))) + 1;
 
             if (mBeat == 1)
             {
-                // Thicker line for Beat 1 (downbeat/bar line)
-                g.setColour (currentTheme.accent);
+                g.setColour (juce::Colour (0xffea8c16));
                 g.drawLine (bx, static_cast<float> (area.getY()),
-                            bx, static_cast<float> (area.getBottom()), 2.2f);
+                            bx, static_cast<float> (area.getBottom()), 2.0f);
 
-                // Bar number label
                 g.setFont (displayFont (11.0f).boldened());
                 g.drawText (juce::String (barNum),
-                            juce::Rectangle<float> (bx + 3.0f, static_cast<float> (area.getY() + 1), 32.0f, static_cast<float> (area.getHeight() - 2)),
+                            juce::Rectangle<float> (bx + 3.0f, static_cast<float> (area.getY() + 1), 28.0f, static_cast<float> (area.getHeight() - 2)),
                             juce::Justification::centredLeft);
             }
             else
             {
-                // Thinner line for each other beat
                 g.setColour (currentTheme.inkSoft.withAlpha (0.65f));
-                g.drawLine (bx, static_cast<float> (area.getY() + 6),
-                            bx, static_cast<float> (area.getBottom() - 2), 1.0f);
+                g.drawLine (bx, static_cast<float> (area.getY() + 7),
+                            bx, static_cast<float> (area.getBottom() - 1), 1.0f);
 
-                g.setFont (uiFont (9.0f));
+                g.setFont (uiFont (9.5f));
                 g.drawText (juce::String (mBeat),
-                            juce::Rectangle<float> (bx + 2.0f, static_cast<float> (area.getY() + 6), 16.0f, static_cast<float> (area.getHeight() - 8)),
+                            juce::Rectangle<float> (bx + 2.0f, static_cast<float> (area.getY() + 5), 14.0f, static_cast<float> (area.getHeight() - 6)),
                             juce::Justification::centredLeft);
             }
         }
     }
+}
 
-    // Grid offset badge on the right
-    g.setFont (displayFont (11.0f));
-    g.setColour (currentTheme.accent);
-    const double ms = metronomeOffsetSec * 1000.0;
-    juce::String offText = juce::String::formatted ("Grid: %+.1f ms  (Shift+Drag / 'A' Align)", ms);
-    g.drawText (offText, area.reduced (6, 2), juce::Justification::centredRight);
+void RecordPracticeView::drawSetlistConsole (juce::Graphics& g, juce::Rectangle<int> area)
+{
+    g.setColour (currentTheme.panel);
+    g.fillRoundedRectangle (area.toFloat(), 6.0f);
+    drawSketchRect (g, area.toFloat(), currentTheme.panelEdge, 2.0f, 21);
+
+    // Header Title
+    g.setFont (displayFont (15.5f).boldened());
+    g.setColour (currentTheme.ink);
+    g.drawText ("SETLIST & SONG QUEUE", area.reduced (14, 8).removeFromTop (24), juce::Justification::centredLeft);
+
+    // Table Header
+    if (! setlistTableHeaderBounds.isEmpty())
+    {
+        const auto troughCol = currentTheme.background.interpolatedWith (currentTheme.panel, 0.35f);
+        g.setColour (troughCol);
+        g.fillRect (setlistTableHeaderBounds);
+        g.setColour (currentTheme.panelEdge);
+        g.drawRect (setlistTableHeaderBounds, 1);
+
+        const int hx = setlistTableHeaderBounds.getX();
+        const int hy = setlistTableHeaderBounds.getY();
+        const int hh = setlistTableHeaderBounds.getHeight();
+        const int hr = setlistTableHeaderBounds.getRight();
+
+        g.setFont (displayFont (11.0f));
+        g.setColour (currentTheme.inkSoft);
+        g.drawText ("#",          hx + 2,   hy, 28, hh, juce::Justification::centred);
+        g.drawText ("SONG TITLE", hx + 32,  hy, (hr - 252) - (hx + 32), hh, juce::Justification::centredLeft);
+        g.drawText ("BPM",        hr - 252, hy, 60, hh, juce::Justification::centred);
+        g.drawText ("OFFSET",     hr - 192, hy, 62, hh, juce::Justification::centred);
+        g.drawText ("SIG",        hr - 130, hy, 38, hh, juce::Justification::centred);
+        g.drawText ("TIME",       hr - 92,  hy, 46, hh, juce::Justification::centred);
+        g.drawText ("ORDER",      hr - 46,  hy, 44, hh, juce::Justification::centred);
+    }
+
+    // Song Rows
+    const auto& db = processor.getSongDatabase();
+    const auto& activeSetlist = db.getActiveSetlist();
+    const int currentIdx = processor.getSetlistPlayer().getCurrentSongIndex();
+    const bool isDark = currentTheme.background.getPerceivedBrightness() < 0.35f;
+
+    if (activeSetlist.items.empty())
+    {
+        g.setFont (uiFont (15.0f));
+        g.setColour (currentTheme.inkSoft);
+        g.drawText ("Setlist is empty -- click '+ Add File', '+ Song DB', or drag audio files here!",
+                    setlistTableBodyBounds.reduced (12), juce::Justification::centred);
+    }
+    else
+    {
+        for (const auto& rg : setlistRowGeometries)
+        {
+            if (rg.itemIndex < 0 || rg.itemIndex >= static_cast<int> (activeSetlist.items.size()))
+                continue;
+
+            const auto& item = activeSetlist.items[static_cast<size_t> (rg.itemIndex)];
+            const SongEntry* entry = db.findSongById (item.songId);
+
+            const bool isCurrent = (rg.itemIndex == currentIdx);
+            const bool isCompleted = (rg.itemIndex < currentIdx);
+
+            const auto rowBg = isCurrent
+                                   ? (isDark ? juce::Colour (0xff2b2218) : juce::Colour (0xfffff3db))
+                                   : ((rg.itemIndex % 2 == 1)
+                                          ? currentTheme.background.interpolatedWith (currentTheme.panel, 0.65f)
+                                          : currentTheme.panel);
+            const auto rowEdge = isCurrent ? juce::Colour (0xffea8c16) : currentTheme.panelEdge;
+
+            g.setColour (rowBg);
+            g.fillRoundedRectangle (rg.rowBounds.toFloat(), 4.0f);
+            drawSketchRect (g, rg.rowBounds.toFloat(), rowEdge, isCurrent ? 2.0f : 1.0f, static_cast<unsigned> (100 + rg.itemIndex));
+
+            const int rx = rg.rowBounds.getX();
+            const int ry = rg.rowBounds.getY();
+            const int rh = rg.rowBounds.getHeight();
+            const int rr = rg.rowBounds.getRight();
+
+            // 1. Track #
+            const auto numStr = (isCurrent ? ">" : "") + juce::String::formatted ("%02d", rg.itemIndex + 1);
+            g.setFont (displayFont (12.0f).boldened());
+            g.setColour (isCurrent ? juce::Colour (0xffea8c16) : (isCompleted ? juce::Colour (0xff27ae60) : currentTheme.inkSoft));
+            g.drawText (numStr, rx + 2, ry, 28, rh, juce::Justification::centred);
+
+            // 2. Song Title
+            juce::String title = entry != nullptr ? entry->title : juce::File (item.filePath).getFileName();
+            g.setFont (displayFont (12.0f));
+            g.setColour (currentTheme.ink);
+            g.drawText (title, rx + 32, ry, (rr - 254) - (rx + 32), rh, juce::Justification::centredLeft, true);
+
+            // 3. BPM Pill
+            const double bpm = db.getEffectiveBpmForItem (item);
+            juce::Rectangle<float> bpmRect (static_cast<float> (rr - 248), static_cast<float> (ry + 6), 52.0f, static_cast<float> (rh - 12));
+            g.setColour (isDark ? juce::Colour (0xff1f3a2e) : juce::Colour (0xffd9f2e6));
+            g.fillRoundedRectangle (bpmRect, 3.0f);
+            g.setColour (currentTheme.panelEdge);
+            g.drawRoundedRectangle (bpmRect, 3.0f, 1.0f);
+            g.setFont (displayFont (11.5f));
+            g.setColour (isDark ? juce::Colour (0xffa8e6cf) : juce::Colour (0xff101114));
+            g.drawText (juce::String::formatted ("%.1f", bpm), bpmRect, juce::Justification::centred, false);
+
+            // 4. Offset (ms)
+            const double offMs = (entry != nullptr ? entry->firstBeatOffsetSec : 0.0) * 1000.0;
+            g.setFont (uiFont (13.5f).boldened());
+            g.setColour (juce::Colour (0xffea8c16));
+            g.drawText (juce::String::formatted ("%+.1fms", offMs), rr - 192, ry, 62, rh, juce::Justification::centred);
+
+            // 5. Time Sig
+            const int sig = entry != nullptr ? entry->beatsPerBar : 4;
+            g.setFont (displayFont (11.5f));
+            g.setColour (currentTheme.inkSoft);
+            g.drawText (juce::String (sig) + "/4", rr - 130, ry, 38, rh, juce::Justification::centred);
+
+            // 6. Duration
+            const double dur = entry != nullptr ? entry->durationSeconds : 0.0;
+            const auto durStr = dur > 0.0
+                                    ? juce::String::formatted ("%02d:%02d", static_cast<int> (dur) / 60, static_cast<int> (dur) % 60)
+                                    : "--:--";
+            g.setFont (uiFont (13.0f));
+            g.setColour (currentTheme.inkSoft);
+            g.drawText (durStr, rr - 92, ry, 46, rh, juce::Justification::centred);
+
+            // 7. Reorder / Remove buttons (^ v x)
+            g.setColour (currentTheme.panel);
+            g.fillRoundedRectangle (rg.moveUpBounds.toFloat(), 2.0f);
+            g.fillRoundedRectangle (rg.moveDownBounds.toFloat(), 2.0f);
+            g.setColour (juce::Colour (0xffe2786f));
+            g.fillRoundedRectangle (rg.removeBounds.toFloat(), 2.0f);
+
+            g.setColour (currentTheme.panelEdge);
+            g.drawRoundedRectangle (rg.moveUpBounds.toFloat(), 2.0f, 1.0f);
+            g.drawRoundedRectangle (rg.moveDownBounds.toFloat(), 2.0f, 1.0f);
+            g.drawRoundedRectangle (rg.removeBounds.toFloat(), 2.0f, 1.0f);
+
+            g.setFont (displayFont (10.0f));
+            g.setColour (currentTheme.ink);
+            g.drawText ("^", rg.moveUpBounds, juce::Justification::centred);
+            g.drawText ("v", rg.moveDownBounds, juce::Justification::centred);
+            g.setColour (juce::Colours::white);
+            g.drawText ("x", rg.removeBounds, juce::Justification::centred);
+        }
+    }
+
+    // Footer Summary Strip
+    double totalSetSec = 0.0;
+    for (const auto& item : activeSetlist.items)
+        if (const auto* s = db.findSongById (item.songId))
+            totalSetSec += s->durationSeconds;
+
+    const auto footerStr = juce::String::formatted (
+        "Total Setlist: %d Songs (%02d:%02d)  |  Song DB: %d Configured Tracks  |  Drag files or click + Song DB",
+        static_cast<int> (activeSetlist.items.size()),
+        static_cast<int> (totalSetSec) / 60,
+        static_cast<int> (totalSetSec) % 60,
+        db.getNumConfiguredSongs());
+
+    g.setFont (uiFont (13.0f));
+    g.setColour (currentTheme.inkSoft);
+    g.drawText (footerStr, area.reduced (12, 4).removeFromBottom (20), juce::Justification::centredLeft, true);
 }
 
 void RecordPracticeView::drawPracticeConsole (juce::Graphics& g, juce::Rectangle<int> area)
 {
     g.setColour (currentTheme.panel);
-    g.fillRoundedRectangle (area.toFloat(), 8.0f);
-    drawSketchRect (g, area.toFloat(), currentTheme.panelEdge, 2.0f, 101);
+    g.fillRoundedRectangle (area.toFloat(), 6.0f);
+    drawSketchRect (g, area.toFloat(), currentTheme.panelEdge, 2.0f, 22);
 
-    // Section title
-    g.setFont (displayFont (16.0f).boldened());
+    g.setFont (displayFont (15.5f).boldened());
     g.setColour (currentTheme.ink);
-    g.drawText ("PRACTICE & METRONOME", area.reduced (14, 10).removeFromTop (24), juce::Justification::topLeft);
+    g.drawText ("PRACTICE & METRONOME", area.reduced (12, 8).removeFromTop (24), juce::Justification::centredLeft);
 
-    // "Beats per meassure:" label in bright cyan
-    if (! beatsEditor.getBounds().isEmpty())
+    // "Between Songs:" label beside 1 bar / 2 bars
+    if (! countIn1BarButton.getBounds().isEmpty())
     {
-        const auto cyanCol = juce::Colour (0xff0099cc);
-        g.setFont (displayFont (14.0f).boldened());
-        g.setColour (cyanCol);
-        auto labelArea = juce::Rectangle<int> (
-            area.getX() + 14,
-            beatsEditor.getY() - 1,
-            beatsEditor.getX() - (area.getX() + 14) - 4,
-            beatsEditor.getHeight() + 2);
-        g.drawText ("Beats per meassure:", labelArea, juce::Justification::centredLeft, false);
+        g.setFont (displayFont (12.5f));
+        g.setColour (currentTheme.inkSoft);
+        juce::Rectangle<int> lbl (area.getX() + 12, countIn1BarButton.getY(), 102, countIn1BarButton.getHeight());
+        g.drawText ("Between Songs:", lbl, juce::Justification::centredLeft);
     }
 
-    // Dynamic Beat Lights
+    // "Beats per measure:" label
+    if (! beatsEditor.getBounds().isEmpty())
+    {
+        g.setFont (displayFont (13.5f).boldened());
+        g.setColour (juce::Colour (0xff3498db));
+        juce::Rectangle<int> labelArea (
+            area.getX() + 12,
+            beatsEditor.getY(),
+            beatsEditor.getX() - (area.getX() + 12) - 4,
+            beatsEditor.getHeight());
+        g.drawText ("Beats per measure:", labelArea, juce::Justification::centredLeft, false);
+    }
+
     drawBeatLights (g);
+
+    g.setFont (uiFont (13.0f));
+    g.setColour (currentTheme.inkSoft);
+    g.drawText ("Count-in auto-adapts to each song's BPM & meter",
+                area.reduced (12, 4).removeFromBottom (20), juce::Justification::centredLeft);
 }
 
 void RecordPracticeView::drawBeatLights (juce::Graphics& g)
@@ -1335,9 +2262,8 @@ void RecordPracticeView::drawBeatLights (juce::Graphics& g)
 
         if (isActive && b == 1)
         {
-            // Downbeat (Beat 1): radiant red glowing halo aura
             const auto redCol = juce::Colour (0xffe74c3c);
-            for (int r = 8; r >= 1; --r)
+            for (int r = 6; r >= 1; --r)
             {
                 const float alpha = 0.45f / static_cast<float> (r);
                 g.setColour (redCol.withAlpha (alpha));
@@ -1346,17 +2272,16 @@ void RecordPracticeView::drawBeatLights (juce::Graphics& g)
 
             g.setColour (redCol);
             g.fillRoundedRectangle (card, 4.0f);
-            drawSketchRect (g, card, juce::Colour (0xff962d22), 2.2f, static_cast<unsigned> (b + 20));
+            drawSketchRect (g, card, juce::Colour (0xff962d22), 2.0f, static_cast<unsigned> (b + 20));
 
-            g.setFont (displayFont (20.0f).boldened());
+            g.setFont (displayFont (18.0f).boldened());
             g.setColour (juce::Colours::white);
             g.drawText (juce::String (b), card, juce::Justification::centred, false);
         }
         else if (isActive && b > 1)
         {
-            // Sub-beats: golden yellow glow
             const auto goldCol = juce::Colour (0xffffd166);
-            for (int r = 6; r >= 1; --r)
+            for (int r = 5; r >= 1; --r)
             {
                 const float alpha = 0.35f / static_cast<float> (r);
                 g.setColour (goldCol.withAlpha (alpha));
@@ -1367,20 +2292,19 @@ void RecordPracticeView::drawBeatLights (juce::Graphics& g)
             g.fillRoundedRectangle (card, 4.0f);
             drawSketchRect (g, card, currentTheme.panelEdge, 2.0f, static_cast<unsigned> (b + 20));
 
-            g.setFont (displayFont (20.0f).boldened());
+            g.setFont (displayFont (18.0f).boldened());
             g.setColour (juce::Colour (0xff1a1a1a));
             g.drawText (juce::String (b), card, juce::Justification::centred, false);
         }
         else
         {
-            // Idle card: amber orange box from mockup
-            const auto amberCol = juce::Colour (0xfff5a623);
+            const auto amberCol = (b == 1) ? juce::Colour (0xffe74c3c).withAlpha (0.85f) : juce::Colour (0xfff39c12);
             g.setColour (amberCol);
             g.fillRoundedRectangle (card, 4.0f);
             drawSketchRect (g, card, currentTheme.panelEdge, 2.0f, static_cast<unsigned> (b + 20));
 
-            g.setFont (displayFont (20.0f).boldened());
-            g.setColour (currentTheme.ink);
+            g.setFont (displayFont (18.0f).boldened());
+            g.setColour (b == 1 ? juce::Colours::white : juce::Colour (0xff101114));
             g.drawText (juce::String (b), card, juce::Justification::centred, false);
         }
     }
@@ -1389,22 +2313,20 @@ void RecordPracticeView::drawBeatLights (juce::Graphics& g)
 void RecordPracticeView::drawRecordingConsole (juce::Graphics& g, juce::Rectangle<int> area)
 {
     g.setColour (currentTheme.panel);
-    g.fillRoundedRectangle (area.toFloat(), 8.0f);
-    drawSketchRect (g, area.toFloat(), currentTheme.panelEdge, 2.0f, 202);
+    g.fillRoundedRectangle (area.toFloat(), 6.0f);
+    drawSketchRect (g, area.toFloat(), currentTheme.panelEdge, 2.0f, 23);
 
-    // Section title
-    g.setFont (displayFont (16.0f).boldened());
+    g.setFont (displayFont (15.5f).boldened());
     g.setColour (currentTheme.ink);
-    g.drawText ("DUAL RECORDING CONSOLE", area.reduced (14, 10).removeFromTop (24), juce::Justification::topLeft);
+    g.drawText ("DUAL RECORDING CONSOLE", area.reduced (12, 8).removeFromTop (24), juce::Justification::centredLeft);
 
-    // Status readout and MIDI events counter in bottom strip
-    auto statusArea = area.removeFromBottom (34).reduced (14, 0);
-    juce::String statusStr = "STATUS: IDLE";
-    juce::Colour statusCol = currentTheme.ink.withAlpha (0.6f);
+    auto statusArea = area.removeFromBottom (26).reduced (12, 0);
+    juce::String statusStr = "STATUS: READY";
+    juce::Colour statusCol = currentTheme.inkSoft;
 
     if (processor.getMetronome().isCountingIn())
     {
-        statusStr = juce::String::formatted ("COUNT-IN: %d BEATS REMAINING",
+        statusStr = juce::String::formatted ("COUNT-IN: %d BEATS LEFT",
             processor.getMetronome().getBeatsRemainingInCountIn());
         statusCol = currentTheme.accent;
     }
@@ -1417,18 +2339,173 @@ void RecordPracticeView::drawRecordingConsole (juce::Graphics& g, juce::Rectangl
     }
     else if (isRecArmed)
     {
-        statusStr = "REC ARMED (Press Play or Space)";
+        statusStr = "REC ARMED (Press Play)";
         statusCol = juce::Colour (0xffe74c3c);
     }
 
-    g.setFont (displayFont (13.0f).boldened());
+    g.setFont (displayFont (12.0f).boldened());
     g.setColour (statusCol);
     g.drawText (statusStr, statusArea, juce::Justification::centredLeft, false);
 
     const int midiEvents = processor.getMidiRecorder().getEventCount();
-    g.setFont (uiFont (12.0f));
+    g.setFont (uiFont (13.0f));
     g.setColour (currentTheme.inkSoft);
     g.drawText (juce::String::formatted ("MIDI Events: %d", midiEvents), statusArea, juce::Justification::centredRight, false);
+}
+
+void RecordPracticeView::drawSongDatabaseModal (juce::Graphics& g)
+{
+    // Dimmed backdrop
+    g.setColour (juce::Colour (0x88101114));
+    g.fillAll();
+
+    // Modal window card
+    g.setColour (currentTheme.panel);
+    g.fillRoundedRectangle (songDbModalBounds.toFloat(), 8.0f);
+    drawSketchRect (g, songDbModalBounds.toFloat(), currentTheme.panelEdge, 3.0f, 701);
+
+    const int mx = songDbModalBounds.getX() + 24;
+    const int my = songDbModalBounds.getY() + 14;
+    const int mr = songDbModalBounds.getRight() - 24;
+
+    g.setFont (displayFont (19.5f).boldened());
+    g.setColour (currentTheme.ink);
+    g.drawText ("PERSISTENT SONG DATABASE  --  ADD TO SETLIST",
+                mx, my, mr - mx - 100, 30, juce::Justification::centredLeft);
+
+    g.setFont (uiFont (15.5f));
+    g.setColour (currentTheme.inkSoft);
+    g.drawText ("Songs configured in any past setlist remember their BPM, Beat 1 Offset, Meter, and Volume automatically.",
+                mx, my + 32, mr - mx, 24, juce::Justification::centredLeft);
+
+    // Table header
+    const int thY = my + 110;
+    const int thH = 26;
+    const auto troughCol = currentTheme.background.interpolatedWith (currentTheme.panel, 0.35f);
+    g.setColour (troughCol);
+    g.fillRect (mx, thY, mr - mx, thH);
+    g.setColour (currentTheme.panelEdge);
+    g.drawRect (mx, thY, mr - mx, thH, 1);
+
+    g.setFont (displayFont (11.5f));
+    g.setColour (currentTheme.inkSoft);
+    g.drawText ("SEL",               mx,       thY, 44,  thH, juce::Justification::centred);
+    g.drawText ("SONG TITLE / FILE", mx + 44,  thY, 290, thH, juce::Justification::centredLeft);
+    g.drawText ("DB STATUS",         mx + 334, thY, 140, thH, juce::Justification::centred);
+    g.drawText ("SAVED BPM",         mx + 474, thY, 80,  thH, juce::Justification::centred);
+    g.drawText ("BEAT 1 OFFSET",     mx + 554, thY, 95,  thH, juce::Justification::centred);
+    g.drawText ("METER",             mx + 649, thY, 60,  thH, juce::Justification::centred);
+    g.drawText ("ACTION",            mx + 709, thY, mr - (mx + 709), thH, juce::Justification::centred);
+
+    // Filter songs by search query
+    const auto query = songDbSearchEditor.getText().trim().toLowerCase();
+    const auto& allSongs = processor.getSongDatabase().getSongs();
+    std::vector<SongEntry> filtered;
+    for (const auto& s : allSongs)
+    {
+        if (query.isEmpty() || s.title.toLowerCase().contains (query) || s.filePath.toLowerCase().contains (query))
+            filtered.push_back (s);
+    }
+
+    songDbRowGeometries.clear();
+    const int maxRows = 7;
+    const int maxScroll = std::max (0, static_cast<int> (filtered.size()) - maxRows);
+    songDbScrollOffset = std::clamp (songDbScrollOffset, 0, maxScroll);
+
+    const int rowH = 44;
+    const int rowGap = 5;
+    const bool isDark = currentTheme.background.getPerceivedBrightness() < 0.35f;
+
+    if (filtered.empty())
+    {
+        g.setFont (uiFont (16.0f));
+        g.setColour (currentTheme.inkSoft);
+        g.drawText ("No songs in library yet -- click '+ Import New Audio Files...' above to add tracks!",
+                    mx, thY + 40, mr - mx, 120, juce::Justification::centred);
+    }
+    else
+    {
+        for (int i = 0; i < maxRows; ++i)
+        {
+            const int idx = songDbScrollOffset + i;
+            if (idx >= static_cast<int> (filtered.size()))
+                break;
+
+            const auto& s = filtered[static_cast<size_t> (idx)];
+            const bool isSel = (selectedSongDbIds.count (s.songId) > 0);
+            const int ry = thY + thH + 6 + i * (rowH + rowGap);
+
+            SongDbRowGeometry rg;
+            rg.songId = s.songId;
+            rg.rowBounds = { mx, ry, mr - mx, rowH };
+            rg.checkboxBounds = { mx + 11, ry + 11, 22, 22 };
+            rg.addBtnBounds = { mr - 76, ry + 7, 68, rowH - 14 };
+            songDbRowGeometries.push_back (rg);
+
+            const auto rbg = isSel
+                                 ? (isDark ? juce::Colour (0xff2b2218) : juce::Colour (0xfffff3db))
+                                 : ((i % 2 == 1) ? currentTheme.background.interpolatedWith (currentTheme.panel, 0.65f) : currentTheme.panel);
+            g.setColour (rbg);
+            g.fillRoundedRectangle (rg.rowBounds.toFloat(), 4.0f);
+            drawSketchRect (g, rg.rowBounds.toFloat(), isSel ? juce::Colour (0xffea8c16) : currentTheme.panelEdge,
+                            isSel ? 2.0f : 1.0f, static_cast<unsigned> (800 + i));
+
+            // Checkbox
+            g.setColour (isSel ? juce::Colour (0xffea8c16) : juce::Colours::white);
+            g.fillRoundedRectangle (rg.checkboxBounds.toFloat(), 3.0f);
+            drawSketchRect (g, rg.checkboxBounds.toFloat(), currentTheme.panelEdge, 2.0f, static_cast<unsigned> (850 + i));
+            if (isSel)
+            {
+                juce::Path check;
+                check.startNewSubPath (static_cast<float> (rg.checkboxBounds.getX() + 4), static_cast<float> (rg.checkboxBounds.getY() + 11));
+                check.lineTo (static_cast<float> (rg.checkboxBounds.getX() + 9), static_cast<float> (rg.checkboxBounds.getBottom() - 4));
+                check.lineTo (static_cast<float> (rg.checkboxBounds.getRight() - 4), static_cast<float> (rg.checkboxBounds.getY() + 5));
+                g.setColour (juce::Colour (0xff101114));
+                g.strokePath (check, juce::PathStrokeType (2.6f));
+            }
+
+            // Title
+            g.setFont (displayFont (13.0f));
+            g.setColour (currentTheme.ink);
+            g.drawText (s.title, mx + 44, ry, 286, rowH, juce::Justification::centredLeft, true);
+
+            // DB Status Pill
+            juce::Rectangle<float> statusRect (static_cast<float> (mx + 338), static_cast<float> (ry + 9), 132.0f, static_cast<float> (rowH - 18));
+            g.setColour (s.isConfigured ? juce::Colour (0xffa8e6cf) : juce::Colour (0xffffe0a3));
+            g.fillRoundedRectangle (statusRect, 4.0f);
+            g.setColour (currentTheme.panelEdge);
+            g.drawRoundedRectangle (statusRect, 4.0f, 1.0f);
+            g.setFont (displayFont (10.5f));
+            g.setColour (juce::Colour (0xff101114));
+            g.drawText (s.isConfigured ? "READY (Saved in DB)" : "NEW IMPORT (Auto-BPM)", statusRect, juce::Justification::centred, false);
+
+            // Saved BPM, Beat 1 Offset, Meter
+            g.setFont (displayFont (13.0f));
+            g.setColour (s.isConfigured ? currentTheme.ink : juce::Colour (0xffd35400));
+            g.drawText (juce::String::formatted ("%.1f", s.bpm), mx + 474, ry, 80, rowH, juce::Justification::centred);
+
+            g.setFont (uiFont (15.0f).boldened());
+            g.setColour (s.isConfigured ? juce::Colour (0xff27ae60) : juce::Colour (0xffd35400));
+            g.drawText (juce::String::formatted ("%+.1f ms", s.firstBeatOffsetSec * 1000.0), mx + 554, ry, 95, rowH, juce::Justification::centred);
+
+            g.setFont (displayFont (12.5f));
+            g.setColour (currentTheme.ink);
+            g.drawText (juce::String (s.beatsPerBar) + "/4", mx + 649, ry, 60, rowH, juce::Justification::centred);
+
+            // Action button
+            g.setColour (isSel ? juce::Colour (0xffa8e6cf) : currentTheme.panel);
+            g.fillRoundedRectangle (rg.addBtnBounds.toFloat(), 4.0f);
+            drawSketchRect (g, rg.addBtnBounds.toFloat(), currentTheme.panelEdge, 1.4f, static_cast<unsigned> (900 + i));
+            g.setFont (displayFont (11.5f).boldened());
+            g.setColour (isSel ? juce::Colour (0xff101114) : currentTheme.ink);
+            g.drawText (isSel ? "Added" : "+ Add", rg.addBtnBounds, juce::Justification::centred, false);
+        }
+    }
+
+    g.setFont (displayFont (13.0f));
+    g.setColour (juce::Colour (0xffb35c00));
+    g.drawText ("Tip: Any song configured in a past setlist automatically reuses its BPM, Beat 1 Offset, and Meter in new setlists!",
+                mx, songDbModalBounds.getBottom() - 36, mr - mx, 24, juce::Justification::centredLeft);
 }
 
 } // namespace glorp

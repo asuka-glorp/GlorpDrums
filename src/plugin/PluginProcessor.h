@@ -21,6 +21,8 @@
 #include "BackingTrackPlayer.h"
 #include "Metronome.h"
 #include "MidiRecorder.h"
+#include "SetlistPlayer.h"
+#include "SongDatabase.h"
 #include "TempoDetector.h"
 
 #include <juce_audio_processors/juce_audio_processors.h>
@@ -83,6 +85,8 @@ public:
     Settings& getSettings() noexcept { return settings; }
     BackingTrackPlayer& getBackingTrackPlayer() noexcept { return backingTrackPlayer; }
     Metronome& getMetronome() noexcept { return metronome; }
+    SongDatabase& getSongDatabase() noexcept { return songDatabase; }
+    SetlistPlayer& getSetlistPlayer() noexcept { return setlistPlayer; }
     AudioRecorder& getAudioRecorder() noexcept { return audioRecorder; }
     MidiRecorder& getMidiRecorder() noexcept { return midiRecorder; }
     TempoDetector::Worker& getTempoWorker() noexcept { return tempoWorker; }
@@ -158,6 +162,8 @@ private:
     Settings settings;
     BackingTrackPlayer backingTrackPlayer;
     Metronome metronome;
+    SongDatabase songDatabase;
+    SetlistPlayer setlistPlayer { songDatabase, backingTrackPlayer, metronome };
     AudioRecorder audioRecorder;
     MidiRecorder midiRecorder;
     TempoDetector::Worker tempoWorker;

@@ -27,12 +27,22 @@ public:
     /// Loads an audio file (WAV, MP3, FLAC, AIFF, OGG), decoding and resampling to currentSampleRate.
     bool loadFile (const juce::File& audioFile);
 
+    /// Preloads an upcoming setlist track into a standby buffer off the audio thread.
+    bool preloadFile (const juce::File& audioFile);
+
+    /// Swaps in the preloaded standby buffer if it matches audioFile, otherwise falls back to loadFile().
+    bool swapToPreloadedOrLoad (const juce::File& audioFile);
+
     /// Unloads current track and resets playback state.
     void clear();
 
     bool hasTrack() const noexcept { return trackLoaded.load (std::memory_order_relaxed); }
     juce::String getTrackName() const { return currentTrackName; }
     juce::File getLoadedFile() const { return currentFile; }
+
+    /// Returns true once when a non-looping track naturally finishes playback at EOF.
+    bool consumeTrackFinishedEOF() noexcept { return trackFinishedEOF.exchange (false, std::memory_order_acq_rel); }
+    bool hasFinishedEOF() const noexcept { return trackFinishedEOF.load (std::memory_order_acquire); }
 
     // -- Transport controls ---------------------------------------------------
     void play() noexcept;
@@ -75,6 +85,7 @@ private:
     std::atomic<bool> playing { false };
     std::atomic<bool> looping { false };
     std::atomic<bool> isMuted { false };
+    std::atomic<bool> trackFinishedEOF { false };
     std::atomic<float> trackLevel { 0.8f };
 
     std::atomic<int64_t> playheadSample { 0 };
@@ -85,8 +96,14 @@ private:
     std::atomic<int64_t> scrubPos { -1 };
     std::atomic<int> scrubRemaining { 0 };
 
+    bool decodeFileToBuffer (const juce::File& audioFile, juce::AudioBuffer<float>& destBuffer, int& outTargetLength);
+
     juce::AudioBuffer<float> decodedAudio;
+    juce::AudioBuffer<float> preloadedAudio;
+    juce::File preloadedFile;
+    int preloadedSampleCount = 0;
     mutable std::mutex bufferMutex;
+    mutable std::mutex preloadMutex;
 
     juce::String currentTrackName;
     juce::File currentFile;

@@ -30,7 +30,9 @@ void BackingTrackPlayer::prepareToPlay (double sampleRate, int /*maxBlockSize*/)
     currentSampleRate = sampleRate > 0.0 ? sampleRate : 44100.0;
 }
 
-bool BackingTrackPlayer::loadFile (const juce::File& audioFile)
+bool BackingTrackPlayer::decodeFileToBuffer (const juce::File& audioFile,
+                                             juce::AudioBuffer<float>& destBuffer,
+                                             int& outTargetLength)
 {
     if (! audioFile.existsAsFile())
         return false;
@@ -52,22 +54,19 @@ bool BackingTrackPlayer::loadFile (const juce::File& audioFile)
     const double ratio = sourceRate / currentSampleRate;
     const int targetLength = static_cast<int> (std::round (static_cast<double> (sourceLength) / ratio));
 
-    std::lock_guard<std::mutex> lock (bufferMutex);
-    decodedAudio.setSize (2, targetLength);
-    decodedAudio.clear();
+    destBuffer.setSize (2, targetLength);
+    destBuffer.clear();
 
     if (std::abs (ratio - 1.0) < 0.001)
     {
-        // Direct 1:1 copy
         for (int ch = 0; ch < numChannels; ++ch)
-            decodedAudio.copyFrom (ch, 0, tempBuffer, ch, 0, targetLength);
+            destBuffer.copyFrom (ch, 0, tempBuffer, ch, 0, targetLength);
 
-        if (numChannels == 1) // Duplicate mono to right
-            decodedAudio.copyFrom (1, 0, decodedAudio, 0, 0, targetLength);
+        if (numChannels == 1)
+            destBuffer.copyFrom (1, 0, destBuffer, 0, 0, targetLength);
     }
     else
     {
-        // Resample with linear interpolation
         for (int i = 0; i < targetLength; ++i)
         {
             const double srcPos = static_cast<double> (i) * ratio;
@@ -79,13 +78,27 @@ bool BackingTrackPlayer::loadFile (const juce::File& audioFile)
             {
                 const float* in = tempBuffer.getReadPointer (ch);
                 const float val = in[idx0] * (1.0f - frac) + in[idx1] * frac;
-                decodedAudio.setSample (ch, i, val);
+                destBuffer.setSample (ch, i, val);
             }
 
             if (numChannels == 1)
-                decodedAudio.setSample (1, i, decodedAudio.getSample (0, i));
+                destBuffer.setSample (1, i, destBuffer.getSample (0, i));
         }
     }
+
+    outTargetLength = targetLength;
+    return true;
+}
+
+bool BackingTrackPlayer::loadFile (const juce::File& audioFile)
+{
+    juce::AudioBuffer<float> newDecoded;
+    int targetLength = 0;
+    if (! decodeFileToBuffer (audioFile, newDecoded, targetLength))
+        return false;
+
+    std::lock_guard<std::mutex> lock (bufferMutex);
+    decodedAudio = std::move (newDecoded);
 
     currentFile = audioFile;
     currentTrackName = audioFile.getFileName();
@@ -93,10 +106,62 @@ bool BackingTrackPlayer::loadFile (const juce::File& audioFile)
     playheadSample.store (0, std::memory_order_relaxed);
     loopStartSample.store (0, std::memory_order_relaxed);
     loopEndSample.store (targetLength, std::memory_order_relaxed);
+    trackFinishedEOF.store (false, std::memory_order_relaxed);
     trackLoaded.store (true, std::memory_order_release);
     playing.store (false, std::memory_order_relaxed);
 
     return true;
+}
+
+bool BackingTrackPlayer::preloadFile (const juce::File& audioFile)
+{
+    if (! audioFile.existsAsFile())
+        return false;
+
+    {
+        std::lock_guard<std::mutex> plock (preloadMutex);
+        if (preloadedFile == audioFile && preloadedSampleCount > 0)
+            return true;
+    }
+
+    juce::AudioBuffer<float> newPreload;
+    int targetLength = 0;
+    if (! decodeFileToBuffer (audioFile, newPreload, targetLength))
+        return false;
+
+    std::lock_guard<std::mutex> plock (preloadMutex);
+    preloadedAudio = std::move (newPreload);
+    preloadedFile = audioFile;
+    preloadedSampleCount = targetLength;
+    return true;
+}
+
+bool BackingTrackPlayer::swapToPreloadedOrLoad (const juce::File& audioFile)
+{
+    {
+        std::lock_guard<std::mutex> plock (preloadMutex);
+        if (preloadedFile == audioFile && preloadedSampleCount > 0 && preloadedAudio.getNumSamples() == preloadedSampleCount)
+        {
+            std::lock_guard<std::mutex> lock (bufferMutex);
+            playing.store (false, std::memory_order_relaxed);
+            decodedAudio = std::move (preloadedAudio);
+            const int targetLength = preloadedSampleCount;
+            preloadedFile = juce::File();
+            preloadedSampleCount = 0;
+
+            currentFile = audioFile;
+            currentTrackName = audioFile.getFileName();
+            totalSampleCount.store (targetLength, std::memory_order_relaxed);
+            playheadSample.store (0, std::memory_order_relaxed);
+            loopStartSample.store (0, std::memory_order_relaxed);
+            loopEndSample.store (targetLength, std::memory_order_relaxed);
+            trackFinishedEOF.store (false, std::memory_order_relaxed);
+            trackLoaded.store (true, std::memory_order_release);
+            return true;
+        }
+    }
+
+    return loadFile (audioFile);
 }
 
 void BackingTrackPlayer::clear()
@@ -113,7 +178,12 @@ void BackingTrackPlayer::clear()
 void BackingTrackPlayer::play() noexcept
 {
     if (trackLoaded.load (std::memory_order_relaxed))
+    {
+        if (playheadSample.load (std::memory_order_relaxed) >= totalSampleCount.load (std::memory_order_relaxed))
+            playheadSample.store (0, std::memory_order_relaxed);
+        trackFinishedEOF.store (false, std::memory_order_relaxed);
         playing.store (true, std::memory_order_relaxed);
+    }
 }
 
 void BackingTrackPlayer::pause() noexcept
@@ -124,6 +194,7 @@ void BackingTrackPlayer::pause() noexcept
 void BackingTrackPlayer::stop() noexcept
 {
     playing.store (false, std::memory_order_relaxed);
+    trackFinishedEOF.store (false, std::memory_order_relaxed);
     playheadSample.store (0, std::memory_order_relaxed);
 }
 
@@ -226,6 +297,7 @@ void BackingTrackPlayer::render (float* const* channels, int numChannels, int nu
                 else
                 {
                     playing.store (false, std::memory_order_relaxed);
+                    trackFinishedEOF.store (true, std::memory_order_release);
                     break;
                 }
             }

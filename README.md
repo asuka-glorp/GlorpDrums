@@ -100,35 +100,47 @@ Click the **FX** drawer on any channel strip to open an inline analog-inspired p
 * **Dynamic Foot Chick & Splash**: Instant foot chick triggered by fast downward pedal stomp ($\Delta CC > 0.40$ in $< 45\text{ ms}$), and foot splash triggered on rapid stomp-and-release gestures.
 * **15ms Anti-Click Cymbal Chokes**: Choke damping via Polyphonic Key Pressure (`0xA0`) and Channel Pressure (`0xD0`) with a smooth $C^1$ half-cosine fade window to eliminate digital clicks.
 
-### 🎙️ Phase 3 — Dual-Format Recording & Practice Mode
-Access the integrated practice suite directly via the **[PRACTICE]** header button:
+### 🎙️ Practice Suite — Set Lists, Persistent Song Database & Dual Recording
+Access the integrated practice, setlist, and recording suite directly via the **[PRACTICE]** header button:
 
 ![GlorpDrums Practice & Recording View](docs/practice_view_screenshot.png)
 
 <details>
-<summary><b>View Dark Theme Practice & Recording View</b></summary>
+<summary><b>View Dark Theme Practice View & Persistent Song Database Modal</b></summary>
 
 ![GlorpDrums Dark Practice View](docs/practice_view_snapshot_dark.png)
 
+![GlorpDrums Persistent Song Database Modal](docs/practice_song_db_modal.png)
+
 </details>
 
-* **Synchronized Dual-Format Recording**:
-  * **24-bit PCM WAV**: Captures bit-accurate audio straight from the plugin engine via a lock-free circular ring buffer (zero allocations on the real-time audio thread).
-  * **Standard MIDI File (SMF Type 1)**: Simultaneously records all incoming MIDI notes, velocities, polyphonic cymbal chokes, and continuous CC#4 pedal motion curves into a `.mid` file with millisecond-accurate tempo maps.
-  * **Ergonomic Dual Recording Console**: Streamlined, space-optimized layout featuring a quick one-click toggle for **"Also Record Backing Track"** to effortlessly switch between **Drums Only** (ideal for laying drum stems into a DAW project) and **Full Mix** (drums + backing track).
-  * **DAW Drag-and-Drop Export**: Quickly export recorded takes to any folder or drag them straight into Reaper, Bitwig, or Ardour.
-* **Smart Tempo Detection & Backing Track Player**:
-  * **Multi-Format Player**: Drag-and-drop or load `.wav`, `.mp3`, `.flac`, `.aiff`, or `.ogg` backing tracks with transparent sample rate resampling, playhead scrubbing, loop regions, mute, and an enlarged comic-style **Track Vol** knob.
-  * **Spectral Flux Tempo Analysis**: Real-time STFT onset novelty curve, autocorrelation across 60–200 BPM, parabolic peak interpolation, and downbeat phase alignment detect track BPM automatically with confidence scoring.
-  * **Interactive BPM Controls**: Instant Tap Tempo, double/half speed (`x 2`, `/ 2`), and fine nudge (`-0.5`, `+0.5` BPM).
-  * **Waveform Timeline Navigation**: Middle-click mouse drag to pan across zoomed audio, paired with an auto-following playhead that smoothly keeps playback centered in view.
+* **Setlist & Song Queue Console**:
+  * **Multi-Setlist Management**: Create, switch between, and delete multiple named setlists (e.g., *Prog Metal Rehearsal*, *Friday Gig Warmup*) directly from the `Set:` selector dropdown or the **New** / **Save** buttons.
+  * **Interactive Song Queue Table**: Displays each track's position (`#01`, `>02`, `03`...), title, configured **BPM** badge, **Beat-1 Grid Offset** (`+18.0ms`), **Time Signature** (`5/4`, `4/4`, `6/4`), and duration (`MM:SS`), along with inline `^`, `v`, and `x` buttons to reorder or remove songs on the fly.
+  * **Single-Click Inspection vs. Double-Click Playback**:
+    * **Single-click any row** in the queue to load that backing track into the top Waveform Deck so you can inspect transients, scrub the timeline, or fine-tune its BPM, Beat-1 offset, or meter.
+    * **Double-click any row** (or click **Play Setlist** / `|< Prev` / `Next >|`) to start sequential setlist playback from that song.
+  * **Seamless Between-Song Count-In Transitions**:
+    * While Song $N$ is playing, a background thread pre-decodes and resamples Song $N+1$ into a standby RAM buffer (`BackingTrackPlayer::preloadFile`) so transitions require zero disk I/O.
+    * When Song $N$ finishes at EOF and **Auto-Next: Count-In ON** is active, GlorpDrums immediately swaps in Song $N+1$, updates the metronome and beat LEDs to Song $N+1$'s saved **BPM**, **Beat-1 Grid Offset**, and **Beats per measure**, displays a live `COUNT-IN TO SONG #N` banner over the waveform, plays a **1-bar** or **2-bar** count-in at the incoming song's tempo and meter, and launches Song $N+1$ sample-accurately on Beat 1.
+    * Setlists continue advancing automatically even if you switch to the **[KIT VIEW]** or **[MIXER VIEW]** tab mid-performance.
+* **Persistent Song Library Database (`~/.config/GlorpDrums/song_library.xml`)**:
+  * **Configure Once, Reuse Across Every Setlist**: Every audio file imported into GlorpDrums is indexed in `song_library.xml` by its canonical file path (with automatic filename + file-size fallback if you move your backing track files).
+  * **Instant Auto-Save**: Whenever you run **Detect BPM**, **Tap Tempo**, **Align Beat 1** (or `Shift+Drag` on the beat ruler / press `A`), `/ 2`, `x 2`, `-0.5`, `+0.5`, type a custom **BPM**, change **Beats per measure**, or adjust **Track Vol.**, those settings are immediately saved to the Song Library and confirmed by the `[ DB SAVED ]` waveform badge.
+  * **Zero Re-Setup in New Setlists (`+ Song DB` Modal)**: Click **+ Song DB** to open the **Persistent Song Database** overlay, where you can search your entire library of previously configured songs (marked with a green `READY (Saved in DB)` badge) or batch-import new audio files. If you configure Songs `A`, `B`, and `C` in Setlist 1, and later create Setlist 2 with new Songs `X`, `Y`, and existing Song `A`, Song `A` is added with its exact BPM, Beat-1 offset, meter, and volume already locked in—you only need to set up the new songs `X` and `Y`.
+* **Smart Tempo Detection & Full-Width Waveform Deck**:
+  * **Multi-Format Player**: Drag-and-drop or load `.wav`, `.mp3`, `.flac`, `.aiff`, or `.ogg` backing tracks with automatic host-rate resampling, playhead audio scrubbing, loop toggle (`Loop Song`), mute, a live setlist status pill (`SETLIST #2/5 | NEXT: 03. Spirit_Crusher (136 BPM)`), and a comic-style **Track Vol.** knob.
+  * **Multi-Window Spectral Flux Tempo Analysis**: Real-time STFT onset novelty curve, autocorrelation across 60–200 BPM, harmonic double/half-time resolver, and downbeat phase alignment detect track BPM and Beat-1 offset automatically with confidence scoring. When zoomed in (`> 1.25x`), **Detect BPM** analyzes only the currently visible waveform slice so you can measure sections with tempo changes.
+  * **Meter-Aware Beat Grid & Timeline Navigation**: Mouse-wheel zoom (`1x` to `32x`), middle-click drag to pan, `Shift+Drag` (or drag inside the beat ruler) to slide the Beat-1 grid offset in real time, and vertical bar/beat guidelines that automatically adapt to the song's `Beats per measure` (`4/4`, `5/4`, `6/4`, `7/8`, etc.).
 * **Sample-Accurate Practice Metronome**:
-  * **Count-In Toggle & Radio Controls**: Dedicated Count-In toggle switch activating **1 Bar** and **2 Bars** radio buttons (intelligently greyed out when Count-In is disabled).
-  * **Pre-Roll Grid Offset**: Automatically compensates playback start so the metronome provides a full 1 or 2 bars count-in before the backing track begins.
-  * **Customizable Beats Per Measure**: User-defined time signature input (defaults to 4 beats per measure) allowing practice in any meter (3/4, 4/4, 5/4, 7/8, etc.).
-  * **Dynamic Reactive Beat Counter**: Flashing LED indicator lights adapt in quantity to the configured beats per measure, lighting up sequentially with high-contrast accenting on downbeats.
-  * **Comic-Styled Click Preset Dropdown**: Studio-grade synthesized pulses including **Woodblock**, **Studio Beep**, **SideStick**, and **Cowbell**, with an enlarged **Click Vol** knob.
-  * **Live Rhythm Ribbon**: 6-lane rolling drum ribbon provides instant visual feedback on timing accuracy across Kick, Snare, Hi-Hat, Toms, Cymbals, and Ride.
+  * **Count-In & Between-Song Bar Controls**: Dedicated **Count In: ON/OFF** toggle paired with **Between Songs: [1 bar] [2 bars]** selectors.
+  * **Phase-Locked Grid Offset**: Locks metronome clicks and count-in pre-roll math to the song's Beat-1 offset so the click stays tight with the backing track's downbeat from the very first bar.
+  * **Dynamic Reactive Beat Counter**: Flashing LED indicator cards (`1..N`) adapt dynamically to the current song's `Beats per measure`, lighting up with a radiant red downbeat aura on Beat 1 and golden sub-beat pulses.
+  * **8 Synthesized Click Presets**: Choose between **Woodblock**, **Studio Click**, **Side Stick**, **Cowbell**, **Hi-Hat Pedal**, **Digital Beep**, **Clave**, and **Triangle**, with an independent **Click Vol.** knob.
+* **Synchronized Dual-Format Recording Console**:
+  * **24-bit PCM WAV + SMF Type 1 MIDI**: Simultaneously captures 24-bit audio via a lock-free ring buffer and standard `.mid` events (notes, velocities, polyphonic cymbal chokes, and continuous CC#4 hi-hat pedal curves).
+  * **Also Record Backing Track**: Toggle between recording **Drums Only** (isolated drum performance with zero click or backing bleed) and **Full Mix** (drums + backing track, still excluding the metronome click).
+  * **Record Entire Setlist Take**: Keep recording armed across an entire multi-song setlist rehearsal to capture a continuous end-to-end WAV and MIDI performance across all songs and count-in transitions, or toggle off to stop recording after a single song.
 
 ---
 
@@ -176,9 +188,9 @@ GlorpDrums is actively developed following an ambitious multi-phase roadmap:
   * Optional OpenGL hardware acceleration (`juce::OpenGLContext`) togglable via the **SETTINGS** menu for smooth 60 FPS plugin rendering in VST3 and LV2 hosts.
   * Pre-scaled drum piece and radial glow bitmap caching, static composite layer caching, and dirty-rectangle invalidation to eliminate full-window CPU repaints during dense MIDI playback.
   * Opaque component layer isolation and idle timer suspension for background tabs and the 6-lane rhythm scope.
-* [ ] **Phase 6 — Set Lists & Persistent Song Database**:
-  * **Setlist Playlist Mode**: Import and order multiple backing tracks in the Practice Suite that play sequentially with automatic, sample-accurate count-in transitions between songs.
-  * **Persistent Song Library Database**: Automatically remembers configured BPM, beat-1 grid offset, time signature, loop range, and volume level for every imported track across sessions and future setlists without requiring re-setup.
+* [x] **Phase 6 — Set Lists & Persistent Song Database**:
+  * **Setlist Playlist Mode**: Import and order multiple backing tracks in the Practice Suite that play sequentially with automatic, sample-accurate count-in transitions and background standby track preloading between songs.
+  * **Persistent Song Library Database (`song_library.xml`) & `+ Song DB` Modal**: Automatically remembers configured BPM, Beat-1 grid offset, time signature, duration, and volume level for every imported track across sessions and future setlists without requiring re-setup.
 * [ ] **Phase 7 — Standalone `.glorpkit` Studio & Format v2**:
   * **GlorpKit Format v2**: Expanded `.glorpkit` archive specification supporting embedded custom per-piece PNG artwork (`assets/*.png`), normalized canvas coordinates, and customizable Z-order layering.
   * **Standalone Graphical Kit Editor (`GlorpKitStudio`)**: Bundled desktop application built alongside GlorpDrums for creating and editing `.glorpkit` archives—featuring WYSIWYG piece positioning and Z-layer stacking, velocity layer & round-robin sample matrices, multi-zone articulation mapping, live audio auditioning, and lossless round-trip editing of existing `.glorpkit` files.

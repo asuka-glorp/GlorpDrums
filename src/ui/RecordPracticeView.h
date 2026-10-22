@@ -1,21 +1,25 @@
 /*
-    RecordPracticeView.h - Hand-drawn comic dashboard for GlorpDrums recording and practice.
-    Includes backing track waveform deck, smart tempo controls, metronome count-in, and dual WAV/MIDI recorder.
+    RecordPracticeView.h - Hand-drawn comic dashboard for GlorpDrums recording, setlists, and practice.
+    Includes backing track waveform deck, smart tempo controls, persistent song database,
+    sequential setlist player with count-in transitions, and dual WAV/MIDI recorder.
 */
 
 #pragma once
 
+#include "AudioRecorder.h"
 #include "BackingTrackPlayer.h"
 #include "Knob.h"
 #include "Metronome.h"
 #include "MidiRecorder.h"
-#include "AudioRecorder.h"
+#include "SetlistPlayer.h"
 #include "Settings.h"
+#include "SongDatabase.h"
 #include "TempoDetector.h"
 
 #include <juce_gui_basics/juce_gui_basics.h>
 
 #include <deque>
+#include <set>
 #include <vector>
 
 namespace glorp
@@ -41,7 +45,6 @@ public:
 
     void applyTheme (const Theme& theme);
 
-
     bool keyPressed (const juce::KeyPress& key) override;
     void togglePlayPause();
     void stopTransportAndRecording();
@@ -49,6 +52,14 @@ public:
     void setBeatsPerMeasure (int beats);
     void triggerBeatFlash (int beat, bool isDownbeat);
     void setAlsoRecordBackingTrack (bool alsoRecord);
+
+    /// Loads an audio file into the deck, restoring saved SongDatabase settings if already configured,
+    /// or triggering auto-BPM detection for brand-new tracks.
+    void loadTrackAndSyncDatabase (const juce::File& file, bool addToActiveSetlist = false);
+
+    /// Opens or closes the Persistent Song Database modal overlay.
+    void setSongDatabaseModalOpen (bool open);
+    bool isSongDatabaseModalVisible() const noexcept { return isSongDbModalOpen; }
 
 private:
     PluginProcessor& processor;
@@ -111,6 +122,12 @@ private:
             repaint();
         }
 
+        void setLeftAligned (bool leftAlign)
+        {
+            isLeftAligned = leftAlign;
+            repaint();
+        }
+
         void paintButton (juce::Graphics& g, bool isHover, bool isDown) override
         {
             auto b = getLocalBounds().toFloat().reduced (1.5f);
@@ -118,16 +135,18 @@ private:
             if (bg.getAlpha() == 0)
                 bg = theme.panel;
 
+            const bool alignLeft = isLeftAligned || label.startsWith ("Click Preset:") || label.startsWith ("Set:");
+
             if (isDisabled)
             {
                 bg = theme.panel.withAlpha (0.45f);
                 g.setColour (bg);
                 g.fillRoundedRectangle (b, 4.0f);
                 drawSketchRect (g, b, theme.panelEdge.withAlpha (0.35f), 1.2f, static_cast<unsigned> (label.hashCode()));
-                g.setFont (displayFont (customFontSize > 0.0f ? customFontSize : 14.0f).boldened());
+                g.setFont (displayFont (customFontSize > 0.0f ? customFontSize : 13.0f).boldened());
                 g.setColour (theme.inkSoft.withAlpha (0.45f));
-                g.drawText (label, b.reduced (10.0f, 0.0f),
-                            label.startsWith ("Click Preset:") ? juce::Justification::centredLeft : juce::Justification::centred, false);
+                g.drawText (label, b.reduced (8.0f, 0.0f),
+                            alignLeft ? juce::Justification::centredLeft : juce::Justification::centred, false);
                 return;
             }
 
@@ -159,10 +178,15 @@ private:
                             isHover ? 2.0f : 1.4f, static_cast<unsigned> (label.hashCode()));
 
             // Comic display font
-            g.setFont (displayFont (customFontSize > 0.0f ? customFontSize : 14.0f).boldened());
-            g.setColour (isArmed ? juce::Colours::white : theme.ink);
-            g.drawText (label, b.reduced (10.0f, 0.0f),
-                        label.startsWith ("Click Preset:") ? juce::Justification::centredLeft : juce::Justification::centred, false);
+            g.setFont (displayFont (customFontSize > 0.0f ? customFontSize : 13.0f).boldened());
+            if (isArmed)
+                g.setColour (juce::Colours::white);
+            else if (bg.getPerceivedBrightness() > 0.56f)
+                g.setColour (juce::Colour (0xff101114));
+            else
+                g.setColour (theme.ink);
+            g.drawText (label, b.reduced (alignLeft ? 8.0f : 3.0f, 0.0f),
+                        alignLeft ? juce::Justification::centredLeft : juce::Justification::centred, false);
         }
 
     private:
@@ -171,59 +195,123 @@ private:
         Theme theme;
         bool isArmed = false;
         bool isDisabled = false;
+        bool isLeftAligned = false;
         float customFontSize = 0.0f;
     };
 
-    // Backing track transport
+    // -- Top Deck: Backing Track & Setlist Transport --------------------------
     ComicButton loadTrackButton { "Load Track..." };
-    ComicButton clearTrackButton { "Clear Track" };
-    ComicButton playButton { "Play" };
-    ComicButton pauseButton { "Pause" };
-    ComicButton rewindButton { "Rewind" };
-    ComicButton loopButton { "Loop: OFF" };
+    ComicButton prevSongButton  { "|< Prev" };
+    ComicButton playButton      { "Play Setlist" };
+    ComicButton pauseButton     { "Pause" };
+    ComicButton nextSongButton  { "Next >|" };
+    ComicButton rewindButton    { "Rewind" };
+    ComicButton loopButton      { "Loop Song: OFF" };
     ComicButton muteTrackButton { "Mute" };
+    juce::Rectangle<int> setlistStatusPillBounds;
     std::unique_ptr<Knob> trackVolumeKnob;
 
-    // Tempo controls
-    ComicButton detectBpmButton { "Detect BPM" };
-    ComicButton tapBpmButton { "Tap Tempo" };
+    // -- Top Deck: Tempo & Beat Grid Controls ---------------------------------
+    ComicButton detectBpmButton    { "Detect BPM" };
+    ComicButton tapBpmButton       { "Tap Tempo" };
     ComicButton alignBeatOneButton { "Align Beat 1" };
-    ComicButton halfBpmButton { "/ 2" };
-    ComicButton doubleBpmButton { "x 2" };
-    ComicButton nudgeDownButton { "-0.5" };
-    ComicButton nudgeUpButton { "+0.5" };
+    ComicButton halfBpmButton      { "/ 2" };
+    ComicButton doubleBpmButton    { "x 2" };
+    ComicButton nudgeDownButton    { "-0.5" };
+    ComicButton nudgeUpButton      { "+0.5" };
     juce::TextEditor bpmEditor;
 
-    // Metronome controls
-    ComicButton metroToggleButton { "Metronome: OFF" };
+    // -- Column 1: Setlist & Song Queue Controls ------------------------------
+    ComicButton autoNextToggleButton   { "Auto-Next: Count-In ON" };
+    ComicButton setlistSelectButton    { "Set: Practice Setlist 1 v" };
+    ComicButton saveSetlistButton      { "Save" };
+    ComicButton newSetlistButton       { "New" };
+    ComicButton addFileToSetlistButton { "+ Add File" };
+    ComicButton openSongDbButton       { "+ Song DB" };
+
+    struct SetlistRowGeometry
+    {
+        int itemIndex = -1;
+        juce::Rectangle<int> rowBounds;
+        juce::Rectangle<int> moveUpBounds;
+        juce::Rectangle<int> moveDownBounds;
+        juce::Rectangle<int> removeBounds;
+    };
+    juce::Rectangle<int> setlistTableHeaderBounds;
+    juce::Rectangle<int> setlistTableBodyBounds;
+    std::vector<SetlistRowGeometry> setlistRowGeometries;
+    int setlistScrollOffset = 0;
+
+    // -- Column 2: Practice & Metronome Controls ------------------------------
+    ComicButton metroToggleButton   { "Metronome: OFF" };
     ComicButton countInToggleButton { "Count In: ON" };
-    ComicButton countIn1BarButton { "1 bar" };
-    ComicButton countIn2BarsButton { "2 bars" };
-    ComicButton clickPresetButton { "Click Preset: Woodblock" };
+    ComicButton countIn1BarButton   { "1 bar" };
+    ComicButton countIn2BarsButton  { "2 bars" };
+    ComicButton clickPresetButton   { "Click Preset: Woodblock" };
     juce::TextEditor beatsEditor;
     std::unique_ptr<Knob> clickVolumeKnob;
 
-    // Recording controls
-    ComicButton recordButton { "REC" };
-    ComicButton stopButton { "STOP" };
-    ComicButton alsoRecordTrackButton { "Also record backing track" };
-    ComicButton exportWavButton { "Export WAV" };
-    ComicButton exportMidButton { "Export MIDI" };
+    // -- Column 3: Dual Recording Console Controls ----------------------------
+    ComicButton recordButton              { "REC" };
+    ComicButton stopButton                { "STOP" };
+    ComicButton alsoRecordTrackButton     { "Also record backing track" };
+    ComicButton recordEntireSetlistButton { "Record Entire Setlist Take" };
+    ComicButton exportWavButton           { "Export WAV" };
+    ComicButton exportMidButton           { "Export MIDI" };
 
-    // Beat lights state
+    // -- Persistent Song Database Modal Overlay -------------------------------
+    class SongDbModalOverlay : public juce::Component
+    {
+    public:
+        explicit SongDbModalOverlay (RecordPracticeView& o) : owner (o) {}
+        void paint (juce::Graphics& g) override { owner.drawSongDatabaseModal (g); }
+        void mouseDown (const juce::MouseEvent& e) override { owner.handleSongDbModalMouseDown (e); }
+        void mouseWheelMove (const juce::MouseEvent& e, const juce::MouseWheelDetails& w) override { owner.handleSongDbModalMouseWheel (e, w); }
+    private:
+        RecordPracticeView& owner;
+    };
+
+    SongDbModalOverlay songDbModalOverlay { *this };
+    bool isSongDbModalOpen = false;
+    juce::Rectangle<int> songDbModalBounds;
+    juce::TextEditor songDbSearchEditor;
+    ComicButton songDbImportButton      { "+ Import New Audio Files..." };
+    ComicButton songDbAddSelectedButton { "Add Selected to Setlist" };
+    ComicButton songDbCloseButton       { "Close [X]" };
+
+    void handleSongDbModalMouseDown (const juce::MouseEvent& e);
+    void handleSongDbModalMouseWheel (const juce::MouseEvent& e, const juce::MouseWheelDetails& wheel);
+
+    struct SongDbRowGeometry
+    {
+        juce::String songId;
+        juce::Rectangle<int> rowBounds;
+        juce::Rectangle<int> checkboxBounds;
+        juce::Rectangle<int> addBtnBounds;
+    };
+    std::vector<SongDbRowGeometry> songDbRowGeometries;
+    std::set<juce::String> selectedSongDbIds;
+    int songDbScrollOffset = 0;
+
+    // -- Beat lights state ----------------------------------------------------
     int beatsPerMeasure = 4;
     int activeBeatFlash = 0;
     bool isDownbeatFlash = false;
     double lastBeatFlashTime = 0.0;
     std::vector<juce::Rectangle<int>> beatLightBounds;
 
-    // Tap tempo calculation
+    // -- Tap tempo calculation ------------------------------------------------
     std::vector<double> tapTimestamps;
     void handleTapTempo();
 
-    // Waveform & Synchronized Beat Timeline interaction
+    // -- Waveform & Synchronized Beat Timeline interaction --------------------
+    juce::Rectangle<int> topDeckBounds;
+    juce::Rectangle<int> setlistConsoleBounds;
+    juce::Rectangle<int> practiceConsoleBounds;
+    juce::Rectangle<int> recordingConsoleBounds;
     juce::Rectangle<int> waveformBounds;
     juce::Rectangle<int> timelineBounds;
+
     float zoomFactor = 1.0f;
     double viewStartSec = 0.0;
     double metronomeOffsetSec = 0.0;
@@ -246,12 +334,18 @@ private:
 
     void startTransportWithCountIn();
     void pauseTransport();
+    void saveCurrentTrackToDatabase();
+    void syncUiFromSongEntry (const SongEntry& entry, double effectiveBpm);
+    void refreshSetlistSelectorLabel();
+    void rebuildSetlistRowGeometries();
 
     void drawWaveformDeck (juce::Graphics&, juce::Rectangle<int> area);
     void drawBeatTimelineBar (juce::Graphics&, juce::Rectangle<int> area);
+    void drawSetlistConsole (juce::Graphics&, juce::Rectangle<int> area);
     void drawPracticeConsole (juce::Graphics&, juce::Rectangle<int> area);
     void drawRecordingConsole (juce::Graphics&, juce::Rectangle<int> area);
     void drawBeatLights (juce::Graphics&);
+    void drawSongDatabaseModal (juce::Graphics&);
 
     // UI state caches
     double detectedBpm = 120.0;
@@ -259,6 +353,7 @@ private:
     bool isAnalyzing = false;
     bool isRecArmed = false;
     bool alsoRecordBackingTrack = false;
+    bool recordEntireSetlistTake = true;
 
     void updateButtonStyles();
     void updateCountInButtons();

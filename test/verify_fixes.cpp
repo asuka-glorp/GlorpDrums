@@ -671,6 +671,156 @@ int main()
         std::cout << "-> Metronome phase-locked offset count-in: PASSED!\n";
     }
 
+    // 14. Verify Phase 6 Persistent Song Database & Setlist Sequential Count-In Transitions
+    std::cout << "Testing Phase 6 Persistent Song Database (Setlist 1: A,B,C -> Setlist 2: X,Y,A) & SetlistPlayer...\n";
+    {
+        auto tempDir = juce::File::getSpecialLocation (juce::File::tempDirectory).getChildFile ("glorp_phase6_test");
+        tempDir.deleteRecursively();
+        tempDir.createDirectory();
+
+        auto writeTinyWav = [&](const juce::String& name, int numSamples) -> juce::File
+        {
+            juce::File f = tempDir.getChildFile (name);
+            juce::WavAudioFormat wavFormat;
+            std::unique_ptr<juce::FileOutputStream> out (f.createOutputStream());
+            assert (out != nullptr);
+            std::unique_ptr<juce::AudioFormatWriter> writer (
+                wavFormat.createWriterFor (out.get(), 44100.0, 2, 16, {}, 0));
+            assert (writer != nullptr);
+            out.release();
+            juce::AudioBuffer<float> buf (2, numSamples);
+            for (int i = 0; i < numSamples; ++i)
+            {
+                const float v = 0.25f * std::sin (2.0f * juce::MathConstants<float>::pi * 440.0f * (static_cast<float> (i) / 44100.0f));
+                buf.setSample (0, i, v);
+                buf.setSample (1, i, v);
+            }
+            writer->writeFromAudioSampleBuffer (buf, 0, numSamples);
+            return f;
+        };
+
+        // Create 5 backing tracks (~0.25s each for fast test playback)
+        const auto fileA = writeTinyWav ("Song_A.wav", 11025);
+        const auto fileB = writeTinyWav ("Song_B.wav", 11025);
+        const auto fileC = writeTinyWav ("Song_C.wav", 11025);
+        const auto fileX = writeTinyWav ("Song_X.wav", 11025);
+        const auto fileY = writeTinyWav ("Song_Y.wav", 11025);
+        const auto dbXml = tempDir.getChildFile ("song_library.xml");
+
+        {
+            glorp::SongDatabase db1 (dbXml);
+            // Configure Setlist 1 with Songs A, B, and C
+            db1.renameActiveSetlist ("Setlist 1 (A, B, C)");
+            db1.addSongToActiveSetlist (fileA, 0.25);
+            db1.addSongToActiveSetlist (fileB, 0.25);
+            db1.addSongToActiveSetlist (fileC, 0.25);
+
+            db1.updateSongConfig (fileA, 115.0, 0.0125, 4, 0.85f, 0.25);
+            db1.updateSongConfig (fileB, 108.0, 0.0180, 5, 0.90f, 0.25);
+            db1.updateSongConfig (fileC, 136.0, 0.0040, 4, 0.80f, 0.25);
+            assert (db1.getNumConfiguredSongs() == 3);
+        }
+
+        // Reload database from disk into a fresh SongDatabase instance
+        glorp::SongDatabase db2 (dbXml);
+        assert (db2.getNumConfiguredSongs() == 3);
+        assert (db2.isSongConfigured (fileA));
+        assert (db2.isSongConfigured (fileB));
+        assert (db2.isSongConfigured (fileC));
+        assert (! db2.isSongConfigured (fileX));
+        assert (! db2.isSongConfigured (fileY));
+
+        // Create Setlist 2 with Songs X, Y, and A
+        db2.createSetlist ("Setlist 2 (X, Y, A)");
+        db2.addSongToActiveSetlist (fileX, 0.25);
+        db2.addSongToActiveSetlist (fileY, 0.25);
+        db2.addSongToActiveSetlist (fileA, 0.25);
+
+        const auto* songAFromDb = db2.findSongByFile (fileA);
+        assert (songAFromDb != nullptr);
+        assert (songAFromDb->isConfigured);
+        assert (std::abs (songAFromDb->bpm - 115.0) < 0.01);
+        assert (std::abs (songAFromDb->firstBeatOffsetSec - 0.0125) < 0.0001);
+        assert (songAFromDb->beatsPerBar == 4);
+        if (songAFromDb == nullptr || ! songAFromDb->isConfigured || std::abs (songAFromDb->bpm - 115.0) > 0.01)
+            std::exit (1);
+
+        const auto* songXFromDb = db2.findSongByFile (fileX);
+        assert (songXFromDb != nullptr && ! songXFromDb->isConfigured);
+        if (songXFromDb == nullptr || songXFromDb->isConfigured)
+            std::exit (1);
+        std::cout << "-> Song A retained BPM=115.0, Offset=+12.5ms, 4/4 in Setlist 2 without re-setup!\n";
+
+        // Now verify SetlistPlayer sequential playback across Setlist 1 (Song A -> Count-In -> Song B)
+        db2.setActiveSetlistIndex (0); // Switch back to Setlist 1 (A, B, C)
+        glorp::BackingTrackPlayer trackPlayer;
+        glorp::Metronome metro;
+        trackPlayer.prepareToPlay (44100.0, 512);
+        metro.prepareToPlay (44100.0, 512);
+        metro.setEnabled (true);
+        metro.setCountInMode (glorp::Metronome::CountInMode::oneBar);
+
+        glorp::SetlistPlayer setlistPlayer (db2, trackPlayer, metro);
+        bool started = setlistPlayer.startSetlistPlayback (0, false);
+        assert (started);
+        if (! started) std::exit (1);
+        assert (setlistPlayer.getCurrentSongIndex() == 0);
+        assert (setlistPlayer.getState() == glorp::SetlistPlayer::State::countingIn);
+        assert (std::abs (metro.getBpm() - 115.0) < 0.01);
+        assert (metro.getTimeSignatureNumerator() == 4);
+
+        juce::AudioBuffer<float> block (2, 512);
+        float* chPtrs[2] = { block.getWritePointer (0), block.getWritePointer (1) };
+
+        // 1. Render through Song A's count-in until Song A starts playing
+        int guard = 0;
+        while (setlistPlayer.getState() == glorp::SetlistPlayer::State::countingIn && guard++ < 500)
+        {
+            block.clear();
+            trackPlayer.render (chPtrs, 2, 512);
+            metro.render (chPtrs, 2, 512, trackPlayer.getPlayheadSeconds(), trackPlayer.isPlaying());
+        }
+        assert (setlistPlayer.getState() == glorp::SetlistPlayer::State::playingSong);
+        assert (trackPlayer.isPlaying());
+
+        // 2. Render Song A audio until it hits EOF
+        guard = 0;
+        while (trackPlayer.isPlaying() && guard++ < 200)
+        {
+            block.clear();
+            trackPlayer.render (chPtrs, 2, 512);
+            metro.render (chPtrs, 2, 512, trackPlayer.getPlayheadSeconds(), trackPlayer.isPlaying());
+        }
+        assert (! trackPlayer.isPlaying());
+        assert (trackPlayer.hasFinishedEOF());
+
+        // 3. Advance SetlistPlayer on EOF -> should transition to Song B (108.0 BPM, 5/4 meter, +18.0ms offset) with count-in!
+        bool advanced = setlistPlayer.checkAndAdvanceOnEOF();
+        assert (advanced);
+        if (! advanced) std::exit (1);
+        assert (setlistPlayer.getCurrentSongIndex() == 1);
+        assert (setlistPlayer.getState() == glorp::SetlistPlayer::State::countingIn);
+        assert (setlistPlayer.isTransitionCountIn());
+        assert (std::abs (metro.getBpm() - 108.0) < 0.01);
+        assert (metro.getTimeSignatureNumerator() == 5);
+        assert (std::abs (metro.getGridOffset() - 0.0180) < 0.0001);
+
+        // 4. Render through Song B's 5/4 count-in until Song B starts playing at sample 0
+        guard = 0;
+        while (setlistPlayer.getState() == glorp::SetlistPlayer::State::countingIn && guard++ < 600)
+        {
+            block.clear();
+            trackPlayer.render (chPtrs, 2, 512);
+            metro.render (chPtrs, 2, 512, trackPlayer.getPlayheadSeconds(), trackPlayer.isPlaying());
+        }
+        assert (setlistPlayer.getState() == glorp::SetlistPlayer::State::playingSong);
+        assert (trackPlayer.isPlaying());
+        assert (trackPlayer.getLoadedFile() == fileB);
+
+        tempDir.deleteRecursively();
+        std::cout << "-> Phase 6 Persistent Song Database & SetlistPlayer sequential transition: PASSED!\n";
+    }
+
     processor.releaseResources();
 
     std::cout << "=== ALL VERIFICATIONS PASSED SUCCESSFULLY ===\n";
