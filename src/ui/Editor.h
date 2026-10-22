@@ -12,6 +12,8 @@
 #include "RecordPracticeView.h"
 #include "Scope.h"
 
+#include <juce_opengl/juce_opengl.h>
+
 #include <memory>
 #include <vector>
 
@@ -68,13 +70,22 @@ public:
     void selectLogicalInstrument (int index);
     void selectZone (int logicalIndex, int zoneIndex, bool triggerPreview = false);
     int getActiveSamplerIndex() const;
+    DrumKitView& getKitView() noexcept { return kitView; }
+    Scope& getScope() noexcept { return scope; }
     MixerView* getMixerView() noexcept { return mixerView.get(); }
     RecordPracticeView* getPracticeView() noexcept { return practiceView.get(); }
     void applyTheme (const Theme& newTheme);
 
+    void setOpenGlEnabled (bool enabled);
+    bool isOpenGlEnabled() const noexcept;
+    void parentHierarchyChanged() override;
+
 private:
     void kitChanged() override;
     void parametersChanged() override;
+
+    void updateOpenGlAttachment();
+    void rebuildLogoCache();
 
     void buildHeaderMenu();
     void buildControls();
@@ -221,6 +232,8 @@ private:
     EditorView currentView = EditorView::kitView;
 
     std::unique_ptr<juce::Drawable> logo;
+    juce::Image cachedLogoImage;
+    juce::OpenGLContext openGlContext;
 
     // Left Panel: "INSTRUMENT SETTINGS"
     InstrumentSelectorButton instSelectorButton;

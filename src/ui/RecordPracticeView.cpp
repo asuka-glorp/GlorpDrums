@@ -744,32 +744,47 @@ void RecordPracticeView::filesDropped (const juce::StringArray& files, int /*x*/
 //==============================================================================
 void RecordPracticeView::timerCallback()
 {
-    // Auto-follow playhead when zoomed in and playing
-    if (processor.getBackingTrackPlayer().isPlaying() && zoomFactor > 1.05f
-        && ! isPanningView && ! isDraggingPlayhead && ! isOffsettingGrid)
-    {
-        const double curSec = processor.getBackingTrackPlayer().getPlayheadSeconds();
-        const double totalDur = std::max (0.01, processor.getBackingTrackPlayer().getDurationSeconds());
-        const double visibleDur = totalDur / static_cast<double> (zoomFactor);
+    if (! isVisible())
+        return;
 
-        // If playhead moved past 75% of visible window, or is behind viewStartSec
-        if (curSec < viewStartSec || curSec > (viewStartSec + visibleDur * 0.75))
+    bool needsRepaint = false;
+
+    // Auto-follow playhead when zoomed in and playing
+    if (processor.getBackingTrackPlayer().isPlaying())
+    {
+        needsRepaint = true;
+
+        if (zoomFactor > 1.05f && ! isPanningView && ! isDraggingPlayhead && ! isOffsettingGrid)
         {
-            const double targetViewStart = std::clamp (curSec - visibleDur * 0.25, 0.0, std::max (0.0, totalDur - visibleDur));
-            viewStartSec = targetViewStart;
+            const double curSec = processor.getBackingTrackPlayer().getPlayheadSeconds();
+            const double totalDur = std::max (0.01, processor.getBackingTrackPlayer().getDurationSeconds());
+            const double visibleDur = totalDur / static_cast<double> (zoomFactor);
+
+            // If playhead moved past 75% of visible window, or is behind viewStartSec
+            if (curSec < viewStartSec || curSec > (viewStartSec + visibleDur * 0.75))
+            {
+                const double targetViewStart = std::clamp (curSec - visibleDur * 0.25, 0.0, std::max (0.0, totalDur - visibleDur));
+                viewStartSec = targetViewStart;
+            }
         }
     }
 
     // Reset beat flash after aura decay (~0.35s)
     const double now = juce::Time::getMillisecondCounterHiRes() * 0.001;
-    if (activeBeatFlash > 0 && (now - lastBeatFlashTime) > 0.35)
+    if (activeBeatFlash > 0)
     {
-        activeBeatFlash = 0;
+        needsRepaint = true;
+        if ((now - lastBeatFlashTime) > 0.35)
+            activeBeatFlash = 0;
     }
+
+    if (processor.getMetronome().isCountingIn() || isAnalyzing)
+        needsRepaint = true;
 
     const bool isRec = processor.getAudioRecorder().isRecording();
     if (isRecArmed || isRec)
     {
+        needsRepaint = true;
         recordButton.setArmed (true);
         if (isRec)
             recordButton.setLabel ("RECORDING");
@@ -782,7 +797,8 @@ void RecordPracticeView::timerCallback()
         recordButton.setLabel ("REC");
     }
 
-    repaint();
+    if (needsRepaint)
+        repaint();
 }
 
 void RecordPracticeView::mouseDown (const juce::MouseEvent& e)

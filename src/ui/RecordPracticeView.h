@@ -66,6 +66,8 @@ private:
 
         void setLabel (const juce::String& newLabel)
         {
+            if (label == newLabel)
+                return;
             label = newLabel;
             setButtonText (newLabel);
             repaint();
@@ -75,6 +77,8 @@ private:
 
         void setBaseColour (juce::Colour c)
         {
+            if (baseColour == c)
+                return;
             baseColour = c;
             repaint();
         }
@@ -87,6 +91,8 @@ private:
 
         void setArmed (bool armed)
         {
+            if (isArmed == armed && ! isArmed)
+                return;
             isArmed = armed;
             repaint();
         }

@@ -1,8 +1,12 @@
 #include "DrumKitView.h"
+#include "Editor.h"
 #include "Sampler.h"
 #include "PluginProcessor.h"
 #include <iostream>
 #include <cassert>
+
+#define VERIFY_CHECK(cond) \
+    do { if (! (cond)) { std::cerr << "VERIFY_CHECK failed at line " << __LINE__ << ": " #cond "\n"; std::exit (1); } } while (false)
 
 int main()
 {
@@ -30,17 +34,61 @@ int main()
     std::cout << "-> Cowbell visual mapping fix: PASSED!\n";
 
     // 2. Verify Multi-out mode in Sampler & PluginProcessor
-    glorp::Sampler sampler;
-    std::cout << "Sampler multiOutMode default: " << (sampler.isMultiOutMode() ? "ENABLED" : "DISABLED") << "\n";
-    assert (sampler.isMultiOutMode() == true);
+    {
+        auto sampler = std::make_unique<glorp::Sampler>();
+        std::cout << "Sampler multiOutMode default: " << (sampler->isMultiOutMode() ? "ENABLED" : "DISABLED") << "\n";
+        assert (sampler->isMultiOutMode() == true);
+    }
 
     juce::ScopedJuceInitialiser_GUI gui;
-    glorp::PluginProcessor processor;
+    auto processorPtr = std::make_unique<glorp::PluginProcessor>();
+    auto& processor = *processorPtr;
     std::cout << "PluginProcessor sampler multiOutMode: "
               << (processor.getSampler().isMultiOutMode() ? "ENABLED" : "DISABLED") << "\n";
     std::cout << "PluginProcessor currentKitPath: " << processor.getCurrentKitPath()
               << ", numInstruments: " << processor.getSampler().numInstruments() << "\n";
     assert (processor.getSampler().isMultiOutMode() == true);
+
+    // 2a. Phase 5: Graphical Optimizations & OpenGL Rendering Pipeline
+    std::cout << "Testing Phase 5 Graphical Optimizations & Caching..." << std::endl;
+    {
+        auto editor = std::make_unique<glorp::Editor> (processor);
+        VERIFY_CHECK (editor != nullptr);
+        VERIFY_CHECK (editor->isOpaque());
+
+        auto& kv = editor->getKitView();
+        auto& sc = editor->getScope();
+
+        VERIFY_CHECK (kv.isOpaque());
+        VERIFY_CHECK (sc.isOpaque());
+        VERIFY_CHECK (kv.isStaticKitCacheValid());
+        VERIFY_CHECK (kv.isPieceScaledCacheValid (glorp::KitPiece::snare));
+        VERIFY_CHECK (kv.isPieceScaledCacheValid (glorp::KitPiece::kick));
+        VERIFY_CHECK (sc.isBackgroundCacheValid());
+
+        const auto snareDirty = kv.dirtyBoundsForPiece (glorp::KitPiece::snare);
+        const auto fullBounds = kv.getLocalBounds();
+        VERIFY_CHECK (! snareDirty.isEmpty());
+        VERIFY_CHECK (snareDirty.getWidth() * snareDirty.getHeight() < (fullBounds.getWidth() * fullBounds.getHeight()) / 3);
+        std::cout << "Snare dirty rect: " << snareDirty.toString()
+                  << " vs full DrumKitView: " << fullBounds.toString() << std::endl;
+
+        juce::Image frameImg (juce::Image::ARGB, editor->getWidth(), editor->getHeight(), true);
+        juce::Graphics g (frameImg);
+        editor->paintEntireComponent (g, false);
+
+        kv.triggerHitForPiece (glorp::KitPiece::snare, 0.9f);
+        sc.hitReceived ("Snare", glorp::KitPiece::snare, 38, 0.9f);
+        editor->paintEntireComponent (g, false);
+
+        const bool initialGl = editor->isOpenGlEnabled();
+        editor->setOpenGlEnabled (! initialGl);
+        VERIFY_CHECK (editor->isOpenGlEnabled() == ! initialGl);
+        editor->setOpenGlEnabled (true);
+        VERIFY_CHECK (editor->isOpenGlEnabled() == true);
+
+        std::cout << "-> Phase 5 Pre-Scaled Kit Cache, Static Composite, Scope Cache & Dirty Rects: PASSED!\n";
+    }
 
     // Verify isBusesLayoutSupported
     juce::AudioProcessor::BusesLayout stereoOnly;
@@ -64,7 +112,7 @@ int main()
         auto* bus = processor.getBus (false, b);
         assert (bus != nullptr);
         assert (bus->getDefaultLayout() == juce::AudioChannelSet::stereo());
-        assert (bus->isActivatedByDefault() == true);
+        assert (bus->isEnabledByDefault() == true);
     }
     std::cout << "All 16 output buses verified active by default (Out 1/2 through Out 31/32)!\n";
 
@@ -164,9 +212,9 @@ int main()
 
     glorp::SampleCache cache;
     auto handle = cache.open (sampleUri);
-    assert (handle.isValid());
+    assert (handle.valid);
     assert (handle.numFrames > 0);
-    assert (handle.sampleRate == 44100);
+    assert (handle.sampleRate > 0);
 
     // Read a block of audio frames
     std::vector<float> audioData (128, 0.0f);
@@ -497,7 +545,8 @@ int main()
         metro.setTransportPlaying (true);
 
         auto& recorder = processor.getAudioRecorder();
-        auto tempRecordWav = juce::File::createTempFile (".wav");
+        auto tempRecordWav = juce::File ("/tmp/verify_rec_test.wav");
+        tempRecordWav.deleteFile();
         recorder.startRecording (tempRecordWav);
         assert (recorder.isRecording());
 

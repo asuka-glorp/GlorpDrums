@@ -80,18 +80,29 @@ public:
     void resetToDefaultLayout();
     juce::String generateCppCode() const;
 
+    /// Returns the dirty-rectangle screen bounds for a single kit piece (including its glow halo).
+    juce::Rectangle<int> dirtyBoundsForPiece (KitPiece piece) const noexcept;
+
+    /// Diagnostic accessors for verifying pre-scaled bitmap and static composite caches.
+    bool isPieceScaledCacheValid (KitPiece piece) const noexcept;
+    bool isStaticKitCacheValid() const noexcept { return staticKitImage.isValid(); }
+
 private:
     struct Piece
     {
         juce::Rectangle<float> bounds;
+        juce::Rectangle<float> glowBounds;
         juce::Image image;
         juce::Image glowImage;
+        juce::Image scaledImage;
+        juce::Image scaledGlowImage;
         float flash = 0.0f;
         float squash = 0.0f;
     };
 
     void loadPieceImages();
     void layout();
+    void rebuildStaticKitCache();
 
     std::array<Piece, static_cast<size_t> (KitPiece::count)> pieces;
     std::array<PieceCoords, static_cast<size_t> (KitPiece::count)> coords;
@@ -121,6 +132,7 @@ private:
     bool hasLayout = false;
 
     juce::Image unifiedKitOutlineImage;
+    juce::Image staticKitImage;
     void rebuildKitOutline();
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (DrumKitView)

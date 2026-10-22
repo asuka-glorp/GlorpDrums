@@ -432,18 +432,75 @@ Editor::Editor (PluginProcessor& p)
     kitView.setMouseClickGrabsKeyboardFocus (false);
     scope.setInterceptsMouseClicks (false, false);
     setWantsKeyboardFocus (true);
+    setOpaque (true);
 
     setSize (processor.getSettings().editorWidth, processor.getSettings().editorHeight);
 
     kitChanged();
     applyTheme (theme);
+    updateOpenGlAttachment();
     startTimerHz (30);
 }
 
 Editor::~Editor()
 {
+    if (openGlContext.isAttached())
+        openGlContext.detach();
     stopTimer();
     processor.removeListener (this);
+}
+
+void Editor::parentHierarchyChanged()
+{
+    updateOpenGlAttachment();
+}
+
+void Editor::updateOpenGlAttachment()
+{
+    const bool wantGl = processor.getSettings().openGlEnabled && (getPeer() != nullptr);
+    if (wantGl)
+    {
+        if (! openGlContext.isAttached())
+        {
+            openGlContext.setComponentPaintingEnabled (true);
+            openGlContext.setContinuousRepainting (false);
+            openGlContext.attachTo (*this);
+        }
+    }
+    else
+    {
+        if (openGlContext.isAttached())
+            openGlContext.detach();
+    }
+}
+
+void Editor::setOpenGlEnabled (bool enabled)
+{
+    auto& settings = processor.getSettings();
+    settings.openGlEnabled = enabled;
+    settings.markDirty();
+    settings.saveIfChanged();
+    updateOpenGlAttachment();
+    repaint();
+}
+
+bool Editor::isOpenGlEnabled() const noexcept
+{
+    return processor.getSettings().openGlEnabled;
+}
+
+void Editor::rebuildLogoCache()
+{
+    if (logo == nullptr)
+    {
+        cachedLogoImage = juce::Image();
+        return;
+    }
+
+    cachedLogoImage = juce::Image (juce::Image::ARGB, 124, 96, true);
+    juce::Graphics g (cachedLogoImage);
+    logo->drawWithin (g, juce::Rectangle<float> (0.0f, 0.0f, 124.0f, 96.0f),
+                      juce::RectanglePlacement::xLeft | juce::RectanglePlacement::yMid, 1.0f);
 }
 
 void Editor::applyTheme (const Theme& newTheme)
@@ -456,6 +513,7 @@ void Editor::applyTheme (const Theme& newTheme)
         logo->replaceColour (juce::Colours::black, theme.ink);
         logo->replaceColour (juce::Colour (0xff000000), theme.ink);
     }
+    rebuildLogoCache();
 
     kitSelectorButton.setTheme (theme);
     instSelectorButton.setTheme (theme);
@@ -846,8 +904,17 @@ juce::PopupMenu Editor::buildSettingsMenu()
     {
         auto& settings = processor.getSettings();
         settings.themeIndex = settings.themeIndex == 0 ? 1 : 0;
+        settings.markDirty();
         settings.saveIfChanged();
         applyTheme (Theme::byIndex (settings.themeIndex));
+    });
+
+    const bool glEnabled = isOpenGlEnabled();
+    menu.addItem ("GPU Hardware Acceleration (OpenGL)", true, glEnabled, [this, glEnabled]
+    {
+        setOpenGlEnabled (! glEnabled);
+        statusText = (! glEnabled) ? "OpenGL GPU rendering enabled" : "Software rendering active";
+        repaint();
     });
 
     menu.addSeparator();
@@ -1489,7 +1556,6 @@ void Editor::timerCallback()
 {
     auto& sampler = processor.getSampler();
     HitEvent event;
-    bool anyHit = false;
 
     while (sampler.popHit (event))
     {
@@ -1498,12 +1564,7 @@ void Editor::timerCallback()
 
         const auto piece = DrumKitView::pieceForName (instName);
         scope.hitReceived (instName, piece, event.note, event.velocity);
-
-        anyHit = true;
     }
-
-    if (anyHit)
-        repaint();
 
     const float cc4 = processor.getHiHatCC4();
     static float lastReportedCC4 = -1.0f;
@@ -1695,7 +1756,11 @@ void Editor::paint (juce::Graphics& g)
     drawSketchRect (g, b.reduced (3.0f), theme.panelEdge, 2.0f, 1);
 
     // 3. Top-left: Glorp Drummer Logo & Stacked "GLORP DRUMS" Title
-    if (logo != nullptr)
+    if (cachedLogoImage.isValid())
+    {
+        g.drawImage (cachedLogoImage, juce::Rectangle<float> (24.0f, 10.0f, 62.0f, 48.0f));
+    }
+    else if (logo != nullptr)
     {
         auto logoTarget = juce::Rectangle<float> (24.0f, 10.0f, 62.0f, 48.0f);
         logo->drawWithin (g, logoTarget, juce::RectanglePlacement::xLeft | juce::RectanglePlacement::yMid, 1.0f);

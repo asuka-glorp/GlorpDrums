@@ -7,7 +7,7 @@ namespace glorp
 
 Scope::Scope()
 {
-    setOpaque (false);
+    setOpaque (true);
     startTimerHz (30);
 }
 
@@ -16,9 +16,36 @@ Scope::~Scope()
     stopTimer();
 }
 
+void Scope::setTheme (const Theme& t)
+{
+    theme = t;
+    rebuildBackgroundCache();
+    repaint();
+}
+
+void Scope::resized()
+{
+    rebuildBackgroundCache();
+}
+
 void Scope::timerCallback()
 {
-    repaint();
+    if (! isVisible())
+        return;
+
+    const double now = juce::Time::getMillisecondCounterHiRes() * 0.001;
+    const bool active = ((now - lastHitTime) <= 3.7) || ((now - lastCc4Time) <= 2.2);
+
+    if (active)
+    {
+        idleFrameRendered = false;
+        repaint();
+    }
+    else if (! idleFrameRendered)
+    {
+        idleFrameRendered = true;
+        repaint();
+    }
 }
 
 ScopeLane Scope::laneForPieceAndName (KitPiece piece, const juce::String& name)
@@ -205,6 +232,8 @@ void Scope::hitReceived (const juce::String& instrumentName, KitPiece piece, int
     item.note = note;
     recentChord.items.push_back (item);
 
+    lastHitTime = now;
+    idleFrameRendered = false;
     repaint();
 }
 
@@ -235,23 +264,34 @@ void Scope::controllerReceived (int cc, int value)
     {
         lastCc4Value = value / 127.0f;
         lastCc4Time = juce::Time::getMillisecondCounterHiRes() * 0.001;
+        idleFrameRendered = false;
         repaint();
     }
 }
 
-void Scope::paint (juce::Graphics& g)
+void Scope::rebuildBackgroundCache()
 {
-    auto b = getLocalBounds().toFloat().reduced (1.0f);
-    const double now = juce::Time::getMillisecondCounterHiRes() * 0.001;
+    const int W = getWidth();
+    const int H = getHeight();
+    if (W <= 10 || H <= 10)
+    {
+        staticBgImage = {};
+        return;
+    }
+
+    juce::Image cache (juce::Image::ARGB, W, H, false);
+    juce::Graphics g (cache);
+
+    g.fillAll (theme.background);
+
+    auto b = juce::Rectangle<float> (0.0f, 0.0f, static_cast<float> (W), static_cast<float> (H)).reduced (1.0f);
 
     // Background paper
     g.setColour (theme.panel);
     g.fillRoundedRectangle (b, 4.0f);
     drawSketchRect (g, b, theme.panelEdge, 1.4f, 5);
 
-    // =========================================================================
-    // 1. Header Bar: Title on left, Live Hit Inspector HUD on right
-    // =========================================================================
+    // Header Bar Title
     const float headerH = 20.0f;
     auto headerBounds = b.removeFromTop (headerH);
 
@@ -259,6 +299,67 @@ void Scope::paint (juce::Graphics& g)
     g.setColour (theme.ink);
     g.drawText ("MIDI ACTIVITY", headerBounds.getX() + 8.0f, headerBounds.getY() + 2.0f, 130.0f, 16.0f,
                 juce::Justification::centredLeft, false);
+
+    // 6 Dedicated Lanes Setup
+    const float labelColW = 34.0f;
+    const float startX = b.getX() + labelColW + 8.0f;
+    const float endX = b.getRight() - 8.0f;
+
+    const int numLanes = static_cast<int> (ScopeLane::count);
+    const float laneH = b.getHeight() / static_cast<float> (numLanes);
+
+    static const char* laneNames[6] = { "CYM", "HH", "TOM", "SNR", "KCK", "ETC" };
+    static const uint32_t laneAccentHex[6] = {
+        0xff84cc16, // CYM Lime
+        0xff00b4d8, // HH Cyan
+        0xffa855f7, // TOM Violet
+        0xfff97316, // SNR Amber
+        0xffdc2626, // KCK Crimson
+        0xffff006e  // ETC Pink
+    };
+
+    for (int l = 0; l < numLanes; ++l)
+    {
+        const float ly = b.getY() + l * laneH;
+        auto labelRect = juce::Rectangle<float> (b.getX() + 4.0f, ly + 1.0f, labelColW, laneH - 2.0f);
+
+        const auto laneCol = juce::Colour (laneAccentHex[l]);
+        g.setColour (laneCol.withAlpha (theme.isDark ? 0.25f : 0.12f));
+        g.fillRoundedRectangle (labelRect, 2.0f);
+
+        g.setColour (theme.isDark ? laneCol : theme.ink.withAlpha (0.85f));
+        g.setFont (displayFont (9.5f));
+        g.drawText (laneNames[l], labelRect, juce::Justification::centred, false);
+
+        if (l > 0)
+        {
+            g.setColour (theme.ink.withAlpha (0.09f));
+            g.drawHorizontalLine (static_cast<int> (ly), startX - 2.0f, endX);
+        }
+    }
+
+    g.setColour (theme.ink.withAlpha (0.20f));
+    g.drawVerticalLine (static_cast<int> (startX - 4.0f), b.getY(), b.getBottom());
+
+    staticBgImage = cache;
+}
+
+void Scope::paint (juce::Graphics& g)
+{
+    if (! staticBgImage.isValid() || staticBgImage.getWidth() != getWidth() || staticBgImage.getHeight() != getHeight())
+        rebuildBackgroundCache();
+
+    if (staticBgImage.isValid())
+        g.drawImageAt (staticBgImage, 0, 0);
+
+    auto b = getLocalBounds().toFloat().reduced (1.0f);
+    const double now = juce::Time::getMillisecondCounterHiRes() * 0.001;
+
+    // =========================================================================
+    // 1. Live Hit Inspector HUD on right
+    // =========================================================================
+    const float headerH = 20.0f;
+    auto headerBounds = b.removeFromTop (headerH);
 
     // HUD Chord Display
     const double chordAge = now - recentChord.timestamp;
@@ -307,7 +408,7 @@ void Scope::paint (juce::Graphics& g)
     }
 
     // =========================================================================
-    // 2. 6 Dedicated Lanes Setup
+    // 2. 6 Dedicated Lanes Coordinates
     // =========================================================================
     const float labelColW = 34.0f;
     const float startX = b.getX() + labelColW + 8.0f;
@@ -316,43 +417,6 @@ void Scope::paint (juce::Graphics& g)
 
     const int numLanes = static_cast<int> (ScopeLane::count); // 6
     const float laneH = b.getHeight() / static_cast<float> (numLanes);
-
-    static const char* laneNames[6] = { "CYM", "HH", "TOM", "SNR", "KCK", "ETC" };
-    static const uint32_t laneAccentHex[6] = {
-        0xff84cc16, // CYM Lime
-        0xff00b4d8, // HH Cyan
-        0xffa855f7, // TOM Violet
-        0xfff97316, // SNR Amber
-        0xffdc2626, // KCK Crimson
-        0xffff006e  // ETC Pink
-    };
-
-    // Draw Lane Headers & Separators
-    for (int l = 0; l < numLanes; ++l)
-    {
-        const float ly = b.getY() + l * laneH;
-        auto labelRect = juce::Rectangle<float> (b.getX() + 4.0f, ly + 1.0f, labelColW, laneH - 2.0f);
-
-        // Lane label pill
-        const auto laneCol = juce::Colour (laneAccentHex[l]);
-        g.setColour (laneCol.withAlpha (theme.isDark ? 0.25f : 0.12f));
-        g.fillRoundedRectangle (labelRect, 2.0f);
-
-        g.setColour (theme.isDark ? laneCol : theme.ink.withAlpha (0.85f));
-        g.setFont (displayFont (9.5f));
-        g.drawText (laneNames[l], labelRect, juce::Justification::centred, false);
-
-        // Lane horizontal divider line
-        if (l > 0)
-        {
-            g.setColour (theme.ink.withAlpha (0.09f));
-            g.drawHorizontalLine (static_cast<int> (ly), startX - 2.0f, endX);
-        }
-    }
-
-    // Baseline separator between label column and timeline
-    g.setColour (theme.ink.withAlpha (0.20f));
-    g.drawVerticalLine (static_cast<int> (startX - 4.0f), b.getY(), b.getBottom());
 
     // =========================================================================
     // 3. Render Hits along the Scrolling Timeline

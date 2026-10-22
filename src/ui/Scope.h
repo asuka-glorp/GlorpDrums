@@ -62,7 +62,10 @@ public:
     void controllerReceived (int cc, int value);
 
     void paint (juce::Graphics&) override;
-    void setTheme (const Theme& t) { theme = t; repaint(); }
+    void resized() override;
+    void setTheme (const Theme& t);
+
+    bool isBackgroundCacheValid() const noexcept { return staticBgImage.isValid(); }
 
     static ScopeLane laneForPieceAndName (KitPiece piece, const juce::String& name);
     static juce::Colour colorForInstrument (KitPiece piece, const juce::String& name);
@@ -70,11 +73,15 @@ public:
 
 private:
     void timerCallback() override;
+    void rebuildBackgroundCache();
 
     static constexpr int maxHits = 256;
     ScopeHit hits[maxHits];
     int writeIndex = 0;
     int hitCount = 0;
+    double lastHitTime = -100.0;
+    bool idleFrameRendered = true;
+    juce::Image staticBgImage;
 
     // Active chord tracking for the Live Hit Inspector HUD
     struct RecentChord

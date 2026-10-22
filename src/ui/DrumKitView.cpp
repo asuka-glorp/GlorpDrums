@@ -64,7 +64,7 @@ namespace
 //==============================================================================
 DrumKitView::DrumKitView()
 {
-    setOpaque (false);
+    setOpaque (true);
     setInterceptsMouseClicks (true, true);
     setWantsKeyboardFocus (true);
     loadPieceImages();
@@ -332,6 +332,28 @@ void DrumKitView::setInstrumentNames (const std::vector<juce::String>& names)
     repaint();
 }
 
+juce::Rectangle<int> DrumKitView::dirtyBoundsForPiece (KitPiece piece) const noexcept
+{
+    if (piece == KitPiece::count)
+        return {};
+
+    const auto& p = pieces[static_cast<size_t> (piece)];
+    if (p.bounds.isEmpty())
+        return getLocalBounds();
+
+    const auto region = p.glowBounds.isEmpty() ? p.bounds : p.glowBounds.getUnion (p.bounds);
+    return region.expanded (8.0f).getSmallestIntegerContainer().getIntersection (getLocalBounds());
+}
+
+bool DrumKitView::isPieceScaledCacheValid (KitPiece piece) const noexcept
+{
+    if (piece == KitPiece::count)
+        return false;
+
+    const auto& p = pieces[static_cast<size_t> (piece)];
+    return p.scaledImage.isValid() && p.scaledGlowImage.isValid();
+}
+
 void DrumKitView::triggerHit (const juce::String& instrumentName, float velocity)
 {
     const auto piece = pieceForName (instrumentName);
@@ -347,7 +369,7 @@ void DrumKitView::triggerHitForPiece (KitPiece piece, float velocity)
     auto& p = pieces[static_cast<size_t> (piece)];
     p.flash = std::clamp (velocity, 0.40f, 1.0f);
     p.squash = std::clamp (velocity * 0.75f, 0.20f, 1.0f);
-    repaint();
+    repaint (dirtyBoundsForPiece (piece));
 }
 
 KitPiece DrumKitView::pieceAt (juce::Point<float> pos) const
@@ -625,38 +647,57 @@ void DrumKitView::mouseExit (const juce::MouseEvent&)
 
 void DrumKitView::timerCallback()
 {
-    bool needRepaint = false;
+    if (! isVisible())
+        return;
+
+    juce::Rectangle<int> dirtyRect;
     constexpr float dt = 1.0f / 60.0f;
 
-    for (auto& p : pieces)
+    for (size_t i = 0; i < static_cast<size_t> (KitPiece::count); ++i)
     {
+        auto& p = pieces[i];
+        bool changed = false;
+
         if (p.flash > 0.001f)
         {
             p.flash = std::max (0.0f, p.flash - dt / 0.22f); // ~220ms smooth decay
-            needRepaint = true;
+            if (p.flash <= 0.001f)
+                p.flash = 0.0f;
+            changed = true;
         }
         if (p.squash > 0.001f)
         {
             p.squash = std::max (0.0f, p.squash - dt / 0.15f);
-            needRepaint = true;
+            if (p.squash <= 0.001f)
+                p.squash = 0.0f;
+            changed = true;
         }
+
+        if (changed)
+            dirtyRect = dirtyRect.getUnion (dirtyBoundsForPiece (static_cast<KitPiece> (i)));
     }
 
     if (toastAlpha > 0.001f)
     {
         toastAlpha = std::max (0.0f, toastAlpha - dt / 2.0f); // fade out over 2s
-        needRepaint = true;
+        if (toastAlpha <= 0.001f)
+            toastAlpha = 0.0f;
+        const int W = getWidth();
+        const int H = getHeight();
+        const juce::Rectangle<int> toastRect ((W - 320) / 2 - 6, H - 56, 332, 36);
+        dirtyRect = dirtyRect.getUnion (toastRect.getIntersection (getLocalBounds()));
     }
 
-    if (needRepaint)
-        repaint();
+    if (! dirtyRect.isEmpty())
+        repaint (dirtyRect);
 }
 
 void DrumKitView::setTheme (const Theme& newTheme)
 {
     const bool darkChanged = (theme.isDark != newTheme.isDark);
+    const bool bgChanged = (theme.background != newTheme.background);
     theme = newTheme;
-    if (darkChanged)
+    if (darkChanged || bgChanged)
     {
         hasLayout = false;
         layout();
@@ -701,7 +742,9 @@ void DrumKitView::rebuildKitOutline()
         for (auto piece : renderOrder)
         {
             const auto& p = pieces[static_cast<size_t> (piece)];
-            if (p.image.isValid() && ! p.bounds.isEmpty())
+            if (p.scaledImage.isValid() && ! p.bounds.isEmpty())
+                cg.drawImageAt (p.scaledImage, juce::roundToInt (p.bounds.getX()), juce::roundToInt (p.bounds.getY()));
+            else if (p.image.isValid() && ! p.bounds.isEmpty())
                 cg.drawImage (p.image, p.bounds, juce::RectanglePlacement::stretchToFit);
         }
     }
@@ -788,6 +831,51 @@ void DrumKitView::rebuildKitOutline()
     unifiedKitOutlineImage = outImg;
 }
 
+void DrumKitView::rebuildStaticKitCache()
+{
+    const int W = getWidth();
+    const int H = getHeight();
+    if (W <= 50 || H <= 50)
+    {
+        staticKitImage = {};
+        return;
+    }
+
+    juce::Image cache (juce::Image::ARGB, W, H, false);
+    {
+        juce::Graphics cg (cache);
+        cg.fillAll (theme.background);
+
+        if (theme.isDark && unifiedKitOutlineImage.isValid())
+            cg.drawImageAt (unifiedKitOutlineImage, 0, 0);
+
+        const KitPiece renderOrder[] = {
+            KitPiece::kick,
+            KitPiece::crash1,
+            KitPiece::hihat,
+            KitPiece::snare,
+            KitPiece::tom1,
+            KitPiece::tom2,
+            KitPiece::ride,
+            KitPiece::crash2,
+            KitPiece::floorTom
+        };
+
+        for (auto piece : renderOrder)
+        {
+            const auto& p = pieces[static_cast<size_t> (piece)];
+            if (p.scaledImage.isValid() && ! p.bounds.isEmpty())
+            {
+                cg.drawImageAt (p.scaledImage,
+                                juce::roundToInt (p.bounds.getX()),
+                                juce::roundToInt (p.bounds.getY()));
+            }
+        }
+    }
+
+    staticKitImage = cache;
+}
+
 void DrumKitView::layout()
 {
     if (hasLayout)
@@ -816,6 +904,27 @@ void DrumKitView::layout()
         const float y = gy + coords[i].normY * scale;
 
         p.bounds = juce::Rectangle<float> (x, y, width, height);
+
+        const int targetW = std::max (1, juce::roundToInt (width));
+        const int targetH = std::max (1, juce::roundToInt (height));
+        if (p.scaledImage.getWidth() != targetW || p.scaledImage.getHeight() != targetH)
+            p.scaledImage = p.image.rescaled (targetW, targetH, juce::Graphics::mediumResamplingQuality);
+
+        if (p.glowImage.isValid() && p.glowImage.getWidth() > 72 && p.glowImage.getHeight() > 72)
+        {
+            const float padRatioX = 36.0f / static_cast<float> (p.glowImage.getWidth() - 72);
+            const float padRatioY = 36.0f / static_cast<float> (p.glowImage.getHeight() - 72);
+            p.glowBounds = p.bounds.expanded (p.bounds.getWidth() * padRatioX,
+                                              p.bounds.getHeight() * padRatioY);
+            const int glowW = std::max (1, juce::roundToInt (p.glowBounds.getWidth()));
+            const int glowH = std::max (1, juce::roundToInt (p.glowBounds.getHeight()));
+            if (p.scaledGlowImage.getWidth() != glowW || p.scaledGlowImage.getHeight() != glowH)
+                p.scaledGlowImage = p.glowImage.rescaled (glowW, glowH, juce::Graphics::mediumResamplingQuality);
+        }
+        else
+        {
+            p.glowBounds = p.bounds;
+        }
     }
 
     // Top Header Buttons
@@ -838,6 +947,7 @@ void DrumKitView::layout()
 
     hasLayout = true;
     rebuildKitOutline();
+    rebuildStaticKitCache();
 }
 
 void DrumKitView::paint (juce::Graphics& g)
@@ -847,71 +957,115 @@ void DrumKitView::paint (juce::Graphics& g)
     const float W = static_cast<float> (getWidth());
     const float H = static_cast<float> (getHeight());
 
-    // 1. Blueprint Grid Overlay in Edit Mode
-    if (editMode)
+    bool anyAnimating = false;
+    for (const auto& p : pieces)
     {
-        g.setColour (juce::Colour (0xff203048).withAlpha (0.45f));
-        g.fillRect (getLocalBounds().toFloat());
-
-        g.setColour (juce::Colours::cyan.withAlpha (0.06f));
-        constexpr float gridSize = 24.0f;
-        for (float x = 0; x < W; x += gridSize)
-            g.drawVerticalLine (static_cast<int> (x), 0.0f, H);
-        for (float y = 0; y < H; y += gridSize)
-            g.drawHorizontalLine (static_cast<int> (y), 0.0f, W);
-
-        // Center lines
-        g.setColour (juce::Colours::cyan.withAlpha (0.22f));
-        g.drawVerticalLine (static_cast<int> (W * 0.5f), 0.0f, H);
-        g.drawHorizontalLine (static_cast<int> (H * 0.94f), 0.0f, W);
-    }
-
-    // 2. Render unified drumkit white contour in Dark Theme
-    if (theme.isDark && unifiedKitOutlineImage.isValid())
-    {
-        g.drawImageAt (unifiedKitOutlineImage, 0, 0);
-    }
-
-    // 3. Render back-to-front Z-order matching user layer stack:
-    // kick -> crash_1 -> hihat -> snare -> tom_1 -> tom_2 -> ride -> crash_2 -> f_tom
-    const KitPiece renderOrder[] = {
-        KitPiece::kick,
-        KitPiece::crash1,
-        KitPiece::hihat,
-        KitPiece::snare,
-        KitPiece::tom1,
-        KitPiece::tom2,
-        KitPiece::ride,
-        KitPiece::crash2,
-        KitPiece::floorTom
-    };
-
-    for (auto piece : renderOrder)
-    {
-        const auto& p = pieces[static_cast<size_t> (piece)];
-        if (! p.image.isValid() || p.bounds.isEmpty())
-            continue;
-
-        // Radiant orange halo glow behind the piece when hit
-        if (p.flash > 0.001f && p.glowImage.isValid())
+        if (p.flash > 0.001f || p.squash > 0.001f)
         {
-            const float padRatioX = 36.0f / static_cast<float> (p.glowImage.getWidth() - 72);
-            const float padRatioY = 36.0f / static_cast<float> (p.glowImage.getHeight() - 72);
-            const auto glowBounds = p.bounds.expanded (p.bounds.getWidth() * padRatioX,
-                                                       p.bounds.getHeight() * padRatioY);
+            anyAnimating = true;
+            break;
+        }
+    }
 
-            g.setOpacity (std::clamp (p.flash, 0.0f, 1.0f));
-            g.drawImage (p.glowImage, glowBounds, juce::RectanglePlacement::stretchToFit);
-            g.setOpacity (1.0f);
+    // Fast path: when stationary in play mode, blit the pre-composited static kit cache directly
+    if (! editMode && ! anyAnimating && staticKitImage.isValid())
+    {
+        g.drawImageAt (staticKitImage, 0, 0);
+    }
+    else
+    {
+        g.fillAll (theme.background);
+
+        // 1. Blueprint Grid Overlay in Edit Mode
+        if (editMode)
+        {
+            g.setColour (juce::Colour (0xff203048).withAlpha (0.45f));
+            g.fillRect (getLocalBounds().toFloat());
+
+            g.setColour (juce::Colours::cyan.withAlpha (0.06f));
+            constexpr float gridSize = 24.0f;
+            for (float x = 0; x < W; x += gridSize)
+                g.drawVerticalLine (static_cast<int> (x), 0.0f, H);
+            for (float y = 0; y < H; y += gridSize)
+                g.drawHorizontalLine (static_cast<int> (y), 0.0f, W);
+
+            // Center lines
+            g.setColour (juce::Colours::cyan.withAlpha (0.22f));
+            g.drawVerticalLine (static_cast<int> (W * 0.5f), 0.0f, H);
+            g.drawHorizontalLine (static_cast<int> (H * 0.94f), 0.0f, W);
         }
 
-        // Squash/pulse on impact
-        const float pulseScale = 1.0f + p.squash * 0.035f;
-        const auto drawBounds = p.bounds.withSizeKeepingCentre (p.bounds.getWidth() * pulseScale,
-                                                                p.bounds.getHeight() * pulseScale);
+        // 2. Render unified drumkit white contour in Dark Theme
+        if (theme.isDark && unifiedKitOutlineImage.isValid())
+        {
+            g.drawImageAt (unifiedKitOutlineImage, 0, 0);
+        }
 
-        // Render drum piece artwork
-        g.drawImage (p.image, drawBounds, juce::RectanglePlacement::stretchToFit);
+        // 3. Render back-to-front Z-order matching user layer stack:
+        // kick -> crash_1 -> hihat -> snare -> tom_1 -> tom_2 -> ride -> crash_2 -> f_tom
+        const KitPiece renderOrder[] = {
+            KitPiece::kick,
+            KitPiece::crash1,
+            KitPiece::hihat,
+            KitPiece::snare,
+            KitPiece::tom1,
+            KitPiece::tom2,
+            KitPiece::ride,
+            KitPiece::crash2,
+            KitPiece::floorTom
+        };
+
+        const auto clipBounds = g.getClipBounds();
+
+        for (auto piece : renderOrder)
+        {
+            const auto& p = pieces[static_cast<size_t> (piece)];
+            if (! p.image.isValid() || p.bounds.isEmpty())
+                continue;
+
+            const auto pieceClip = (p.glowBounds.isEmpty() ? p.bounds : p.glowBounds.getUnion (p.bounds))
+                                       .expanded (6.0f)
+                                       .getSmallestIntegerContainer();
+            if (! clipBounds.intersects (pieceClip))
+                continue;
+
+            // Radiant orange halo glow behind the piece when hit (using pre-scaled glow cache)
+            if (p.flash > 0.001f)
+            {
+                g.setOpacity (std::clamp (p.flash, 0.0f, 1.0f));
+                if (p.scaledGlowImage.isValid())
+                {
+                    g.drawImageAt (p.scaledGlowImage,
+                                   juce::roundToInt (p.glowBounds.getX()),
+                                   juce::roundToInt (p.glowBounds.getY()));
+                }
+                else if (p.glowImage.isValid())
+                {
+                    g.drawImage (p.glowImage, p.glowBounds, juce::RectanglePlacement::stretchToFit);
+                }
+                g.setOpacity (1.0f);
+            }
+
+            // Squash/pulse on impact, or 1:1 fast blit when stationary
+            if (p.squash > 0.001f)
+            {
+                const float pulseScale = 1.0f + p.squash * 0.035f;
+                const auto drawBounds = p.bounds.withSizeKeepingCentre (p.bounds.getWidth() * pulseScale,
+                                                                        p.bounds.getHeight() * pulseScale);
+                g.drawImage (p.scaledImage.isValid() ? p.scaledImage : p.image,
+                             drawBounds, juce::RectanglePlacement::stretchToFit);
+            }
+            else if (p.scaledImage.isValid())
+            {
+                g.drawImageAt (p.scaledImage,
+                               juce::roundToInt (p.bounds.getX()),
+                               juce::roundToInt (p.bounds.getY()));
+            }
+            else
+            {
+                g.drawImage (p.image, p.bounds, juce::RectanglePlacement::stretchToFit);
+            }
+        }
     }
 
     // 3. Edit Mode overlays (selection, bounding box, handles, HUD)

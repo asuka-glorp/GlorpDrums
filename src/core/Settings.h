@@ -51,7 +51,10 @@ public:
     int editorWidth = 1180;
     int editorHeight = 860;
     bool editorMaximised = false;
-    int themeIndex = 0;   ///< 0 = sketch (light), 1 = dark
+    int themeIndex = 0;       ///< 0 = sketch (light), 1 = dark
+    bool openGlEnabled = true; ///< Hardware GPU acceleration via juce::OpenGLContext
+
+    void markDirty() noexcept { dirty = true; }
 
     /// Most recent kits, most recent first, for the FILE menu.
     juce::StringArray recentKits;

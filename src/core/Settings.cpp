@@ -81,6 +81,7 @@ void Settings::writeState (juce::MemoryBlock& destination) const
     root.setAttribute ("editorHeight", editorHeight);
     root.setAttribute ("editorMaximised", editorMaximised);
     root.setAttribute ("theme", themeIndex);
+    root.setAttribute ("openGlEnabled", openGlEnabled);
 
     juce::MemoryOutputStream stream (destination, false);
     root.writeToStream (stream, {});
@@ -111,6 +112,7 @@ void Settings::readState (const juce::MemoryBlock& source)
     editorHeight = root->getIntAttribute ("editorHeight", editorHeight);
     editorMaximised = root->getBoolAttribute ("editorMaximised", editorMaximised);
     themeIndex = root->getIntAttribute ("theme", themeIndex);
+    openGlEnabled = root->getBoolAttribute ("openGlEnabled", openGlEnabled);
 }
 
 void Settings::addKitPath (const juce::String& path)

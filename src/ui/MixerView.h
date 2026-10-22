@@ -227,6 +227,7 @@ private:
 
         int getChannelIndex() const noexcept { return channelIndex_; }
         void updateFromState();
+        void repaintMeter();
         void setTheme (const Theme& t);
 
     private:
@@ -246,6 +247,7 @@ private:
         juce::Rectangle<float> faderTrackBounds;
         juce::Rectangle<float> faderThumbBounds;
         juce::Rectangle<float> meterBounds;
+        float lastDisplayedPeak = -1.0f;
 
         bool draggingFader = false;
         bool draggingPan = false;
@@ -267,6 +269,7 @@ private:
         void mouseDoubleClick (const juce::MouseEvent& e) override;
 
         void updateFromState();
+        void repaintMeter();
         void setTheme (const Theme& t);
 
     private:
@@ -282,6 +285,8 @@ private:
         juce::Rectangle<float> meterLBounds;
         juce::Rectangle<float> meterRBounds;
         juce::Rectangle<float> panBarBounds;
+        float lastDisplayedPeakL = -1.0f;
+        float lastDisplayedPeakR = -1.0f;
 
         bool draggingFader = false;
         bool draggingPan = false;

@@ -58,7 +58,7 @@ void Sampler::setSampleRateAndBlock (double rate, int blockSize)
     const juce::ScopedLock lock (kitLock);
 
     currentSampleRate = rate > 0.0 ? rate : 44100.0;
-    currentBlockSize = std::max (16, blockSize);
+    currentBlockSize = std::max (4096, blockSize);
 
     // Preallocate voice scratch buffers to max block size to avoid audio-thread allocation
     for (auto& v : pool.voices)
@@ -1259,6 +1259,17 @@ void Sampler::render (float* const* output, int numOutputChannels, int numSample
 
     if (numMics > 0)
     {
+        if (static_cast<size_t> (numSamples) > reverbAccumL.size())
+        {
+            for (size_t i = 0; i < micScratchL.size(); ++i)
+            {
+                micScratchL[i].resize (static_cast<size_t> (numSamples), 0.0f);
+                micScratchR[i].resize (static_cast<size_t> (numSamples), 0.0f);
+            }
+            reverbAccumL.resize (static_cast<size_t> (numSamples), 0.0f);
+            reverbAccumR.resize (static_cast<size_t> (numSamples), 0.0f);
+        }
+
         // 1. Clear intermediate mic scratch buffers
         for (int m = 0; m < numMics; ++m)
         {

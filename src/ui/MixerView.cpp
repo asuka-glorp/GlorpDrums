@@ -2169,14 +2169,48 @@ void MixerView::promptLoadPreset()
     });
 }
 
+void MixerView::ChannelStripComponent::repaintMeter()
+{
+    const auto& sampler = processor.getSampler();
+    const float peak = std::max (sampler.getMicPeakL (channelIndex_), sampler.getMicPeakR (channelIndex_));
+    if (std::abs (peak - lastDisplayedPeak) > 0.002f || (peak == 0.0f && lastDisplayedPeak > 0.0f))
+    {
+        lastDisplayedPeak = peak;
+        if (! meterBounds.isEmpty())
+            repaint (meterBounds.expanded (2.0f).getSmallestIntegerContainer());
+        else
+            repaint();
+    }
+}
+
+void MixerView::MasterStripComponent::repaintMeter()
+{
+    const auto& sampler = processor.getSampler();
+    const float peakL = sampler.getMasterPeakL();
+    const float peakR = sampler.getMasterPeakR();
+    if (std::abs (peakL - lastDisplayedPeakL) > 0.002f || std::abs (peakR - lastDisplayedPeakR) > 0.002f
+        || ((peakL == 0.0f && peakR == 0.0f) && (lastDisplayedPeakL > 0.0f || lastDisplayedPeakR > 0.0f)))
+    {
+        lastDisplayedPeakL = peakL;
+        lastDisplayedPeakR = peakR;
+        if (! meterLBounds.isEmpty() && ! meterRBounds.isEmpty())
+            repaint (meterLBounds.getUnion (meterRBounds).expanded (2.0f).getSmallestIntegerContainer());
+        else
+            repaint();
+    }
+}
+
 void MixerView::timerCallback()
 {
-    // Repaint strips and meters
+    if (! isVisible())
+        return;
+
+    // Repaint only meter regions whose peak values changed
     for (auto& s : channelStrips)
-        s->repaint();
+        s->repaintMeter();
 
     if (masterStrip != nullptr)
-        masterStrip->repaint();
+        masterStrip->repaintMeter();
 }
 
 void MixerView::resized()

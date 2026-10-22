@@ -172,12 +172,22 @@ GlorpDrums is actively developed following an ambitious multi-phase roadmap:
 * [x] **Phase 2 — Full Per-Mic Mixer Tab & Built-in DSP**: Dual-view UI switch ([KIT VIEW] / [MIXER VIEW]), per-mic strips, 3-band EQ, VCA compressor, saturation, transient shaper, master limiter, reverb, and `.glorpmix` presets.
 * [x] **Phase 3 — Recording Mode & Practice Assistant**: Synchronized 24-bit WAV + SMF Type 1 MIDI recording, backing track player with interactive waveform navigation (middle-click pan & auto-following playhead), spectral-flux tempo detection, sample-accurate metronome with customizable beats per measure, dynamic LED count lights, pre-roll count-in, and 6-lane rolling rhythm ribbon.
 * [x] **Phase 4 — Multi-Mic Leakage & Bleed Matrix**: Matrix routing by logical drum pieces ($9 \times N$ mic columns), physical acoustic crosstalk engine (delay & off-axis filtering), sympathetic snare wire rattle synthesis, master bleed/buzz controls, and production presets (Natural, Clean, Live, OH Only).
-* [ ] **Phase 5 — Cross-Platform Port (Windows & macOS)**:
-  * Port standalone application and plugin formats (VST3 and CLAP) to **Windows 10/11** with low-latency ASIO and WASAPI audio driver support.
-  * Port standalone application and plugin formats (VST3, CLAP, and **AU / Audio Unit**) to **macOS** with CoreAudio and CoreMIDI support.
+* [x] **Phase 5 — Graphical Optimizations & OpenGL GPU Rendering**:
+  * Optional OpenGL hardware acceleration (`juce::OpenGLContext`) togglable via the **SETTINGS** menu for smooth 60 FPS plugin rendering in VST3 and LV2 hosts.
+  * Pre-scaled drum piece and radial glow bitmap caching, static composite layer caching, and dirty-rectangle invalidation to eliminate full-window CPU repaints during dense MIDI playback.
+  * Opaque component layer isolation and idle timer suspension for background tabs and the 6-lane rhythm scope.
+* [ ] **Phase 6 — Set Lists & Persistent Song Database**:
+  * **Setlist Playlist Mode**: Import and order multiple backing tracks in the Practice Suite that play sequentially with automatic, sample-accurate count-in transitions between songs.
+  * **Persistent Song Library Database**: Automatically remembers configured BPM, beat-1 grid offset, time signature, loop range, and volume level for every imported track across sessions and future setlists without requiring re-setup.
+* [ ] **Phase 7 — Standalone `.glorpkit` Studio & Format v2**:
+  * **GlorpKit Format v2**: Expanded `.glorpkit` archive specification supporting embedded custom per-piece PNG artwork (`assets/*.png`), normalized canvas coordinates, and customizable Z-order layering.
+  * **Standalone Graphical Kit Editor (`GlorpKitStudio`)**: Bundled desktop application built alongside GlorpDrums for creating and editing `.glorpkit` archives—featuring WYSIWYG piece positioning and Z-layer stacking, velocity layer & round-robin sample matrices, multi-zone articulation mapping, live audio auditioning, and lossless round-trip editing of existing `.glorpkit` files.
+* [ ] **Phase 8 — Cross-Platform Port (Windows & macOS)**:
+  * Port standalone applications and plugin formats (VST3 and CLAP) to **Windows 10/11** with low-latency ASIO and WASAPI audio driver support.
+  * Port standalone applications and plugin formats (VST3, CLAP, and **AU / Audio Unit**) to **macOS** with CoreAudio and CoreMIDI support.
   * Universal binary support for macOS (native Apple Silicon ARM64 and Intel x86_64).
   * Automated cross-platform packaging, installer generation, and code signing.
-* [ ] **Phase 6 — Internationalization (i18n) & Multi-Language Support**:
+* [ ] **Phase 9 — Internationalization (i18n) & Multi-Language Support**:
   * Localization architecture for dynamic runtime translation across all UI screens, menus, dialogs, and the e-drum setup wizard.
   * Initial translations for Spanish, German, French, Japanese, Portuguese, Chinese, and other languages.
   * Community translation template and localized documentation.
