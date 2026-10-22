@@ -821,6 +821,132 @@ int main()
         std::cout << "-> Phase 6 Persistent Song Database & SetlistPlayer sequential transition: PASSED!\n";
     }
 
+    // 15. Verify High-Precision TempoDetector on 181 BPM & 114 BPM dense full-band mixes + User MP3s
+    std::cout << "Testing High-Precision TempoDetector (181.0 BPM & 114.0 BPM stress tests)...\n";
+    {
+        const double sr = 44100.0;
+
+        auto makeFullBandGroove = [&](double targetBpm, double startOffsetSec, double durationSec)
+        {
+            const int totalSamples = static_cast<int> (sr * durationSec);
+            juce::AudioBuffer<float> buf (2, totalSamples);
+            buf.clear();
+            float* l = buf.getWritePointer (0);
+            float* r = buf.getWritePointer (1);
+
+            // Continuous distorted guitar / cymbal wash floor that previously broke un-whitened ACF
+            uint32_t rng = 1234567u;
+            for (int i = 0; i < totalSamples; ++i)
+            {
+                rng = rng * 1664525u + 1013904223u;
+                const float noise = (static_cast<float> (rng & 0xFFFF) / 32768.0f) - 1.0f;
+                const float pad = 0.18f * std::sin (2.0 * juce::MathConstants<double>::pi * 220.0 * (i / sr))
+                                + 0.14f * std::sin (2.0 * juce::MathConstants<double>::pi * 330.0 * (i / sr))
+                                + 0.12f * noise;
+                const float activeEnv = (static_cast<double> (i) / sr >= startOffsetSec) ? 1.0f : 0.0f;
+                l[i] = pad * activeEnv;
+                r[i] = pad * activeEnv;
+            }
+
+            const double beatSec = 60.0 / targetBpm;
+            int beatIdx = 0;
+            for (double t = startOffsetSec; t + 0.15 < durationSec; t += beatSec, ++beatIdx)
+            {
+                const int s0 = static_cast<int> ( std::round (t * sr));
+                const bool isBarDownbeat = (beatIdx % 4 == 0);
+                const bool isSnareBeat = (beatIdx % 2 == 1);
+
+                // Kick on beat 1 & 3 (stronger low-end on beat 1)
+                if (! isSnareBeat)
+                {
+                    const float amp = isBarDownbeat ? 0.95f : 0.65f;
+                    for (int k = 0; k < 2400 && (s0 + k) < totalSamples; ++k)
+                    {
+                        const float env = std::exp (-static_cast<float> (k) / 450.0f);
+                        const float freq = 95.0f * std::exp (-static_cast<float> (k) / 350.0f) + 52.0f;
+                        const float sig = amp * env * std::sin (2.0f * juce::MathConstants<float>::pi * freq * (static_cast<float> (k) / static_cast<float> (sr)));
+                        l[s0 + k] += sig;
+                        r[s0 + k] += sig;
+                    }
+                }
+                else
+                {
+                    // Snare on beat 2 & 4
+                    for (int k = 0; k < 2000 && (s0 + k) < totalSamples; ++k)
+                    {
+                        rng = rng * 1664525u + 1013904223u;
+                        const float n = (static_cast<float> (rng & 0xFFFF) / 32768.0f) - 1.0f;
+                        const float env = std::exp (-static_cast<float> (k) / 320.0f);
+                        const float body = std::sin (2.0f * juce::MathConstants<float>::pi * 210.0f * (static_cast<float> (k) / static_cast<float> (sr)));
+                        const float sig = 0.80f * env * (0.5f * body + 0.5f * n);
+                        l[s0 + k] += sig;
+                        r[s0 + k] += sig;
+                    }
+                }
+
+                // 8th-note hi-hat subdivision at t + 0.5 * beatSec
+                const int sHalf = static_cast<int> (std::round ((t + 0.5 * beatSec) * sr));
+                for (int k = 0; k < 600 && (sHalf + k) < totalSamples; ++k)
+                {
+                    rng = rng * 1664525u + 1013904223u;
+                    const float n = (static_cast<float> (rng & 0xFFFF) / 32768.0f) - 1.0f;
+                    const float env = std::exp (-static_cast<float> (k) / 110.0f);
+                    l[sHalf + k] += 0.30f * env * n;
+                    r[sHalf + k] += 0.30f * env * n;
+                }
+            }
+
+            return buf;
+        };
+
+        auto track181 = makeFullBandGroove (181.0, 0.145, 32.0);
+        auto res181 = glorp::TempoDetector::detectTempo (track181, sr);
+        std::cout << "Synthetic 181.0 BPM track -> Detected BPM: " << res181.bpm
+                  << ", Offset: " << res181.firstDownbeatSeconds << "s (expected 0.145s), conf: " << res181.confidence << "\n";
+        VERIFY_CHECK (res181.isValid);
+        VERIFY_CHECK (std::abs (res181.bpm - 181.0) <= 0.2);
+        VERIFY_CHECK (std::abs (res181.firstDownbeatSeconds - 0.145) <= 0.015);
+
+        auto track114 = makeFullBandGroove (114.0, 0.210, 32.0);
+        auto res114 = glorp::TempoDetector::detectTempo (track114, sr);
+        std::cout << "Synthetic 114.0 BPM track -> Detected BPM: " << res114.bpm
+                  << ", Offset: " << res114.firstDownbeatSeconds << "s (expected 0.210s), conf: " << res114.confidence << "\n";
+        VERIFY_CHECK (res114.isValid);
+        VERIFY_CHECK (std::abs (res114.bpm - 114.0) <= 0.2);
+        VERIFY_CHECK (std::abs (res114.firstDownbeatSeconds - 0.210) <= 0.015);
+
+        // Optional real-world MP3 benchmark if accessible in the current environment
+        const juce::File mp3_181 ("/home/servandoc/Documents/DRUM COVERS/No, Thank You/K-ON - No Thank You full.mp3");
+        if (mp3_181.existsAsFile())
+        {
+            glorp::BackingTrackPlayer bp;
+            bp.prepareToPlay (44100.0, 512);
+            if (bp.loadFile (mp3_181))
+            {
+                auto r = glorp::TempoDetector::detectTempo (bp.getDecodedBuffer(), 44100.0);
+                std::cout << "[Real Track 1] K-ON - No Thank You full.mp3 -> Detected BPM: " << r.bpm
+                          << " (expected ~181.0), First Downbeat: " << r.firstDownbeatSeconds
+                          << "s, Confidence: " << r.confidence << "\n";
+            }
+        }
+
+        const juce::File mp3_114 ("/home/servandoc/Music/misono - symphony with misono BEST/01 Starry Heavens ver.2013.mp3");
+        if (mp3_114.existsAsFile())
+        {
+            glorp::BackingTrackPlayer bp;
+            bp.prepareToPlay (44100.0, 512);
+            if (bp.loadFile (mp3_114))
+            {
+                auto r = glorp::TempoDetector::detectTempo (bp.getDecodedBuffer(), 44100.0);
+                std::cout << "[Real Track 2] 01 Starry Heavens ver.2013.mp3 -> Detected BPM: " << r.bpm
+                          << " (expected ~114.0), First Downbeat: " << r.firstDownbeatSeconds
+                          << "s, Confidence: " << r.confidence << "\n";
+            }
+        }
+
+        std::cout << "-> High-Precision TempoDetector 181 BPM & 114 BPM stress tests: PASSED!\n";
+    }
+
     processor.releaseResources();
 
     std::cout << "=== ALL VERIFICATIONS PASSED SUCCESSFULLY ===\n";

@@ -619,6 +619,8 @@ RecordPracticeView::RecordPracticeView (PluginProcessor& p)
 
         selectedSongDbIds.clear();
         setSongDatabaseModalOpen (false);
+        if (! processor.getBackingTrackPlayer().hasTrack() && ! db.getActiveSetlist().items.empty())
+            processor.getSetlistPlayer().selectSong (0);
         rebuildSetlistRowGeometries();
         repaint();
     };
@@ -686,45 +688,15 @@ void RecordPracticeView::loadTrackAndSyncDatabase (const juce::File& file, bool 
             foundIdx = db.addSongIdToActiveSetlist (entry.songId);
 
         if (foundIdx >= 0)
+        {
             processor.getSetlistPlayer().selectSong (foundIdx);
+            rebuildSetlistRowGeometries();
+            repaint();
+            return;
+        }
     }
 
-    if (entry.isConfigured)
-    {
-        // Song was already configured in a past session or setlist — restore immediately with zero re-setup!
-        syncUiFromSongEntry (entry, entry.bpm);
-    }
-    else
-    {
-        // Brand-new song: run automatic BPM & downbeat detection and save to SongDatabase on completion
-        isAnalyzing = true;
-        processor.getTempoWorker().startDetection (
-            trackPlayer.getDecodedBuffer(),
-            processor.getSampleRate(),
-            [this, file, durSec](const TempoDetector::Result& res)
-            {
-                isAnalyzing = false;
-                if (res.isValid)
-                {
-                    detectedBpm = res.bpm;
-                    bpmConfidence = res.confidence;
-                    processor.getMetronome().setBpm (detectedBpm);
-                    bpmEditor.setText (juce::String::formatted ("%.1f", detectedBpm), false);
-                    metronomeOffsetSec = std::max (0.0, res.firstDownbeatSeconds);
-                    processor.getMetronome().setGridOffset (metronomeOffsetSec);
-
-                    processor.getSongDatabase().updateSongConfig (
-                        file,
-                        detectedBpm,
-                        metronomeOffsetSec,
-                        beatsPerMeasure,
-                        processor.getBackingTrackPlayer().getLevel(),
-                        durSec);
-                }
-                repaint();
-            });
-    }
-
+    syncUiFromSongEntry (entry, entry.bpm);
     rebuildSetlistRowGeometries();
     repaint();
 }
@@ -767,6 +739,43 @@ void RecordPracticeView::syncUiFromSongEntry (const SongEntry& entry, double eff
     zoomFactor = 1.0f;
     viewStartSec = 0.0;
     resized();
+
+    auto& trackPlayer = processor.getBackingTrackPlayer();
+    if (! entry.isConfigured && trackPlayer.hasTrack())
+    {
+        const juce::File file = trackPlayer.getLoadedFile();
+        const double durSec = trackPlayer.getDurationSeconds();
+        isAnalyzing = true;
+        processor.getTempoWorker().startDetection (
+            trackPlayer.getDecodedBuffer(),
+            processor.getSampleRate(),
+            [this, file, durSec](const TempoDetector::Result& res)
+            {
+                isAnalyzing = false;
+                if (res.isValid)
+                {
+                    detectedBpm = res.bpm;
+                    bpmConfidence = res.confidence;
+                    processor.getMetronome().setBpm (detectedBpm);
+                    bpmEditor.setText (juce::String::formatted ("%.1f", detectedBpm), false);
+                    metronomeOffsetSec = std::max (0.0, res.firstDownbeatSeconds);
+                    processor.getMetronome().setGridOffset (metronomeOffsetSec);
+
+                    if (file.existsAsFile())
+                    {
+                        processor.getSongDatabase().updateSongConfig (
+                            file,
+                            detectedBpm,
+                            metronomeOffsetSec,
+                            beatsPerMeasure,
+                            processor.getBackingTrackPlayer().getLevel(),
+                            durSec);
+                    }
+                    rebuildSetlistRowGeometries();
+                }
+                repaint();
+            });
+    }
 }
 
 void RecordPracticeView::refreshSetlistSelectorLabel()

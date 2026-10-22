@@ -1,21 +1,246 @@
 /*
     TempoDetector.cpp - Smart tempo and beat detection algorithm for GlorpDrums.
+    Uses 3-band log spectral flux with local mean whitening, zero-mean fractional-lag
+    harmonic comb tempogram, active-window consensus, full-track pulse-train phase lock,
+    and bar-aware low-band downbeat alignment.
 */
 
 #include "TempoDetector.h"
 
 #include <algorithm>
 #include <cmath>
+#include <numeric>
 
 namespace glorp
 {
+
+namespace
+{
+    constexpr double kMinBpm = 55.0;
+    constexpr double kMaxBpm = 215.0;
+    constexpr double kBpmStep = 0.1;
+    constexpr int kNumBpmBins = static_cast<int> ((kMaxBpm - kMinBpm) / kBpmStep) + 1;
+
+    // Evaluate zero-mean normalized autocorrelation R(tau) at a continuous fractional lag tau.
+    // Also checks a narrow +/- 0.5 frame neighborhood so slightly jittered human drumming is captured.
+    inline float sampleFractionalAcf (const std::vector<float>& acf, double tau)
+    {
+        if (tau < 1.0 || acf.empty())
+            return 0.0f;
+
+        const int maxLag = static_cast<int> (acf.size()) - 1;
+        const int idx = static_cast<int> (std::floor (tau));
+        if (idx >= maxLag)
+            return 0.0f;
+
+        const float frac = static_cast<float> (tau - static_cast<double> (idx));
+        const float y1 = acf[static_cast<size_t> (idx)];
+        const float y2 = acf[static_cast<size_t> (std::min (maxLag, idx + 1))];
+        float interp = y1 * (1.0f - frac) + y2 * frac;
+
+        // Parabolic refinement if at a local peak
+        if (idx >= 1 && idx + 1 <= maxLag)
+        {
+            const float y0 = acf[static_cast<size_t> (idx - 1)];
+            const float y3 = acf[static_cast<size_t> (std::min (maxLag, idx + 2))];
+            // Catmull-Rom cubic interpolation for smooth fractional lag lookup
+            const float c0 = y1;
+            const float c1 = 0.5f * (y2 - y0);
+            const float c2 = y0 - 2.5f * y1 + 2.0f * y2 - 0.5f * y3;
+            const float c3 = 0.5f * (y3 - y0) + 1.5f * (y1 - y2);
+            const float cubic = ((c3 * frac + c2) * frac + c1) * frac + c0;
+            interp = std::max (interp, cubic);
+        }
+
+        return std::max (0.0f, interp);
+    }
+
+    // Compute zero-mean normalized autocorrelation R[0..maxLag] for a novelty slice.
+    std::vector<float> computeZeroMeanAcf (const float* data, size_t N, int maxLag, float& outRms)
+    {
+        outRms = 0.0f;
+        if (N < 16 || maxLag < 2)
+            return {};
+
+        double sum = 0.0;
+        for (size_t i = 0; i < N; ++i)
+            sum += static_cast<double> (data[i]);
+        const float mean = static_cast<float> (sum / static_cast<double> (N));
+
+        std::vector<float> zeroMean (N, 0.0f);
+        double varSum = 0.0;
+        for (size_t i = 0; i < N; ++i)
+        {
+            const float v = data[i] - mean;
+            zeroMean[i] = v;
+            varSum += static_cast<double> (v * v);
+        }
+
+        const float variance = static_cast<float> (varSum / static_cast<double> (N));
+        outRms = std::sqrt (variance);
+        if (variance < 1e-8f)
+            return {};
+
+        const int clampedMaxLag = std::min (maxLag, static_cast<int> (N) - 4);
+        if (clampedMaxLag < 2)
+            return {};
+
+        std::vector<float> acf (static_cast<size_t> (clampedMaxLag + 1), 0.0f);
+        acf[0] = 1.0f;
+
+        for (int lag = 1; lag <= clampedMaxLag; ++lag)
+        {
+            double cSum = 0.0;
+            const size_t count = N - static_cast<size_t> (lag);
+            for (size_t i = 0; i < count; ++i)
+                cSum += static_cast<double> (zeroMean[i] * zeroMean[i + static_cast<size_t> (lag)]);
+
+            const float normCov = static_cast<float> (cSum / static_cast<double> (count)) / variance;
+            acf[static_cast<size_t> (lag)] = normCov;
+        }
+
+        return acf;
+    }
+
+    // Compute the continuous Harmonic Comb Tempogram across [kMinBpm, kMaxBpm] in 0.1 BPM steps.
+    void accumulateCombSpectrum (const std::vector<float>& acf, double framesPerSec,
+                                 float weight, std::vector<float>& ioSpectrum)
+    {
+        if (acf.empty() || ioSpectrum.size() != static_cast<size_t> (kNumBpmBins))
+            return;
+
+        for (int bIdx = 0; bIdx < kNumBpmBins; ++bIdx)
+        {
+            const double bpm = kMinBpm + static_cast<double> (bIdx) * kBpmStep;
+            const double tau = (framesPerSec * 60.0) / bpm;
+
+            const float r1 = sampleFractionalAcf (acf, tau);
+            const float r2 = sampleFractionalAcf (acf, tau * 2.0);
+            const float r3 = sampleFractionalAcf (acf, tau * 3.0);
+            const float r4 = sampleFractionalAcf (acf, tau * 4.0);
+            const float rHalf = sampleFractionalAcf (acf, tau * 0.5);
+
+            // Multi-beat metric hierarchy reinforcement (1, 2, 3, 4 beats + 8th-note subdivision)
+            const float comb = 1.00f * r1
+                             + 0.52f * r2
+                             + 0.25f * r3
+                             + 0.42f * r4
+                             + 0.22f * rHalf;
+
+            // Gentle log-octave perceptual tempo prior centered at 128 BPM (width = 0.70 octaves)
+            const double logDist = std::log2 (bpm / 128.0) / 0.70;
+            const float prior = static_cast<float> (std::exp (-0.5 * logDist * logDist));
+
+            const float score = comb * (0.82f + 0.18f * prior);
+            ioSpectrum[static_cast<size_t> (bIdx)] += weight * score;
+        }
+    }
+
+    // Evaluate phase-coherent pulse train alignment for a candidate BPM over the full track.
+    // Folds the novelty envelope modulo the candidate beat period into a high-resolution phase histogram.
+    float evaluatePulseTrainScore (const std::vector<float>& novelty, double framesPerSec,
+                                   double candidateBpm, double* outBestPhaseFrames = nullptr)
+    {
+        if (novelty.empty() || candidateBpm <= 0.0)
+            return 0.0f;
+
+        const double periodFrames = (framesPerSec * 60.0) / candidateBpm;
+        if (periodFrames < 4.0)
+            return 0.0f;
+
+        constexpr int kNumPhaseBins = 64;
+        float hist[kNumPhaseBins] = { 0.0f };
+        float hitWeights[kNumPhaseBins] = { 0.0f };
+
+        const double invPeriod = 1.0 / periodFrames;
+        const size_t N = novelty.size();
+
+        for (size_t i = 0; i < N; ++i)
+        {
+            const float v = novelty[i];
+            if (v <= 0.01f)
+                continue;
+
+            const double normPhase = std::fmod (static_cast<double> (i) * invPeriod, 1.0);
+            const double binPos = normPhase * static_cast<double> (kNumPhaseBins);
+            const int b0 = static_cast<int> (binPos) & (kNumPhaseBins - 1);
+            const int b1 = (b0 + 1) & (kNumPhaseBins - 1);
+            const float frac = static_cast<float> (binPos - std::floor (binPos));
+
+            // Non-linear sharpening (v^1.3) rewards crisp transient alignment across many bars
+            const float sharpV = v * std::sqrt (v);
+            hist[b0] += sharpV * (1.0f - frac);
+            hist[b1] += sharpV * frac;
+            hitWeights[b0] += (1.0f - frac);
+            hitWeights[b1] += frac;
+        }
+
+        // Smooth 3-bin circular kernel to account for natural +/- 1 frame micro-timing
+        float smoothed[kNumPhaseBins] = { 0.0f };
+        double sumAll = 0.0;
+        for (int b = 0; b < kNumPhaseBins; ++b)
+        {
+            const int prev = (b - 1 + kNumPhaseBins) & (kNumPhaseBins - 1);
+            const int next = (b + 1) & (kNumPhaseBins - 1);
+            smoothed[b] = 0.25f * hist[prev] + 0.50f * hist[b] + 0.25f * hist[next];
+            sumAll += static_cast<double> (smoothed[b]);
+        }
+
+        const float meanVal = static_cast<float> (sumAll / static_cast<double> (kNumPhaseBins));
+        if (meanVal <= 1e-6f)
+            return 0.0f;
+
+        float bestScore = 0.0f;
+        int bestBin = 0;
+
+        for (int b = 0; b < kNumPhaseBins; ++b)
+        {
+            const int halfBin = (b + kNumPhaseBins / 2) & (kNumPhaseBins - 1);
+            const int quarter1 = (b + kNumPhaseBins / 4) & (kNumPhaseBins - 1);
+            const int quarter3 = (b + (3 * kNumPhaseBins) / 4) & (kNumPhaseBins - 1);
+
+            // Primary beat phase + 8th-note subdivision phase minus off-beat 16th floor
+            const float beatPeak = smoothed[b];
+            const float eighthPeak = smoothed[halfBin];
+            const float sixteenthFloor = 0.5f * (smoothed[quarter1] + smoothed[quarter3]);
+
+            const float score = (beatPeak + 0.30f * eighthPeak - 0.25f * sixteenthFloor) / meanVal;
+            if (score > bestScore)
+            {
+                bestScore = score;
+                bestBin = b;
+            }
+        }
+
+        if (outBestPhaseFrames != nullptr)
+        {
+            // Parabolic refinement of bestBin
+            const int prev = (bestBin - 1 + kNumPhaseBins) & (kNumPhaseBins - 1);
+            const int next = (bestBin + 1) & (kNumPhaseBins - 1);
+            const float y0 = smoothed[prev];
+            const float y1 = smoothed[bestBin];
+            const float y2 = smoothed[next];
+            const float denom = y0 - 2.0f * y1 + y2;
+            double refinedBin = static_cast<double> (bestBin);
+            if (std::abs (denom) > 1e-6f)
+                refinedBin += std::clamp (static_cast<double> (0.5f * (y0 - y2) / denom), -0.5, 0.5);
+
+            if (refinedBin < 0.0)
+                refinedBin += static_cast<double> (kNumPhaseBins);
+
+            *outBestPhaseFrames = (refinedBin / static_cast<double> (kNumPhaseBins)) * periodFrames;
+        }
+
+        return bestScore;
+    }
+} // namespace
 
 //==============================================================================
 TempoDetector::Result TempoDetector::detectTempo (const juce::AudioBuffer<float>& buffer, double sampleRate)
 {
     Result result;
 
-    if (buffer.getNumSamples() < 44100 || sampleRate <= 0.0)
+    if (buffer.getNumSamples() < static_cast<int> (sampleRate * 1.0) || sampleRate <= 0.0)
     {
         result.bpm = 120.0;
         result.confidence = 0.0f;
@@ -32,8 +257,11 @@ TempoDetector::Result TempoDetector::detectTempo (const juce::AudioBuffer<float>
         return result;
     }
 
-    const auto novelty = computeSpectralFlux (mono, analysisSampleRate, fftSize, hopSize);
-    if (novelty.size() < 30)
+    const auto noveltyData = computeMultiBandNovelty (mono, analysisSampleRate, fftSize, hopSize);
+    const auto& novelty = noveltyData.fullBand;
+    const auto& lowBandNovelty = noveltyData.lowBand;
+
+    if (novelty.size() < 40)
     {
         result.bpm = 120.0;
         result.confidence = 0.0f;
@@ -42,91 +270,27 @@ TempoDetector::Result TempoDetector::detectTempo (const juce::AudioBuffer<float>
     }
 
     const double framesPerSec = analysisSampleRate / static_cast<double> (hopSize);
-    const double totalSec = static_cast<double> (mono.size()) / analysisSampleRate;
-    double detectedBpm = 120.0;
     float confidence = 0.0f;
 
-    // For tracks >= 20 seconds, perform multi-window consensus analysis to isolate the main groove
-    // and prevent slow intros / breakdowns from distorting the overall song tempo.
-    if (totalSec >= 20.0)
-    {
-        const double windowSec = 10.0;
-        const double hopSec = 5.0;
-        const size_t windowFrames = static_cast<size_t> (windowSec * framesPerSec);
-        const size_t hopFrames = static_cast<size_t> (hopSec * framesPerSec);
+    // Stage 1: Coarse BPM estimation via Multi-Window + Global Fractional-Lag Harmonic Comb Tempogram
+    double detectedBpm = estimateBpmAutocorrelation (novelty, framesPerSec, confidence);
 
-        struct WindowBpm { double bpm; float conf; };
-        std::vector<WindowBpm> windowEstimates;
-
-        for (size_t startF = 0; startF + windowFrames <= novelty.size(); startF += hopFrames)
-        {
-            std::vector<float> winNovelty (novelty.begin() + static_cast<std::ptrdiff_t> (startF),
-                                           novelty.begin() + static_cast<std::ptrdiff_t> (startF + windowFrames));
-            float winConf = 0.0f;
-            double winBpm = estimateBpmAutocorrelation (winNovelty, framesPerSec, winConf);
-            if (winConf >= 0.20f)
-                windowEstimates.push_back ({ winBpm, winConf });
-        }
-
-        if (windowEstimates.size() >= 3)
-        {
-            // Cluster BPMs within +/- 2.5 BPM
-            struct Cluster { double sumBpm = 0.0; float totalWeight = 0.0f; int count = 0; };
-            std::vector<Cluster> clusters;
-
-            for (const auto& w : windowEstimates)
-            {
-                bool added = false;
-                for (auto& c : clusters)
-                {
-                    double avgBpm = c.sumBpm / static_cast<double> (c.count);
-                    if (std::abs (w.bpm - avgBpm) <= 2.5)
-                    {
-                        c.sumBpm += w.bpm;
-                        c.totalWeight += w.conf;
-                        c.count++;
-                        added = true;
-                        break;
-                    }
-                }
-                if (! added)
-                    clusters.push_back ({ w.bpm, w.conf, 1 });
-            }
-
-            auto bestCluster = std::max_element (clusters.begin(), clusters.end(),
-                [](const Cluster& a, const Cluster& b) { return a.totalWeight < b.totalWeight; });
-
-            if (bestCluster != clusters.end() && bestCluster->count > 0)
-            {
-                detectedBpm = bestCluster->sumBpm / static_cast<double> (bestCluster->count);
-                confidence = std::clamp (bestCluster->totalWeight / static_cast<float> (windowEstimates.size()), 0.0f, 1.0f);
-            }
-            else
-            {
-                detectedBpm = estimateBpmAutocorrelation (novelty, framesPerSec, confidence);
-            }
-        }
-        else
-        {
-            detectedBpm = estimateBpmAutocorrelation (novelty, framesPerSec, confidence);
-        }
-    }
-    else
-    {
-        detectedBpm = estimateBpmAutocorrelation (novelty, framesPerSec, confidence);
-    }
+    // Stage 2: Full-Track Phase-Coherent Pulse-Train Tempo Lock (0.02 BPM precision + DAW integer/.5 snap)
+    detectedBpm = refineBpmPulseTrain (novelty, framesPerSec, detectedBpm, confidence);
 
     result.bpm = std::clamp (std::round (detectedBpm * 10.0) / 10.0, 40.0, 240.0);
     result.confidence = std::clamp (confidence, 0.0f, 1.0f);
-    result.firstDownbeatSeconds = findFirstDownbeat (novelty, framesPerSec, result.bpm);
-    result.isValid = result.confidence >= 0.2f;
+
+    // Stage 3: Bar-aware Downbeat & Transient Attack Alignment
+    result.firstDownbeatSeconds = findFirstDownbeat (novelty, lowBandNovelty, framesPerSec, result.bpm);
+    result.isValid = result.confidence >= 0.05f;
 
     // Detect start beat (1, 2, 3, or 4) based on first strong onset relative to beat grid
     result.startBeat = 1;
     if (result.isValid && result.bpm > 0.0)
     {
         const double beatPeriodSec = 60.0 / result.bpm;
-        const size_t maxCheckFrames = std::min (novelty.size(), static_cast<size_t> (framesPerSec * 3.5));
+        const size_t maxCheckFrames = std::min (novelty.size(), static_cast<size_t> (framesPerSec * 4.0));
         const float peakThreshold = 0.25f;
         int firstOnsetFrame = -1;
 
@@ -151,7 +315,7 @@ TempoDetector::Result TempoDetector::detectTempo (const juce::AudioBuffer<float>
         }
     }
 
-    // Subsample onset envelope for UI rendering (e.g. ~1000 points max)
+    // Subsample onset envelope for UI rendering (~800 points max)
     const size_t maxUiPoints = 800;
     if (novelty.size() <= maxUiPoints)
     {
@@ -233,15 +397,16 @@ std::vector<float> TempoDetector::downsampleToMono (const juce::AudioBuffer<floa
 }
 
 //==============================================================================
-std::vector<float> TempoDetector::computeSpectralFlux (const std::vector<float>& audio,
-                                                       double /*sr*/, int frameSize, int hop)
+TempoDetector::NoveltyData TempoDetector::computeMultiBandNovelty (const std::vector<float>& audio,
+                                                                   double sr, int frameSize, int hop)
 {
+    NoveltyData out;
     const size_t numFrames = (audio.size() >= static_cast<size_t> (frameSize))
                                ? (audio.size() - static_cast<size_t> (frameSize)) / static_cast<size_t> (hop) + 1
                                : 0;
 
     if (numFrames == 0)
-        return {};
+        return out;
 
     // 9th order = 512 points
     juce::dsp::FFT fft (9);
@@ -249,17 +414,22 @@ std::vector<float> TempoDetector::computeSpectralFlux (const std::vector<float>&
     std::vector<float> window (static_cast<size_t> (frameSize));
     for (int i = 0; i < frameSize; ++i)
     {
-        // Hamming window
-        window[static_cast<size_t> (i)] = 0.54f - 0.46f * std::cos (2.0f * juce::MathConstants<float>::pi * static_cast<float> (i) / static_cast<float> (frameSize - 1));
+        // Hann window for clean spectral sidelobe suppression
+        window[static_cast<size_t> (i)] = 0.5f * (1.0f - std::cos (2.0f * juce::MathConstants<float>::pi * static_cast<float> (i) / static_cast<float> (frameSize - 1)));
     }
 
     const int numBins = frameSize / 2;
-    std::vector<float> prevMag (static_cast<size_t> (numBins), 0.0f);
-    std::vector<float> currMag (static_cast<size_t> (numBins), 0.0f);
-    std::vector<float> fftData (static_cast<size_t> (frameSize * 2), 0.0f);
-    std::vector<float> flux (numFrames, 0.0f);
+    const double binHz = sr / static_cast<double> (frameSize);
+    const int lowBinEnd = std::clamp (static_cast<int> (std::round (220.0 / binHz)), 2, numBins - 1);
+    const int midBinEnd = std::clamp (static_cast<int> (std::round (2500.0 / binHz)), lowBinEnd + 1, numBins - 1);
+    const int highBinEnd = std::clamp (static_cast<int> (std::round (9500.0 / binHz)), midBinEnd + 1, numBins);
 
-    float maxFlux = 1e-6f;
+    std::vector<float> prevLogMag (static_cast<size_t> (numBins), 0.0f);
+    std::vector<float> fftData (static_cast<size_t> (frameSize * 2), 0.0f);
+    std::vector<float> rawFlux (numFrames, 0.0f);
+    std::vector<float> rawLowFlux (numFrames, 0.0f);
+
+    constexpr float kLogGamma = 20.0f;
 
     for (size_t f = 0; f < numFrames; ++f)
     {
@@ -271,35 +441,96 @@ std::vector<float> TempoDetector::computeSpectralFlux (const std::vector<float>&
 
         fft.performRealOnlyForwardTransform (fftData.data());
 
-        float frameFlux = 0.0f;
-        for (int k = 1; k < numBins; ++k)
+        float lowFlux = 0.0f;
+        float midFlux = 0.0f;
+        float highFlux = 0.0f;
+
+        for (int k = 1; k < highBinEnd; ++k)
         {
             const float re = fftData[static_cast<size_t> (k * 2)];
             const float im = fftData[static_cast<size_t> (k * 2 + 1)];
             const float mag = std::sqrt (re * re + im * im);
-            currMag[static_cast<size_t> (k)] = mag;
+            const float logMag = std::log1p (kLogGamma * mag);
 
-            const float diff = mag - prevMag[static_cast<size_t> (k)];
+            const float diff = logMag - prevLogMag[static_cast<size_t> (k)];
+            prevLogMag[static_cast<size_t> (k)] = logMag;
+
             if (diff > 0.0f)
-                frameFlux += diff;
+            {
+                if (k <= lowBinEnd)
+                    lowFlux += diff;
+                else if (k <= midBinEnd)
+                    midFlux += diff;
+                else
+                    highFlux += diff;
+            }
         }
 
-        prevMag = currMag;
-        flux[f] = frameFlux;
-        if (frameFlux > maxFlux)
-            maxFlux = frameFlux;
+        // Normalize each band by its bin count so the 5 low-frequency kick/bass bins
+        // are not drowned out by 150 high-frequency bins
+        const float normLow = lowFlux / static_cast<float> ( std::max (1, lowBinEnd));
+        const float normMid = midFlux / static_cast<float> ( std::max (1, midBinEnd - lowBinEnd));
+        const float normHigh = highFlux / static_cast<float> ( std::max (1, highBinEnd - midBinEnd));
+
+        rawFlux[f] = 1.45f * normLow + 1.10f * normMid + 0.85f * normHigh;
+        rawLowFlux[f] = normLow;
     }
 
-    // Normalize flux
-    for (auto& v : flux)
-        v /= maxFlux;
+    auto whitenAndNormalize = [numFrames](const std::vector<float>& inFlux) -> std::vector<float>
+    {
+        std::vector<float> whitened (numFrames, 0.0f);
+        // Half-window of ~0.16s (28 frames at 172.27 fps) for adaptive local mean subtraction
+        const int halfWin = 28;
 
-    // Moving average smoothing over 3 frames
-    std::vector<float> smoothed = flux;
-    for (size_t i = 1; i + 1 < flux.size(); ++i)
-        smoothed[i] = (flux[i - 1] + flux[i] + flux[i + 1]) / 3.0f;
+        for (size_t i = 0; i < numFrames; ++i)
+        {
+            const size_t start = (i > static_cast<size_t> (halfWin)) ? (i - static_cast<size_t> (halfWin)) : 0;
+            const size_t end = std::min (numFrames - 1, i + static_cast<size_t> (halfWin));
+            float localSum = 0.0f;
+            for (size_t k = start; k <= end; ++k)
+                localSum += inFlux[k];
+            const float localMean = localSum / static_cast<float> (end - start + 1);
+            whitened[i] = std::max (0.0f, inFlux[i] - localMean * 1.05f);
+        }
 
-    return smoothed;
+        // 3-frame weighted smoothing [0.25, 0.50, 0.25]
+        std::vector<float> smoothed = whitened;
+        for (size_t i = 1; i + 1 < numFrames; ++i)
+            smoothed[i] = 0.25f * whitened[i - 1] + 0.50f * whitened[i] + 0.25f * whitened[i + 1];
+
+        // Robust 98th-percentile normalization so single loud crashes don't crush the envelope
+        std::vector<float> sortedNonZero;
+        sortedNonZero.reserve (numFrames);
+        for (float v : smoothed)
+            if (v > 1e-6f)
+                sortedNonZero.push_back (v);
+
+        float normScale = 1.0f;
+        if (! sortedNonZero.empty())
+        {
+            const size_t p98Idx = std::min (sortedNonZero.size() - 1, (sortedNonZero.size() * 98) / 100);
+            std::nth_element (sortedNonZero.begin(),
+                              sortedNonZero.begin() + static_cast<std::ptrdiff_t> (p98Idx),
+                              sortedNonZero.end());
+            normScale = std::max (1e-6f, sortedNonZero[p98Idx]);
+        }
+
+        for (auto& v : smoothed)
+            v = std::clamp (v / normScale, 0.0f, 1.25f);
+
+        return smoothed;
+    };
+
+    out.fullBand = whitenAndNormalize (rawFlux);
+    out.lowBand = whitenAndNormalize (rawLowFlux);
+    return out;
+}
+
+//==============================================================================
+std::vector<float> TempoDetector::computeSpectralFlux (const std::vector<float>& audio,
+                                                       double sr, int frameSize, int hop)
+{
+    return computeMultiBandNovelty (audio, sr, frameSize, hop).fullBand;
 }
 
 //==============================================================================
@@ -307,128 +538,337 @@ double TempoDetector::estimateBpmAutocorrelation (const std::vector<float>& nove
                                                   double framesPerSec, float& outConfidence)
 {
     const size_t N = novelty.size();
-    if (N < 20)
+    if (N < 30)
     {
         outConfidence = 0.0f;
         return 120.0;
     }
 
-    // Min and max lag corresponding to 45-240 BPM
-    const int minLag = std::max (4, static_cast<int> (std::floor (framesPerSec * 60.0 / 240.0)));
-    const int maxLag = std::min (static_cast<int> (N / 2), static_cast<int> (std::ceil (framesPerSec * 60.0 / 45.0)));
+    // Need up to 4x the lag of kMinBpm (55 BPM) for the 4-beat harmonic comb
+    const int maxCombLag = static_cast<int> (std::ceil ((framesPerSec * 60.0 / kMinBpm) * 4.1));
+    std::vector<float> globalSpectrum (static_cast<size_t> (kNumBpmBins), 0.0f);
 
-    if (minLag >= maxLag)
+    // 1. Multi-window accumulation (12s windows, 4s hop) for tracks >= 16s
+    const double totalSec = static_cast<double> (N) / framesPerSec;
+    int validWindows = 0;
+
+    if (totalSec >= 16.0)
+    {
+        const size_t winFrames = static_cast<size_t> (12.0 * framesPerSec);
+        const size_t hopFrames = static_cast<size_t> (4.0 * framesPerSec);
+
+        for (size_t startF = 0; startF + winFrames <= N; startF += hopFrames)
+        {
+            float winRms = 0.0f;
+            auto winAcf = computeZeroMeanAcf (novelty.data() + startF, winFrames, maxCombLag, winRms);
+            if (! winAcf.empty() && winRms >= 0.02f)
+            {
+                accumulateCombSpectrum (winAcf, framesPerSec, winRms, globalSpectrum);
+                ++validWindows;
+            }
+        }
+    }
+
+    // 2. Also accumulate full-track (or central 90s) zero-mean ACF for long-range stability
+    {
+        const size_t maxFullFrames = static_cast<size_t> (90.0 * framesPerSec);
+        const size_t startF = (N > maxFullFrames) ? (N - maxFullFrames) / 2 : 0;
+        const size_t lenF = std::min (N, maxFullFrames);
+
+        float fullRms = 0.0f;
+        auto fullAcf = computeZeroMeanAcf (novelty.data() + startF, lenF, maxCombLag, fullRms);
+        if (! fullAcf.empty())
+        {
+            const float fullWeight = (validWindows > 0) ? (fullRms * static_cast<float> (validWindows) * 0.35f) : 1.0f;
+            accumulateCombSpectrum (fullAcf, framesPerSec, fullWeight, globalSpectrum);
+        }
+    }
+
+    // Find peak in the accumulated Harmonic Comb Tempogram
+    int bestBin = 0;
+    float maxScore = -1.0f;
+    double sumScore = 0.0;
+
+    for (int i = 0; i < kNumBpmBins; ++i)
+    {
+        const float s = globalSpectrum[static_cast<size_t> (i)];
+        sumScore += static_cast<double> (std::max (0.0f, s));
+        if (s > maxScore)
+        {
+            maxScore = s;
+            bestBin = i;
+        }
+    }
+
+    if (maxScore <= 1e-6f)
     {
         outConfidence = 0.0f;
         return 120.0;
     }
 
-    std::vector<float> acf (static_cast<size_t> (maxLag + 1), 0.0f);
-    float maxAcf = 0.0f;
-    int bestLag = minLag;
+    double bestBpm = kMinBpm + static_cast<double> (bestBin) * kBpmStep;
 
-    for (int lag = minLag; lag <= maxLag; ++lag)
+    // Helper to query spectrum value around a BPM (taking max in +/- 0.8 BPM neighborhood)
+    auto querySpectrumPeak = [&](double targetBpm, double* outPeakBpm = nullptr) -> float
     {
-        float sum = 0.0f;
-        int count = 0;
-        for (size_t i = 0; i + static_cast<size_t> (lag) < N; ++i)
+        if (targetBpm < kMinBpm || targetBpm > kMaxBpm)
+            return 0.0f;
+
+        const int centerIdx = static_cast<int> (std::round ((targetBpm - kMinBpm) / kBpmStep));
+        const int radius = 8; // +/- 0.8 BPM
+        float peakVal = 0.0f;
+        int peakIdx = centerIdx;
+
+        for (int idx = std::max (0, centerIdx - radius); idx <= std::min (kNumBpmBins - 1, centerIdx + radius); ++idx)
         {
-            sum += novelty[i] * novelty[i + static_cast<size_t> (lag)];
-            ++count;
+            if (globalSpectrum[static_cast<size_t> (idx)] > peakVal)
+            {
+                peakVal = globalSpectrum[static_cast<size_t> (idx)];
+                peakIdx = idx;
+            }
         }
+        if (outPeakBpm != nullptr)
+            *outPeakBpm = kMinBpm + static_cast<double> (peakIdx) * kBpmStep;
+        return peakVal;
+    };
 
-        if (count > 0)
-            sum /= static_cast<float> (count);
+    // Octave disambiguation:
+    // Case A: If a slow half-time tempo (55..104 BPM, e.g. 90.5 BPM for 181 BPM or 57 BPM for 114 BPM) won,
+    // check if double-time (2x BPM) has strong harmonic support.
+    if (bestBpm <= 104.0 && (bestBpm * 2.0) <= kMaxBpm)
+    {
+        double doubleBpmPeak = bestBpm * 2.0;
+        const float doubleScore = querySpectrumPeak (bestBpm * 2.0, &doubleBpmPeak);
 
-        // Broad, neutral tempo prior (centered around 125 BPM with 95 BPM width, only 15% weight)
-        // This avoids penalizing fast rock tempos (~181 BPM) or slow grooves (~90 BPM)
-        const double candidateBpm = (framesPerSec * 60.0) / static_cast<double> (lag);
-        const double priorWeight = std::exp (-std::pow ((candidateBpm - 125.0) / 95.0, 2.0) * 0.5);
+        // Also check pulse-train coherence at 1x vs 2x
+        const float pt1 = evaluatePulseTrainScore (novelty, framesPerSec, bestBpm);
+        const float pt2 = evaluatePulseTrainScore (novelty, framesPerSec, doubleBpmPeak);
 
-        const float weighted = sum * static_cast<float> (0.85 + 0.15 * priorWeight);
-        acf[static_cast<size_t> (lag)] = weighted;
-
-        if (weighted > maxAcf)
-        {
-            maxAcf = weighted;
-            bestLag = lag;
-        }
+        if (doubleScore >= maxScore * 0.72f || (doubleScore >= maxScore * 0.58f && pt2 >= pt1 * 0.88f))
+            bestBpm = doubleBpmPeak;
+    }
+    // Case B: If a very fast double-time tempo (> 195 BPM) won, check if half-time (0.5x BPM) is stronger
+    else if (bestBpm >= 195.0 && (bestBpm * 0.5) >= 85.0)
+    {
+        double halfBpmPeak = bestBpm * 0.5;
+        const float halfScore = querySpectrumPeak (bestBpm * 0.5, &halfBpmPeak);
+        if (halfScore >= maxScore * 0.90f)
+            bestBpm = halfBpmPeak;
     }
 
-    // Harmonic octave disambiguation:
-    // If a double-period lag (half BPM) was chosen, check if the fundamental period (double BPM)
-    // is also a strong peak (e.g. >= 75% strength). If so, prefer the natural fast groove.
-    const int halfLag = bestLag / 2;
-    if (halfLag >= minLag)
-    {
-        const float halfAcf = acf[static_cast<size_t> (halfLag)];
-        if (halfAcf >= maxAcf * 0.75f)
-            bestLag = halfLag;
-    }
+    const float meanScore = static_cast<float> (sumScore / static_cast<double> (kNumBpmBins));
+    outConfidence = std::clamp ((maxScore - meanScore) / std::max (1e-5f, maxScore), 0.1f, 1.0f);
 
-    // Parabolic interpolation for sub-lag accuracy
-    double refinedLag = static_cast<double> (bestLag);
-    if (bestLag > minLag && bestLag < maxLag)
-    {
-        const float y0 = acf[static_cast<size_t> (bestLag - 1)];
-        const float y1 = acf[static_cast<size_t> (bestLag)];
-        const float y2 = acf[static_cast<size_t> (bestLag + 1)];
-        const float denom = (y0 - 2.0f * y1 + y2);
-        if (std::abs (denom) > 1e-6f)
-        {
-            const float delta = 0.5f * (y0 - y2) / denom;
-            refinedLag += std::clamp (static_cast<double> (delta), -0.5, 0.5);
-        }
-    }
-
-    // Compute average floor of ACF for confidence metric
-    float meanAcf = 0.0f;
-    for (int lag = minLag; lag <= maxLag; ++lag)
-        meanAcf += acf[static_cast<size_t> (lag)];
-    meanAcf /= static_cast<float> (maxLag - minLag + 1);
-
-    outConfidence = (maxAcf > 1e-4f) ? std::clamp ((maxAcf - meanAcf) / maxAcf, 0.0f, 1.0f) : 0.0f;
-
-    return (framesPerSec * 60.0) / refinedLag;
+    return bestBpm;
 }
 
 //==============================================================================
-double TempoDetector::findFirstDownbeat (const std::vector<float>& novelty, double framesPerSec, double bpm)
+double TempoDetector::refineBpmPulseTrain (const std::vector<float>& novelty,
+                                           double framesPerSec, double coarseBpm, float& ioConfidence)
 {
-    if (novelty.empty() || bpm <= 0.0)
-        return 0.0;
+    if (novelty.size() < 40 || coarseBpm <= 0.0)
+        return coarseBpm;
 
-    const double beatPeriodFrames = framesPerSec * 60.0 / bpm;
-    const int searchRange = std::min (static_cast<int> (novelty.size()), static_cast<int> (beatPeriodFrames * 2.0));
+    const double minSweep = std::max (40.0, coarseBpm - 1.6);
+    const double maxSweep = std::min (240.0, coarseBpm + 1.6);
+    const double step = 0.02;
 
-    float maxEnergy = -1.0f;
-    int bestOffset = 0;
+    double bestBpm = coarseBpm;
+    float bestScore = -1.0f;
 
-    // Cross-correlate candidate phases
-    for (int offset = 0; offset < searchRange; ++offset)
+    for (double cand = minSweep; cand <= maxSweep + 1e-6; cand += step)
     {
-        float energy = 0.0f;
-        int hits = 0;
-        for (double pos = static_cast<double> (offset); pos < static_cast<double> (novelty.size()); pos += beatPeriodFrames)
-        {
-            const size_t idx = static_cast<size_t> (std::round (pos));
-            if (idx < novelty.size())
-            {
-                energy += novelty[idx];
-                ++hits;
-            }
-        }
-        if (hits > 0)
-            energy /= static_cast<float> (hits);
+        // Slight Gaussian proximity weight toward coarseBpm so distant side-lobes don't hijack short clips
+        const double dist = (cand - coarseBpm) / 1.4;
+        const float proxWeight = static_cast<float> (1.0 - 0.04 * dist * dist);
+        const float rawScore = evaluatePulseTrainScore (novelty, framesPerSec, cand);
+        const float weighted = rawScore * proxWeight;
 
-        if (energy > maxEnergy)
+        if (weighted > bestScore)
         {
-            maxEnergy = energy;
-            bestOffset = offset;
+            bestScore = weighted;
+            bestBpm = cand;
         }
     }
 
-    return static_cast<double> (bestOffset) / framesPerSec;
+    // Check DAW grid snapping: almost all recorded backing tracks use an exact integer BPM (or .5 BPM).
+    // If the nearest integer BPM is within 0.55 BPM of bestBpm and achieves >= 96.5% of the peak pulse-train score,
+    // lock to the exact integer BPM.
+    const double nearestIntBpm = std::round (bestBpm);
+    if (std::abs (bestBpm - nearestIntBpm) <= 0.55)
+    {
+        const float intScore = evaluatePulseTrainScore (novelty, framesPerSec, nearestIntBpm);
+        const float rawBestScore = evaluatePulseTrainScore (novelty, framesPerSec, bestBpm);
+        if (intScore >= rawBestScore * 0.965f)
+            bestBpm = nearestIntBpm;
+    }
+    else
+    {
+        const double nearestHalfBpm = std::round (bestBpm * 2.0) / 2.0;
+        if (std::abs (bestBpm - nearestHalfBpm) <= 0.25)
+        {
+            const float halfScore = evaluatePulseTrainScore (novelty, framesPerSec, nearestHalfBpm);
+            const float rawBestScore = evaluatePulseTrainScore (novelty, framesPerSec, bestBpm);
+            if (halfScore >= rawBestScore * 0.97f)
+                bestBpm = nearestHalfBpm;
+        }
+    }
+
+    if (bestScore > 1.2f)
+        ioConfidence = std::clamp ( std::max (ioConfidence, std::min (1.0f, (bestScore - 1.0f) / 2.5f)), 0.1f, 1.0f);
+
+    return bestBpm;
+}
+
+//==============================================================================
+double TempoDetector::findFirstDownbeat (const std::vector<float>& novelty,
+                                         const std::vector<float>& lowBandNovelty,
+                                         double framesPerSec, double bpm)
+{
+    if (novelty.empty() || bpm <= 0.0 || framesPerSec <= 0.0)
+        return 0.0;
+
+    const double beatPeriodFrames = (framesPerSec * 60.0) / bpm;
+    if (beatPeriodFrames < 2.0)
+        return 0.0;
+
+    // 1. Find the first strong musical attack after any leading silence
+    size_t firstActiveFrame = 0;
+    const size_t maxIntroCheck = std::min (novelty.size(), static_cast<size_t> (framesPerSec * 15.0));
+    float introPeak = 0.0f;
+    for (size_t i = 0; i < std::min (novelty.size(), static_cast<size_t> (framesPerSec * 5.0)); ++i)
+        introPeak = std::max (introPeak, novelty[i]);
+
+    const float onsetThresh = std::max (0.18f, introPeak * 0.30f);
+    for (size_t i = 0; i < maxIntroCheck; ++i)
+    {
+        if (novelty[i] >= onsetThresh)
+        {
+            firstActiveFrame = i;
+            break;
+        }
+    }
+
+    // 2. Find optimal beat phase phi in [0, beatPeriodFrames) using the first 45 seconds of active music
+    const size_t phaseAnalysisEnd = std::min (novelty.size(), firstActiveFrame + static_cast<size_t> (framesPerSec * 45.0));
+    std::vector<float> earlyNovelty (novelty.begin() + static_cast<std::ptrdiff_t> (firstActiveFrame),
+                                     novelty.begin() + static_cast<std::ptrdiff_t> (phaseAnalysisEnd));
+
+    double localPhaseFrames = 0.0;
+    if (earlyNovelty.size() >= static_cast<size_t> (beatPeriodFrames * 4.0))
+    {
+        evaluatePulseTrainScore (earlyNovelty, framesPerSec, bpm, &localPhaseFrames);
+    }
+    else
+    {
+        evaluatePulseTrainScore (novelty, framesPerSec, bpm, &localPhaseFrames);
+        firstActiveFrame = 0;
+    }
+
+    // Convert localPhaseFrames back to global frame coordinates
+    double baseGridFrame = static_cast<double> (firstActiveFrame) + localPhaseFrames;
+    while (baseGridFrame - beatPeriodFrames >= static_cast<double> (firstActiveFrame) - 2.0)
+        baseGridFrame -= beatPeriodFrames;
+
+    // 3. Disambiguate which of the 4 beats in a 4/4 bar is Beat 1 (the true downbeat)
+    // using low-frequency (kick/bass) energy + full-band accent weight + intro attack alignment.
+    double bestBarFrame = baseGridFrame;
+    float bestBarScore = -1.0f;
+
+    for (int barBeat = 0; barBeat < 4; ++barBeat)
+    {
+        const double candidateStart = baseGridFrame + static_cast<double> (barBeat) * beatPeriodFrames;
+        const double barPeriodFrames = beatPeriodFrames * 4.0;
+
+        float barEnergy = 0.0f;
+        int barCount = 0;
+
+        for (double pos = candidateStart; pos < static_cast<double> (phaseAnalysisEnd); pos += barPeriodFrames)
+        {
+            const int centerIdx = static_cast<int> (std::round (pos));
+            if (centerIdx >= 0 && centerIdx < static_cast<int> (novelty.size()))
+            {
+                // Peak within +/- 1 frame
+                float fPeak = novelty[static_cast<size_t> (centerIdx)];
+                float lPeak = (centerIdx < static_cast<int> (lowBandNovelty.size()))
+                                ? lowBandNovelty[static_cast<size_t> (centerIdx)] : 0.0f;
+
+                if (centerIdx > 0)
+                {
+                    fPeak = std::max (fPeak, novelty[static_cast<size_t> (centerIdx - 1)]);
+                    if (centerIdx - 1 < static_cast<int> (lowBandNovelty.size()))
+                        lPeak = std::max (lPeak, lowBandNovelty[static_cast<size_t> (centerIdx - 1)]);
+                }
+                if (centerIdx + 1 < static_cast<int> (novelty.size()))
+                {
+                    fPeak = std::max (fPeak, novelty[static_cast<size_t> (centerIdx + 1)]);
+                    if (centerIdx + 1 < static_cast<int> (lowBandNovelty.size()))
+                        lPeak = std::max (lPeak, lowBandNovelty[static_cast<size_t> (centerIdx + 1)]);
+                }
+
+                barEnergy += fPeak + 0.65f * lPeak;
+                ++barCount;
+            }
+        }
+
+        if (barCount > 0)
+            barEnergy /= static_cast<float> (barCount);
+
+        // Bonus if this bar phase lands right on the first active musical attack
+        const double distToFirstOnset = std::abs (candidateStart - static_cast<double> (firstActiveFrame));
+        if (distToFirstOnset <= 2.5)
+            barEnergy *= 1.18f;
+
+        if (barEnergy > bestBarScore)
+        {
+            bestBarScore = barEnergy;
+            bestBarFrame = candidateStart;
+        }
+    }
+
+    // Fold bestBarFrame back to the earliest beat grid position at or after frame 0
+    // (or at firstActiveFrame if there is leading silence > 1 beat)
+    const double minTargetFrame = (firstActiveFrame > static_cast<size_t> (beatPeriodFrames * 0.85))
+                                    ? std::max (0.0, static_cast<double> (firstActiveFrame) - 2.0)
+                                    : 0.0;
+
+    while (bestBarFrame - beatPeriodFrames >= minTargetFrame)
+        bestBarFrame -= beatPeriodFrames;
+
+    // 4. Local transient peak refinement (+/- 2 frames = +/- 11.6 ms) so the click aligns
+    // with the exact physical transient attack if an onset is present at bestBarFrame
+    const int centerFrame = static_cast<int> (std::round (bestBarFrame));
+    int peakFrame = centerFrame;
+    float localMax = -1.0f;
+    for (int f = std::max (0, centerFrame - 2); f <= std::min (static_cast<int> (novelty.size()) - 1, centerFrame + 2); ++f)
+    {
+        if (novelty[static_cast<size_t> (f)] > localMax)
+        {
+            localMax = novelty[static_cast<size_t> (f)];
+            peakFrame = f;
+        }
+    }
+
+    double refinedFrame = bestBarFrame;
+    if (localMax >= 0.20f)
+    {
+        // Blend 65% global phase grid + 35% local transient peak (with parabolic sub-frame interpolation)
+        double subPeak = static_cast<double> (peakFrame);
+        if (peakFrame > 0 && peakFrame + 1 < static_cast<int> (novelty.size()))
+        {
+            const float y0 = novelty[static_cast<size_t> (peakFrame - 1)];
+            const float y1 = novelty[static_cast<size_t> (peakFrame)];
+            const float y2 = novelty[static_cast<size_t> (peakFrame + 1)];
+            const float denom = y0 - 2.0f * y1 + y2;
+            if (std::abs (denom) > 1e-5f)
+                subPeak += std::clamp (static_cast<double> (0.5f * (y0 - y2) / denom), -0.5, 0.5);
+        }
+        refinedFrame = 0.65 * bestBarFrame + 0.35 * subPeak;
+    }
+
+    // Compensate for the STFT Hann window center group delay (fftSize / 2 samples = 2.0 frames at hopSize=128)
+    const double stftGroupDelayFrames = static_cast<double> (fftSize) / static_cast<double> (2 * hopSize);
+    return std::max (0.0, (refinedFrame + stftGroupDelayFrames) / framesPerSec);
 }
 
 //==============================================================================

@@ -69,11 +69,20 @@ public:
 
     static constexpr double analysisSampleRate = 22050.0;
     static constexpr int fftSize = 512;
-    static constexpr int hopSize = 256;
+    static constexpr int hopSize = 128;
 
 private:
+    struct NoveltyData
+    {
+        std::vector<float> fullBand;
+        std::vector<float> lowBand;
+    };
+
     static std::vector<float> downsampleToMono (const juce::AudioBuffer<float>& buffer,
                                                 double inputSampleRate, double targetSampleRate);
+
+    static NoveltyData computeMultiBandNovelty (const std::vector<float>& monoAudio,
+                                                double sampleRate, int frameSize, int hopSize);
 
     static std::vector<float> computeSpectralFlux (const std::vector<float>& monoAudio,
                                                    double sampleRate, int frameSize, int hopSize);
@@ -81,7 +90,12 @@ private:
     static double estimateBpmAutocorrelation (const std::vector<float>& novelty,
                                               double framesPerSec, float& outConfidence);
 
-    static double findFirstDownbeat (const std::vector<float>& novelty, double framesPerSec, double bpm);
+    static double refineBpmPulseTrain (const std::vector<float>& novelty,
+                                       double framesPerSec, double coarseBpm, float& ioConfidence);
+
+    static double findFirstDownbeat (const std::vector<float>& novelty,
+                                     const std::vector<float>& lowBandNovelty,
+                                     double framesPerSec, double bpm);
 };
 
 } // namespace glorp
