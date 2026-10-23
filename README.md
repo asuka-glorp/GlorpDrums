@@ -163,6 +163,40 @@ GlorpDrums provides studio-grade acoustic bleed control to bridge the gap betwee
 
 ---
 
+### 🥁 Standalone GlorpKit Studio (`GlorpKitEditor`) & `.glorpkit` v2.0 Format
+GlorpDrums includes **GlorpKit Studio** (`GlorpKitEditor`), a dedicated standalone visual creator and editor for `.glorpkit` v2.0 packages bundled directly within the repository:
+
+![GlorpKit Studio Light Sketch Mode](docs/kit_editor_light.png)
+
+<details>
+<summary><b>View GlorpKit Studio Dark Mode & Guided Tutorial Overlay</b></summary>
+
+![GlorpKit Studio Dark Mode with Custom Slime Green Glow](docs/kit_editor_dark.png)
+
+![GlorpKit Studio Guided Tutorial Tour](docs/kit_editor_tutorial.png)
+
+</details>
+
+* **5-Panel Studio Workflow**:
+  * **Top Header**: Kit Title, Author, Sample Rate selector, Dark/Sketch Theme toggle, kit-wide **Hit Glow Color** palette picker, and **? Tour** guided tutorial button.
+  * **Left Z-Layer Stack & Mic Buses**: Reorder visual piece depth on stage with tactile `^` / `v` buttons, Front / Back shortcuts, or drag-and-drop, plus an active microphone bus manager (`+ Add Mic`, level calibration, and channel count).
+  * **Center-Top 2D Stage Canvas**: True WYSIWYG drum kit stage. Click and drag pieces to arrange their position on stage, drag the bottom-right corner handle to resize, and strike any drum piece with the mouse or MIDI keyboard to audition sounds with instant physics squash and glowing radiant halo flashes.
+  * **Center-Bottom Articulation Zones & Velocity Matrix**: Switch between articulation zones (Head, Rimshot, RimClick, Bow, Bell, Edge, Choke, Pedal Chick) and visualize multi-velocity layers (`power: 0.0 - 1.0`) across round-robin columns (`RR1`, `RR2`, `RR3`, `RR4`). Features **RMS Auto-Power** analysis to calculate velocity layer boundaries automatically from audio sample waveforms.
+  * **Right Piece & Zone Inspector**: Load custom PNG artwork per piece (with live PNG dimensions and alpha channel transparency check), configure General MIDI note triggers, set zone choke groups (e.g., Hi-Hat choking itself, cymbal chokes), and inspect multi-mic WAV sample assignments.
+* **`.glorpkit` v2.0 Specification**:
+  * **Embedded PNG Assets (`assets/<piece>.png`)**: Embed custom hand-drawn sprites or realistic photos directly within the `.glorpkit` package alongside audio samples.
+  * **Custom 2D Stage Layout & Z-Ordering**: Saves normalized stage coordinates (`norm-x`, `norm-y`, `norm-w`) and depth order (`z-order`) into `kit.xml` and `instruments/<piece>/instrument.xml`. When opened in the main GlorpDrums plugin or standalone app, `DrumKitView` renders the custom sprites at their exact stage positions with automatic dark-mode ink contours and hit glows!
+  * **Kit-Wide Hit Glow Customization (`hit-glow-color`)**: Customize the radiant strike flash color across the entire kit (e.g. Classic Orange `#FF8200`, Toxic Slime Green `#2ECC71`, Cyberpunk Cyan `#00E5FF`, Electric Purple `#9B51E0`, Hot Pink `#FF2A6D`, Sunlight Yellow `#F1C40F`, Ghost White `#FFFFFF`), saved into `kit.xml` and rendered in both the editor and GlorpDrums.
+  * **Zero-Copy C++ PKZIP Engine (`GlorpKitWriter`)**: Exports uncompressed (`ZIP_STORED`, method 0, IEEE 802.3 CRC-32, ZIP64) packages with zero external dependencies, allowing `SampleCache` to memory-map audio with zero disk decompression.
+* **Lossless Round-Trip Kit Editing & DrumGizmo Import**:
+  * Open any existing `.glorpkit` archive to modify layers, zones, PNG graphics, or stage positions and save it back out losslessly.
+  * Import legacy DrumGizmo `drumkit.xml` folders to package thousands of loose WAV files into a single optimized `.glorpkit` v2.0 file.
+* **First-Time Guided Interactive Tutorial**:
+  * Automatically welcomes first-time creators with a 5-step interactive spotlight overlay explaining the Z-layer stack, 2D stage canvas, velocity layer matrix, piece inspector, and zero-copy export.
+  * Re-open the tutorial at any time by clicking the **? Tour** button in the top header. Preferences are saved persistently to `~/.config/GlorpDrums/kit_editor_settings.xml`.
+
+---
+
 ## E-Drum Calibration & Setup Wizard
 
 GlorpDrums is purpose-built for electronic drum kits. An integrated **E-Drum Setup Wizard** calibrates pads, cymbals, and pedals in seconds:
@@ -191,9 +225,9 @@ GlorpDrums is actively developed following an ambitious multi-phase roadmap:
 * [x] **Phase 6 — Set Lists & Persistent Song Database**:
   * **Setlist Playlist Mode**: Import and order multiple backing tracks in the Practice Suite that play sequentially with automatic, sample-accurate count-in transitions and background standby track preloading between songs.
   * **Persistent Song Library Database (`song_library.xml`) & `+ Song DB` Modal**: Automatically remembers configured BPM, Beat-1 grid offset, time signature, duration, and volume level for every imported track across sessions and future setlists without requiring re-setup.
-* [ ] **Phase 7 — Standalone `.glorpkit` Studio & Format v2**:
-  * **GlorpKit Format v2**: Expanded `.glorpkit` archive specification supporting embedded custom per-piece PNG artwork (`assets/*.png`), normalized canvas coordinates, and customizable Z-order layering.
-  * **Standalone Graphical Kit Editor (`GlorpKitStudio`)**: Bundled desktop application built alongside GlorpDrums for creating and editing `.glorpkit` archives—featuring WYSIWYG piece positioning and Z-layer stacking, velocity layer & round-robin sample matrices, multi-zone articulation mapping, live audio auditioning, and lossless round-trip editing of existing `.glorpkit` files.
+* [x] **Phase 7 — Standalone GlorpKit Studio (`GlorpKitEditor`) & Format v2**:
+  * **GlorpKit Format v2**: Expanded `.glorpkit` archive specification supporting embedded custom per-piece PNG artwork (`assets/*.png`), normalized canvas coordinates (`norm-x`, `norm-y`, `norm-w`), kit-wide hit glow color (`hit-glow-color`), and customizable Z-order layering (`z-order`).
+  * **Standalone Graphical Kit Editor (`GlorpKitEditor`)**: Dedicated desktop application built and packaged alongside GlorpDrums for creating and editing `.glorpkit` archives—featuring WYSIWYG 2D piece dragging and resizing, Z-layer stacking, velocity layer & round-robin sample matrices, multi-zone articulation mapping, customizable hit glow palette, interactive first-time guided tutorial tour, live audio auditioning, and lossless round-trip editing of existing `.glorpkit` files and DrumGizmo XML folders.
 * [ ] **Phase 8 — Cross-Platform Port (Windows & macOS)**:
   * Port standalone applications and plugin formats (VST3 and CLAP) to **Windows 10/11** with low-latency ASIO and WASAPI audio driver support.
   * Port standalone applications and plugin formats (VST3, CLAP, and **AU / Audio Unit**) to **macOS** with CoreAudio and CoreMIDI support.
@@ -233,10 +267,11 @@ GlorpDrums supports **ALSA**, **JACK**, and **PipeWire** (via PipeWire-JACK or P
    cmake --build build --config Release -j$(nproc)
    ```
 
-Outputs in `build/GlorpDrums_artefacts/Release/`:
-* `Standalone/GlorpDrums` — Standalone executable
-* `VST3/GlorpDrums.vst3` — VST3 plugin bundle
-* `LV2/GlorpDrums.lv2` — LV2 plugin bundle
+Outputs in `build/`:
+* `GlorpDrums_artefacts/Release/Standalone/GlorpDrums` — Main standalone drum plugin & host application
+* `GlorpDrums_artefacts/Release/VST3/GlorpDrums.vst3` — VST3 plugin bundle
+* `GlorpDrums_artefacts/Release/LV2/GlorpDrums.lv2` — LV2 plugin bundle
+* `GlorpKitEditor_artefacts/Release/GlorpKitEditor` — Standalone GlorpKit Studio graphical kit editor application
 
 ### Installation
 

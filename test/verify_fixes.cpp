@@ -2,6 +2,9 @@
 #include "Editor.h"
 #include "Sampler.h"
 #include "PluginProcessor.h"
+#include "GlorpKitWriter.h"
+#include "GlorpKitProject.h"
+#include "GlorpKitEditorWindow.h"
 #include <iostream>
 #include <cassert>
 
@@ -945,6 +948,146 @@ int main()
         }
 
         std::cout << "-> High-Precision TempoDetector 181 BPM & 114 BPM stress tests: PASSED!\n";
+    }
+
+    // 16. Verify Phase 7: .glorpkit v2.0 Writer/Reader, Custom PNG Assets, Hit Glow Color, Z-Order & GlorpKitEditor UI
+    std::cout << "Testing Phase 7 .glorpkit v2.0 format, Custom PNGs, Hit Glow Color, Z-Layering & GlorpKitEditor UI...\n";
+    {
+        auto tempDir = juce::File::getSpecialLocation (juce::File::tempDirectory).getChildFile ("glorp_phase7_test");
+        tempDir.deleteRecursively();
+        tempDir.createDirectory();
+
+        // Create a test PNG image in memory
+        juce::Image customSnarePng (juce::Image::ARGB, 96, 96, true);
+        {
+            juce::Graphics gg (customSnarePng);
+            gg.setColour (juce::Colour (0xff2ecc71));
+            gg.fillEllipse (8.0f, 8.0f, 80.0f, 80.0f);
+            gg.setColour (juce::Colours::black);
+            gg.drawEllipse (8.0f, 8.0f, 80.0f, 80.0f, 3.0f);
+        }
+        juce::MemoryOutputStream pngOut;
+        juce::PNGImageFormat pngFmt;
+        pngFmt.writeImageToStream (customSnarePng, pngOut);
+        const auto* pngPtr = static_cast<const uint8_t*> (pngOut.getData());
+        std::vector<uint8_t> pngBytes (pngPtr, pngPtr + pngOut.getDataSize());
+        VERIFY_CHECK (pngBytes.size() > 32);
+
+        // Build a v2.0 project in GlorpKitProject
+        glorp::GlorpKitProject proj;
+        proj.createNewDefaultKit();
+        proj.setTitle ("Custom Studio Kit v2");
+        proj.setHitGlowColor ("#2ecc71");
+
+        // Customize Snare piece (index 4): custom position, width, Z-order, and embedded PNG
+        auto& snarePiece = proj.getPieces()[4];
+        snarePiece.normX  = -210.5f;
+        snarePiece.normY  = -262.0f;
+        snarePiece.normW  = 188.0f;
+        snarePiece.zOrder = 95;
+        snarePiece.customPngBytes = pngBytes;
+
+        // Export to a .glorpkit v2.0 archive
+        const auto outGlorpKit = tempDir.getChildFile ("custom_v2_test.glorpkit");
+        std::string exportErr;
+        bool exported = proj.exportToGlorpKit (outGlorpKit.getFullPathName().toStdString(), exportErr);
+        if (! exported)
+            std::cerr << "Export error: " << exportErr << "\n";
+        VERIFY_CHECK (exported);
+        VERIFY_CHECK (outGlorpKit.existsAsFile() && outGlorpKit.getSize() > 512);
+
+        // Load into DrumKit (main plugin/standalone engine) and verify v2.0 fields
+        auto loadedKit = glorp::DrumKit::load (outGlorpKit.getFullPathName().toStdString());
+        VERIFY_CHECK (loadedKit.error.empty());
+        VERIFY_CHECK (loadedKit.isArchive);
+        VERIFY_CHECK (loadedKit.hitGlowColor == "#2ecc71");
+
+        bool foundCustomSnare = false;
+        for (const auto& lp : loadedKit.logicalPieces)
+        {
+            if (lp.id == "snare" || lp.name.find ("Snare") != std::string::npos)
+            {
+                foundCustomSnare = true;
+                VERIFY_CHECK (lp.hasCustomLayout);
+                VERIFY_CHECK (std::abs (lp.normX - (-210.5f)) < 0.2f);
+                VERIFY_CHECK (std::abs (lp.normY - (-262.0f)) < 0.2f);
+                VERIFY_CHECK (std::abs (lp.normW - 188.0f) < 0.2f);
+                VERIFY_CHECK (lp.zOrder == 95);
+                VERIFY_CHECK (lp.customPngBytes.size() == pngBytes.size());
+                break;
+            }
+        }
+        VERIFY_CHECK (foundCustomSnare);
+
+        // Verify DrumKitView applies custom hit glow color, custom PNG, and Z-order
+        glorp::DrumKitView dkv;
+        dkv.setSize (820, 470);
+        dkv.applyKitVisuals (loadedKit);
+        VERIFY_CHECK (dkv.getHitGlowColour() == juce::Colour (0xff2ecc71));
+
+        // Re-open the saved .glorpkit in a fresh GlorpKitProject and verify round-trip fidelity
+        glorp::GlorpKitProject reopenedProj;
+        std::string reopenErr;
+        bool reopened = reopenedProj.openGlorpKitArchive (outGlorpKit.getFullPathName().toStdString(), reopenErr);
+        VERIFY_CHECK (reopened);
+        VERIFY_CHECK (reopenedProj.getHitGlowColor() == "#2ecc71");
+
+        // Instantiate GlorpKitEditorComponent (headless) and render live verification screenshots
+        glorp::GlorpKitEditorComponent editorApp (false);
+        editorApp.setSize (1280, 820);
+        VERIFY_CHECK (editorApp.openKitFile (outGlorpKit));
+
+        int snareIdxInEditor = -1;
+        for (size_t i = 0; i < editorApp.getProject().getPieces().size(); ++i)
+        {
+            if (editorApp.getProject().getPieces()[i].id == "snare")
+            {
+                snareIdxInEditor = (int) i;
+                break;
+            }
+        }
+        VERIFY_CHECK (snareIdxInEditor >= 0);
+        VERIFY_CHECK (editorApp.getProject().getPieces()[(size_t) snareIdxInEditor].customPngBytes.size() == pngBytes.size());
+
+        // Restore built-in hand-drawn snare sprite for clean visual studio screenshots
+        editorApp.getProject().getPieces()[(size_t) snareIdxInEditor].customPngBytes.clear();
+        editorApp.getProject().normalizeZOrders();
+        editorApp.reloadProjectIntoEngine();
+        editorApp.selectPiece (snareIdxInEditor, false);
+
+        auto saveScreenshot = [&] (const juce::String& filename)
+        {
+            juce::Image snap (juce::Image::ARGB, editorApp.getWidth(), editorApp.getHeight(), true);
+            juce::Graphics sg (snap);
+            editorApp.paintEntireComponent (sg, false);
+            juce::File outF ("/home/servandoc/.gemini/antigravity/brain/cf30153d-b421-4187-8ed5-1bdf793c8e28/" + filename);
+            outF.deleteFile();
+            if (auto stream = std::unique_ptr<juce::FileOutputStream> (outF.createOutputStream()))
+            {
+                juce::PNGImageFormat pfmt;
+                pfmt.writeImageToStream (snap, *stream);
+            }
+        };
+
+        // 1) Render Light Sketch Mode with default orange glow
+        editorApp.setTutorialVisible (false, 0);
+        editorApp.setDarkTheme (false);
+        editorApp.setHitGlowColourHex ("#ff8200");
+        saveScreenshot ("live_phase7_kit_editor_light.png");
+
+        // 2) Render Dark Mode with custom Radioactive Slime Green (#2ECC71) Hit Glow
+        editorApp.setDarkTheme (true);
+        editorApp.setHitGlowColourHex ("#2ecc71");
+        saveScreenshot ("live_phase7_kit_editor_dark.png");
+
+        // 3) Render First-Time Guided Tutorial Overlay (Step 3: Interactive 2D Stage Canvas spotlight)
+        editorApp.setDarkTheme (false);
+        editorApp.setHitGlowColourHex ("#ff8200");
+        editorApp.setTutorialVisible (true, 2);
+        saveScreenshot ("live_phase7_kit_editor_tutorial.png");
+
+        tempDir.deleteRecursively();
+        std::cout << "-> Phase 7 .glorpkit v2.0 Round-Trip, Custom PNGs, Hit Glow Color & GlorpKitEditor UI: PASSED!\n";
     }
 
     processor.releaseResources();

@@ -35,3 +35,4 @@ test_*
 /core
 core.[0-9]*
 vgcore.*
+.directory
