@@ -44,6 +44,47 @@ else
     echo "  [WARN] Standalone binary not found in build directory"
 fi
 
+# 3b. GlorpKit Studio Standalone executable
+if [ -f "${SCRIPT_DIR}/build/GlorpKitEditor_artefacts/Release/GlorpKitEditor" ]; then
+    cp "${SCRIPT_DIR}/build/GlorpKitEditor_artefacts/Release/GlorpKitEditor" "$HOME/.local/bin/GlorpKitEditor"
+    chmod +x "$HOME/.local/bin/GlorpKitEditor"
+    echo "  [OK] Installed GlorpKitEditor: $HOME/.local/bin/GlorpKitEditor"
+fi
+
+# 3c. Application Icons & Desktop Launchers
+mkdir -p "$HOME/.local/share/icons/hicolor/256x256/apps"
+mkdir -p "$HOME/.local/share/pixmaps"
+mkdir -p "$HOME/.local/share/applications"
+
+cp "${SCRIPT_DIR}/assets/glorpdrums_icon.png" "$HOME/.local/share/icons/hicolor/256x256/apps/glorpdrums.png" 2>/dev/null || true
+cp "${SCRIPT_DIR}/assets/glorpdrums_icon.png" "$HOME/.local/share/pixmaps/glorpdrums.png" 2>/dev/null || true
+cp "${SCRIPT_DIR}/assets/glorpkit_studio_icon.png" "$HOME/.local/share/icons/hicolor/256x256/apps/glorpkit_studio.png" 2>/dev/null || true
+cp "${SCRIPT_DIR}/assets/glorpkit_studio_icon.png" "$HOME/.local/share/pixmaps/glorpkit_studio.png" 2>/dev/null || true
+
+cat << 'EOF' > "$HOME/.local/share/applications/glorpdrums.desktop"
+[Desktop Entry]
+Name=GlorpDrums
+Comment=Acoustic Drum Sampler
+Exec=GlorpDrums
+Icon=glorpdrums
+Terminal=false
+Type=Application
+Categories=AudioVideo;Audio;
+StartupWMClass=GlorpDrums
+EOF
+
+cat << 'EOF' > "$HOME/.local/share/applications/glorpkit_studio.desktop"
+[Desktop Entry]
+Name=GlorpKit Studio
+Comment=.glorpkit Drum Kit Creator & Editor
+Exec=GlorpKitEditor
+Icon=glorpkit_studio
+Terminal=false
+Type=Application
+Categories=AudioVideo;Audio;
+StartupWMClass=GlorpKitEditor
+EOF
+
 # 4. Built-in Demo Kit
 if [ -d "${SCRIPT_DIR}/test/kits/GlorpDemoKit" ]; then
     rm -rf "$HOME/.config/GlorpDrums/kits/GlorpDemoKit"

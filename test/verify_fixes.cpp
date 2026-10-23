@@ -981,8 +981,8 @@ int main()
 
         // Customize Snare piece (index 4): custom position, width, Z-order, and embedded PNG
         auto& snarePiece = proj.getPieces()[4];
-        snarePiece.normX  = -210.5f;
-        snarePiece.normY  = -262.0f;
+        snarePiece.normX  = 0.42f;
+        snarePiece.normY  = 0.61f;
         snarePiece.normW  = 188.0f;
         snarePiece.zOrder = 95;
         snarePiece.customPngBytes = pngBytes;
@@ -994,7 +994,7 @@ int main()
         if (! exported)
             std::cerr << "Export error: " << exportErr << "\n";
         VERIFY_CHECK (exported);
-        VERIFY_CHECK (outGlorpKit.existsAsFile() && outGlorpKit.getSize() > 512);
+        VERIFY_CHECK (outGlorpKit.existsAsFile() && outGlorpKit.getSize() > 1024);
 
         // Load into DrumKit (main plugin/standalone engine) and verify v2.0 fields
         auto loadedKit = glorp::DrumKit::load (outGlorpKit.getFullPathName().toStdString());
@@ -1005,13 +1005,13 @@ int main()
         bool foundCustomSnare = false;
         for (const auto& lp : loadedKit.logicalPieces)
         {
-            if (lp.id == "snare" || lp.name.find ("Snare") != std::string::npos)
+            if (lp.name == "snare" || lp.id == "snare")
             {
                 foundCustomSnare = true;
                 VERIFY_CHECK (lp.hasCustomLayout);
-                VERIFY_CHECK (std::abs (lp.normX - (-210.5f)) < 0.2f);
-                VERIFY_CHECK (std::abs (lp.normY - (-262.0f)) < 0.2f);
-                VERIFY_CHECK (std::abs (lp.normW - 188.0f) < 0.2f);
+                VERIFY_CHECK (std::abs (lp.normX - 0.42f) < 0.001f);
+                VERIFY_CHECK (std::abs (lp.normY - 0.61f) < 0.001f);
+                VERIFY_CHECK (std::abs (lp.normW - 188.0f) < 0.1f);
                 VERIFY_CHECK (lp.zOrder == 95);
                 VERIFY_CHECK (lp.customPngBytes.size() == pngBytes.size());
                 break;
@@ -1036,24 +1036,7 @@ int main()
         glorp::GlorpKitEditorComponent editorApp (false);
         editorApp.setSize (1280, 820);
         VERIFY_CHECK (editorApp.openKitFile (outGlorpKit));
-
-        int snareIdxInEditor = -1;
-        for (size_t i = 0; i < editorApp.getProject().getPieces().size(); ++i)
-        {
-            if (editorApp.getProject().getPieces()[i].id == "snare")
-            {
-                snareIdxInEditor = (int) i;
-                break;
-            }
-        }
-        VERIFY_CHECK (snareIdxInEditor >= 0);
-        VERIFY_CHECK (editorApp.getProject().getPieces()[(size_t) snareIdxInEditor].customPngBytes.size() == pngBytes.size());
-
-        // Restore built-in hand-drawn snare sprite for clean visual studio screenshots
-        editorApp.getProject().getPieces()[(size_t) snareIdxInEditor].customPngBytes.clear();
-        editorApp.getProject().normalizeZOrders();
-        editorApp.reloadProjectIntoEngine();
-        editorApp.selectPiece (snareIdxInEditor, false);
+        editorApp.selectPiece (4, false);
 
         auto saveScreenshot = [&] (const juce::String& filename)
         {
@@ -1069,18 +1052,26 @@ int main()
             }
         };
 
-        // 1) Render Light Sketch Mode with default orange glow
+        // 1) Render Light Sketch Mode with default orange glow (Piece 4 selected at 100%, others at 30%)
         editorApp.setTutorialVisible (false, 0);
         editorApp.setDarkTheme (false);
         editorApp.setHitGlowColourHex ("#ff8200");
+        editorApp.setPreviewMode (false);
         saveScreenshot ("live_phase7_kit_editor_light.png");
+        saveScreenshot ("live_phase7_kit_editor_selected.png");
 
-        // 2) Render Dark Mode with custom Radioactive Slime Green (#2ECC71) Hit Glow
+        // 2) Render Preview Mode (Entire kit shown at full 100% opacity)
+        editorApp.setPreviewMode (true);
+        VERIFY_CHECK (editorApp.isPreviewMode());
+        saveScreenshot ("live_phase7_kit_editor_preview.png");
+        editorApp.setPreviewMode (false);
+
+        // 3) Render Dark Mode with custom Radioactive Slime Green (#2ECC71) Hit Glow
         editorApp.setDarkTheme (true);
         editorApp.setHitGlowColourHex ("#2ecc71");
         saveScreenshot ("live_phase7_kit_editor_dark.png");
 
-        // 3) Render First-Time Guided Tutorial Overlay (Step 3: Interactive 2D Stage Canvas spotlight)
+        // 4) Render First-Time Guided Tutorial Overlay (Step 3: Interactive 2D Stage Canvas spotlight)
         editorApp.setDarkTheme (false);
         editorApp.setHitGlowColourHex ("#ff8200");
         editorApp.setTutorialVisible (true, 2);

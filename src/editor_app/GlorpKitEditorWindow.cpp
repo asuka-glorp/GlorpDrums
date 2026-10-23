@@ -163,6 +163,7 @@ GlorpKitEditorComponent::GlorpKitEditorComponent (bool enableAudioDevice)
     };
     setupEditor (pieceNameEditor);
     setupEditor (pieceIdEditor);
+    setupEditor (zoneNameEditor);
 
     pieceNameEditor.onTextChange = [this]()
     {
@@ -182,6 +183,20 @@ GlorpKitEditorComponent::GlorpKitEditorComponent (bool enableAudioDevice)
             repaint();
         }
     };
+    zoneNameEditor.onTextChange = [this]()
+    {
+        if (suppressEditorCallbacks) return;
+        if (selectedPieceIdx >= 0 && selectedPieceIdx < (int) project.pieces.size())
+        {
+            auto& p = project.pieces[(size_t) selectedPieceIdx];
+            if (selectedZoneIdx >= 0 && selectedZoneIdx < (int) p.zones.size())
+            {
+                p.zones[(size_t) selectedZoneIdx].name = zoneNameEditor.getText().toStdString();
+                reloadProjectIntoEngine();
+                repaint();
+            }
+        }
+    };
 
     reloadProjectIntoEngine();
     selectPiece (4, false); // Default to Snare
@@ -189,17 +204,25 @@ GlorpKitEditorComponent::GlorpKitEditorComponent (bool enableAudioDevice)
     if (enableAudioDevice)
     {
         auto err = deviceManager.initialiseWithDefaultDevices (0, 2);
-        if (err.isEmpty())
+        if (! err.isEmpty())
+            deviceManager.initialise (0, 2, nullptr, true);
+        deviceManager.addAudioCallback (this);
+        if (auto* dev = deviceManager.getCurrentAudioDevice())
+            sampler.setSampleRateAndBlock (dev->getCurrentSampleRate(), dev->getCurrentBufferSizeSamples());
+        else
+            sampler.setSampleRateAndBlock (44100.0, 512);
+
+        auto midiInputs = juce::MidiInput::getAvailableDevices();
+        for (const auto& m : midiInputs)
         {
-            deviceManager.addAudioCallback (this);
-            auto midiInputs = juce::MidiInput::getAvailableDevices();
-            for (const auto& m : midiInputs)
-            {
-                deviceManager.setMidiInputDeviceEnabled (m.identifier, true);
-                deviceManager.addMidiInputDeviceCallback (m.identifier, this);
-            }
-            audioDeviceActive = true;
+            deviceManager.setMidiInputDeviceEnabled (m.identifier, true);
+            deviceManager.addMidiInputDeviceCallback (m.identifier, this);
         }
+        audioDeviceActive = true;
+    }
+    else
+    {
+        sampler.setSampleRateAndBlock (44100.0, 512);
     }
 
     loadFirstTimeTutorialPreference();
@@ -276,11 +299,9 @@ void GlorpKitEditorComponent::computeCanvasPieceBounds()
     if (pieceSprites.size() != pieces.size())
         pieceSprites.resize (pieces.size());
 
-    const float W = canvasViewportBounds.getWidth();
-    const float H = canvasViewportBounds.getHeight();
-    const float scale = std::min (W / 880.0f, H / 620.0f);
-    const float cx = canvasViewportBounds.getX() + W * 0.50f;
-    const float gy = canvasViewportBounds.getY() + H * 0.94f;
+    const float scaleX = canvasViewportBounds.getWidth() / 820.0f;
+    const float scaleY = canvasViewportBounds.getHeight() / 470.0f;
+    const float scale  = std::min (scaleX, scaleY);
 
     for (size_t i = 0; i < pieces.size(); ++i)
     {
@@ -292,9 +313,9 @@ void GlorpKitEditorComponent::computeCanvasPieceBounds()
 
         const float drawW = std::max (36.0f, p.normW * scale);
         const float drawH = drawW * aspect;
-        const float x = cx + p.normX * scale;
-        const float y = gy + p.normY * scale;
-        sp.canvasBounds = { x, y, drawW, drawH };
+        const float cx = canvasViewportBounds.getX() + p.normX * canvasViewportBounds.getWidth();
+        const float cy = canvasViewportBounds.getY() + p.normY * canvasViewportBounds.getHeight();
+        sp.canvasBounds = { cx - drawW * 0.5f, cy - drawH * 0.5f, drawW, drawH };
     }
 }
 
@@ -348,7 +369,13 @@ bool GlorpKitEditorComponent::saveGlorpKitFile (const juce::File& targetFile)
 void GlorpKitEditorComponent::setDarkTheme (bool dark)
 {
     theme = dark ? Theme::dark() : Theme::sketch();
-    pieceNameEditor.setColour (juce::TextEditor::textColourId, theme.ink);
+    for (auto* ed : { &pieceNameEditor, &pieceIdEditor, &zoneNameEditor })
+    {
+        ed->setColour (juce::TextEditor::textColourId, theme.ink);
+        ed->setColour (juce::TextEditor::backgroundColourId, theme.panel);
+        ed->setColour (juce::TextEditor::outlineColourId, theme.inkSoft.withAlpha (0.4f));
+        ed->setColour (juce::TextEditor::focusedOutlineColourId, theme.accent);
+    }
     pieceIdEditor.setColour (juce::TextEditor::textColourId, theme.inkSoft);
     repaint();
 }
@@ -443,8 +470,11 @@ void GlorpKitEditorComponent::selectPiece (int pieceIndex, bool audition)
     const auto& p = pieces[(size_t) selectedPieceIdx];
     pieceNameEditor.setText (p.name, juce::dontSendNotification);
     pieceIdEditor.setText (p.id, juce::dontSendNotification);
+    if (! p.zones.empty())
+        zoneNameEditor.setText (p.zones.front().name, juce::dontSendNotification);
     pieceNameEditor.setColour (juce::TextEditor::textColourId, theme.ink);
     pieceIdEditor.setColour (juce::TextEditor::textColourId, theme.inkSoft);
+    zoneNameEditor.setColour (juce::TextEditor::textColourId, theme.ink);
     suppressEditorCallbacks = false;
 
     rebuildSelectedHitWaveform();
@@ -462,6 +492,12 @@ void GlorpKitEditorComponent::selectZone (int zoneIndex, bool audition)
 
     selectedZoneIdx = juce::jlimit (0, (int) zones.size() - 1, zoneIndex);
     selectedHitIdx  = 0;
+
+    suppressEditorCallbacks = true;
+    zoneNameEditor.setText (zones[(size_t) selectedZoneIdx].name, juce::dontSendNotification);
+    zoneNameEditor.setColour (juce::TextEditor::textColourId, theme.ink);
+    suppressEditorCallbacks = false;
+
     rebuildSelectedHitWaveform();
     if (audition)
         triggerAuditionForZone (selectedPieceIdx, selectedZoneIdx);
@@ -559,18 +595,30 @@ void GlorpKitEditorComponent::triggerAuditionForZone (int pieceIdx, int zoneIdx)
     const auto& p = project.pieces[(size_t) pieceIdx];
     if (zoneIdx >= 0 && zoneIdx < (int) p.zones.size())
     {
-        const juce::String instId = p.zones.size() == 1
-                                        ? juce::String (p.name)
-                                        : juce::String (p.name + "_" + p.zones[(size_t) zoneIdx].name);
-        for (int i = 0; i < sampler.numInstruments(); ++i)
+        int samplerIdx = project.getSamplerIndexForZone (pieceIdx, zoneIdx);
+        if (samplerIdx >= 0 && samplerIdx < sampler.numInstruments())
         {
-            if (sampler.instrumentName (i).equalsIgnoreCase (instId))
+            sampler.noteOn (samplerIdx, 0.85f, sampler.currentSamplePosition());
+        }
+        else
+        {
+            const juce::String instIdDot = juce::String (p.name + "." + p.zones[(size_t) zoneIdx].name);
+            const juce::String instIdUnderscore = juce::String (p.name + "_" + p.zones[(size_t) zoneIdx].name);
+            const juce::String pName = juce::String (p.name);
+            for (int i = 0; i < sampler.numInstruments(); ++i)
             {
-                sampler.noteOn (i, 0.85f, sampler.currentSamplePosition());
-                break;
+                if (sampler.instrumentName (i).equalsIgnoreCase (instIdDot)
+                    || sampler.instrumentName (i).equalsIgnoreCase (instIdUnderscore)
+                    || sampler.instrumentName (i).equalsIgnoreCase (pName))
+                {
+                    sampler.noteOn (i, 0.85f, sampler.currentSamplePosition());
+                    break;
+                }
             }
         }
     }
+
+    startAuditionSynth (pieceIdx, 0.85f);
     repaint();
 }
 
@@ -610,6 +658,8 @@ void GlorpKitEditorComponent::resized()
                                                        cardPieceBounds.getWidth() - 102.0f, 22.0f).toNearestInt());
     pieceIdEditor.setBounds (juce::Rectangle<float> (cardPieceBounds.getX() + 92.0f, cardPieceBounds.getY() + 56.0f,
                                                      cardPieceBounds.getWidth() - 102.0f, 22.0f).toNearestInt());
+    zoneNameEditor.setBounds (juce::Rectangle<float> (cardZoneBounds.getX() + 92.0f, cardZoneBounds.getY() + 26.0f,
+                                                      cardZoneBounds.getWidth() - 102.0f, 22.0f).toNearestInt());
 }
 
 //==============================================================================
@@ -662,6 +712,10 @@ void GlorpKitEditorComponent::paintHeader (juce::Graphics& g)
     btnTour = { rx - 68.0f, btnY, 68.0f, btnH };
     rx = btnTour.getX() - 7.0f;
     Sketch::button (g, btnTour, "? Tour", tutorialActive ? theme.accent : theme.trough, theme.ink, tutorialActive, 33, Fonts::title (13.0f));
+
+    btnAudioSettings = { rx - 68.0f, btnY, 68.0f, btnH };
+    rx = btnAudioSettings.getX() - 7.0f;
+    Sketch::button (g, btnAudioSettings, "Audio", theme.trough, theme.ink, false, 34, Fonts::title (13.0f));
 
     // Kit-Wide Hit Glow Color Selector Button
     btnGlowColor = { rx - 128.0f, btnY, 128.0f, btnH };
@@ -732,6 +786,11 @@ void GlorpKitEditorComponent::paintLeftPanel (juce::Graphics& g)
 
         juce::Colour rowBg  = isSel ? theme.accent.withAlpha (0.24f) : theme.trough;
         juce::Colour rowBrd = isSel ? theme.accent : theme.inkSoft.withAlpha (0.65f);
+        if (isDraggingLayerRow && hit.pieceIndex == dragLayerPieceIndex)
+        {
+            rowBg = theme.accent.withAlpha (0.42f);
+            rowBrd = hitGlowColour;
+        }
         Sketch::box (g, hit.rowBounds, rowBg, rowBrd, 5.0f, isSel ? 2.1f : 1.4f, 1, 50 + idx);
 
         hit.visBounds = { hit.rowBounds.getX() + 5.0f, hit.rowBounds.getY() + 7.0f, 20.0f, 20.0f };
@@ -778,6 +837,7 @@ void GlorpKitEditorComponent::paintLeftPanel (juce::Graphics& g)
     btnAddMic = { micBoxBounds.getRight() - 56.0f, micBoxBounds.getY() + 4.0f, 50.0f, 19.0f };
     Sketch::button (g, btnAddMic, "+ Mic", theme.accent, theme.ink, false, 93, Fonts::title (10.5f));
 
+    micPillHits.clear();
     const auto& chans = project.mics;
     const float pillW = (micBoxBounds.getWidth() - 22.0f) * 0.5f;
     const float pillH = 22.0f;
@@ -793,6 +853,7 @@ void GlorpKitEditorComponent::paintLeftPanel (juce::Graphics& g)
         g.setFont (Fonts::body (12.0f));
         g.drawText (juce::String ((int) i + 1) + ": " + juce::String (chans[i].name),
                     r.reduced (6.0f, 1.0f), juce::Justification::centredLeft, true);
+        micPillHits.push_back ({ (int) i, r });
     }
 }
 
@@ -814,11 +875,11 @@ void GlorpKitEditorComponent::paintCanvasPanel (juce::Graphics& g)
         tx = r.getX() - 6.0f;
         Sketch::button (g, r, txt, active ? theme.accent : theme.trough, theme.ink, active, seed, Fonts::title (11.5f));
     };
-    makeToolBtn (btnResetLayout, 64.0f, "Reset",  false,             103);
-    makeToolBtn (btnSendBack,    58.0f, "Back",   false,             105);
-    makeToolBtn (btnBringFront,  62.0f, "Front",  false,             107);
-    makeToolBtn (btnShowZones,   68.0f, "Zones",  showZonesOverlay,  109);
-    makeToolBtn (btnSnapGrid,    62.0f, "Grid",   snapToGrid,        111);
+    makeToolBtn (btnResetLayout, 64.0f, "Reset",   false,          103);
+    makeToolBtn (btnSendBack,    58.0f, "Back",    false,          105);
+    makeToolBtn (btnBringFront,  62.0f, "Front",   false,          107);
+    makeToolBtn (btnPreviewKit,  76.0f, "Preview", previewKitMode, 109);
+    makeToolBtn (btnSnapGrid,    62.0f, "Grid",    snapToGrid,     111);
 
     juce::Colour stageBg = theme.isDark ? juce::Colour (0xff12141a) : juce::Colour (0xffefe7d6);
     Sketch::box (g, canvasViewportBounds, stageBg, theme.ink, 6.0f, 1.9f, 2, 113);
@@ -858,34 +919,24 @@ void GlorpKitEditorComponent::paintCanvasPanel (juce::Graphics& g)
             if (! p.visible || idx >= (int) pieceSprites.size()) continue;
             const auto& sp = pieceSprites[(size_t) idx];
             const bool isSel = (idx == selectedPieceIdx);
+            const float baseAlpha = previewKitMode ? 1.0f : (isSel ? 1.0f : 0.30f);
 
             const float glowAlpha = std::max (sp.flash, isSel ? 0.45f : 0.0f);
             if (glowAlpha > 0.01f && sp.glowImage.isValid())
             {
-                g.setOpacity (juce::jlimit (0.0f, 1.0f, glowAlpha));
+                g.setOpacity (juce::jlimit (0.0f, 1.0f, glowAlpha * (isSel || previewKitMode ? 1.0f : 0.5f)));
                 g.drawImage (sp.glowImage, sp.canvasBounds.expanded (10.0f));
                 g.setOpacity (1.0f);
             }
 
             if (sp.rawImage.isValid())
             {
+                g.setOpacity (baseAlpha);
                 const float pop = 1.0f + sp.flash * 0.05f;
                 auto drawRect = sp.canvasBounds.withSizeKeepingCentre (sp.canvasBounds.getWidth() * pop,
                                                                        sp.canvasBounds.getHeight() * pop);
                 g.drawImage (sp.rawImage, drawRect);
-            }
-
-            if (showZonesOverlay && p.zones.size() > 1)
-            {
-                g.setColour (hitGlowColour.withAlpha (isSel ? 0.65f : 0.28f));
-                float rStep = 0.35f;
-                for (size_t z = 0; z < p.zones.size(); ++z)
-                {
-                    auto zr = sp.canvasBounds.withSizeKeepingCentre (sp.canvasBounds.getWidth() * rStep,
-                                                                     sp.canvasBounds.getHeight() * rStep);
-                    g.drawEllipse (zr, isSel && (int) z == selectedZoneIdx ? 2.2f : 1.2f);
-                    rStep += 0.26f;
-                }
+                g.setOpacity (1.0f);
             }
 
             if (isSel)
@@ -966,9 +1017,19 @@ void GlorpKitEditorComponent::paintMatrixPanel (juce::Graphics& g)
         zoneTabHits.push_back ({ (int) z, tabR });
         zx += tw + 6.0f;
     }
-    juce::Rectangle<float> addZoneR { zx, zy, 86.0f, 24.0f };
-    Sketch::button (g, addZoneR, "+ Add Zone", theme.trough, theme.ink, false, 175, Fonts::title (11.5f));
+    juce::Rectangle<float> addZoneR { zx, zy, 92.0f, 24.0f };
+    const juce::Colour pastelGreen { 0xffa7f3d0 };
+    Sketch::button (g, addZoneR, "+ Add Zone", pastelGreen, juce::Colour (0xff064e3b), false, 175, Fonts::title (11.5f));
     zoneTabHits.push_back ({ -1, addZoneR });
+    zx += 98.0f;
+
+    btnDeleteZone = { zx, zy, 90.0f, 24.0f };
+    const bool canDeleteZone = (piece.zones.size() > 1);
+    const juce::Colour pastelCoral { 0xfffecaca };
+    Sketch::button (g, btnDeleteZone, "Delete Zone",
+                    canDeleteZone ? pastelCoral : theme.trough.withAlpha (0.4f),
+                    canDeleteZone ? juce::Colour (0xff7f1d1d) : theme.inkSoft,
+                    false, 177, Fonts::title (11.5f));
 
     matrixCellHits.clear();
     if (selectedZoneIdx < 0 || selectedZoneIdx >= (int) piece.zones.size()) return;
@@ -1132,13 +1193,14 @@ void GlorpKitEditorComponent::paintRightInspector (juce::Graphics& g)
     if (selectedZoneIdx >= 0 && selectedZoneIdx < (int) piece.zones.size())
     {
         const auto& zn = piece.zones[(size_t) selectedZoneIdx];
-        g.setColour (theme.ink);
-        g.setFont (Fonts::title (13.0f));
-        g.drawText ("Active Zone: " + juce::String (zn.name) + "  (" + juce::String (piece.name + "_" + zn.name) + ")",
-                    cardZoneBounds.withY (cardZoneBounds.getY() + 26.0f).withHeight (20.0f).reduced (10.0f, 0.0f),
-                    juce::Justification::centredLeft, true);
+        g.setColour (theme.inkSoft);
+        g.setFont (Fonts::body (12.5f));
+        g.drawText ("Zone Name:", juce::Rectangle<float> (cardZoneBounds.getX() + 10.0f, cardZoneBounds.getY() + 26.0f, 80.0f, 22.0f),
+                    juce::Justification::centredLeft, false);
+        Sketch::box (g, { cardZoneBounds.getX() + 88.0f, cardZoneBounds.getY() + 26.0f, cardZoneBounds.getWidth() - 98.0f, 22.0f },
+                     theme.panel, theme.inkSoft, 4.0f, 1.2f, 1, 292);
 
-        const float zy1 = cardZoneBounds.getY() + 50.0f;
+        const float zy1 = cardZoneBounds.getY() + 52.0f;
         btnMidiNote  = { cardZoneBounds.getX() + 10.0f, zy1, cardZoneBounds.getWidth() - 96.0f, 26.0f };
         btnMidiLearn = { btnMidiNote.getRight() + 6.0f, zy1, 70.0f, 26.0f };
         Sketch::button (g, btnMidiNote,  "Note: " + juce::String (midiNoteName (zn.note)), theme.panel, theme.ink, false, 293, Fonts::title (11.5f));
@@ -1388,6 +1450,7 @@ void GlorpKitEditorComponent::mouseDown (const juce::MouseEvent& e)
     if (btnOpenKit.contains (pt))      { promptOpenKit(); return; }
     if (btnImportDg.contains (pt))     { promptImportDrumGizmo(); return; }
     if (btnSaveKit.contains (pt))      { promptSaveGlorpKit(); return; }
+    if (btnAudioSettings.contains (pt)){ showAudioSettingsDialog(); return; }
     if (btnGlowColor.contains (pt))    { showHitGlowColorMenu(); return; }
     if (btnTour.contains (pt))         { setTutorialVisible (true, 0); return; }
     if (btnThemeToggle.contains (pt))  { setDarkTheme (! theme.isDark); return; }
@@ -1445,7 +1508,15 @@ void GlorpKitEditorComponent::mouseDown (const juce::MouseEvent& e)
         }
         if (row.rowBounds.contains (pt))
         {
+            if (e.getNumberOfClicks() >= 2)
+            {
+                promptRenamePiece (row.pieceIndex);
+                return;
+            }
             selectPiece (row.pieceIndex, false);
+            isDraggingLayerRow = true;
+            dragLayerPieceIndex = row.pieceIndex;
+            dragLayerStartMouseY = pt.y;
             return;
         }
     }
@@ -1457,9 +1528,17 @@ void GlorpKitEditorComponent::mouseDown (const juce::MouseEvent& e)
         repaint();
         return;
     }
+    for (const auto& mp : micPillHits)
+    {
+        if (mp.bounds.contains (pt))
+        {
+            promptRenameMic (mp.micIndex);
+            return;
+        }
+    }
 
     if (btnSnapGrid.contains (pt))   { snapToGrid = ! snapToGrid; repaint(); return; }
-    if (btnShowZones.contains (pt))  { showZonesOverlay = ! showZonesOverlay; repaint(); return; }
+    if (btnPreviewKit.contains (pt)) { previewKitMode = ! previewKitMode; repaint(); return; }
     if (btnBringFront.contains (pt) && selectedPieceIdx >= 0)
     {
         project.bringPieceToFront (selectedPieceIdx);
@@ -1528,6 +1607,20 @@ void GlorpKitEditorComponent::mouseDown (const juce::MouseEvent& e)
         promptImportWavsForCurrentZone ("close");
         return;
     }
+    if (btnDeleteZone.contains (pt) && selectedPieceIdx >= 0)
+    {
+        auto& p = project.pieces[(size_t) selectedPieceIdx];
+        if (p.zones.size() > 1 && selectedZoneIdx >= 0 && selectedZoneIdx < (int) p.zones.size())
+        {
+            const std::string oldName = p.zones[(size_t) selectedZoneIdx].name;
+            std::string err;
+            project.deleteZone (selectedPieceIdx, selectedZoneIdx, err);
+            reloadProjectIntoEngine();
+            selectZone (std::max (0, selectedZoneIdx - 1), false);
+            showStatusToast ("Deleted zone '" + juce::String (oldName) + "'");
+        }
+        return;
+    }
     for (const auto& zt : zoneTabHits)
     {
         if (zt.bounds.contains (pt))
@@ -1555,6 +1648,11 @@ void GlorpKitEditorComponent::mouseDown (const juce::MouseEvent& e)
             }
             else if (zt.zoneIndex >= 0)
             {
+                if (e.getNumberOfClicks() >= 2 && selectedPieceIdx >= 0)
+                {
+                    promptRenameZone (selectedPieceIdx, zt.zoneIndex);
+                    return;
+                }
                 selectZone (zt.zoneIndex, true);
             }
             return;
@@ -1623,23 +1721,36 @@ void GlorpKitEditorComponent::mouseDown (const juce::MouseEvent& e)
 
 void GlorpKitEditorComponent::mouseDrag (const juce::MouseEvent& e)
 {
+    if (isDraggingLayerRow && dragLayerPieceIndex >= 0)
+    {
+        for (const auto& row : layerRowHits)
+        {
+            if (row.pieceIndex != dragLayerPieceIndex && row.rowBounds.contains (e.position))
+            {
+                int currentZ = project.pieces[(size_t) dragLayerPieceIndex].zOrder;
+                int targetZ  = project.pieces[(size_t) row.pieceIndex].zOrder;
+                project.pieces[(size_t) dragLayerPieceIndex].zOrder = targetZ;
+                project.pieces[(size_t) row.pieceIndex].zOrder = currentZ;
+                repaint();
+                break;
+            }
+        }
+        return;
+    }
+
     if (selectedPieceIdx < 0 || selectedPieceIdx >= (int) project.pieces.size()) return;
     auto& piece = project.pieces[(size_t) selectedPieceIdx];
 
-    const float W = canvasViewportBounds.getWidth();
-    const float H = canvasViewportBounds.getHeight();
-    const float scale = std::max (0.1f, std::min (W / 880.0f, H / 620.0f));
-
-    if (isDraggingCanvasPiece && W > 20.0f)
+    if (isDraggingCanvasPiece && canvasViewportBounds.getWidth() > 20.0f)
     {
-        const float dx = (e.position.x - dragStartPos.x) / scale;
-        const float dy = (e.position.y - dragStartPos.y) / scale;
-        float nx = juce::jlimit (-430.0f, 410.0f, dragStartX + dx);
-        float ny = juce::jlimit (-590.0f, -40.0f, dragStartY + dy);
+        const float dx = (e.position.x - dragStartPos.x) / canvasViewportBounds.getWidth();
+        const float dy = (e.position.y - dragStartPos.y) / canvasViewportBounds.getHeight();
+        float nx = juce::jlimit (0.06f, 0.94f, dragStartX + dx);
+        float ny = juce::jlimit (0.08f, 0.92f, dragStartY + dy);
         if (snapToGrid && ! e.mods.isShiftDown())
         {
-            nx = std::round (nx / 5.0f) * 5.0f;
-            ny = std::round (ny / 5.0f) * 5.0f;
+            nx = std::round (nx * 40.0f) / 40.0f;
+            ny = std::round (ny * 40.0f) / 40.0f;
         }
         piece.normX = nx;
         piece.normY = ny;
@@ -1648,8 +1759,8 @@ void GlorpKitEditorComponent::mouseDrag (const juce::MouseEvent& e)
     }
     else if (isResizingCanvasPiece)
     {
-        const float dw = (e.position.x - dragStartPos.x) / scale;
-        piece.normW = juce::jlimit (64.0f, 450.0f, dragStartW + dw);
+        const float dw = (e.position.x - dragStartPos.x) * 1.4f;
+        piece.normW = juce::jlimit (64.0f, 360.0f, dragStartW + dw);
         computeCanvasPieceBounds();
         repaint();
     }
@@ -1659,6 +1770,8 @@ void GlorpKitEditorComponent::mouseUp (const juce::MouseEvent&)
 {
     isDraggingCanvasPiece = false;
     isResizingCanvasPiece = false;
+    isDraggingLayerRow = false;
+    dragLayerPieceIndex = -1;
 }
 
 void GlorpKitEditorComponent::mouseMove (const juce::MouseEvent& e)
@@ -1774,6 +1887,32 @@ void GlorpKitEditorComponent::audioDeviceIOCallbackWithContext (const float* con
 
     if (numOutputChannels < 1 || outputChannelData[0] == nullptr) return;
     sampler.render (outputChannelData, numOutputChannels, numSamples);
+
+    if (synthVoice.active)
+    {
+        for (int i = 0; i < numSamples; ++i)
+        {
+            if (synthVoice.env < 0.001f)
+            {
+                synthVoice.active = false;
+                break;
+            }
+            float tone = std::sin (synthVoice.phase);
+            float noise = (((float) std::rand() / (float) RAND_MAX) * 2.0f - 1.0f);
+            synthVoice.filterState += 0.45f * (noise - synthVoice.filterState);
+            float smp = ((1.0f - synthVoice.noiseMix) * tone + synthVoice.noiseMix * synthVoice.filterState) * synthVoice.env * 0.45f;
+
+            outputChannelData[0][i] += smp;
+            if (numOutputChannels > 1 && outputChannelData[1] != nullptr)
+                outputChannelData[1][i] += smp;
+
+            synthVoice.phase += synthVoice.freq * (juce::MathConstants<float>::twoPi / 44100.0f);
+            if (synthVoice.phase > juce::MathConstants<float>::twoPi)
+                synthVoice.phase -= juce::MathConstants<float>::twoPi;
+            synthVoice.freq = std::max (25.0f, synthVoice.freq * synthVoice.freqDecay);
+            synthVoice.env *= synthVoice.envDecay;
+        }
+    }
 }
 
 void GlorpKitEditorComponent::audioDeviceAboutToStart (juce::AudioIODevice* device)
@@ -1826,6 +1965,7 @@ void GlorpKitEditorComponent::handleIncomingMidiMessage (juce::MidiInput*, const
                             break;
                         }
                     }
+                    startAuditionSynth ((int) pi, vel);
                     repaint();
                 }
             }
@@ -2080,6 +2220,179 @@ void GlorpKitEditorComponent::showKitMetadataDialog()
                          if (res == 3) project.sampleRate = 96000;
                          repaint();
                      });
+}
+
+void GlorpKitEditorComponent::startAuditionSynth (int pieceIdx, float velocity)
+{
+    if (pieceIdx < 0 || pieceIdx >= (int) project.pieces.size()) return;
+    const auto& p = project.pieces[(size_t) pieceIdx];
+    const juce::String gid = juce::String (p.graphicId).toLowerCase();
+    const juce::String name = juce::String (p.name).toLowerCase();
+
+    synthVoice.active = true;
+    synthVoice.phase = 0.0f;
+    synthVoice.filterState = 0.0f;
+
+    if (gid.contains ("kick") || name.contains ("kick"))
+    {
+        synthVoice.freq = 150.0f;
+        synthVoice.freqDecay = 0.9982f;
+        synthVoice.env = velocity * 0.95f;
+        synthVoice.envDecay = 0.9993f;
+        synthVoice.noiseMix = 0.05f;
+    }
+    else if (gid.contains ("snare") || name.contains ("snare"))
+    {
+        synthVoice.freq = 230.0f;
+        synthVoice.freqDecay = 0.996f;
+        synthVoice.env = velocity * 0.90f;
+        synthVoice.envDecay = 0.9986f;
+        synthVoice.noiseMix = 0.65f;
+    }
+    else if (gid.contains ("hihat") || name.contains ("hihat") || gid.contains ("hh") || name.contains ("hh"))
+    {
+        synthVoice.freq = 4200.0f;
+        synthVoice.freqDecay = 0.999f;
+        synthVoice.env = velocity * 0.70f;
+        synthVoice.envDecay = 0.9965f;
+        synthVoice.noiseMix = 0.95f;
+    }
+    else if (gid.contains ("crash") || name.contains ("crash") || gid.contains ("ride") || name.contains ("ride"))
+    {
+        synthVoice.freq = 3200.0f;
+        synthVoice.freqDecay = 0.9994f;
+        synthVoice.env = velocity * 0.75f;
+        synthVoice.envDecay = 0.9996f;
+        synthVoice.noiseMix = 0.92f;
+    }
+    else if (gid.contains ("tom") || name.contains ("tom"))
+    {
+        if (gid.contains ("1") || name.contains ("1") || gid.contains ("high"))
+            synthVoice.freq = 180.0f;
+        else if (gid.contains ("2") || name.contains ("2") || gid.contains ("mid"))
+            synthVoice.freq = 135.0f;
+        else
+            synthVoice.freq = 90.0f; // floor tom
+
+        synthVoice.freqDecay = 0.9986f;
+        synthVoice.env = velocity * 0.90f;
+        synthVoice.envDecay = 0.9991f;
+        synthVoice.noiseMix = 0.08f;
+    }
+    else
+    {
+        synthVoice.freq = 160.0f;
+        synthVoice.freqDecay = 0.998f;
+        synthVoice.env = velocity * 0.85f;
+        synthVoice.envDecay = 0.9988f;
+        synthVoice.noiseMix = 0.30f;
+    }
+}
+
+void GlorpKitEditorComponent::showAudioSettingsDialog()
+{
+    auto* selector = new juce::AudioDeviceSelectorComponent (
+        deviceManager,
+        0, 2, // inputs
+        2, 2, // outputs
+        true, // midi in
+        false, // midi out
+        false, // channels as stereo pairs
+        false  // hide advanced
+    );
+    selector->setSize (500, 380);
+
+    juce::DialogWindow::LaunchOptions opt;
+    opt.dialogTitle = "Audio & MIDI Settings";
+    opt.dialogBackgroundColour = theme.panel;
+    opt.content.setOwned (selector);
+    opt.escapeKeyTriggersCloseButton = true;
+    opt.useNativeTitleBar = true;
+    opt.resizable = false;
+    opt.launchAsync();
+}
+
+void GlorpKitEditorComponent::promptRenamePiece (int pieceIndex)
+{
+    if (pieceIndex < 0 || pieceIndex >= (int) project.pieces.size()) return;
+    const auto currentName = juce::String (project.pieces[(size_t) pieceIndex].name);
+
+    auto* alert = new juce::AlertWindow ("Rename Kit Piece", "Enter a new name for this drum/cymbal:", juce::AlertWindow::QuestionIcon);
+    alert->addTextEditor ("pieceName", currentName, "Piece Name");
+    alert->addButton ("OK", 1, juce::KeyPress (juce::KeyPress::returnKey));
+    alert->addButton ("Cancel", 0, juce::KeyPress (juce::KeyPress::escapeKey));
+
+    alert->enterModalState (true, juce::ModalCallbackFunction::create ([this, alert, pieceIndex] (int result)
+    {
+        if (result == 1)
+        {
+            auto newName = alert->getTextEditorContents ("pieceName").trim();
+            if (newName.isNotEmpty())
+            {
+                project.renamePiece (pieceIndex, newName.toStdString());
+                reloadProjectIntoEngine();
+                selectPiece (pieceIndex, false);
+                showStatusToast ("Renamed piece to '" + newName + "'");
+            }
+        }
+        delete alert;
+    }));
+}
+
+void GlorpKitEditorComponent::promptRenameMic (int micIndex)
+{
+    if (micIndex < 0 || micIndex >= (int) project.mics.size()) return;
+    const auto currentName = juce::String (project.mics[(size_t) micIndex].name);
+
+    auto* alert = new juce::AlertWindow ("Rename Mic Bus", "Enter a new name for this microphone channel:", juce::AlertWindow::QuestionIcon);
+    alert->addTextEditor ("micName", currentName, "Mic Name");
+    alert->addButton ("OK", 1, juce::KeyPress (juce::KeyPress::returnKey));
+    alert->addButton ("Cancel", 0, juce::KeyPress (juce::KeyPress::escapeKey));
+
+    alert->enterModalState (true, juce::ModalCallbackFunction::create ([this, alert, micIndex] (int result)
+    {
+        if (result == 1)
+        {
+            auto newName = alert->getTextEditorContents ("micName").trim();
+            if (newName.isNotEmpty())
+            {
+                project.renameMic (micIndex, newName.toStdString());
+                reloadProjectIntoEngine();
+                showStatusToast ("Renamed mic bus to '" + newName + "'");
+                repaint();
+            }
+        }
+        delete alert;
+    }));
+}
+
+void GlorpKitEditorComponent::promptRenameZone (int pieceIndex, int zoneIndex)
+{
+    if (pieceIndex < 0 || pieceIndex >= (int) project.pieces.size()) return;
+    auto& p = project.pieces[(size_t) pieceIndex];
+    if (zoneIndex < 0 || zoneIndex >= (int) p.zones.size()) return;
+    const auto currentName = juce::String (p.zones[(size_t) zoneIndex].name);
+
+    auto* alert = new juce::AlertWindow ("Rename Articulation Zone", "Enter a new name for this articulation zone:", juce::AlertWindow::QuestionIcon);
+    alert->addTextEditor ("zoneName", currentName, "Zone Name");
+    alert->addButton ("OK", 1, juce::KeyPress (juce::KeyPress::returnKey));
+    alert->addButton ("Cancel", 0, juce::KeyPress (juce::KeyPress::escapeKey));
+
+    alert->enterModalState (true, juce::ModalCallbackFunction::create ([this, alert, pieceIndex, zoneIndex] (int result)
+    {
+        if (result == 1)
+        {
+            auto newName = alert->getTextEditorContents ("zoneName").trim();
+            if (newName.isNotEmpty())
+            {
+                project.renameZone (pieceIndex, zoneIndex, newName.toStdString());
+                reloadProjectIntoEngine();
+                selectZone (zoneIndex, false);
+                showStatusToast ("Renamed zone to '" + newName + "'");
+            }
+        }
+        delete alert;
+    }));
 }
 
 } // namespace glorp

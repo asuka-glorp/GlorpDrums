@@ -8,7 +8,7 @@ namespace glorp
 
 namespace
 {
-    juce::Image makeGlowImage (const juce::Image& src)
+    juce::Image makeGlowImage (const juce::Image& src, juce::Colour glowColour = juce::Colour (0xffff8200))
     {
         if (! src.isValid())
             return {};
@@ -21,7 +21,7 @@ namespace
 
         auto smallSrc = src.rescaled (sw, sh, juce::Graphics::mediumResamplingQuality);
 
-        // Convert the piece's alpha mask into solid bright vibrant orange (0xffff8400)
+        // Convert the piece's alpha mask into solid bright vibrant glow colour
         juce::Image orangeMask (juce::Image::ARGB, sw, sh, true);
         for (int y = 0; y < sh; ++y)
         {
@@ -29,7 +29,7 @@ namespace
             {
                 const auto a = smallSrc.getPixelAt (x, y).getAlpha();
                 if (a > 15)
-                    orangeMask.setPixelAt (x, y, juce::Colour (0xffff8200).withAlpha (a / 255.0f));
+                    orangeMask.setPixelAt (x, y, glowColour.withAlpha (a / 255.0f));
             }
         }
 
@@ -270,8 +270,111 @@ void DrumKitView::loadPieceImages()
         imageFromMemory (GlorpAssets::ride_png, GlorpAssets::ride_pngSize);
 
     for (auto& p : pieces)
+    {
+        p.scaledImage = {};
+        p.scaledGlowImage = {};
         if (p.image.isValid())
-            p.glowImage = makeGlowImage (p.image);
+            p.glowImage = makeGlowImage (p.image, hitGlowColour);
+    }
+}
+
+juce::Colour DrumKitView::parseHexColour (const std::string& hex, juce::Colour fallback)
+{
+    if (hex.empty())
+        return fallback;
+
+    juce::String s (hex);
+    s = s.trim();
+    if (s.startsWithChar ('#'))
+        s = s.substring (1);
+
+    if (s.length() == 6)
+        s = "ff" + s;
+
+    if (s.length() == 8)
+        return juce::Colour (static_cast<juce::uint32> (s.getHexValue64()));
+
+    return fallback;
+}
+
+void DrumKitView::setHitGlowColour (juce::Colour colour)
+{
+    if (hitGlowColour == colour)
+        return;
+
+    hitGlowColour = colour;
+    for (auto& p : pieces)
+    {
+        p.scaledGlowImage = {};
+        if (p.image.isValid())
+            p.glowImage = makeGlowImage (p.image, hitGlowColour);
+    }
+    hasLayout = false;
+    layout();
+    repaint();
+}
+
+void DrumKitView::applyKitVisuals (const DrumKit& kit)
+{
+    hitGlowColour = parseHexColour (kit.hitGlowColor, juce::Colour (0xffff8200));
+    loadPieceImages();
+    loadLayoutFromFile();
+
+    if (! kit.isNativeGlorpKit || kit.logicalPieces.empty())
+    {
+        hasLayout = false;
+        layout();
+        repaint();
+        return;
+    }
+
+    std::array<int, static_cast<size_t> (KitPiece::count)> zRank {{ 1, 4, 5, 6, 9, 3, 7, 2, 8 }};
+    bool anyCustomZ = false;
+
+    for (const auto& lp : kit.logicalPieces)
+    {
+        auto kp = pieceForName (lp.id);
+        if (kp == KitPiece::count)
+            kp = pieceForName (lp.name);
+        if (kp == KitPiece::count)
+            kp = pieceForName (lp.graphic);
+        if (kp == KitPiece::count)
+            continue;
+
+        const auto idx = static_cast<size_t> (kp);
+
+        if (! lp.customPngBytes.empty())
+        {
+            auto customImg = juce::ImageFileFormat::loadFrom (lp.customPngBytes.data(), lp.customPngBytes.size());
+            if (customImg.isValid())
+            {
+                pieces[idx].image = customImg;
+                pieces[idx].scaledImage = {};
+                pieces[idx].scaledGlowImage = {};
+                pieces[idx].glowImage = makeGlowImage (customImg, hitGlowColour);
+            }
+        }
+
+        if (lp.hasCustomLayout)
+        {
+            coords[idx].normX = lp.normX;
+            coords[idx].normY = lp.normY;
+            coords[idx].normW = std::clamp (lp.normW, 40.0f, 650.0f);
+            zRank[idx] = lp.zOrder;
+            anyCustomZ = true;
+        }
+    }
+
+    if (anyCustomZ)
+    {
+        pieceZOrder = zRank;
+    }
+
+    hasLayout = false;
+    layout();
+    rebuildKitOutline();
+    rebuildStaticKitCache();
+    repaint();
 }
 
 KitPiece DrumKitView::pieceForName (const juce::String& name)

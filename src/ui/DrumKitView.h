@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "../core/DrumKit.h"
 #include "Theme.h"
 
 #include <array>
@@ -34,6 +35,13 @@ public:
     DrumKitView();
 
     void setInstrumentNames (const std::vector<juce::String>& names);
+
+    /// Applies custom PNG graphics, hit glow color, 2D canvas coordinates, and Z-order layering from a loaded DrumKit.
+    void applyKitVisuals (const DrumKit& kit);
+
+    void setHitGlowColour (juce::Colour colour);
+    juce::Colour getHitGlowColour() const noexcept { return hitGlowColour; }
+    static juce::Colour parseHexColour (const std::string& hex, juce::Colour fallback = juce::Colour (0xffff8200));
 
     /// Fires a hit animation on the piece that best matches instrumentName.
     void triggerHit (const juce::String& instrumentName, float velocity);
@@ -129,6 +137,8 @@ private:
     juce::Rectangle<float> exitBtnBounds;
 
     Theme theme = Theme::sketch();
+    juce::Colour hitGlowColour { 0xffff8200 };
+    std::array<int, static_cast<size_t> (KitPiece::count)> pieceZOrder {{ 1, 4, 5, 6, 9, 3, 7, 2, 8 }};
     bool hasLayout = false;
 
     juce::Image unifiedKitOutlineImage;

@@ -436,6 +436,45 @@ std::string GlorpKitReader::readEntryString (const std::string& relativePath) co
     return in->readEntireStreamAsString().toStdString();
 }
 
+bool GlorpKitReader::readEntryBytes (const std::string& relativePath, std::vector<uint8_t>& outBytes) const
+{
+    outBytes.clear();
+    const auto* entry = getEntry (relativePath);
+    if (entry == nullptr || entry->uncompressedSize <= 0)
+        return false;
+
+    if (! entry->isCompressed)
+    {
+        std::ifstream stream (archivePath_, std::ios::binary);
+        if (! stream.is_open())
+            return false;
+
+        stream.seekg (entry->dataOffset);
+        outBytes.resize (static_cast<size_t> (entry->uncompressedSize));
+        stream.read (reinterpret_cast<char*> (outBytes.data()), entry->uncompressedSize);
+        return stream.good() || stream.gcount() == entry->uncompressedSize;
+    }
+
+    const juce::File archiveFile { archivePath_ };
+    juce::ZipFile zip (archiveFile);
+    const auto* ze = zip.getEntry (juce::String (entry->name), true);
+    if (ze == nullptr)
+        return false;
+
+    std::unique_ptr<juce::InputStream> in (zip.createStreamForEntry (*ze));
+    if (in == nullptr)
+        return false;
+
+    juce::MemoryBlock mb;
+    in->readIntoMemoryBlock (mb);
+    if (mb.getSize() == 0)
+        return false;
+
+    outBytes.resize (mb.getSize());
+    std::memcpy (outBytes.data(), mb.getData(), mb.getSize());
+    return true;
+}
+
 bool GlorpKitReader::isNativeGlorpKit() const
 {
     if (! hasEntry ("kit.xml"))
@@ -463,6 +502,7 @@ bool GlorpKitReader::readNativeKitManifest (GlorpKitManifest& manifest, std::vec
     manifest.author = root->attribute ("author");
     manifest.version = root->attribute ("version", "1.0");
     manifest.license = root->attribute ("license");
+    manifest.hitGlowColor = root->attribute ("hit-glow-color", "#ff8200");
     manifest.declaredSampleRate = root->attributeInt ("samplerate", 48000);
 
     if (auto* d = root->child ("description"))
@@ -521,6 +561,15 @@ bool GlorpKitReader::readNativeInstruments (std::vector<GlorpInstrumentSpec>& in
         spec.graphic = root->attribute ("graphic");
         spec.outputBus = root->attributeInt ("output-bus", 0);
         spec.chokeGroup = root->attribute ("choke-group", "none");
+
+        if (root->hasAttribute ("norm-x") || root->hasAttribute ("norm-y") || root->hasAttribute ("norm-w") || root->hasAttribute ("z-order"))
+        {
+            spec.hasCustomLayout = true;
+            spec.normX = root->attributeFloat ("norm-x", 0.0f);
+            spec.normY = root->attributeFloat ("norm-y", 0.0f);
+            spec.normW = root->attributeFloat ("norm-w", 160.0f);
+            spec.zOrder = root->attributeInt ("z-order", 0);
+        }
 
         // Parse zones
         for (auto* zn : root->childrenNamed ("zone"))

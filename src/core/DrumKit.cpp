@@ -316,7 +316,13 @@ DrumKit DrumKit::loadNativeGlorpKit (GlorpKitReader& reader, const std::string& 
     kit.version = manifest.version;
     kit.license = manifest.license;
     kit.description = manifest.description;
+    kit.hitGlowColor = manifest.hitGlowColor.empty() ? "#ff8200" : manifest.hitGlowColor;
     kit.declaredSampleRate = manifest.declaredSampleRate;
+
+    std::map<std::string, std::string> graphicSrcMap;
+    for (const auto& g : graphics)
+        if (! g.name.empty() && ! g.src.empty())
+            graphicSrcMap[g.name] = g.src;
 
     // Channels from mics
     for (const auto& m : manifest.mics)
@@ -352,6 +358,22 @@ DrumKit DrumKit::loadNativeGlorpKit (GlorpKitReader& reader, const std::string& 
         lp.graphic = pieceSpec.graphic;
         lp.outputBus = pieceSpec.outputBus;
         lp.chokeGroup = pieceSpec.chokeGroup;
+        lp.normX = pieceSpec.normX;
+        lp.normY = pieceSpec.normY;
+        lp.normW = pieceSpec.normW;
+        lp.zOrder = pieceSpec.zOrder;
+        lp.hasCustomLayout = pieceSpec.hasCustomLayout;
+
+        // Load embedded custom PNG bytes if present in the archive
+        std::string pngArcPath;
+        auto git = graphicSrcMap.find (pieceSpec.graphic);
+        if (git != graphicSrcMap.end() && git->second.rfind ("builtin:", 0) != 0)
+            pngArcPath = git->second;
+        else if (! pieceSpec.graphic.empty() && pieceSpec.graphic.rfind ("builtin:", 0) != 0)
+            pngArcPath = "assets/" + pieceSpec.graphic + ".png";
+
+        if (! pngArcPath.empty() && reader.hasEntry (pngArcPath))
+            reader.readEntryBytes (pngArcPath, lp.customPngBytes);
 
         for (const auto& zoneSpec : pieceSpec.zones)
         {

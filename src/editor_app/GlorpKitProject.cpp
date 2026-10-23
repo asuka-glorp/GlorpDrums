@@ -805,7 +805,7 @@ bool GlorpKitProject::exportToGlorpKit (const std::string& outputArchivePath, st
            << "graphic=\"" << escapeXml (gName) << "\" "
            << "output-bus=\"" << p.outputBus << "\" "
            << "choke-group=\"" << escapeXml (p.chokeGroup) << "\" "
-           << std::fixed << std::setprecision (1)
+           << std::fixed << std::setprecision (4)
            << "norm-x=\"" << p.normX << "\" "
            << "norm-y=\"" << p.normY << "\" "
            << "norm-w=\"" << p.normW << "\" "
@@ -1014,6 +1014,112 @@ DrumKit GlorpKitProject::buildRuntimeDrumKit() const
     }
 
     return kit;
+}
+
+//==============================================================================
+int GlorpKitProject::getSamplerIndexForZone (int pieceIndex, int zoneIndex) const
+{
+    int count = 0;
+    for (size_t p = 0; p < pieces.size(); ++p)
+    {
+        for (size_t z = 0; z < pieces[p].zones.size(); ++z)
+        {
+            if ((int) p == pieceIndex && (int) z == zoneIndex)
+                return count;
+            count++;
+        }
+    }
+    return -1;
+}
+
+bool GlorpKitProject::renamePiece (int pieceIndex, const std::string& newName, const std::string& newId)
+{
+    if (pieceIndex < 0 || pieceIndex >= (int) pieces.size())
+        return false;
+    if (newName.empty())
+        return false;
+
+    const std::string oldName = pieces[(size_t) pieceIndex].name;
+    pieces[(size_t) pieceIndex].name = newName;
+    if (! newId.empty())
+        pieces[(size_t) pieceIndex].id = newId;
+
+    // Update choke targets referencing the old piece name
+    for (auto& p : pieces)
+        for (auto& z : p.zones)
+            for (auto& c : z.chokes)
+                if (c.instrument == oldName)
+                    c.instrument = newName;
+
+    return true;
+}
+
+bool GlorpKitProject::renameMic (int micIndex, const std::string& newName)
+{
+    if (micIndex < 0 || micIndex >= (int) mics.size())
+        return false;
+    if (newName.empty())
+        return false;
+
+    const std::string oldMic = mics[(size_t) micIndex].name;
+    mics[(size_t) micIndex].name = newName;
+    mics[(size_t) micIndex].title = newName;
+
+    // Propagate mic rename to all sample layers across all pieces and zones
+    for (auto& p : pieces)
+        for (auto& z : p.zones)
+            for (auto& h : z.hits)
+                for (auto& ms : h.micSamples)
+                    if (ms.mic == oldMic)
+                        ms.mic = newName;
+
+    return true;
+}
+
+bool GlorpKitProject::renameZone (int pieceIndex, int zoneIndex, const std::string& newName)
+{
+    if (pieceIndex < 0 || pieceIndex >= (int) pieces.size())
+        return false;
+    auto& p = pieces[(size_t) pieceIndex];
+    if (zoneIndex < 0 || zoneIndex >= (int) p.zones.size())
+        return false;
+    if (newName.empty())
+        return false;
+
+    const std::string oldZone = p.zones[(size_t) zoneIndex].name;
+    p.zones[(size_t) zoneIndex].name = newName;
+
+    // Update choke targets referencing old zone on this piece
+    for (auto& otherP : pieces)
+        for (auto& otherZ : otherP.zones)
+            for (auto& c : otherZ.chokes)
+                if (c.instrument == p.name && c.zone == oldZone)
+                    c.zone = newName;
+
+    return true;
+}
+
+bool GlorpKitProject::deleteZone (int pieceIndex, int zoneIndex, std::string& outError)
+{
+    if (pieceIndex < 0 || pieceIndex >= (int) pieces.size())
+    {
+        outError = "Invalid piece index";
+        return false;
+    }
+    auto& p = pieces[(size_t) pieceIndex];
+    if (p.zones.size() <= 1)
+    {
+        outError = "Cannot delete the only articulation zone of a kit piece";
+        return false;
+    }
+    if (zoneIndex < 0 || zoneIndex >= (int) p.zones.size())
+    {
+        outError = "Invalid zone index";
+        return false;
+    }
+
+    p.zones.erase (p.zones.begin() + zoneIndex);
+    return true;
 }
 
 } // namespace glorp

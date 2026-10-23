@@ -9,6 +9,7 @@ project(GlorpDrums VERSION 0.2.0 LANGUAGES C CXX)
 option(GLORP_BUILD_VST3        "Build the VST3 target"        ON)
 option(GLORP_BUILD_LV2         "Build the LV2 target"         ON)
 option(GLORP_BUILD_STANDALONE  "Build the standalone app"    ON)
+option(GLORP_BUILD_KIT_EDITOR  "Build standalone GlorpKit editor application" ON)
 option(GLORP_BUILD_TESTS       "Build the headless test suite" ON)
 
 # Number of stereo output buses reserved for instruments.
@@ -104,6 +105,8 @@ juce_add_binary_data(GlorpDrumsAssets
         assets/crash_2.png
         assets/ride.png
         assets/logo.png
+        assets/glorpdrums_icon.png
+        assets/glorpkit_studio_icon.png
 )
 
 #==================================================================================
@@ -125,6 +128,7 @@ juce_add_plugin(GlorpDrums
     NEEDS_MIDI_OUTPUT       FALSE
     IS_MIDI_EFFECT          FALSE
     EDITOR_WANTS_KEYBOARD_FOCUS TRUE
+    ICON_BIG                assets/glorpdrums_icon.png
 )
 
 string(REPLACE ";" "," GLORP_PLUGIN_FORMATS_STR "${GLORP_PLUGIN_FORMATS}")
@@ -146,6 +150,7 @@ target_sources(GlorpDrums PRIVATE
     src/core/MidiMap.cpp
     src/core/Settings.cpp
     src/core/GlorpKit.cpp
+    src/core/GlorpKitWriter.cpp
     src/core/ChannelFX.cpp
     src/core/BleedMatrix.cpp
     src/core/AcousticCrosstalk.cpp
@@ -213,6 +218,68 @@ if(GLORP_BUILD_STANDALONE)
 endif()
 
 #==================================================================================
+# GlorpKit Editor Standalone Application
+#==================================================================================
+
+if(GLORP_BUILD_KIT_EDITOR)
+    juce_add_gui_app(GlorpKitEditor
+        PRODUCT_NAME "GlorpKitEditor"
+        COMPANY_NAME "GlorpDrums"
+        BUNDLE_ID "org.glorpdrums.GlorpKitEditor"
+        ICON_BIG assets/glorpkit_studio_icon.png
+    )
+
+    target_sources(GlorpKitEditor PRIVATE
+        src/editor_app/Main.cpp
+        src/editor_app/GlorpKitEditorWindow.cpp
+        src/editor_app/GlorpKitProject.cpp
+        src/core/GlorpKitWriter.cpp
+        src/core/GlorpKit.cpp
+        src/core/DrumKit.cpp
+        src/core/XmlLite.cpp
+        src/core/SampleCache.cpp
+        src/core/Sampler.cpp
+        src/core/PitchShifter.cpp
+        src/core/BleedMatrix.cpp
+        src/core/AcousticCrosstalk.cpp
+        src/core/ChannelFX.cpp
+    )
+
+    target_include_directories(GlorpKitEditor PRIVATE
+        src
+        src/core
+        src/ui
+        src/practice
+        src/editor_app
+    )
+
+    target_compile_definitions(GlorpKitEditor PRIVATE
+        JUCE_USE_CURL=0
+        JUCE_WEB_BROWSER=0
+        JUCE_ALSA=1
+        JUCE_JACK=1
+        GLORP_BUILD_DATE="${GLORP_BUILD_DATE}"
+        GLORP_MAX_INSTRUMENT_BUSES=${GLORP_MAX_INSTRUMENT_BUSES}
+    )
+
+    target_link_libraries(GlorpKitEditor PRIVATE
+        GlorpDrumsAssets
+        juce::juce_core
+        juce::juce_events
+        juce::juce_graphics
+        juce::juce_gui_basics
+        juce::juce_gui_extra
+        juce::juce_audio_basics
+        juce::juce_audio_devices
+        juce::juce_audio_formats
+        juce::juce_audio_processors
+        juce::juce_audio_utils
+        juce::juce_dsp
+        juce::juce_recommended_warning_flags
+    )
+endif()
+
+#==================================================================================
 # Tests
 #==================================================================================
 
@@ -225,6 +292,7 @@ if(GLORP_BUILD_TESTS)
     target_sources(glorp_core_tests PRIVATE
         src/core/XmlLite.cpp
         src/core/GlorpKit.cpp
+        src/core/GlorpKitWriter.cpp
         src/core/DrumKit.cpp
         src/core/KitScanner.cpp
         src/core/PitchShifter.cpp
@@ -237,9 +305,12 @@ if(GLORP_BUILD_TESTS)
     add_test(NAME core COMMAND glorp_core_tests)
 
     foreach(ui_test_target test_editor test_zones_knobs diagnose_crocell_knobs verify_fixes)
-        add_executable(${ui_test_target} EXCLUDE_FROM_ALL test/${ui_test_target}.cpp)
+        add_executable(${ui_test_target} EXCLUDE_FROM_ALL test/${ui_test_target}.cpp
+            src/editor_app/GlorpKitProject.cpp
+            src/editor_app/GlorpKitEditorWindow.cpp
+        )
         target_include_directories(${ui_test_target} PRIVATE
-            src src/core src/plugin src/ui src/practice
+            src src/core src/plugin src/ui src/practice src/editor_app
             $<TARGET_PROPERTY:GlorpDrums,INCLUDE_DIRECTORIES>
         )
         target_compile_definitions(${ui_test_target} PRIVATE

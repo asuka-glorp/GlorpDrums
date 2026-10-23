@@ -84,6 +84,11 @@ struct GlorpInstrumentSpec
     std::string graphic;
     int outputBus = 0;
     std::string chokeGroup;
+    float normX = 0.0f;
+    float normY = 0.0f;
+    float normW = 160.0f;
+    int zOrder = 0;
+    bool hasCustomLayout = false;
     std::vector<GlorpZoneSpec> zones;
 };
 
@@ -104,6 +109,7 @@ struct GlorpKitManifest
     int instrumentCount = 0;
     int declaredSampleRate = 48000;
     bool isNative = false;
+    std::string hitGlowColor = "#ff8200";
     std::vector<GlorpMic> mics;
     bool valid = false;
     std::string error;
@@ -133,6 +139,9 @@ public:
 
     /// Reads an XML or text entry into a std::string.
     std::string readEntryString (const std::string& relativePath) const;
+
+    /// Reads binary bytes of an entry (e.g. embedded PNG asset or audio slice).
+    bool readEntryBytes (const std::string& relativePath, std::vector<uint8_t>& outBytes) const;
 
     /// Returns true if the archive has a native GlorpKit kit.xml (<glorpkit> root).
     bool isNativeGlorpKit() const;

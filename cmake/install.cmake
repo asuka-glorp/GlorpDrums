@@ -52,6 +52,45 @@ if(GLORP_BUILD_STANDALONE)
         RUNTIME DESTINATION "${GLORP_DEST}/bin")
 endif()
 
+if(GLORP_BUILD_KIT_EDITOR)
+    install(TARGETS GlorpKitEditor
+        RUNTIME DESTINATION "${GLORP_DEST}/bin")
+endif()
+
+# Application Icons & Desktop Launchers
+install(FILES "assets/glorpdrums_icon.png" "assets/glorpkit_studio_icon.png"
+    DESTINATION "${GLORP_DEST}/icons")
+install(CODE "
+    file(MAKE_DIRECTORY \"\$ENV{HOME}/.local/share/icons/hicolor/256x256/apps\")
+    file(MAKE_DIRECTORY \"\$ENV{HOME}/.local/share/applications\")
+    file(COPY \"\${CMAKE_CURRENT_SOURCE_DIR}/assets/glorpdrums_icon.png\"
+         DESTINATION \"\$ENV{HOME}/.local/share/icons/hicolor/256x256/apps\")
+    file(COPY \"\${CMAKE_CURRENT_SOURCE_DIR}/assets/glorpkit_studio_icon.png\"
+         DESTINATION \"\$ENV{HOME}/.local/share/icons/hicolor/256x256/apps\")
+    file(WRITE \"\$ENV{HOME}/.local/share/applications/glorpdrums.desktop\"
+\"[Desktop Entry]
+Name=GlorpDrums
+Comment=Acoustic Drum Sampler
+Exec=GlorpDrums
+Icon=glorpdrums_icon
+Terminal=false
+Type=Application
+Categories=AudioVideo;Audio;
+StartupWMClass=GlorpDrums
+\")
+    file(WRITE \"\$ENV{HOME}/.local/share/applications/glorpkit_studio.desktop\"
+\"[Desktop Entry]
+Name=GlorpKit Studio
+Comment=.glorpkit Drum Kit Creator & Editor
+Exec=GlorpKitEditor
+Icon=glorpkit_studio_icon
+Terminal=false
+Type=Application
+Categories=AudioVideo;Audio;
+StartupWMClass=GlorpKitEditor
+\")
+")
+
 # User configuration directory. Created on first run either way, but shipping it
 # means the MIDI map presets are there before the plugin ever loads.
 install(DIRECTORY DESTINATION "$ENV{HOME}/.config/GlorpDrums")

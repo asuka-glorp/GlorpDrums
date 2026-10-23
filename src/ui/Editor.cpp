@@ -453,6 +453,22 @@ Editor::~Editor()
 void Editor::parentHierarchyChanged()
 {
     updateOpenGlAttachment();
+
+    if (auto* top = getTopLevelComponent())
+    {
+        auto icon = juce::ImageFileFormat::loadFrom (GlorpAssets::glorpdrums_icon_png,
+                                                     (size_t) GlorpAssets::glorpdrums_icon_pngSize);
+        if (icon.isValid())
+        {
+            if (auto* dw = dynamic_cast<juce::DocumentWindow*> (top))
+                dw->setIcon (icon);
+            if (auto* peer = top->getPeer())
+            {
+                peer->setIcon (icon);
+                windowIconApplied = true;
+            }
+        }
+    }
 }
 
 void Editor::updateOpenGlAttachment()
@@ -1554,6 +1570,25 @@ void Editor::parametersChanged()
 //==============================================================================
 void Editor::timerCallback()
 {
+    if (! windowIconApplied)
+    {
+        if (auto* top = getTopLevelComponent())
+        {
+            if (auto* peer = top->getPeer())
+            {
+                auto icon = juce::ImageFileFormat::loadFrom (GlorpAssets::glorpdrums_icon_png,
+                                                             (size_t) GlorpAssets::glorpdrums_icon_pngSize);
+                if (icon.isValid())
+                {
+                    if (auto* dw = dynamic_cast<juce::DocumentWindow*> (top))
+                        dw->setIcon (icon);
+                    peer->setIcon (icon);
+                    windowIconApplied = true;
+                }
+            }
+        }
+    }
+
     auto& sampler = processor.getSampler();
     HitEvent event;
 

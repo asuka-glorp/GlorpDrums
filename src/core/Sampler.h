@@ -22,6 +22,10 @@
 
 #pragma once
 
+#ifndef GLORP_MAX_INSTRUMENT_BUSES
+#define GLORP_MAX_INSTRUMENT_BUSES 32
+#endif
+
 #include "ChannelFX.h"
 #include "DrumKit.h"
 #include "SampleCache.h"

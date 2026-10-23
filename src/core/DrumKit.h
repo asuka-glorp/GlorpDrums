@@ -135,6 +135,7 @@ struct DrumKit
     std::string formatVersion;  ///< drumkit `version` attribute
 
     int declaredSampleRate = 48000;
+    std::string hitGlowColor = "#ff8200";
 
     std::string imagePath;
     std::vector<std::pair<std::string, std::string>> imageClickMap; ///< colour hex -> instrument name
@@ -166,6 +167,12 @@ struct DrumKit
         std::string graphic;
         int outputBus = 0;
         std::string chokeGroup;
+        float normX = 0.0f;
+        float normY = 0.0f;
+        float normW = 160.0f;
+        int zOrder = 0;
+        bool hasCustomLayout = false;
+        std::vector<uint8_t> customPngBytes;
         std::vector<ZoneItem> zones;
     };
 
