@@ -291,7 +291,7 @@ int GlorpKitProject::addPieceWithAutoLayout (const std::string& nameOrStem,
         p.graphicId = ! graphic.empty() ? graphic : "snare";
         p.outputBus = 1;
         p.chokeGroup = "none";
-        p.normX = 0.0f;
+        p.normX = -90.0f;
         p.normY = -280.0f;
         p.normW = 180.0f;
         p.zOrder = (int) pieces.size() + 1;
@@ -1083,9 +1083,17 @@ bool GlorpKitProject::exportToGlorpKit (const std::string& outputArchivePath, st
 
     // 1. Build kit.xml (version="2.0")
     {
+        std::string effectiveTitle = title;
+        if (effectiveTitle.empty() || effectiveTitle == "Untitled Kit")
+        {
+            const auto stem = targetPath.stem().string();
+            if (! stem.empty() && stem != "Untitled Kit" && stem != "Untitled_Kit")
+                effectiveTitle = stem;
+        }
+
         std::ostringstream ss;
         ss << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
-        ss << "<glorpkit version=\"2.0\" name=\"" << escapeXml (title) << "\" "
+        ss << "<glorpkit version=\"2.0\" name=\"" << escapeXml (effectiveTitle) << "\" "
            << "author=\"" << escapeXml (author) << "\" "
            << "license=\"" << escapeXml (license) << "\" "
            << "samplerate=\"" << sampleRate << "\" "

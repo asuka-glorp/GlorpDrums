@@ -299,9 +299,11 @@ void GlorpKitEditorComponent::computeCanvasPieceBounds()
     if (pieceSprites.size() != pieces.size())
         pieceSprites.resize (pieces.size());
 
-    const float scaleX = canvasViewportBounds.getWidth() / 820.0f;
-    const float scaleY = canvasViewportBounds.getHeight() / 470.0f;
-    const float scale  = std::min (scaleX, scaleY);
+    const float W = canvasViewportBounds.getWidth();
+    const float H = canvasViewportBounds.getHeight();
+    const float scale = std::min (W / 880.0f, H / 620.0f);
+    const float cx = canvasViewportBounds.getX() + W * 0.50f;
+    const float gy = canvasViewportBounds.getY() + H * 0.94f;
 
     for (size_t i = 0; i < pieces.size(); ++i)
     {
@@ -313,9 +315,9 @@ void GlorpKitEditorComponent::computeCanvasPieceBounds()
 
         const float drawW = std::max (36.0f, p.normW * scale);
         const float drawH = drawW * aspect;
-        const float cx = canvasViewportBounds.getX() + p.normX * canvasViewportBounds.getWidth();
-        const float cy = canvasViewportBounds.getY() + p.normY * canvasViewportBounds.getHeight();
-        sp.canvasBounds = { cx - drawW * 0.5f, cy - drawH * 0.5f, drawW, drawH };
+        const float x = cx + p.normX * scale;
+        const float y = gy + p.normY * scale;
+        sp.canvasBounds = { x, y, drawW, drawH };
     }
 }
 
@@ -356,6 +358,9 @@ bool GlorpKitEditorComponent::openKitFile (const juce::File& file)
 
 bool GlorpKitEditorComponent::saveGlorpKitFile (const juce::File& targetFile)
 {
+    if (project.title == "Untitled Kit" || project.title.empty())
+        project.title = targetFile.getFileNameWithoutExtension().replaceCharacter ('_', ' ').toStdString();
+
     std::string err;
     if (! project.exportToGlorpKit (targetFile.getFullPathName().toStdString(), err))
     {
@@ -492,6 +497,24 @@ void GlorpKitEditorComponent::selectZone (int zoneIndex, bool audition)
 
     selectedZoneIdx = juce::jlimit (0, (int) zones.size() - 1, zoneIndex);
     selectedHitIdx  = 0;
+
+    if (maxZoneScrollX > 0.0f && zoneTabBarBounds.getWidth() > 10.0f)
+    {
+        float zx = 0.0f;
+        for (int z = 0; z < selectedZoneIdx; ++z)
+        {
+            juce::String label = juce::String (zones[(size_t) z].name) + " (N:" + juce::String (zones[(size_t) z].note) + ")";
+            zx += std::max (105.0f, (float) label.length() * 7.5f + 20.0f) + 6.0f;
+        }
+        juce::String curLabel = juce::String (zones[(size_t) selectedZoneIdx].name) + " (N:" + juce::String (zones[(size_t) selectedZoneIdx].note) + ")";
+        const float curTw = std::max (105.0f, (float) curLabel.length() * 7.5f + 20.0f);
+
+        if (zx < zoneScrollX)
+            zoneScrollX = zx;
+        else if (zx + curTw > zoneScrollX + zoneTabBarBounds.getWidth())
+            zoneScrollX = zx + curTw - zoneTabBarBounds.getWidth() + 8.0f;
+        zoneScrollX = juce::jlimit (0.0f, maxZoneScrollX, zoneScrollX);
+    }
 
     suppressEditorCallbacks = true;
     zoneNameEditor.setText (zones[(size_t) selectedZoneIdx].name, juce::dontSendNotification);
@@ -1099,32 +1122,76 @@ void GlorpKitEditorComponent::paintMatrixPanel (juce::Graphics& g)
     Sketch::button (g, btnRrUp, "+", theme.trough, theme.ink, false, 186, Fonts::title (12.0f));
 
     zoneTabHits.clear();
-    float zx = matrixPanelBounds.getX() + 12.0f;
     const float zy = matrixPanelBounds.getY() + 31.0f;
-    for (size_t z = 0; z < piece.zones.size(); ++z)
-    {
-        const auto& zn = piece.zones[z];
-        const bool isZSel = ((int) z == selectedZoneIdx);
-        juce::String label = juce::String (zn.name) + " (N:" + juce::String (zn.note) + ")";
-        const float tw = std::max (112.0f, (float) label.length() * 7.6f + 22.0f);
-        juce::Rectangle<float> tabR { zx, zy, tw, 24.0f };
-        Sketch::button (g, tabR, label, isZSel ? theme.accent : theme.trough, theme.ink, isZSel, 160 + (int) z, Fonts::title (11.5f));
-        zoneTabHits.push_back ({ (int) z, tabR });
-        zx += tw + 6.0f;
-    }
-    juce::Rectangle<float> addZoneR { zx, zy, 92.0f, 24.0f };
-    const juce::Colour pastelGreen { 0xffa7f3d0 };
-    Sketch::button (g, addZoneR, "+ Add Zone", pastelGreen, juce::Colour (0xff064e3b), false, 175, Fonts::title (11.5f));
-    zoneTabHits.push_back ({ -1, addZoneR });
-    zx += 98.0f;
 
-    btnDeleteZone = { zx, zy, 90.0f, 24.0f };
+    btnDeleteZone = { matrixPanelBounds.getRight() - 100.0f, zy, 90.0f, 24.0f };
     const bool canDeleteZone = (piece.zones.size() > 1);
     const juce::Colour pastelCoral { 0xfffecaca };
     Sketch::button (g, btnDeleteZone, "Delete Zone",
                     canDeleteZone ? pastelCoral : theme.trough.withAlpha (0.4f),
                     canDeleteZone ? juce::Colour (0xff7f1d1d) : theme.inkSoft,
                     false, 177, Fonts::title (11.5f));
+
+    juce::Rectangle<float> addZoneR { btnDeleteZone.getX() - 98.0f, zy, 92.0f, 24.0f };
+    const juce::Colour pastelGreen { 0xffa7f3d0 };
+    Sketch::button (g, addZoneR, "+ Add Zone", pastelGreen, juce::Colour (0xff064e3b), false, 175, Fonts::title (11.5f));
+    zoneTabHits.push_back ({ -1, addZoneR });
+
+    // Measure total tabs width
+    float totalTabsW = 0.0f;
+    std::vector<float> tabWidths (piece.zones.size());
+    for (size_t z = 0; z < piece.zones.size(); ++z)
+    {
+        const auto& zn = piece.zones[z];
+        juce::String label = juce::String (zn.name) + " (N:" + juce::String (zn.note) + ")";
+        tabWidths[z] = std::max (105.0f, (float) label.length() * 7.5f + 20.0f);
+        totalTabsW += tabWidths[z] + 6.0f;
+    }
+
+    const float leftStart = matrixPanelBounds.getX() + 12.0f;
+    const float availableW = addZoneR.getX() - 8.0f - leftStart;
+    const bool needsZoneScroll = (totalTabsW > availableW && availableW > 60.0f);
+
+    if (needsZoneScroll)
+    {
+        btnZoneScrollLeft  = { leftStart, zy, 20.0f, 24.0f };
+        btnZoneScrollRight = { addZoneR.getX() - 26.0f, zy, 20.0f, 24.0f };
+        zoneTabBarBounds   = { btnZoneScrollLeft.getRight() + 4.0f, zy, btnZoneScrollRight.getX() - (btnZoneScrollLeft.getRight() + 6.0f), 26.0f };
+        maxZoneScrollX     = std::max (0.0f, totalTabsW - zoneTabBarBounds.getWidth());
+    }
+    else
+    {
+        btnZoneScrollLeft  = {};
+        btnZoneScrollRight = {};
+        zoneTabBarBounds   = { leftStart, zy, std::max (10.0f, availableW), 26.0f };
+        maxZoneScrollX     = 0.0f;
+        zoneScrollX        = 0.0f;
+    }
+    zoneScrollX = juce::jlimit (0.0f, maxZoneScrollX, zoneScrollX);
+
+    {
+        juce::Graphics::ScopedSaveState s (g);
+        g.reduceClipRegion (zoneTabBarBounds.toNearestInt());
+
+        float zx = zoneTabBarBounds.getX() - zoneScrollX;
+        for (size_t z = 0; z < piece.zones.size(); ++z)
+        {
+            const auto& zn = piece.zones[z];
+            const bool isZSel = ((int) z == selectedZoneIdx);
+            juce::String label = juce::String (zn.name) + " (N:" + juce::String (zn.note) + ")";
+            const float tw = tabWidths[z];
+            juce::Rectangle<float> tabR { zx, zy, tw, 24.0f };
+            Sketch::button (g, tabR, label, isZSel ? theme.accent : theme.trough, theme.ink, isZSel, 160 + (int) z, Fonts::title (11.5f));
+            zoneTabHits.push_back ({ (int) z, tabR });
+            zx += tw + 6.0f;
+        }
+    }
+
+    if (needsZoneScroll)
+    {
+        Sketch::button (g, btnZoneScrollLeft,  "<", zoneScrollX > 1.0f ? theme.accent : theme.trough, theme.ink, false, 188, Fonts::title (11.0f));
+        Sketch::button (g, btnZoneScrollRight, ">", zoneScrollX < maxZoneScrollX - 1.0f ? theme.accent : theme.trough, theme.ink, false, 189, Fonts::title (11.0f));
+    }
 
     matrixCellHits.clear();
     if (selectedZoneIdx < 0 || selectedZoneIdx >= (int) piece.zones.size()) return;
@@ -1644,7 +1711,14 @@ void GlorpKitEditorComponent::mouseDown (const juce::MouseEvent& e)
     if (btnGlowColor.contains (pt))    { showHitGlowColorMenu(); return; }
     if (btnTour.contains (pt))         { setTutorialVisible (true, 0); return; }
     if (btnThemeToggle.contains (pt))  { setDarkTheme (! theme.isDark); return; }
-    if (pillKitMeta.contains (pt))     { showKitMetadataDialog(); return; }
+    if (pillKitMeta.contains (pt))
+    {
+        if (e.getNumberOfClicks() >= 2)
+            promptRenameKit();
+        else
+            showKitMetadataDialog();
+        return;
+    }
 
     if (btnAddPiece.contains (pt))
     {
@@ -1905,6 +1979,18 @@ void GlorpKitEditorComponent::mouseDown (const juce::MouseEvent& e)
             });
         return;
     }
+    if (btnZoneScrollLeft.contains (pt) && maxZoneScrollX > 0.0f)
+    {
+        zoneScrollX = juce::jlimit (0.0f, maxZoneScrollX, zoneScrollX - 120.0f);
+        repaint();
+        return;
+    }
+    if (btnZoneScrollRight.contains (pt) && maxZoneScrollX > 0.0f)
+    {
+        zoneScrollX = juce::jlimit (0.0f, maxZoneScrollX, zoneScrollX + 120.0f);
+        repaint();
+        return;
+    }
     if (btnDeleteZone.contains (pt) && selectedPieceIdx >= 0)
     {
         auto& p = project.pieces[(size_t) selectedPieceIdx];
@@ -1921,7 +2007,9 @@ void GlorpKitEditorComponent::mouseDown (const juce::MouseEvent& e)
     }
     for (const auto& zt : zoneTabHits)
     {
-        if (zt.bounds.contains (pt))
+        const bool hitTest = (zt.zoneIndex == -1) ? zt.bounds.contains (pt)
+                                                  : (zoneTabBarBounds.contains (pt) && zt.bounds.contains (pt));
+        if (hitTest)
         {
             if (zt.zoneIndex == -1 && selectedPieceIdx >= 0)
             {
@@ -2205,6 +2293,18 @@ void GlorpKitEditorComponent::mouseMove (const juce::MouseEvent& e)
 
 void GlorpKitEditorComponent::mouseWheelMove (const juce::MouseEvent& e, const juce::MouseWheelDetails& wheel)
 {
+    if (zoneTabBarBounds.contains (e.position) || btnZoneScrollLeft.contains (e.position) || btnZoneScrollRight.contains (e.position))
+    {
+        if (maxZoneScrollX > 0.0f)
+        {
+            const float dx = (std::abs (wheel.deltaX) > 0.001f ? wheel.deltaX : wheel.deltaY);
+            zoneScrollX -= dx * 60.0f;
+            zoneScrollX = juce::jlimit (0.0f, maxZoneScrollX, zoneScrollX);
+            repaint();
+            return;
+        }
+    }
+
     if (matrixPanelBounds.contains (e.position))
     {
         matrixScrollY -= wheel.deltaY * 50.0f;
@@ -2523,15 +2623,25 @@ void GlorpKitEditorComponent::promptImportDrumGizmo()
 
 void GlorpKitEditorComponent::promptSaveGlorpKit()
 {
+    juce::String defaultStem = juce::String (project.title).trim();
+    if (defaultStem.isEmpty() || defaultStem == "Untitled Kit")
+        defaultStem = "Custom_DrumKit";
+    defaultStem = defaultStem.replaceCharacter (' ', '_');
+
     juce::File defaultFile = juce::File::getSpecialLocation (juce::File::userHomeDirectory)
-                                 .getChildFile (juce::String (project.title).replaceCharacter (' ', '_') + ".glorpkit");
+                                 .getChildFile (defaultStem + ".glorpkit");
     auto chooser = std::make_shared<juce::FileChooser> ("Save .glorpkit v2.0 Archive", defaultFile, "*.glorpkit");
     chooser->launchAsync (juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles | juce::FileBrowserComponent::warnAboutOverwriting,
                           [this, chooser] (const juce::FileChooser& fc)
                           {
                               auto f = fc.getResult();
                               if (f != juce::File())
-                                  saveGlorpKitFile (f.withFileExtension (".glorpkit"));
+                              {
+                                  auto targetFile = f.withFileExtension (".glorpkit");
+                                  if (project.title == "Untitled Kit" || project.title.empty())
+                                      project.title = targetFile.getFileNameWithoutExtension().replaceCharacter ('_', ' ').toStdString();
+                                  saveGlorpKitFile (targetFile);
+                              }
                           });
 }
 
@@ -2742,6 +2852,8 @@ void GlorpKitEditorComponent::importOpenRasterFile (const juce::File& file)
 
 void GlorpKitEditorComponent::applyOpenRasterImport (const juce::File& file, const OraDocument& doc, const OraImportResult& res)
 {
+    if (project.title == "Untitled Kit" || project.title.empty())
+        project.title = file.getFileNameWithoutExtension().replaceCharacter ('_', ' ').toStdString();
     int count = 0;
 
     for (size_t i = 0; i < doc.layers.size() && i < res.assignments.size(); ++i)
@@ -2779,9 +2891,9 @@ void GlorpKitEditorComponent::applyOpenRasterImport (const juce::File& file, con
             {
                 const float fracX = (float) layer.x / (float) doc.canvasWidth;
                 const float fracY = (float) layer.y / (float) doc.canvasHeight;
-                p.normX = (fracX - 0.5f) * 900.0f;
-                p.normY = (fracY - 0.7f) * 600.0f;
-                p.normW = std::clamp ((float) layer.width / (float) doc.canvasWidth * 800.0f, 60.0f, 450.0f);
+                p.normX = (fracX - 0.50f) * 880.0f;
+                p.normY = (fracY - 0.94f) * 620.0f;
+                p.normW = std::clamp ((float) layer.width / (float) doc.canvasWidth * 880.0f, 40.0f, 650.0f);
             }
             ++count;
         }
@@ -2924,6 +3036,9 @@ void GlorpKitEditorComponent::showMidiNoteMenu()
 void GlorpKitEditorComponent::showKitMetadataDialog()
 {
     juce::PopupMenu m;
+    m.addSectionHeader ("Kit: " + juce::String (project.title));
+    m.addItem (10, "Edit Kit Title & Info...", true, false);
+    m.addSeparator();
     m.addSectionHeader ("Kit Sample Rate");
     m.addItem (1, "44100 Hz", true, project.sampleRate == 44100);
     m.addItem (2, "48000 Hz", true, project.sampleRate == 48000);
@@ -2931,11 +3046,41 @@ void GlorpKitEditorComponent::showKitMetadataDialog()
     m.showMenuAsync (juce::PopupMenu::Options().withTargetScreenArea (localAreaToGlobal (pillKitMeta.toNearestInt())),
                      [this] (int res)
                      {
-                         if (res == 1) project.sampleRate = 44100;
-                         if (res == 2) project.sampleRate = 48000;
-                         if (res == 3) project.sampleRate = 96000;
+                         if (res == 10) promptRenameKit();
+                         else if (res == 1) project.sampleRate = 44100;
+                         else if (res == 2) project.sampleRate = 48000;
+                         else if (res == 3) project.sampleRate = 96000;
                          repaint();
                      });
+}
+
+void GlorpKitEditorComponent::promptRenameKit()
+{
+    const auto currentTitle = juce::String (project.title);
+    auto* alert = new juce::AlertWindow ("Kit Properties", "Edit drumkit title, author, and description:", juce::AlertWindow::QuestionIcon);
+    alert->addTextEditor ("kitTitle", currentTitle, "Kit Title");
+    alert->addTextEditor ("kitAuthor", project.author, "Author");
+    alert->addTextEditor ("kitDesc", project.description, "Description");
+    alert->addButton ("OK", 1, juce::KeyPress (juce::KeyPress::returnKey));
+    alert->addButton ("Cancel", 0, juce::KeyPress (juce::KeyPress::escapeKey));
+
+    alert->enterModalState (true, juce::ModalCallbackFunction::create ([this, alert] (int result)
+    {
+        if (result == 1)
+        {
+            auto newTitle = alert->getTextEditorContents ("kitTitle").trim();
+            if (newTitle.isNotEmpty())
+            {
+                pushUndoState ("Rename Kit");
+                project.title = newTitle.toStdString();
+                project.author = alert->getTextEditorContents ("kitAuthor").trim().toStdString();
+                project.description = alert->getTextEditorContents ("kitDesc").trim().toStdString();
+                showStatusToast ("Updated kit title: " + newTitle);
+                repaint();
+            }
+        }
+        delete alert;
+    }));
 }
 
 void GlorpKitEditorComponent::startAuditionSynth (int pieceIdx, float velocity)
@@ -3226,6 +3371,9 @@ void GlorpKitEditorComponent::promptImportAssetsFolder()
 void GlorpKitEditorComponent::importAssetsFromDirectory (const juce::File& dir)
 {
     if (! dir.isDirectory()) return;
+
+    if (project.title == "Untitled Kit" || project.title.empty())
+        project.title = dir.getFileName().replaceCharacter ('_', ' ').toStdString();
 
     auto pngFiles = dir.findChildFiles (juce::File::findFiles, false, "*.png");
     if (pngFiles.isEmpty())

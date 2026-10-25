@@ -94,6 +94,12 @@ public:
     /// Diagnostic accessors for verifying pre-scaled bitmap and static composite caches.
     bool isPieceScaledCacheValid (KitPiece piece) const noexcept;
     bool isStaticKitCacheValid() const noexcept { return staticKitImage.isValid(); }
+    juce::Image getPieceImage (KitPiece piece) const noexcept
+    {
+        if (piece != KitPiece::count)
+            return pieces[static_cast<size_t> (piece)].image;
+        return {};
+    }
 
 private:
     struct Piece

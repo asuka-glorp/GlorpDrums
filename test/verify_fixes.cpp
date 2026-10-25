@@ -1383,6 +1383,176 @@ int main()
         std::cout << "-> Phase 7 Intelligent Sample Mapping, Customizable Matrix & OpenRaster Import: PASSED!\n";
     }
 
+    // 19. Verify Canvas Coordinates Dragging, Zone Horizontal Scrolling, & .glorpkit Custom Graphics in DrumKitView
+    {
+        std::cout << "\n19. Testing Canvas Coordinates, Zone Horizontal Scrolling & Custom Graphics Display...\n";
+
+        // Helper lambda to synthesize a JUCE MouseEvent
+        auto makeMouseEvent = [] (juce::Component* comp, juce::Point<float> pos, juce::Point<float> downPos) {
+            return juce::MouseEvent (
+                juce::Desktop::getInstance().getMainMouseSource(),
+                pos,
+                juce::ModifierKeys(),
+                0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+                comp, comp,
+                juce::Time::getCurrentTime(),
+                downPos,
+                juce::Time::getCurrentTime(),
+                1,
+                pos != downPos
+            );
+        };
+
+        // 19.1 Verify piece coordinate mapping and dragging
+        glorp::GlorpKitEditorComponent editor;
+        editor.setSize (1280, 800);
+        auto& proj = editor.getProject();
+        proj.createNewBlankKit();
+        editor.reloadProjectIntoEngine();
+
+        // Add a piece with default sprite
+        int snareIdx = proj.addPiece ("Snare Drum", "snare");
+        editor.reloadProjectIntoEngine();
+        editor.selectPiece (snareIdx, false);
+
+        const auto initialBounds = editor.getPieceSpriteBounds (snareIdx);
+        VERIFY_CHECK (! initialBounds.isEmpty());
+        // Verify piece is on screen and inside canvas viewport
+        const auto cv = editor.getCanvasViewportBounds();
+        VERIFY_CHECK (cv.contains (initialBounds.getCentre()));
+
+        // Simulate dragging the piece by 50px horizontally and -30px vertically
+        const auto centerPos = initialBounds.getCentre();
+
+        editor.mouseDown (makeMouseEvent (&editor, centerPos, centerPos));
+        editor.mouseDrag (makeMouseEvent (&editor, centerPos.translated (50.0f, -30.0f), centerPos));
+        editor.mouseUp   (makeMouseEvent (&editor, centerPos.translated (50.0f, -30.0f), centerPos));
+
+        const auto draggedBounds = editor.getPieceSpriteBounds (snareIdx);
+        VERIFY_CHECK (! draggedBounds.isEmpty());
+        // Verify coordinates shifted smoothly and piece did NOT disappear
+        VERIFY_CHECK (draggedBounds.getX() > initialBounds.getX() + 25.0f);
+        VERIFY_CHECK (draggedBounds.getY() < initialBounds.getY() - 15.0f);
+        VERIFY_CHECK (cv.contains (draggedBounds.getCentre()));
+
+        // 19.2 Verify Zone Horizontal Scrolling for multi-zone instruments (e.g. hihat with 8 zones)
+        int hhIdx = proj.addPiece ("Hi-Hat Custom", "hihat");
+        auto& hhPiece = proj.pieces[(size_t) hhIdx];
+        hhPiece.zones.clear();
+        const char* hhZoneNames[] = { "closed", "closed-edge", "semi-open", "open-1", "open-2", "open-3", "pedal", "splash" };
+        for (int zi = 0; zi < 8; ++zi)
+        {
+            glorp::EditableZone z;
+            z.name = hhZoneNames[zi];
+            z.note = 42 + zi;
+            hhPiece.zones.push_back (std::move (z));
+        }
+        editor.reloadProjectIntoEngine();
+        editor.selectPiece (hhIdx, false);
+
+        // Force a paint pass to layout tabs
+        juce::Image dummyImg (juce::Image::ARGB, 1280, 800, true);
+        juce::Graphics dg (dummyImg);
+        editor.paintEntireComponent (dg, false);
+
+        VERIFY_CHECK (editor.getMaxZoneScrollX() > 0.0f);
+
+        // Select the last zone (splash) and verify auto-scrolled
+        editor.selectZone (7, false);
+        VERIFY_CHECK (editor.getZoneScrollX() > 0.0f);
+
+        // Test wheel scroll clamping
+        editor.mouseWheelMove (makeMouseEvent (&editor, editor.getZoneTabBarBounds().getCentre(), editor.getZoneTabBarBounds().getCentre()),
+                               juce::MouseWheelDetails { 0.0f, -10.0f, false, false, false });
+        VERIFY_CHECK (editor.getZoneScrollX() <= editor.getMaxZoneScrollX());
+
+        // 19.3 Verify pieceForName normalization
+        VERIFY_CHECK (glorp::DrumKitView::pieceForName ("tom_2") == glorp::KitPiece::tom2);
+        VERIFY_CHECK (glorp::DrumKitView::pieceForName ("f_tom") == glorp::KitPiece::floorTom);
+        VERIFY_CHECK (glorp::DrumKitView::pieceForName ("crash_2") == glorp::KitPiece::crash2);
+        VERIFY_CHECK (glorp::DrumKitView::pieceForName ("tom_1") == glorp::KitPiece::tom1);
+        VERIFY_CHECK (glorp::DrumKitView::pieceForName ("crash_1") == glorp::KitPiece::crash1);
+
+        // 19.4 Export .glorpkit with custom PNG & verify in DrumKitView
+        const juce::File tempDir = juce::File::getSpecialLocation (juce::File::tempDirectory)
+                                       .getChildFile ("glorp_verify_p7_fix_" + juce::String (juce::Random::getSystemRandom().nextInt()));
+        tempDir.createDirectory();
+        const auto exportKitFile = tempDir.getChildFile ("Ludwig_Black_Cortex.glorpkit");
+
+        // Make dummy custom PNG (solid orange 64x64)
+        juce::Image testCustomPng (juce::Image::ARGB, 64, 64, true);
+        testCustomPng.clear (juce::Rectangle<int> (0, 0, 64, 64), juce::Colour (0xffff8200));
+        juce::MemoryOutputStream mos;
+        juce::PNGImageFormat().writeImageToStream (testCustomPng, mos);
+        std::vector<uint8_t> pngBytes ((const uint8_t*) mos.getData(), (const uint8_t*) mos.getData() + mos.getDataSize());
+
+        hhPiece.customPngBytes = pngBytes;
+        hhPiece.customPngFileName = "custom_hihat.png";
+
+
+        // Title is initially "Untitled Kit"
+        proj.title = "Untitled Kit";
+        std::string expErr;
+        bool expOk = proj.exportToGlorpKit (exportKitFile.getFullPathName().toStdString(), expErr);
+        if (! expOk)
+            std::cerr << "exportToGlorpKit error: " << expErr << "\n";
+        VERIFY_CHECK (expOk);
+        VERIFY_CHECK (exportKitFile.existsAsFile() && exportKitFile.getSize() > 256);
+
+        // Verify KitScanner infers title from file stem when manifest title was "Untitled Kit"
+        auto kitEntry = glorp::KitScanner::describe (exportKitFile.getFullPathName().toStdString(), "TestKits");
+        VERIFY_CHECK (kitEntry.displayName == "[PKG] Ludwig_Black_Cortex" || kitEntry.displayName == "[PKG] Ludwig Black Cortex");
+
+        // Load into DrumKit
+        auto loadedKit = glorp::DrumKit::load (exportKitFile.getFullPathName().toStdString());
+        VERIFY_CHECK (loadedKit.error.empty());
+        VERIFY_CHECK (loadedKit.title == "Ludwig_Black_Cortex" || loadedKit.title == "Ludwig Black Cortex");
+        VERIFY_CHECK (! loadedKit.logicalPieces.empty());
+
+        bool foundCustomHh = false;
+        for (const auto& lp : loadedKit.logicalPieces)
+        {
+            if (lp.id == "hihat" || lp.graphic == "hihat" || lp.name.find ("Hi-Hat") != std::string::npos)
+            {
+                foundCustomHh = true;
+                VERIFY_CHECK (lp.customPngBytes.size() == pngBytes.size());
+            }
+        }
+        VERIFY_CHECK (foundCustomHh);
+
+        // Load into DrumKitView and verify visuals apply
+        glorp::DrumKitView dkv;
+        dkv.setSize (924, 621);
+        dkv.applyKitVisuals (loadedKit);
+
+        // Verify hihat custom image was applied
+        VERIFY_CHECK (dkv.getPieceImage (glorp::KitPiece::hihat).isValid());
+        VERIFY_CHECK (dkv.getPieceImage (glorp::KitPiece::hihat).getWidth() == 64);
+
+        // Render DrumKitView with loaded kit to artifacts
+        juce::Image kitSnap (juce::Image::ARGB, 924, 621, true);
+        juce::Graphics kg (kitSnap);
+        dkv.paintEntireComponent (kg, false);
+        juce::File dkvSnapFile ("/home/servandoc/.gemini/antigravity/brain/cf30153d-b421-4187-8ed5-1bdf793c8e28/live_phase7_kit_editor_loaded_in_plugin.png");
+        dkvSnapFile.deleteFile();
+        if (auto s = std::unique_ptr<juce::FileOutputStream> (dkvSnapFile.createOutputStream()))
+            juce::PNGImageFormat().writeImageToStream (kitSnap, *s);
+        std::cout << "-> Rendered DrumKitView with Custom Graphics: " << dkvSnapFile.getFullPathName() << "\n";
+
+        // Also render updated GlorpKitEditor canvas showing the custom piece & multi-zone scroll bar
+        juce::Image edSnap (juce::Image::ARGB, 1280, 800, true);
+        juce::Graphics eg (edSnap);
+        editor.paintEntireComponent (eg, false);
+        juce::File edSnapFile ("/home/servandoc/.gemini/antigravity/brain/cf30153d-b421-4187-8ed5-1bdf793c8e28/live_phase7_kit_editor_multizone_canvas.png");
+        edSnapFile.deleteFile();
+        if (auto s = std::unique_ptr<juce::FileOutputStream> (edSnapFile.createOutputStream()))
+            juce::PNGImageFormat().writeImageToStream (edSnap, *s);
+        std::cout << "-> Rendered GlorpKitEditor Multi-Zone & Canvas: " << edSnapFile.getFullPathName() << "\n";
+
+        tempDir.deleteRecursively();
+        std::cout << "-> Canvas Coordinates Dragging, Zone Scrolling & Custom Graphics Display: PASSED!\n";
+    }
+
     processor.releaseResources();
 
     std::cout << "=== ALL VERIFICATIONS PASSED SUCCESSFULLY ===\n";

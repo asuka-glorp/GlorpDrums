@@ -151,9 +151,9 @@ public:
         p.name = pieceName;
         p.id = "piece_" + std::to_string (pieces.size() + 1);
         p.graphicId = graphic;
-        p.normX = 0.50f;
-        p.normY = 0.50f;
-        p.normW = 150.0f;
+        p.normX = -90.0f;
+        p.normY = -280.0f;
+        p.normW = 180.0f;
         p.zOrder = (int) pieces.size() + 1;
         EditableZone z;
         z.name = "head";

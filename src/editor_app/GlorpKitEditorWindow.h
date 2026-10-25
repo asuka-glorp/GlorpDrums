@@ -75,6 +75,17 @@ public:
     bool canUndo() const noexcept { return ! undoStack.empty(); }
     bool canRedo() const noexcept { return ! redoStack.empty(); }
 
+    juce::Rectangle<float> getPieceSpriteBounds (int idx) const
+    {
+        if (idx >= 0 && idx < (int) pieceSprites.size())
+            return pieceSprites[(size_t) idx].canvasBounds;
+        return {};
+    }
+    juce::Rectangle<float> getCanvasViewportBounds() const noexcept { return canvasViewportBounds; }
+    juce::Rectangle<float> getZoneTabBarBounds() const noexcept { return zoneTabBarBounds; }
+    float getZoneScrollX() const noexcept { return zoneScrollX; }
+    float getMaxZoneScrollX() const noexcept { return maxZoneScrollX; }
+
     // -- Asset Importing -----------------------------------------------------
     void promptImportAssetsFolder();
     void importAssetsFromDirectory (const juce::File& dir);
@@ -219,6 +230,9 @@ private:
     juce::Rectangle<float> btnAutoPower, btnImportWavs, btnDeleteZone;
     juce::Rectangle<float> btnVelDown, pillVelCount, btnVelUp;
     juce::Rectangle<float> btnRrDown, pillRrCount, btnRrUp;
+    juce::Rectangle<float> zoneTabBarBounds, btnZoneScrollLeft, btnZoneScrollRight;
+    float zoneScrollX = 0.0f;
+    float maxZoneScrollX = 0.0f;
     float matrixScrollY = 0.0f;
     bool isDraggingMatrixHit = false;
     bool isPotentialMatrixDrag = false;
@@ -300,6 +314,7 @@ private:
     void showChokeGroupMenu();
     void showMidiNoteMenu();
     void showKitMetadataDialog();
+    void promptRenameKit();
 
     std::unique_ptr<OpenRasterModalOverlay> oraOverlay;
 

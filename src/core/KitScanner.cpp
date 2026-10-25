@@ -228,7 +228,15 @@ KitEntry KitScanner::describe (const std::string& drumkitPath, const std::string
                 return entry;
             }
 
-            entry.displayName = "[PKG] " + manifest.title;
+            std::string kitTitle = manifest.title;
+            if (kitTitle.empty() || kitTitle == "Untitled Kit")
+            {
+                const auto stem = std::filesystem::path (drumkitPath).stem().string();
+                if (! stem.empty() && stem != "Untitled Kit" && stem != "Untitled_Kit")
+                    kitTitle = stem;
+            }
+
+            entry.displayName = "[PKG] " + kitTitle;
             entry.instrumentCount = manifest.instrumentCount;
             entry.valid = true;
             return entry;

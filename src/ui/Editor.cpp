@@ -1542,6 +1542,7 @@ void Editor::kitChanged()
         names.push_back (processor.getSampler().instrumentName (i));
 
     kitView.setInstrumentNames (names);
+    kitView.applyKitVisuals (processor.getCurrentKit());
 
     if (! logicalInstruments.empty())
     {

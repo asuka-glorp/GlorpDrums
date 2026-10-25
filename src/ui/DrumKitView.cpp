@@ -320,7 +320,7 @@ void DrumKitView::applyKitVisuals (const DrumKit& kit)
     loadPieceImages();
     loadLayoutFromFile();
 
-    if (! kit.isNativeGlorpKit || kit.logicalPieces.empty())
+    if (kit.logicalPieces.empty())
     {
         hasLayout = false;
         layout();
@@ -333,11 +333,11 @@ void DrumKitView::applyKitVisuals (const DrumKit& kit)
 
     for (const auto& lp : kit.logicalPieces)
     {
-        auto kp = pieceForName (lp.id);
+        auto kp = pieceForName (lp.graphic);
+        if (kp == KitPiece::count)
+            kp = pieceForName (lp.id);
         if (kp == KitPiece::count)
             kp = pieceForName (lp.name);
-        if (kp == KitPiece::count)
-            kp = pieceForName (lp.graphic);
         if (kp == KitPiece::count)
             continue;
 
@@ -379,36 +379,20 @@ void DrumKitView::applyKitVisuals (const DrumKit& kit)
 
 KitPiece DrumKitView::pieceForName (const juce::String& name)
 {
-    const auto n = name.toLowerCase();
+    const auto raw = name.toLowerCase();
+    const auto n = raw.removeCharacters (" _-");
 
     if (n.contains ("kick") || n.contains ("kdrum") || n.contains ("bassdrum")
-        || n.contains ("bdrum") || n.contains ("bd"))
+        || n.contains ("bdrum") || n == "bd")
         return KitPiece::kick;
 
     if (n.contains ("snare") || n.contains ("sd") || n.contains ("snr")
         || n.contains ("rimclick") || n.contains ("rimshot") || n.contains ("crosstick"))
         return KitPiece::snare;
 
-    // Check Tom 2 first (so "tom 2" or "tom2" or "tom13" never gets stolen by "tom")
-    if (n.contains ("tom2") || n.contains ("tom 2") || n.contains ("racktom2")
-        || n.contains ("rack 2") || n.contains ("midtom") || n.contains ("mediumtom")
-        || n.contains ("tom13") || n.contains ("tom 13"))
-        return KitPiece::tom2;
-
-    // Check Floor Tom ("floor", "ftom", "tom3", "tom 3", "tom14", "tom16", "tom18", etc.)
-    if (n.contains ("floor") || n.contains ("ftom") || n.contains ("floortom")
-        || n.contains ("tom3") || n.contains ("tom 3") || n.contains ("racktom3")
-        || n.contains ("lowtom") || n.contains ("tom16") || n.contains ("tom 16")
-        || n.contains ("tom18") || n.contains ("tom 18") || n.contains ("tom14") || n.contains ("tom 14"))
-        return KitPiece::floorTom;
-
-    // Check Tom 1
-    if (n.contains ("tom1") || n.contains ("tom 1") || n.contains ("racktom1")
-        || n.contains ("rack 1") || n.contains ("hightom") || n.contains ("smalltom")
-        || n.contains ("tom10") || n.contains ("tom 10")
-        || n.contains ("tom12") || n.contains ("tom 12")
-        || (n.contains ("tom") && ! n.contains ("cowbell")))
-        return KitPiece::tom1;
+    if (n.contains ("hihat") || n.contains ("hh")
+        || n.contains ("hatclosed") || n.contains ("hatopen") || n.contains ("hat"))
+        return KitPiece::hihat;
 
     if (n.contains ("cowbell"))
         return KitPiece::count;
@@ -416,15 +400,35 @@ KitPiece DrumKitView::pieceForName (const juce::String& name)
     if (n.contains ("ride") || n.contains ("bell"))
         return KitPiece::ride;
 
-    if (n.contains ("crash2") || n.contains ("crash 2") || n.contains ("china") || n.contains ("splash"))
+    if (n.contains ("crash2") || n.contains ("china") || n.contains ("splash"))
         return KitPiece::crash2;
 
     if (n.contains ("crash") || n.contains ("cymbal"))
         return KitPiece::crash1;
 
-    if (n.contains ("hihat") || n.contains ("hi-hat") || n.contains ("hh")
-        || n.contains ("hatclosed") || n.contains ("hatopen") || n.contains ("hat"))
-        return KitPiece::hihat;
+    // Check Tom 2 first (so "tom 2" or "tom_2" or "tom2" or "tom13" never gets stolen by "tom")
+    if (n.contains ("tom2") || n.contains ("racktom2")
+        || n.contains ("rack2") || n.contains ("midtom") || n.contains ("mediumtom")
+        || n.contains ("tom13"))
+        return KitPiece::tom2;
+
+    // Check Floor Tom ("floor", "ftom", "f_tom", "tom3", "tom14", "tom16", "tom18", etc.)
+    if (n.contains ("floor") || n.contains ("ftom") || n.contains ("floortom")
+        || n.contains ("tom3") || n.contains ("racktom3")
+        || n.contains ("lowtom") || n.contains ("tom16")
+        || n.contains ("tom18") || n.contains ("tom14"))
+        return KitPiece::floorTom;
+
+    // Strip out non-tom words containing "tom" substring (e.g. "custom", "bottom") before testing generic "tom"
+    const auto nNoCustom = juce::String (n).replace ("custom", "").replace ("bottom", "");
+
+    // Check Tom 1
+    if (n.contains ("tom1") || n.contains ("racktom1")
+        || n.contains ("rack1") || n.contains ("hightom") || n.contains ("smalltom")
+        || n.contains ("tom10")
+        || n.contains ("tom12")
+        || (nNoCustom.contains ("tom") && ! n.contains ("cowbell")))
+        return KitPiece::tom1;
 
     return KitPiece::count;
 }

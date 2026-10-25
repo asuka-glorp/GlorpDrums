@@ -312,6 +312,12 @@ DrumKit DrumKit::loadNativeGlorpKit (GlorpKitReader& reader, const std::string& 
     }
 
     kit.title = manifest.title;
+    if (kit.title.empty() || kit.title == "Untitled Kit")
+    {
+        const auto stem = fs::path (archivePath).stem().string();
+        if (! stem.empty() && stem != "Untitled Kit" && stem != "Untitled_Kit")
+            kit.title = stem;
+    }
     kit.author = manifest.author;
     kit.version = manifest.version;
     kit.license = manifest.license;
