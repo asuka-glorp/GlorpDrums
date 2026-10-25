@@ -45,6 +45,8 @@ struct EditableZone
     std::string graphicId;
     int note = 36;
     int altNote = -1;
+    int numVelocityLayers = 5;
+    int numRoundRobins = 4;
     std::vector<GlorpChokeTarget> chokes;
     std::vector<EditableHit> hits;
 };
@@ -56,6 +58,7 @@ struct EditablePiece
     std::string graphicId = "snare"; // e.g. "kick", "snare", "custom_snare"
     std::string customPngFileName;
     std::vector<uint8_t> customPngBytes;
+    bool hasCustomLayout = false;
     int outputBus = 0;
     std::string chokeGroup = "none";
 
@@ -67,6 +70,38 @@ struct EditablePiece
 
     std::vector<EditableZone> zones;
 };
+
+struct DefaultPieceLayout
+{
+    const char* id;
+    const char* name;
+    const char* graphic;
+    int bus;
+    const char* chokeGroup;
+    float x;
+    float y;
+    float w;
+    int z;
+    int defaultMidiNote;
+};
+
+const DefaultPieceLayout* findDefaultPieceLayout (const std::string& idOrName);
+std::string sanitizeId (const std::string& raw);
+
+struct ParsedSampleInfo
+{
+    std::string rawPath;
+    std::string fileName;
+    std::string instrument;
+    std::string zone;
+    int roundRobin = 0;        // 0-indexed: 0=A, 1=B, etc.
+    int velocityLevel = 1;     // 1-indexed (e.g. 1..13)
+    bool hasExplicitVelocity = false;
+    bool hasExplicitRoundRobin = false;
+    bool hasExplicitZone = false;
+};
+
+ParsedSampleInfo parseSampleFilename (const std::string& filenameOrPath);
 
 class GlorpKitProject
 {
@@ -88,6 +123,7 @@ public:
 
     // -- Project Operations --------------------------------------------------
     void createNewDefaultKit();
+    void createNewBlankKit();
 
     std::vector<EditablePiece>& getPieces() noexcept { return pieces; }
     const std::vector<EditablePiece>& getPieces() const noexcept { return pieces; }
@@ -144,22 +180,33 @@ public:
         EditablePiece copy = pieces[(size_t) idx];
         copy.name += " Copy";
         copy.id   += "_copy";
-        copy.normX = std::min (0.90f, copy.normX + 0.05f);
-        copy.normY = std::min (0.90f, copy.normY + 0.04f);
+        copy.normX += 20.0f;
+        copy.normY += 15.0f;
         copy.zOrder = (int) pieces.size() + 1;
         pieces.push_back (std::move (copy));
         normalizeZOrders();
         return (int) pieces.size() - 1;
     }
 
-    void removePiece (int idx)
+    bool deletePiece (int idx)
     {
-        if (idx >= 0 && idx < (int) pieces.size() && pieces.size() > 1)
+        if (idx >= 0 && idx < (int) pieces.size())
         {
             pieces.erase (pieces.begin() + idx);
             normalizeZOrders();
+            return true;
         }
+        return false;
     }
+
+    void removePiece (int idx)
+    {
+        deletePiece (idx);
+    }
+
+    int addPieceWithAutoLayout (const std::string& nameOrStem,
+                                const std::string& graphic = "",
+                                const std::vector<uint8_t>& pngBytes = {});
 
     bool openGlorpKitArchive (const std::string& archivePath, std::string& outError);
     bool importDrumGizmoXml (const std::string& drumkitXmlPath, std::string& outError);
@@ -193,6 +240,15 @@ public:
     int importAudioFilesIntoZone (int pieceIndex, int zoneIndex,
                                   const std::vector<std::string>& filePaths,
                                   const std::string& targetMic = "close");
+
+    /// Moves a sample hit to a specific velocity layer and round robin column.
+    bool moveSampleToCell (int pieceIndex, int zoneIndex, int hitIndex, int newVelocityLayer, int newRoundRobin);
+
+    /// Swaps the matrix cells of two sample hits.
+    bool swapSampleCells (int pieceIndex, int zoneIndex, int hitAIndex, int hitBIndex);
+
+    /// Sets the velocity layer and round robin dimensions of a zone.
+    void setZoneGridDimensions (int pieceIndex, int zoneIndex, int numVelLayers, int numRoundRobins);
 };
 
 } // namespace glorp

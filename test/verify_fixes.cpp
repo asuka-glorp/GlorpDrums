@@ -1081,6 +1081,308 @@ int main()
         std::cout << "-> Phase 7 .glorpkit v2.0 Round-Trip, Custom PNGs, Hit Glow Color & GlorpKitEditor UI: PASSED!\n";
     }
 
+    // 18. Verify Intelligent Sample Filename Parsing, Customizable Velocity Layers / RR Grid & OpenRaster (.ora) Layered Image Import
+    {
+        std::cout << "\n18. Testing Intelligent Sample Filename Parsing, Customizable Matrix & OpenRaster (.ora) Import...\n";
+
+        // 18.1. Test parseSampleFilename against Ludwig Black Cortex real naming patterns
+        auto s1 = glorp::parseSampleFilename ("BlackCortex Vers2 Snare ctr A 13.wav");
+        VERIFY_CHECK (s1.hasExplicitVelocity);
+        VERIFY_CHECK (s1.velocityLevel == 13);
+        VERIFY_CHECK (s1.hasExplicitRoundRobin);
+        VERIFY_CHECK (s1.roundRobin == 0); // 'A' -> 0
+        VERIFY_CHECK (s1.zone == "ctr");
+        VERIFY_CHECK (s1.instrument == "BlackCortex Vers2 Snare");
+
+        auto s2 = glorp::parseSampleFilename ("BlackCortex Vers2 Snare ctr D 01.wav");
+        VERIFY_CHECK (s2.hasExplicitVelocity);
+        VERIFY_CHECK (s2.velocityLevel == 1);
+        VERIFY_CHECK (s2.hasExplicitRoundRobin);
+        VERIFY_CHECK (s2.roundRobin == 3); // 'D' -> 3
+        VERIFY_CHECK (s2.zone == "ctr");
+
+        auto s3 = glorp::parseSampleFilename ("Ludwig BassDrum A 08.wav");
+        VERIFY_CHECK (s3.hasExplicitVelocity);
+        VERIFY_CHECK (s3.velocityLevel == 8);
+        VERIFY_CHECK (s3.hasExplicitRoundRobin);
+        VERIFY_CHECK (s3.roundRobin == 0);
+
+        auto s4 = glorp::parseSampleFilename ("Tom1 rim B 05.wav");
+        VERIFY_CHECK (s4.hasExplicitVelocity);
+        VERIFY_CHECK (s4.velocityLevel == 5);
+        VERIFY_CHECK (s4.hasExplicitRoundRobin);
+        VERIFY_CHECK (s4.roundRobin == 1);
+        VERIFY_CHECK (s4.zone == "rim");
+
+        std::cout << "-> Sample filename token parser: PASSED!\n";
+
+        // 18.2. Multi-velocity sample set import & dynamic matrix grid expansion
+        juce::File tempDir = juce::File::getSpecialLocation (juce::File::tempDirectory)
+                                 .getChildFile ("glorp_ludwig_verify_" + juce::String (juce::Time::getMillisecondCounter()));
+        tempDir.createDirectory();
+
+        // Synthesize 52 WAV sample files matching the Ludwig Snare Center structure:
+        // 4 Round Robins (A..D) x 13 Velocity Layers (01..13)
+        std::vector<std::string> snareCtrSamplePaths;
+        const char rrChars[4] = { 'A', 'B', 'C', 'D' };
+        for (int v = 1; v <= 13; ++v)
+        {
+            for (int r = 0; r < 4; ++r)
+            {
+                char fname[128];
+                std::snprintf (fname, sizeof (fname), "BlackCortex Vers2 Snare ctr %c %02d.wav", rrChars[r], v);
+                juce::File wf = tempDir.getChildFile (fname);
+
+                juce::WavAudioFormat wavFmt;
+                std::unique_ptr<juce::AudioFormatWriter> writer (
+                    wavFmt.createWriterFor (new juce::FileOutputStream (wf), 44100.0, 1, 16, {}, 0));
+                VERIFY_CHECK (writer != nullptr);
+                juce::AudioBuffer<float> buf (1, 512);
+                buf.clear();
+                const float amp = (float) v / 13.0f * 0.9f;
+                for (int i = 0; i < 512; ++i)
+                    buf.setSample (0, i, std::sin ((float) i * 0.1f) * amp * std::exp (-(float) i / 100.0f));
+                writer->writeFromAudioSampleBuffer (buf, 0, 512);
+                writer.reset();
+
+                snareCtrSamplePaths.push_back (wf.getFullPathName().toStdString());
+            }
+        }
+        VERIFY_CHECK (snareCtrSamplePaths.size() == 52);
+
+        glorp::GlorpKitProject proj;
+        proj.createNewBlankKit();
+        int snareIdx = proj.addPieceWithAutoLayout ("Snare", "snare");
+        auto& snarePiece = proj.pieces[(size_t) snareIdx];
+        VERIFY_CHECK (! snarePiece.zones.empty());
+
+        int importedHits = proj.importAudioFilesIntoZone (snareIdx, 0, snareCtrSamplePaths, "close");
+        VERIFY_CHECK (importedHits == 52);
+
+        auto& snareZone = snarePiece.zones[0];
+        VERIFY_CHECK (snareZone.numVelocityLayers == 13);
+        VERIFY_CHECK (snareZone.numRoundRobins == 4);
+        VERIFY_CHECK (snareZone.hits.size() == 52);
+
+        // Verify each cell (vel 0..12, rr 0..3) is occupied with correct velocity and RR index
+        for (int v = 0; v < 13; ++v)
+        {
+            for (int r = 0; r < 4; ++r)
+            {
+                bool found = false;
+                for (const auto& h : snareZone.hits)
+                {
+                    if (h.velocityLayerIndex == v && h.roundRobinIndex == r)
+                    {
+                        found = true;
+                        VERIFY_CHECK (h.power >= 0.12f && h.power <= 1.0f);
+                        break;
+                    }
+                }
+                VERIFY_CHECK (found);
+            }
+        }
+
+        // Test Auto Power preserves velocity layers
+        proj.autoComputeZonePowers (snareIdx, 0);
+        VERIFY_CHECK (snareZone.numVelocityLayers == 13);
+        VERIFY_CHECK (snareZone.numRoundRobins == 4);
+        VERIFY_CHECK (snareZone.hits.size() == 52);
+
+        // Test moving sample between matrix cells
+        VERIFY_CHECK (proj.moveSampleToCell (snareIdx, 0, 0, 3, 2));
+        VERIFY_CHECK (snareZone.hits[0].velocityLayerIndex == 3);
+        VERIFY_CHECK (snareZone.hits[0].roundRobinIndex == 2);
+
+        // Test swapping sample cells
+        const int hitA_vel = snareZone.hits[1].velocityLayerIndex;
+        const int hitA_rr  = snareZone.hits[1].roundRobinIndex;
+        const int hitB_vel = snareZone.hits[2].velocityLayerIndex;
+        const int hitB_rr  = snareZone.hits[2].roundRobinIndex;
+        VERIFY_CHECK (proj.swapSampleCells (snareIdx, 0, 1, 2));
+        VERIFY_CHECK (snareZone.hits[1].velocityLayerIndex == hitB_vel);
+        VERIFY_CHECK (snareZone.hits[1].roundRobinIndex    == hitB_rr);
+        VERIFY_CHECK (snareZone.hits[2].velocityLayerIndex == hitA_vel);
+        VERIFY_CHECK (snareZone.hits[2].roundRobinIndex    == hitA_rr);
+
+        // Test setting custom grid dimensions
+        proj.setZoneGridDimensions (snareIdx, 0, 16, 6);
+        VERIFY_CHECK (snareZone.numVelocityLayers == 16);
+        VERIFY_CHECK (snareZone.numRoundRobins == 6);
+
+        std::cout << "-> 52-hit 13-velocity multi-layer import & matrix cell manipulation: PASSED!\n";
+
+        // 18.3. OpenRaster (.ora) layered archive generation, parsing, and dialog test
+        juce::File oraFile = tempDir.getChildFile ("ludwig_stage_kit.ora");
+        {
+            juce::File zipContentDir = tempDir.getChildFile ("ora_build");
+            zipContentDir.createDirectory();
+            juce::File dataDir = zipContentDir.getChildFile ("data");
+            dataDir.createDirectory();
+
+            zipContentDir.getChildFile ("mimetype").replaceWithText ("image/openraster");
+
+            juce::File ludwigDir ("/home/servandoc/Documents/DEV/GlorpDrums/test_data/ludwig_assets");
+            auto copyOrMakePng = [&] (const juce::String& name, int w, int h, juce::Colour col) -> juce::File
+            {
+                juce::File srcF = ludwigDir.getChildFile (name);
+                juce::File dstF = dataDir.getChildFile (name);
+                if (srcF.existsAsFile())
+                {
+                    srcF.copyFileTo (dstF);
+                }
+                else
+                {
+                    juce::Image img (juce::Image::ARGB, w, h, true);
+                    juce::Graphics ig (img);
+                    ig.setColour (col);
+                    ig.fillEllipse (4.0f, 4.0f, (float) w - 8.0f, (float) h - 8.0f);
+                    if (auto st = std::unique_ptr<juce::FileOutputStream> (dstF.createOutputStream()))
+                    {
+                        juce::PNGImageFormat pfmt;
+                        pfmt.writeImageToStream (img, *st);
+                    }
+                }
+                return dstF;
+            };
+
+            copyOrMakePng ("snare.png", 220, 200, juce::Colour (0xffe67e22));
+            copyOrMakePng ("kick.png",  300, 290, juce::Colour (0xff2c3e50));
+            copyOrMakePng ("hihat.png", 180, 180, juce::Colour (0xfff1c40f));
+            copyOrMakePng ("tom1.png",  160, 150, juce::Colour (0xff34495e));
+            copyOrMakePng ("tom2.png",  170, 160, juce::Colour (0xff34495e));
+            copyOrMakePng ("ftom.png",  210, 200, juce::Colour (0xff2c3e50));
+            copyOrMakePng ("crash1.png", 200, 190, juce::Colour (0xfff39c12));
+            copyOrMakePng ("crash2.png", 210, 200, juce::Colour (0xfff39c12));
+            copyOrMakePng ("ride.png",  240, 230, juce::Colour (0xffd35400));
+
+            juce::String stackXml =
+                "<?xml version='1.0' encoding='UTF-8'?>\n"
+                "<image version='0.0.1' w='1920' h='1080'>\n"
+                "  <stack>\n"
+                "    <layer name='Snare' src='data/snare.png' x='520' y='520' opacity='1.0' visibility='visible'/>\n"
+                "    <layer name='Kick' src='data/kick.png' x='720' y='580' opacity='1.0' visibility='visible'/>\n"
+                "    <layer name='Hi-Hat' src='data/hihat.png' x='340' y='420' opacity='1.0' visibility='visible'/>\n"
+                "    <layer name='Tom 1' src='data/tom1.png' x='620' y='360' opacity='1.0' visibility='visible'/>\n"
+                "    <layer name='Tom 2' src='data/tom2.png' x='840' y='360' opacity='1.0' visibility='visible'/>\n"
+                "    <layer name='Floor Tom' src='data/ftom.png' x='1040' y='520' opacity='1.0' visibility='visible'/>\n"
+                "    <layer name='Crash 1' src='data/crash1.png' x='320' y='220' opacity='1.0' visibility='visible'/>\n"
+                "    <layer name='Crash 2' src='data/crash2.png' x='1060' y='220' opacity='1.0' visibility='visible'/>\n"
+                "    <layer name='Ride' src='data/ride.png' x='1120' y='380' opacity='1.0' visibility='visible'/>\n"
+                "  </stack>\n"
+                "</image>\n";
+            zipContentDir.getChildFile ("stack.xml").replaceWithText (stackXml);
+
+            juce::ZipFile::Builder zb;
+            zb.addFile (zipContentDir.getChildFile ("mimetype"), 9, "mimetype");
+            zb.addFile (zipContentDir.getChildFile ("stack.xml"), 9, "stack.xml");
+            for (const auto& f : dataDir.findChildFiles (juce::File::findFiles, false))
+                zb.addFile (f, 9, "data/" + f.getFileName());
+
+            oraFile.deleteFile();
+            if (auto stream = std::unique_ptr<juce::FileOutputStream> (oraFile.createOutputStream()))
+                zb.writeToStream (*stream, nullptr);
+            zipContentDir.deleteRecursively();
+        }
+        VERIFY_CHECK (oraFile.existsAsFile());
+
+        // Test OpenRasterReader
+        glorp::OraDocument oraDoc;
+        juce::String oraErr;
+        bool oraOk = glorp::OpenRasterReader::read (oraFile, oraDoc, oraErr);
+        VERIFY_CHECK (oraOk);
+        VERIFY_CHECK (oraDoc.canvasWidth == 1920);
+        VERIFY_CHECK (oraDoc.canvasHeight == 1080);
+        VERIFY_CHECK (oraDoc.layers.size() == 9);
+        VERIFY_CHECK (oraDoc.layers[0].name == "Snare");
+        VERIFY_CHECK (oraDoc.layers[0].thumbnail.isValid());
+        VERIFY_CHECK (oraDoc.layers[0].pngBytes.size() > 100);
+
+        std::cout << "-> OpenRaster ZIP and stack.xml reader: PASSED!\n";
+
+        // 18.4. Test GlorpKitEditorComponent OpenRaster Import Dialog & Full Screen Renders
+        glorp::GlorpKitEditorComponent editor (false);
+        editor.setSize (1280, 820);
+
+        // Open .ora file in the editor -> modal overlay appears
+        editor.importOpenRasterFile (oraFile);
+        VERIFY_CHECK (editor.isOraOverlayActive());
+
+        // Render live modal overlay screenshot: live_phase7_ora_import_dialog.png
+        {
+            juce::Image oraSnap (juce::Image::ARGB, editor.getWidth(), editor.getHeight(), true);
+            juce::Graphics osg (oraSnap);
+            editor.paintEntireComponent (osg, false);
+            juce::File outF ("/home/servandoc/.gemini/antigravity/brain/cf30153d-b421-4187-8ed5-1bdf793c8e28/live_phase7_ora_import_dialog.png");
+            outF.deleteFile();
+            if (auto stream = std::unique_ptr<juce::FileOutputStream> (outF.createOutputStream()))
+            {
+                juce::PNGImageFormat pfmt;
+                pfmt.writeImageToStream (oraSnap, *stream);
+            }
+            std::cout << "-> Rendered OpenRaster Import Modal: " << outF.getFullPathName() << "\n";
+        }
+
+        // Programmatically confirm the import from the dialog
+        auto* overlay = editor.getOraOverlay();
+        VERIFY_CHECK (overlay != nullptr);
+        overlay->confirmAndApply();
+        VERIFY_CHECK (! editor.isOraOverlayActive());
+
+        // Verify pieces were generated with stage coordinates and custom PNGs
+        auto& edProj = editor.getProject();
+        VERIFY_CHECK (! edProj.pieces.empty());
+        bool foundSnarePiece = false;
+        for (const auto& p : edProj.pieces)
+        {
+            if (juce::String (p.name).containsIgnoreCase ("snare"))
+            {
+                foundSnarePiece = true;
+                VERIFY_CHECK (! p.customPngBytes.empty());
+                break;
+            }
+        }
+        VERIFY_CHECK (foundSnarePiece);
+
+        // 18.5. Import Ludwig 52-sample set into Snare in editor and render live matrix screenshot
+        int edSnareIdx = -1;
+        for (size_t pi = 0; pi < edProj.pieces.size(); ++pi)
+        {
+            if (juce::String (edProj.pieces[pi].name).containsIgnoreCase ("snare"))
+            {
+                edSnareIdx = (int) pi;
+                break;
+            }
+        }
+        if (edSnareIdx >= 0)
+        {
+            editor.selectPiece (edSnareIdx, false);
+            edProj.importAudioFilesIntoZone (edSnareIdx, 0, snareCtrSamplePaths, "close");
+            editor.reloadProjectIntoEngine();
+            editor.selectPiece (edSnareIdx, false);
+            editor.selectZone (0, false);
+
+            auto& zoneRef = edProj.pieces[(size_t) edSnareIdx].zones[0];
+            VERIFY_CHECK (zoneRef.numVelocityLayers == 13);
+            VERIFY_CHECK (zoneRef.numRoundRobins == 4);
+
+            juce::Image matrixSnap (juce::Image::ARGB, editor.getWidth(), editor.getHeight(), true);
+            juce::Graphics msg (matrixSnap);
+            editor.paintEntireComponent (msg, false);
+            juce::File outF ("/home/servandoc/.gemini/antigravity/brain/cf30153d-b421-4187-8ed5-1bdf793c8e28/live_phase7_ludwig_samples_matrix.png");
+            outF.deleteFile();
+            if (auto stream = std::unique_ptr<juce::FileOutputStream> (outF.createOutputStream()))
+            {
+                juce::PNGImageFormat pfmt;
+                pfmt.writeImageToStream (matrixSnap, *stream);
+            }
+            std::cout << "-> Rendered 13-Velocity Ludwig Matrix Screenshot: " << outF.getFullPathName() << "\n";
+        }
+
+        tempDir.deleteRecursively();
+        std::cout << "-> Phase 7 Intelligent Sample Mapping, Customizable Matrix & OpenRaster Import: PASSED!\n";
+    }
+
     processor.releaseResources();
 
     std::cout << "=== ALL VERIFICATIONS PASSED SUCCESSFULLY ===\n";

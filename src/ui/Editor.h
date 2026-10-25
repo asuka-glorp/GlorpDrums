@@ -14,6 +14,7 @@
 
 #include <juce_opengl/juce_opengl.h>
 
+
 #include <memory>
 #include <vector>
 
@@ -234,6 +235,7 @@ private:
     std::unique_ptr<juce::Drawable> logo;
     juce::Image cachedLogoImage;
     juce::OpenGLContext openGlContext;
+    bool windowIconApplied = false;
 
     // Left Panel: "INSTRUMENT SETTINGS"
     InstrumentSelectorButton instSelectorButton;

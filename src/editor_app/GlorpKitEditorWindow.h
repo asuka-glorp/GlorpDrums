@@ -6,6 +6,8 @@
 #pragma once
 
 #include "GlorpKitProject.h"
+#include "OpenRasterReader.h"
+#include "OpenRasterImportDialog.h"
 #include "../core/Sampler.h"
 #include "../core/SampleCache.h"
 #include "../ui/Theme.h"
@@ -60,6 +62,19 @@ public:
 
     void setPreviewMode (bool preview) { previewKitMode = preview; repaint(); }
     bool isPreviewMode() const noexcept { return previewKitMode; }
+
+    bool isOraOverlayActive() const noexcept { return oraOverlay != nullptr; }
+    OpenRasterModalOverlay* getOraOverlay() noexcept { return oraOverlay.get(); }
+    void dismissOraOverlay() { oraOverlay.reset(); repaint(); }
+    void importOpenRasterFile (const juce::File& file);
+
+    struct MatrixCellHit
+    {
+        int hitIndex = -1;
+        int velLayer = 0;
+        int rrIndex  = 0;
+        juce::Rectangle<float> bounds;
+    };
 
     // -- juce::Component -----------------------------------------------------
     void paint (juce::Graphics& g) override;
@@ -142,7 +157,7 @@ private:
     // -- Interactive Hit-Test Geometries -------------------------------------
     // Top Header
     juce::Rectangle<float> headerBounds;
-    juce::Rectangle<float> btnNewKit, btnOpenKit, btnImportDg, btnSaveKit;
+    juce::Rectangle<float> btnNewKit, btnOpenKit, btnImportDg, btnImportOra, btnSaveKit;
     juce::Rectangle<float> pillKitMeta, btnGlowColor, btnAudioSettings, btnTour, btnThemeToggle;
 
     // Left Panel (Z-Layer Stack & Mic Buses)
@@ -180,13 +195,6 @@ private:
         juce::Rectangle<float> bounds;
     };
     std::vector<ZoneTabHit> zoneTabHits;
-    struct MatrixCellHit
-    {
-        int hitIndex = -1;
-        int velLayer = 0;
-        int rrIndex  = 0;
-        juce::Rectangle<float> bounds;
-    };
     std::vector<MatrixCellHit> matrixCellHits;
 
     // Right Panel (Piece, Zone & Sample Inspector)
@@ -240,15 +248,21 @@ private:
 
     void promptOpenKit();
     void promptImportDrumGizmo();
+    void promptImportOpenRaster();
+    void applyOpenRasterImport (const juce::File& file, const OraDocument& doc, const OraImportResult& res);
     void promptSaveGlorpKit();
     void promptLoadCustomPng();
     void promptImportWavsForCurrentZone (const std::string& targetMic = "close");
+    void promptImportWavForSpecificCell (int velLayer, int roundRobin);
+    void showMatrixCellContextMenu (const MatrixCellHit& cell);
     void showHitGlowColorMenu();
     void showBuiltinAssetMenu();
     void showOutputBusMenu();
     void showChokeGroupMenu();
     void showMidiNoteMenu();
     void showKitMetadataDialog();
+
+    std::unique_ptr<OpenRasterModalOverlay> oraOverlay;
 
     void paintHeader (juce::Graphics& g);
     void paintLeftPanel (juce::Graphics& g);

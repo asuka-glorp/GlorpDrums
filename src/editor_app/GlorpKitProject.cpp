@@ -40,61 +40,292 @@ namespace
         return out;
     }
 
-    std::string sanitizeId (const std::string& raw)
-    {
-        std::string out;
-        for (unsigned char c : raw)
-        {
-            if (std::isalnum (c))
-                out += static_cast<char> (std::tolower (c));
-            else if (c == '-' || c == '_')
-                out += static_cast<char> (c);
-        }
-        return out.empty() ? "piece" : out;
-    }
-
-    struct DefaultPieceLayout
-    {
-        const char* id;
-        const char* name;
-        const char* graphic;
-        int bus;
-        const char* chokeGroup;
-        float x;
-        float y;
-        float w;
-        int z;
-    };
-
     constexpr DefaultPieceLayout kDefaultPieces[] = {
-        { "kick",   "Kick 22\" Maple",     "kick",   0, "none",   -155.2f, -329.7f, 345.0f, 1 },
-        { "ftom",   "Floor Tom 16\"",      "ftom",   3, "none",    107.2f, -272.1f, 195.0f, 2 },
-        { "tom2",   "Mid Tom 12\"",        "tom2",   3, "none",     15.9f, -408.0f, 155.0f, 3 },
-        { "tom1",   "High Tom 10\"",       "tom1",   3, "none",   -122.6f, -420.7f, 138.0f, 4 },
-        { "snare",  "Snare 14x6.5 Brass",  "snare",  1, "none",   -212.7f, -259.5f, 180.0f, 5 },
-        { "hihat",  "Hi-Hat 14\" Custom",  "hihat",  2, "hihat",  -299.6f, -404.7f, 160.0f, 6 },
-        { "ride",   "Ride Cymbal 20\"",    "ride",   5, "none",     77.7f, -507.0f, 210.0f, 7 },
-        { "crash2", "Crash 2 (Right)",     "crash2", 4, "crash2",  187.3f, -420.8f, 205.0f, 8 },
-        { "crash1", "Crash 1 (Left)",      "crash1", 4, "crash1", -235.0f, -502.9f, 190.0f, 9 },
+        { "kick",   "Kick 22\" Maple",     "kick",   0, "none",   -155.2f, -329.7f, 345.0f, 1, 36 },
+        { "ftom",   "Floor Tom 16\"",      "ftom",   3, "none",    107.2f, -272.1f, 195.0f, 2, 43 },
+        { "tom2",   "Mid Tom 12\"",        "tom2",   3, "none",     15.9f, -408.0f, 155.0f, 3, 47 },
+        { "tom1",   "High Tom 10\"",       "tom1",   3, "none",   -122.6f, -420.7f, 138.0f, 4, 48 },
+        { "snare",  "Snare 14x6.5 Brass",  "snare",  1, "none",   -212.7f, -259.5f, 180.0f, 5, 38 },
+        { "hihat",  "Hi-Hat 14\" Custom",  "hihat",  2, "hihat",  -299.6f, -404.7f, 160.0f, 6, 42 },
+        { "ride",   "Ride Cymbal 20\"",    "ride",   5, "none",     77.7f, -507.0f, 210.0f, 7, 51 },
+        { "crash2", "Crash 2 (Right)",     "crash2", 4, "crash2",  187.3f, -420.8f, 205.0f, 8, 57 },
+        { "crash1", "Crash 1 (Left)",      "crash1", 4, "crash1", -235.0f, -502.9f, 190.0f, 9, 49 },
+    };
+} // namespace
+
+std::string sanitizeId (const std::string& raw)
+{
+    std::string out;
+    for (char ch : raw)
+    {
+        unsigned char c = static_cast<unsigned char> (ch);
+        if (std::isalnum (c))
+            out += static_cast<char> (std::tolower (c));
+        else if (c == '-' || c == '_')
+            out += static_cast<char> (c);
+    }
+    return out.empty() ? "piece" : out;
+}
+
+const DefaultPieceLayout* findDefaultPieceLayout (const std::string& idOrName)
+{
+    std::string low = sanitizeId (idOrName);
+    for (const auto& d : kDefaultPieces)
+        if (low.find (d.id) != std::string::npos || std::string (d.id).find (low) != std::string::npos)
+            return &d;
+
+    if (low.find ("floor") != std::string::npos || low.find ("tom3") != std::string::npos || low.find ("tom16") != std::string::npos)
+        return &kDefaultPieces[1];
+    return nullptr;
+}
+
+//==============================================================================
+ParsedSampleInfo parseSampleFilename (const std::string& filenameOrPath)
+{
+    ParsedSampleInfo info;
+    info.rawPath = filenameOrPath;
+    fs::path p (filenameOrPath);
+    info.fileName = p.filename().string();
+    std::string stem = p.stem().string();
+
+    auto trim = [](std::string s) -> std::string
+    {
+        while (! s.empty() && std::isspace (static_cast<unsigned char> (s.front()))) s.erase (s.begin());
+        while (! s.empty() && std::isspace (static_cast<unsigned char> (s.back())))  s.pop_back();
+        return s;
     };
 
-    const DefaultPieceLayout* findDefaultLayoutFor (const std::string& idOrName)
-    {
-        std::string low = sanitizeId (idOrName);
-        for (const auto& d : kDefaultPieces)
-            if (low.find (d.id) != std::string::npos)
-                return &d;
+    stem = trim (stem);
 
-        if (low.find ("floor") != std::string::npos || low.find ("tom3") != std::string::npos || low.find ("tom16") != std::string::npos)
-            return &kDefaultPieces[1];
-        return nullptr;
+    // 1. Detect trailing or embedded velocity numbers: e.g. "ctr A 13", "A 01", "v12", "vel3", "_13"
+    int velEnd = -1, velStart = -1;
+    for (int i = static_cast<int> (stem.size()) - 1; i >= 0; --i)
+    {
+        if (std::isdigit (static_cast<unsigned char> (stem[static_cast<size_t> (i)])))
+        {
+            if (velEnd == -1) velEnd = i + 1;
+            velStart = i;
+        }
+        else if (velEnd != -1)
+        {
+            break;
+        }
     }
-} // namespace
+
+    if (velStart >= 0 && velEnd > velStart)
+    {
+        int pfxStart = velStart;
+        if (pfxStart >= 3 && (stem.substr (static_cast<size_t> (pfxStart - 3), 3) == "vel" || stem.substr (static_cast<size_t> (pfxStart - 3), 3) == "Vel"))
+            pfxStart -= 3;
+        else if (pfxStart >= 1 && (stem[static_cast<size_t> (pfxStart - 1)] == 'v' || stem[static_cast<size_t> (pfxStart - 1)] == 'V'))
+            pfxStart -= 1;
+
+        if (pfxStart == 0 || stem[static_cast<size_t> (pfxStart - 1)] == ' ' || stem[static_cast<size_t> (pfxStart - 1)] == '_' || stem[static_cast<size_t> (pfxStart - 1)] == '-')
+        {
+            try
+            {
+                info.velocityLevel = std::stoi (stem.substr (static_cast<size_t> (velStart), static_cast<size_t> (velEnd - velStart)));
+                info.hasExplicitVelocity = true;
+                stem = trim (stem.substr (0, static_cast<size_t> (pfxStart)));
+            }
+            catch (...) {}
+        }
+    }
+
+    // 2. Detect Round Robin token at end of remaining stem: e.g. "A".."H", "rr1".."rr8", "r1".."r8"
+    if (! stem.empty())
+    {
+        bool rrFound = false;
+        if (stem.size() >= 2 && (stem[stem.size() - 2] == ' ' || stem[stem.size() - 2] == '_' || stem[stem.size() - 2] == '-'))
+        {
+            char c = stem.back();
+            if ((c >= 'A' && c <= 'H') || (c >= 'a' && c <= 'h'))
+            {
+                info.roundRobin = std::toupper (static_cast<unsigned char> (c)) - 'A';
+                info.hasExplicitRoundRobin = true;
+                stem = trim (stem.substr (0, stem.size() - 2));
+                rrFound = true;
+            }
+        }
+        else if (stem.size() == 1 && ((stem[0] >= 'A' && stem[0] <= 'H') || (stem[0] >= 'a' && stem[0] <= 'h')))
+        {
+            info.roundRobin = std::toupper (static_cast<unsigned char> (stem[0])) - 'A';
+            info.hasExplicitRoundRobin = true;
+            stem.clear();
+            rrFound = true;
+        }
+
+        if (! rrFound)
+        {
+            std::string stemLower = stem;
+            for (auto& ch : stemLower) ch = static_cast<char> (std::tolower (static_cast<unsigned char> (ch)));
+            const auto lastSpace = stemLower.find_last_of (" _-");
+            std::string lastToken = (lastSpace != std::string::npos) ? stemLower.substr (lastSpace + 1) : stemLower;
+            if (lastToken.rfind ("rr", 0) == 0 && lastToken.size() > 2)
+            {
+                try
+                {
+                    info.roundRobin = std::stoi (lastToken.substr (2)) - 1;
+                    info.hasExplicitRoundRobin = true;
+                    stem = trim (stem.substr (0, lastSpace != std::string::npos ? lastSpace : 0));
+                }
+                catch (...) {}
+            }
+        }
+    }
+
+    // 3. Detect known articulation zones:
+    struct ZoneEntry { const char* pattern; const char* canonical; };
+    const ZoneEntry knownZones[] = {
+        { "side stick",  "sidestick" },
+        { "cross stick", "sidestick" },
+        { "sidestick",   "sidestick" },
+        { "cross",       "sidestick" },
+        { "rimshot",     "rimshot"   },
+        { "rim shot",    "rimshot"   },
+        { "rim",         "rim"       },
+        { "ctr",         "ctr"       },
+        { "center",      "ctr"       },
+        { "centre",      "ctr"       },
+        { "edge",        "edge"      },
+        { "edg",         "edge"      },
+        { "head",        "head"      },
+        { "bow",         "bow"       },
+        { "bell",        "bell"      },
+        { "cup",         "bell"      },
+        { "choke",       "edge"      },
+        { "pedal",       "pedal"     },
+        { "splash",      "splash"    },
+        { "full op",     "open"      },
+        { "open",        "open"      },
+        { "closed",      "closed"    },
+        { "tight",       "closed"    },
+        { "clo",         "closed"    },
+        { "half",        "half"      },
+    };
+
+    std::string stemLower = stem;
+    for (auto& ch : stemLower) ch = static_cast<char> (std::tolower (static_cast<unsigned char> (ch)));
+
+    for (const auto& ze : knownZones)
+    {
+        const std::string pat = ze.pattern;
+        auto pos = stemLower.rfind (pat);
+        if (pos != std::string::npos)
+        {
+            const bool atEnd = (pos + pat.size() == stemLower.size());
+            const bool afterSep = (pos > 0 && (stemLower[pos - 1] == ' ' || stemLower[pos - 1] == '_' || stemLower[pos - 1] == '-'));
+            const bool beforeSep = atEnd || (pos + pat.size() < stemLower.size() && (stemLower[pos + pat.size()] == ' ' || stemLower[pos + pat.size()] == '_' || stemLower[pos + pat.size()] == '-'));
+            if ((pos == 0 || afterSep) && beforeSep)
+            {
+                info.zone = ze.canonical;
+                info.hasExplicitZone = true;
+                std::string rem = stem.substr (0, pos) + stem.substr (pos + pat.size());
+                stem = trim (rem);
+                break;
+            }
+        }
+    }
+
+    if (info.zone.empty())
+        info.zone = "head";
+
+    info.instrument = trim (stem);
+    if (info.instrument.empty())
+        info.instrument = "Piece";
+
+    return info;
+}
 
 //==============================================================================
 GlorpKitProject::GlorpKitProject()
 {
-    createNewDefaultKit();
+    createNewBlankKit();
+}
+
+void GlorpKitProject::createNewBlankKit()
+{
+    title = "Untitled Kit";
+    author = "GlorpDrums User";
+    version = "2.0";
+    license = "CC-BY-4.0";
+    description = "";
+    hitGlowColor = "#ff8200";
+    sampleRate = 48000;
+    loadedFilePath.clear();
+
+    mics = {
+        { "close",    "Close Mic (Direct)", 1.0f },
+        { "oh-left",  "Overhead Left",      0.8f },
+        { "oh-right", "Overhead Right",     0.8f },
+        { "room",     "Room Stereo",        0.6f },
+        { "amb-left", "Ambience Far",       0.5f },
+    };
+
+    pieces.clear();
+}
+
+int GlorpKitProject::addPieceWithAutoLayout (const std::string& nameOrStem,
+                                            const std::string& graphic,
+                                            const std::vector<uint8_t>& pngBytes)
+{
+    const auto* d = findDefaultPieceLayout (nameOrStem);
+
+    EditablePiece p;
+    if (d != nullptr)
+    {
+        p.id = d->id;
+        p.name = d->name;
+        p.graphicId = ! graphic.empty() ? graphic : d->graphic;
+        p.outputBus = d->bus;
+        p.chokeGroup = d->chokeGroup;
+        p.normX = d->x;
+        p.normY = d->y;
+        p.normW = d->w;
+        p.zOrder = d->z;
+    }
+    else
+    {
+        p.id = sanitizeId (nameOrStem);
+        p.name = nameOrStem;
+        p.graphicId = ! graphic.empty() ? graphic : "snare";
+        p.outputBus = 1;
+        p.chokeGroup = "none";
+        p.normX = 0.0f;
+        p.normY = -280.0f;
+        p.normW = 180.0f;
+        p.zOrder = (int) pieces.size() + 1;
+    }
+
+    if (! pngBytes.empty())
+    {
+        p.customPngBytes = pngBytes;
+        p.hasCustomLayout = true;
+    }
+
+    EditableZone z;
+    if (d != nullptr)
+    {
+        z.note = d->defaultMidiNote;
+        if (p.id == "hihat")
+            z.name = "closed";
+        else if (p.id == "ride")
+            z.name = "bow";
+        else if (p.id.find ("crash") != std::string::npos)
+            z.name = "edge";
+        else
+            z.name = "head";
+    }
+    else
+    {
+        z.note = 60 + (int) pieces.size();
+        z.name = "head";
+    }
+
+    p.zones.push_back (std::move (z));
+    pieces.push_back (std::move (p));
+    normalizeZOrders();
+    return (int) pieces.size() - 1;
 }
 
 void GlorpKitProject::createNewDefaultKit()
@@ -290,19 +521,23 @@ void GlorpKitProject::rebuildZoneLayerGrid (EditableZone& zone, int maxRoundRobi
     if (zone.hits.empty())
         return;
 
-    maxRoundRobins = std::max (1, maxRoundRobins);
+    maxRoundRobins = std::clamp (maxRoundRobins, 1, 8);
 
-    // Sort hits from highest power (Fortissimo) to lowest power (Ghost Note),
-    // or ascending by power then grouped into velocity tiers of up to maxRoundRobins hits each.
+    // Sort hits ascending by power: softest (PP) to loudest (FF)
     std::stable_sort (zone.hits.begin(), zone.hits.end(), [](const EditableHit& a, const EditableHit& b)
     {
-        return a.power > b.power;
+        return a.power < b.power;
     });
+
+    const int totalHits = static_cast<int> (zone.hits.size());
+    const int neededLayers = std::max (zone.numVelocityLayers, static_cast<int> (std::ceil (static_cast<float> (totalHits) / static_cast<float> (maxRoundRobins))));
+    zone.numVelocityLayers = std::clamp (neededLayers, 1, 24);
+    zone.numRoundRobins    = maxRoundRobins;
 
     for (size_t i = 0; i < zone.hits.size(); ++i)
     {
-        zone.hits[i].velocityLayerIndex = static_cast<int> (i) / maxRoundRobins;
-        zone.hits[i].roundRobinIndex    = static_cast<int> (i) % maxRoundRobins;
+        zone.hits[i].velocityLayerIndex = std::clamp (static_cast<int> (i) / maxRoundRobins, 0, zone.numVelocityLayers - 1);
+        zone.hits[i].roundRobinIndex    = std::clamp (static_cast<int> (i) % maxRoundRobins, 0, zone.numRoundRobins - 1);
     }
 }
 
@@ -327,7 +562,6 @@ void GlorpKitProject::autoComputeZonePowers (int pieceIndex, int zoneIndex)
         if (hit.micSamples.empty())
             continue;
 
-        // Measure RMS + peak energy of the first available mic sample (preferring "close")
         const EditableMicSample* chosen = &hit.micSamples.front();
         for (const auto& ms : hit.micSamples)
             if (ms.mic == "close") { chosen = &ms; break; }
@@ -362,26 +596,44 @@ void GlorpKitProject::autoComputeZonePowers (int pieceIndex, int zoneIndex)
         }
     }
 
-    if (maxEnergy > 1e-6f)
+    std::set<int> distinctVelLayers;
+    for (const auto& h : zone.hits)
+        distinctVelLayers.insert (h.velocityLayerIndex);
+
+    if (distinctVelLayers.size() > 1)
     {
-        for (size_t h = 0; h < zone.hits.size(); ++h)
+        // Hits already have assigned velocity tiers (from filename parsing or manual matrix layout).
+        // Recalibrate power proportionally to their velocity layer to preserve user layout:
+        const int numVL = std::max (1, zone.numVelocityLayers);
+        for (auto& h : zone.hits)
         {
-            if (energies[h] > 0.0f)
-                zone.hits[h].power = std::clamp (energies[h] / maxEnergy, 0.05f, 1.0f);
+            const float t = (numVL > 1) ? static_cast<float> (h.velocityLayerIndex) / static_cast<float> (numVL - 1) : 1.0f;
+            h.power = 0.12f + 0.88f * t;
         }
     }
     else
     {
-        // Fallback: distribute evenly from 1.0 down to 0.15
-        const size_t N = zone.hits.size();
-        for (size_t h = 0; h < N; ++h)
+        // Untiered hits: sort by measured acoustic energy
+        if (maxEnergy > 1e-6f)
         {
-            const float t = (N > 1) ? static_cast<float> (h) / static_cast<float> (N - 1) : 0.0f;
-            zone.hits[h].power = 1.0f - t * 0.82f;
+            for (size_t h = 0; h < zone.hits.size(); ++h)
+            {
+                if (energies[h] > 0.0f)
+                    zone.hits[h].power = std::clamp (energies[h] / maxEnergy, 0.08f, 1.0f);
+            }
         }
-    }
+        else
+        {
+            const size_t N = zone.hits.size();
+            for (size_t h = 0; h < N; ++h)
+            {
+                const float t = (N > 1) ? static_cast<float> (h) / static_cast<float> (N - 1) : 0.0f;
+                zone.hits[h].power = 0.12f + t * 0.88f;
+            }
+        }
 
-    rebuildZoneLayerGrid (zone, 3);
+        rebuildZoneLayerGrid (zone, zone.numRoundRobins);
+    }
 }
 
 int GlorpKitProject::importAudioFilesIntoZone (int pieceIndex, int zoneIndex,
@@ -395,22 +647,84 @@ int GlorpKitProject::importAudioFilesIntoZone (int pieceIndex, int zoneIndex,
         return 0;
     auto& zone = piece.zones[static_cast<size_t> (zoneIndex)];
 
-    int added = 0;
+    std::vector<ParsedSampleInfo> parsedList;
+    int maxVel = 1;
+    int maxRr = 0;
+    bool anyExplicitVel = false;
+
     for (const auto& p : filePaths)
     {
         std::error_code ec;
         if (! fs::is_regular_file (p, ec))
             continue;
+        auto info = parseSampleFilename (p);
+        if (info.hasExplicitVelocity)
+        {
+            anyExplicitVel = true;
+            maxVel = std::max (maxVel, info.velocityLevel);
+        }
+        if (info.hasExplicitRoundRobin)
+            maxRr = std::max (maxRr, info.roundRobin);
+        parsedList.push_back (std::move (info));
+    }
 
-        const fs::path fp (p);
+    if (parsedList.empty())
+        return 0;
+
+    // If the zone contains placeholder dummy hits with no actual audio file on disk/archive,
+    // clear them out so imported files cleanly take over!
+    bool onlyPlaceholders = true;
+    for (const auto& h : zone.hits)
+    {
+        for (const auto& ms : h.micSamples)
+        {
+            if (! ms.sourceDiskPath.empty() || (! ms.sourceArchivePath.empty() && ms.archiveOffset >= 0))
+            {
+                onlyPlaceholders = false;
+                break;
+            }
+        }
+    }
+    if (onlyPlaceholders)
+        zone.hits.clear();
+
+    // Dynamically expand grid dimensions to fit incoming sample set
+    if (anyExplicitVel)
+    {
+        zone.numVelocityLayers = std::clamp (std::max (zone.numVelocityLayers, maxVel), 1, 24);
+        zone.numRoundRobins    = std::clamp (std::max (zone.numRoundRobins, maxRr + 1), 1, 8);
+    }
+    else
+    {
+        const int neededRows = static_cast<int> (std::ceil (static_cast<float> (zone.hits.size() + parsedList.size()) / static_cast<float> (std::max (1, zone.numRoundRobins))));
+        if (neededRows > zone.numVelocityLayers)
+            zone.numVelocityLayers = std::clamp (neededRows, 1, 24);
+    }
+
+    int added = 0;
+    for (const auto& info : parsedList)
+    {
         EditableHit hit;
-        hit.name = fp.stem().string();
-        hit.power = 1.0f;
+        hit.name = fs::path (info.rawPath).stem().string();
+
+        if (anyExplicitVel && info.hasExplicitVelocity)
+        {
+            hit.velocityLayerIndex = std::clamp (info.velocityLevel - 1, 0, zone.numVelocityLayers - 1);
+            hit.roundRobinIndex    = std::clamp (info.roundRobin, 0, zone.numRoundRobins - 1);
+            const float t = (maxVel > 1) ? static_cast<float> (info.velocityLevel - 1) / static_cast<float> (maxVel - 1) : 1.0f;
+            hit.power = 0.12f + 0.88f * t;
+        }
+        else
+        {
+            hit.velocityLayerIndex = 0;
+            hit.roundRobinIndex = 0;
+            hit.power = 1.0f;
+        }
 
         EditableMicSample ms;
         ms.mic = targetMic.empty() ? "close" : targetMic;
-        ms.fileName = fp.filename().string();
-        ms.sourceDiskPath = fp.string();
+        ms.fileName = fs::path (info.rawPath).filename().string();
+        ms.sourceDiskPath = info.rawPath;
         ms.fileChannel = 0;
 
         hit.micSamples.push_back (std::move (ms));
@@ -418,10 +732,67 @@ int GlorpKitProject::importAudioFilesIntoZone (int pieceIndex, int zoneIndex,
         ++added;
     }
 
-    if (added > 0)
+    if (! anyExplicitVel)
+    {
         autoComputeZonePowers (pieceIndex, zoneIndex);
+    }
 
     return added;
+}
+
+bool GlorpKitProject::moveSampleToCell (int pieceIndex, int zoneIndex, int hitIndex, int newVelocityLayer, int newRoundRobin)
+{
+    if (pieceIndex < 0 || pieceIndex >= static_cast<int> (pieces.size())) return false;
+    auto& piece = pieces[static_cast<size_t> (pieceIndex)];
+    if (zoneIndex < 0 || zoneIndex >= static_cast<int> (piece.zones.size())) return false;
+    auto& zone = piece.zones[static_cast<size_t> (zoneIndex)];
+    if (hitIndex < 0 || hitIndex >= static_cast<int> (zone.hits.size())) return false;
+
+    newVelocityLayer = std::clamp (newVelocityLayer, 0, std::max (0, zone.numVelocityLayers - 1));
+    newRoundRobin    = std::clamp (newRoundRobin, 0, std::max (0, zone.numRoundRobins - 1));
+
+    zone.hits[static_cast<size_t> (hitIndex)].velocityLayerIndex = newVelocityLayer;
+    zone.hits[static_cast<size_t> (hitIndex)].roundRobinIndex    = newRoundRobin;
+
+    const int numVL = std::max (1, zone.numVelocityLayers);
+    const float t = (numVL > 1) ? static_cast<float> (newVelocityLayer) / static_cast<float> (numVL - 1) : 1.0f;
+    zone.hits[static_cast<size_t> (hitIndex)].power = 0.12f + 0.88f * t;
+    return true;
+}
+
+bool GlorpKitProject::swapSampleCells (int pieceIndex, int zoneIndex, int hitAIndex, int hitBIndex)
+{
+    if (pieceIndex < 0 || pieceIndex >= static_cast<int> (pieces.size())) return false;
+    auto& piece = pieces[static_cast<size_t> (pieceIndex)];
+    if (zoneIndex < 0 || zoneIndex >= static_cast<int> (piece.zones.size())) return false;
+    auto& zone = piece.zones[static_cast<size_t> (zoneIndex)];
+    if (hitAIndex < 0 || hitAIndex >= static_cast<int> (zone.hits.size())) return false;
+    if (hitBIndex < 0 || hitBIndex >= static_cast<int> (zone.hits.size())) return false;
+
+    std::swap (zone.hits[static_cast<size_t> (hitAIndex)].velocityLayerIndex,
+               zone.hits[static_cast<size_t> (hitBIndex)].velocityLayerIndex);
+    std::swap (zone.hits[static_cast<size_t> (hitAIndex)].roundRobinIndex,
+               zone.hits[static_cast<size_t> (hitBIndex)].roundRobinIndex);
+    std::swap (zone.hits[static_cast<size_t> (hitAIndex)].power,
+               zone.hits[static_cast<size_t> (hitBIndex)].power);
+    return true;
+}
+
+void GlorpKitProject::setZoneGridDimensions (int pieceIndex, int zoneIndex, int numVelLayers, int numRoundRobins)
+{
+    if (pieceIndex < 0 || pieceIndex >= static_cast<int> (pieces.size())) return;
+    auto& piece = pieces[static_cast<size_t> (pieceIndex)];
+    if (zoneIndex < 0 || zoneIndex >= static_cast<int> (piece.zones.size())) return;
+    auto& zone = piece.zones[static_cast<size_t> (zoneIndex)];
+
+    zone.numVelocityLayers = std::clamp (numVelLayers, 1, 24);
+    zone.numRoundRobins    = std::clamp (numRoundRobins, 1, 8);
+
+    for (auto& h : zone.hits)
+    {
+        h.velocityLayerIndex = std::clamp (h.velocityLayerIndex, 0, zone.numVelocityLayers - 1);
+        h.roundRobinIndex    = std::clamp (h.roundRobinIndex, 0, zone.numRoundRobins - 1);
+    }
 }
 
 //==============================================================================
@@ -491,7 +862,7 @@ bool GlorpKitProject::openGlorpKitArchive (const std::string& archivePath, std::
             p.normW = spec.normW;
             p.zOrder = spec.zOrder > 0 ? spec.zOrder : fallbackZ++;
         }
-        else if (const auto* def = findDefaultLayoutFor (spec.id.empty() ? spec.name : spec.id))
+        else if (const auto* def = findDefaultPieceLayout (spec.id.empty() ? spec.name : spec.id))
         {
             p.normX = def->x;
             p.normY = def->y;
@@ -624,7 +995,7 @@ bool GlorpKitProject::importDrumGizmoXml (const std::string& drumkitXmlPath, std
             ep.outputBus = inst.outputBus;
             ep.chokeGroup = inst.group.empty() ? "none" : inst.group;
 
-            if (const auto* def = findDefaultLayoutFor (pId))
+            if (const auto* def = findDefaultPieceLayout (pId))
             {
                 ep.graphicId = def->graphic;
                 ep.normX = def->x;
