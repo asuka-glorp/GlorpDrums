@@ -523,6 +523,30 @@ void GlorpKitProject::rebuildZoneLayerGrid (EditableZone& zone, int maxRoundRobi
 
     maxRoundRobins = std::clamp (maxRoundRobins, 1, 8);
 
+    bool anyExplicit = false;
+    int maxV = 0, maxR = 0;
+    for (const auto& h : zone.hits)
+    {
+        if (h.velocityLayerIndex >= 0 || h.roundRobinIndex >= 0)
+        {
+            anyExplicit = true;
+            maxV = std::max (maxV, h.velocityLayerIndex + 1);
+            maxR = std::max (maxR, h.roundRobinIndex + 1);
+        }
+    }
+
+    if (anyExplicit && maxV > 0 && maxR > 0)
+    {
+        zone.numVelocityLayers = std::clamp (std::max (zone.numVelocityLayers, maxV), 1, 24);
+        zone.numRoundRobins    = std::clamp (std::max (maxRoundRobins, maxR), 1, 8);
+        for (auto& h : zone.hits)
+        {
+            if (h.velocityLayerIndex < 0) h.velocityLayerIndex = 0;
+            if (h.roundRobinIndex < 0)    h.roundRobinIndex = 0;
+        }
+        return;
+    }
+
     // Sort hits ascending by power: softest (PP) to loudest (FF)
     std::stable_sort (zone.hits.begin(), zone.hits.end(), [](const EditableHit& a, const EditableHit& b)
     {
@@ -912,6 +936,10 @@ bool GlorpKitProject::openGlorpKitArchive (const std::string& archivePath, std::
                     EditableHit hit;
                     hit.name = hitKey;
                     hit.power = sref.power;
+                    if (sref.velocityLayer >= 1)
+                        hit.velocityLayerIndex = sref.velocityLayer - 1;
+                    if (sref.roundRobin >= 1)
+                        hit.roundRobinIndex = sref.roundRobin - 1;
 
                     EditableMicSample ms;
                     ms.mic = sref.mic;
@@ -937,7 +965,51 @@ bool GlorpKitProject::openGlorpKitArchive (const std::string& archivePath, std::
                 }
             }
 
-            rebuildZoneLayerGrid (z, std::max (1, zspec.roundRobin));
+            // Detect velocity layers and round robins from sample names if not explicitly tagged
+            int maxDetectedVel = 0;
+            int maxDetectedRr = 0;
+            bool anyExplicitVelOrRr = false;
+
+            for (auto& h : z.hits)
+            {
+                if (h.velocityLayerIndex < 0 || h.roundRobinIndex < 0)
+                {
+                    auto parsed = parseSampleFilename (h.name);
+                    if (parsed.hasExplicitVelocity && parsed.velocityLevel >= 1 && h.velocityLayerIndex < 0)
+                        h.velocityLayerIndex = parsed.velocityLevel - 1;
+                    if (parsed.hasExplicitRoundRobin && parsed.roundRobin >= 0 && h.roundRobinIndex < 0)
+                        h.roundRobinIndex = parsed.roundRobin;
+                }
+                if (h.velocityLayerIndex >= 0)
+                {
+                    maxDetectedVel = std::max (maxDetectedVel, h.velocityLayerIndex + 1);
+                    anyExplicitVelOrRr = true;
+                }
+                if (h.roundRobinIndex >= 0)
+                {
+                    maxDetectedRr = std::max (maxDetectedRr, h.roundRobinIndex + 1);
+                    anyExplicitVelOrRr = true;
+                }
+            }
+
+            if (anyExplicitVelOrRr)
+            {
+                z.numVelocityLayers = std::clamp (std::max ({ zspec.velocityLayers, maxDetectedVel, 1 }), 1, 24);
+                z.numRoundRobins    = std::clamp (std::max ({ zspec.roundRobin, maxDetectedRr, 1 }), 1, 8);
+
+                for (auto& h : z.hits)
+                {
+                    if (h.velocityLayerIndex < 0)
+                        h.velocityLayerIndex = 0;
+                    if (h.roundRobinIndex < 0)
+                        h.roundRobinIndex = 0;
+                }
+            }
+            else
+            {
+                rebuildZoneLayerGrid (z, std::max (1, zspec.roundRobin));
+            }
+
             p.zones.push_back (std::move (z));
         }
 
@@ -1111,11 +1183,24 @@ bool GlorpKitProject::exportToGlorpKit (const std::string& outputArchivePath, st
         }
         ss << "  </mics>\n";
 
+        auto getExportPieceGraphicName = [] (const EditablePiece& p, size_t idx) -> std::string
+        {
+            if (! p.customPngBytes.empty())
+            {
+                std::string pId = sanitizeId (p.id.empty() ? p.name : p.id);
+                if (pId.empty() || pId == "piece")
+                    pId = "piece_" + std::to_string (idx + 1);
+                return pId;
+            }
+            return ! p.graphicId.empty() ? p.graphicId : "snare";
+        };
+
         ss << "  <graphics>\n";
         std::set<std::string> writtenGraphics;
-        for (const auto& p : pieces)
+        for (size_t i = 0; i < pieces.size(); ++i)
         {
-            const std::string gName = p.graphicId.empty() ? p.id : p.graphicId;
+            const auto& p = pieces[i];
+            const std::string gName = getExportPieceGraphicName (p, i);
             if (writtenGraphics.insert (gName).second)
             {
                 const std::string srcAttr = ! p.customPngBytes.empty()
@@ -1136,12 +1221,25 @@ bool GlorpKitProject::exportToGlorpKit (const std::string& outputArchivePath, st
 
     // 2. Write embedded custom PNG graphics (assets/*.png)
     {
-        std::set<std::string> writtenPngs;
-        for (const auto& p : pieces)
+        auto getExportPieceGraphicName = [] (const EditablePiece& p, size_t idx) -> std::string
         {
             if (! p.customPngBytes.empty())
             {
-                const std::string gName = p.graphicId.empty() ? p.id : p.graphicId;
+                std::string pId = sanitizeId (p.id.empty() ? p.name : p.id);
+                if (pId.empty() || pId == "piece")
+                    pId = "piece_" + std::to_string (idx + 1);
+                return pId;
+            }
+            return ! p.graphicId.empty() ? p.graphicId : "snare";
+        };
+
+        std::set<std::string> writtenPngs;
+        for (size_t i = 0; i < pieces.size(); ++i)
+        {
+            const auto& p = pieces[i];
+            if (! p.customPngBytes.empty())
+            {
+                const std::string gName = getExportPieceGraphicName (p, i);
                 const std::string arcPng = "assets/" + gName + ".png";
                 if (writtenPngs.insert (arcPng).second)
                 {
@@ -1173,10 +1271,30 @@ bool GlorpKitProject::exportToGlorpKit (const std::string& outputArchivePath, st
     }
 
     // 4. Write instruments/<id>/instrument.xml, <zone>/zone.xml, and samples/*.wav
-    for (const auto& p : pieces)
+    auto getExportPieceGraphicName = [] (const EditablePiece& p, size_t idx) -> std::string
     {
-        const std::string pId = sanitizeId (p.id.empty() ? p.name : p.id);
-        const std::string gName = p.graphicId.empty() ? pId : p.graphicId;
+        if (! p.customPngBytes.empty())
+        {
+            std::string pId = sanitizeId (p.id.empty() ? p.name : p.id);
+            if (pId.empty() || pId == "piece")
+                pId = "piece_" + std::to_string (idx + 1);
+            return pId;
+        }
+        return ! p.graphicId.empty() ? p.graphicId : "snare";
+    };
+
+    std::set<std::string> usedInstDirs;
+    for (size_t i = 0; i < pieces.size(); ++i)
+    {
+        const auto& p = pieces[i];
+        std::string pId = sanitizeId (p.id.empty() ? p.name : p.id);
+        if (pId.empty() || pId == "piece")
+            pId = "piece_" + std::to_string (i + 1);
+        if (usedInstDirs.count (pId) > 0)
+            pId += "_" + std::to_string (i + 1);
+        usedInstDirs.insert (pId);
+
+        const std::string gName = getExportPieceGraphicName (p, i);
 
         std::ostringstream is;
         is << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
@@ -1214,7 +1332,9 @@ bool GlorpKitProject::exportToGlorpKit (const std::string& outputArchivePath, st
             const std::string zoneDir = instDir + "/" + z.name;
             std::ostringstream zs;
             zs << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
-            zs << "<glorp-zone name=\"" << escapeXml (z.name) << "\" power=\"1.0\" round-robin=\"3\">\n";
+            zs << "<glorp-zone name=\"" << escapeXml (z.name) << "\" power=\"1.0\" "
+               << "round-robin=\"" << z.numRoundRobins << "\" "
+               << "velocity-layers=\"" << z.numVelocityLayers << "\">\n";
 
             std::set<std::string> writtenWavsInZone;
 
@@ -1229,7 +1349,9 @@ bool GlorpKitProject::exportToGlorpKit (const std::string& outputArchivePath, st
                     zs << "  <sample name=\"" << escapeXml (hit.name) << "\" "
                        << "file=\"" << escapeXml (relWav) << "\" "
                        << "mic=\"" << escapeXml (ms.mic) << "\" "
-                       << "power=\"" << std::fixed << std::setprecision (4) << hit.power << "\"";
+                       << "power=\"" << std::fixed << std::setprecision (4) << hit.power << "\" "
+                       << "velocity=\"" << (hit.velocityLayerIndex + 1) << "\" "
+                       << "round-robin=\"" << (hit.roundRobinIndex + 1) << "\"";
                     if (ms.fileChannel > 0)
                         zs << " channel=\"" << (ms.fileChannel + 1) << "\"";
                     zs << "/>\n";

@@ -704,7 +704,7 @@ void GlorpKitEditorComponent::resized()
     canvasViewportBounds = canvasPanelBounds.reduced (12.0f, 38.0f).withTrimmedBottom (6.0f);
     computeCanvasPieceBounds();
 
-    cardPieceBounds  = { rightPanelBounds.getX() + 10.0f, rightPanelBounds.getY() + 36.0f, rightPanelBounds.getWidth() - 20.0f, 224.0f };
+    cardPieceBounds  = { rightPanelBounds.getX() + 10.0f, rightPanelBounds.getY() + 36.0f, rightPanelBounds.getWidth() - 20.0f, 252.0f };
     cardZoneBounds   = { rightPanelBounds.getX() + 10.0f, cardPieceBounds.getBottom() + 8.0f, rightPanelBounds.getWidth() - 20.0f, 178.0f };
     cardSampleBounds = { rightPanelBounds.getX() + 10.0f, cardZoneBounds.getBottom() + 8.0f, rightPanelBounds.getWidth() - 20.0f,
                          std::max (160.0f, rightPanelBounds.getBottom() - (cardZoneBounds.getBottom() + 18.0f)) };
@@ -919,6 +919,43 @@ void GlorpKitEditorComponent::paintLeftPanel (juce::Graphics& g)
     }
 }
 
+const std::vector<GlorpKitEditorComponent::StageGuide>& GlorpKitEditorComponent::getIdealStageGuides()
+{
+    static const std::vector<StageGuide> s_guides = {
+        { "kick",    "Kick Drum",          -155.2f, -329.7f, 345.0f, 320.0f, 1 },
+        { "snare",   "Snare Drum",         -212.7f, -259.5f, 180.0f, 140.0f, 4 },
+        { "hihat",   "Hi-Hat",             -299.6f, -404.7f, 160.0f, 140.0f, 3 },
+        { "tom1",    "Tom 1 (High Rack)",  -122.6f, -420.7f, 138.0f, 125.0f, 5 },
+        { "tom2",    "Tom 2 (Mid Rack)",     15.9f, -408.0f, 155.0f, 135.0f, 6 },
+        { "tom3",    "Tom 3 (Low Rack)",     95.0f, -370.0f, 165.0f, 145.0f, 7 },
+        { "ftom1",   "Floor Tom 1",         107.2f, -272.1f, 195.0f, 175.0f, 9 },
+        { "ftom2",   "Floor Tom 2",         225.0f, -245.0f, 195.0f, 175.0f, 10 },
+        { "crash1",  "Crash 1 (Left)",     -235.0f, -502.9f, 190.0f, 150.0f, 2 },
+        { "ride",    "Ride Cymbal",          77.7f, -507.0f, 210.0f, 160.0f, 8 },
+        { "crash2",  "Crash 2 (Right)",     187.3f, -420.8f, 205.0f, 160.0f, 8 },
+        { "crash3",  "Crash 3 / China",     270.0f, -490.0f, 195.0f, 150.0f, 9 }
+    };
+    return s_guides;
+}
+
+int GlorpKitEditorComponent::findMatchingStageGuide (const std::string& name, const std::string& graphicId)
+{
+    juce::String n = (juce::String (name) + " " + juce::String (graphicId)).toLowerCase().removeCharacters (" _-");
+    if (n.contains ("kick") || n.contains ("kdrum") || n.contains ("bd") || n.contains ("bassdrum")) return 0;
+    if (n.contains ("snare") || n.contains ("sd") || n.contains ("snr")) return 1;
+    if (n.contains ("hihat") || n.contains ("hh") || n.contains ("hat")) return 2;
+    if (n.contains ("floor2") || n.contains ("ftom2") || n.contains ("floortom2")) return 7;
+    if (n.contains ("floor") || n.contains ("ftom") || n.contains ("floortom")) return 6;
+    if (n.contains ("tom3") || n.contains ("rack3") || n.contains ("racktom3") || n.contains ("lowrack")) return 5;
+    if (n.contains ("tom2") || n.contains ("rack2") || n.contains ("racktom2") || n.contains ("midtom")) return 4;
+    if (n.contains ("crash3") || n.contains ("china") || n.contains ("splash")) return 11;
+    if (n.contains ("crash2")) return 10;
+    if (n.contains ("crash1") || n.contains ("crash") || n.contains ("cymbal")) return 8;
+    if (n.contains ("ride") || n.contains ("bell")) return 9;
+    if (n.contains ("tom1") || n.contains ("rack1") || n.contains ("racktom1") || n.contains ("hightom") || n.contains ("tom")) return 3;
+    return -1;
+}
+
 void GlorpKitEditorComponent::paintCanvasPanel (juce::Graphics& g)
 {
     Sketch::box (g, canvasPanelBounds, theme.panel, theme.ink, 6.0f, 2.2f, 2, 101);
@@ -941,6 +978,7 @@ void GlorpKitEditorComponent::paintCanvasPanel (juce::Graphics& g)
     makeToolBtn (btnSendBack,    58.0f, "Back",    false,          105);
     makeToolBtn (btnBringFront,  62.0f, "Front",   false,          107);
     makeToolBtn (btnPreviewKit,  76.0f, "Preview", previewKitMode, 109);
+    makeToolBtn (btnStageGuides, 66.0f, "Guides",  showStageGuides,110);
     makeToolBtn (btnSnapGrid,    62.0f, "Grid",    snapToGrid,     111);
 
     juce::Colour stageBg = theme.isDark ? juce::Colour (0xff12141a) : juce::Colour (0xffefe7d6);
@@ -962,6 +1000,58 @@ void GlorpKitEditorComponent::paintCanvasPanel (juce::Graphics& g)
             {
                 const float y = canvasViewportBounds.getY() + canvasViewportBounds.getHeight() * ((float) gy / 6.0f);
                 g.drawHorizontalLine ((int) y, canvasViewportBounds.getX(), canvasViewportBounds.getRight());
+            }
+        }
+
+        const float W = canvasViewportBounds.getWidth();
+        const float H = canvasViewportBounds.getHeight();
+        const float scale = std::min (W / 880.0f, H / 620.0f);
+        const float cx = canvasViewportBounds.getX() + W * 0.50f;
+        const float gy = canvasViewportBounds.getY() + H * 0.94f;
+
+        if (showStageGuides)
+        {
+            const auto& guides = getIdealStageGuides();
+            const int matchedSelGuide = (selectedPieceIdx >= 0 && selectedPieceIdx < (int) project.pieces.size())
+                                            ? findMatchingStageGuide (project.pieces[(size_t) selectedPieceIdx].name,
+                                                                     project.pieces[(size_t) selectedPieceIdx].graphicId)
+                                            : -1;
+
+            g.setColour (theme.inkSoft.withAlpha (0.16f));
+            const float dashPattern[2] = { 4.0f, 4.0f };
+            g.drawDashedLine (juce::Line<float> (cx, canvasViewportBounds.getY() + 10.0f, cx, canvasViewportBounds.getBottom() - 10.0f),
+                              dashPattern, 2, 1.0f);
+            g.drawDashedLine (juce::Line<float> (canvasViewportBounds.getX() + 10.0f, gy, canvasViewportBounds.getRight() - 10.0f, gy),
+                              dashPattern, 2, 1.0f);
+
+            for (size_t gi = 0; gi < guides.size(); ++gi)
+            {
+                const auto& gd = guides[gi];
+                const float gw = gd.normW * scale;
+                const float gh = gd.normH * scale;
+                const float gx = cx + gd.normX * scale;
+                const float gyPos = gy + gd.normY * scale;
+                const juce::Rectangle<float> gRect { gx, gyPos, gw, gh };
+
+                const bool isMatched = (matchedSelGuide == static_cast<int> (gi));
+                const juce::Colour col = isMatched ? theme.accent : theme.inkSoft;
+                const float fillAlpha = isMatched ? 0.12f : 0.035f;
+
+                g.setColour (col.withAlpha (fillAlpha));
+                g.fillEllipse (gRect);
+
+                juce::Path ellipsePath;
+                ellipsePath.addEllipse (gRect);
+                const float oDash[2] = { isMatched ? 6.0f : 4.0f, 4.0f };
+                g.setColour (col.withAlpha (isMatched ? 0.90f : 0.28f));
+                juce::Path dashed;
+                juce::PathStrokeType (isMatched ? 2.0f : 1.2f).createDashedStroke (dashed, ellipsePath, oDash, 2);
+                g.fillPath (dashed);
+
+                g.setFont (Fonts::title (isMatched ? 11.5f : 10.0f));
+                g.setColour (col.withAlpha (isMatched ? 0.95f : 0.45f));
+                g.drawText (gd.label, gRect.withSizeKeepingCentre (gRect.getWidth(), 18.0f),
+                            juce::Justification::centred, false);
             }
         }
 
@@ -1402,13 +1492,18 @@ void GlorpKitEditorComponent::paintRightInspector (juce::Graphics& g)
     drawMetricPill (pillNormW,  "Width",  juce::String ((int) piece.normW) + "px", 279);
     drawMetricPill (pillZOrder, "Z-Ord",  juce::String (piece.zOrder),         281);
 
-    const float busY = cardPieceBounds.getY() + 158.0f;
-    btnOutputBus  = { cardPieceBounds.getX() + 10.0f, busY, cardPieceBounds.getWidth() - 20.0f, 25.0f };
-    btnChokeGroup = { cardPieceBounds.getX() + 10.0f, busY + 30.0f, cardPieceBounds.getWidth() - 20.0f, 25.0f };
-    Sketch::button (g, btnOutputBus,  "Mixer Bus #" + juce::String (piece.outputBus + 1) + " (" + juce::String (piece.name) + ")", theme.panel, theme.ink, false, 283, Fonts::title (11.5f));
+    const float guideY = normY + 40.0f;
+    btnAlignGuide = { cardPieceBounds.getX() + 10.0f, guideY, cardPieceBounds.getWidth() - 20.0f, 25.0f };
+    Sketch::button (g, btnAlignGuide, "🎯 Align to Stage Guide...", theme.panel, theme.ink, false, 282, Fonts::title (11.5f));
+
+    const float busY = guideY + 30.0f;
+    const float halfW = (cardPieceBounds.getWidth() - 26.0f) * 0.5f;
+    btnOutputBus  = { cardPieceBounds.getX() + 10.0f, busY, halfW, 25.0f };
+    btnChokeGroup = { btnOutputBus.getRight() + 6.0f, busY, halfW, 25.0f };
+    Sketch::button (g, btnOutputBus,  "Bus #" + juce::String (piece.outputBus + 1), theme.panel, theme.ink, false, 283, Fonts::title (11.5f));
     juce::String chokeLbl = (piece.chokeGroup.empty() || piece.chokeGroup == "none")
-                                ? "Choke Group: None (Polyphonic)"
-                                : ("Choke Group: " + juce::String (piece.chokeGroup));
+                                ? "Choke: None"
+                                : ("Choke: " + juce::String (piece.chokeGroup));
     Sketch::button (g, btnChokeGroup, chokeLbl, theme.panel, theme.ink, false, 285, Fonts::title (11.5f));
 
     // 2. ARTICULATION ZONE & MIDI MAPPING CARD
@@ -1801,8 +1896,9 @@ void GlorpKitEditorComponent::mouseDown (const juce::MouseEvent& e)
         }
     }
 
-    if (btnSnapGrid.contains (pt))   { snapToGrid = ! snapToGrid; repaint(); return; }
-    if (btnPreviewKit.contains (pt)) { previewKitMode = ! previewKitMode; repaint(); return; }
+    if (btnSnapGrid.contains (pt))    { snapToGrid = ! snapToGrid; repaint(); return; }
+    if (btnStageGuides.contains (pt)) { showStageGuides = ! showStageGuides; repaint(); return; }
+    if (btnPreviewKit.contains (pt))  { previewKitMode = ! previewKitMode; repaint(); return; }
     if (btnBringFront.contains (pt) && selectedPieceIdx >= 0)
     {
         project.bringPieceToFront (selectedPieceIdx);
@@ -1817,18 +1913,27 @@ void GlorpKitEditorComponent::mouseDown (const juce::MouseEvent& e)
     }
     if (btnResetLayout.contains (pt))
     {
-        GlorpKitProject defProj;
-        defProj.createNewDefaultKit();
-        auto& pieces = project.pieces;
-        for (size_t i = 0; i < pieces.size() && i < defProj.pieces.size(); ++i)
+        pushUndoState ("Reset Stage Layout");
+        const auto& guides = getIdealStageGuides();
+        for (size_t i = 0; i < project.pieces.size(); ++i)
         {
-            pieces[i].normX  = defProj.pieces[i].normX;
-            pieces[i].normY  = defProj.pieces[i].normY;
-            pieces[i].normW  = defProj.pieces[i].normW;
-            pieces[i].zOrder = defProj.pieces[i].zOrder;
+            auto& p = project.pieces[i];
+            int gIdx = findMatchingStageGuide (p.name, p.graphicId);
+            if (gIdx < 0 && i < guides.size())
+                gIdx = static_cast<int> (i);
+
+            if (gIdx >= 0 && gIdx < (int) guides.size())
+            {
+                const auto& gd = guides[(size_t) gIdx];
+                p.normX  = gd.normX;
+                p.normY  = gd.normY;
+                p.normW  = gd.normW;
+                p.zOrder = gd.zOrder;
+            }
         }
         computeCanvasPieceBounds();
-        showStatusToast ("Reset stage coordinates to default layout");
+        showStatusToast ("Reset stage coordinates to ideal layout guides");
+        repaint();
         return;
     }
 
@@ -2074,6 +2179,7 @@ void GlorpKitEditorComponent::mouseDown (const juce::MouseEvent& e)
 
     if (btnBuiltinAsset.contains (pt))  { showBuiltinAssetMenu(); return; }
     if (btnLoadCustomPng.contains (pt)) { promptLoadCustomPng(); return; }
+    if (btnAlignGuide.contains (pt))    { showAlignGuideMenu(); return; }
     if (btnOutputBus.contains (pt))     { showOutputBusMenu(); return; }
     if (btnChokeGroup.contains (pt))    { showChokeGroupMenu(); return; }
     if (btnMidiNote.contains (pt))      { showMidiNoteMenu(); return; }
@@ -2968,6 +3074,61 @@ void GlorpKitEditorComponent::showBuiltinAssetMenu()
                              p.customPngBytes.clear();
                              p.customPngFileName.clear();
                              rebuildPieceSprites();
+                             repaint();
+                         }
+                     });
+}
+
+void GlorpKitEditorComponent::showAlignGuideMenu()
+{
+    if (selectedPieceIdx < 0 || selectedPieceIdx >= (int) project.pieces.size())
+        return;
+
+    auto& piece = project.pieces[(size_t) selectedPieceIdx];
+    const auto& guides = getIdealStageGuides();
+    const int autoMatch = findMatchingStageGuide (piece.name, piece.graphicId);
+
+    juce::PopupMenu m;
+    m.addSectionHeader ("Align to Acoustic Stage Guide");
+
+    juce::String autoTxt = "Auto-Snap to Best Match";
+    if (autoMatch >= 0 && autoMatch < (int) guides.size())
+        autoTxt += " (" + juce::String (guides[(size_t) autoMatch].label) + ")";
+    m.addItem (100, autoTxt, true);
+    m.addSeparator();
+
+    for (size_t gi = 0; gi < guides.size(); ++gi)
+    {
+        juce::String itemText = juce::String (guides[gi].label);
+        if (static_cast<int> (gi) == autoMatch)
+            itemText += " [Auto-matched]";
+        m.addItem (static_cast<int> (gi + 1), itemText);
+    }
+
+    m.showMenuAsync (juce::PopupMenu::Options().withTargetScreenArea (localAreaToGlobal (btnAlignGuide.toNearestInt())),
+                     [this, autoMatch] (int res)
+                     {
+                         if (res <= 0 || selectedPieceIdx < 0 || selectedPieceIdx >= (int) project.pieces.size())
+                             return;
+
+                         pushUndoState ("Align to Stage Guide");
+                         auto& p = project.pieces[(size_t) selectedPieceIdx];
+                         const auto& allGuides = getIdealStageGuides();
+                         int targetIdx = -1;
+                         if (res == 100)
+                             targetIdx = (autoMatch >= 0) ? autoMatch : 0;
+                         else
+                             targetIdx = res - 1;
+
+                         if (targetIdx >= 0 && targetIdx < (int) allGuides.size())
+                         {
+                             const auto& gd = allGuides[(size_t) targetIdx];
+                             p.normX = gd.normX;
+                             p.normY = gd.normY;
+                             p.normW = gd.normW;
+                             p.zOrder = gd.zOrder;
+                             computeCanvasPieceBounds();
+                             showStatusToast ("Aligned " + juce::String (p.name) + " to " + juce::String (gd.label));
                              repaint();
                          }
                      });

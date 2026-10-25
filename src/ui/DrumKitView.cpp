@@ -309,9 +309,43 @@ void DrumKitView::setHitGlowColour (juce::Colour colour)
         if (p.image.isValid())
             p.glowImage = makeGlowImage (p.image, hitGlowColour);
     }
+    for (auto& dp : dynamicPieces)
+    {
+        dp.scaledGlowImage = {};
+        if (dp.image.isValid())
+            dp.glowImage = makeGlowImage (dp.image, hitGlowColour);
+    }
     hasLayout = false;
     layout();
     repaint();
+}
+
+juce::Image DrumKitView::getDefaultImageForGraphic (const std::string& graphic, KitPiece fallbackPiece)
+{
+    const auto raw = juce::String (graphic).toLowerCase().removeCharacters (" _-");
+    if (raw == "kick" || raw == "bd" || raw == "bassdrum")
+        return pieces[static_cast<size_t> (KitPiece::kick)].image;
+    if (raw == "snare" || raw == "sd")
+        return pieces[static_cast<size_t> (KitPiece::snare)].image;
+    if (raw == "hihat" || raw == "hh")
+        return pieces[static_cast<size_t> (KitPiece::hihat)].image;
+    if (raw == "tom1" || raw == "hightom" || raw == "racktom1" || raw == "rack1")
+        return pieces[static_cast<size_t> (KitPiece::tom1)].image;
+    if (raw == "tom2" || raw == "midtom" || raw == "racktom2" || raw == "rack2")
+        return pieces[static_cast<size_t> (KitPiece::tom2)].image;
+    if (raw == "tom3" || raw == "ftom" || raw == "floortom" || raw == "floor" || raw == "ftom1" || raw == "ftom2")
+        return pieces[static_cast<size_t> (KitPiece::floorTom)].image;
+    if (raw == "ride")
+        return pieces[static_cast<size_t> (KitPiece::ride)].image;
+    if (raw == "crash1")
+        return pieces[static_cast<size_t> (KitPiece::crash1)].image;
+    if (raw == "crash2" || raw == "crash3" || raw == "china" || raw == "splash")
+        return pieces[static_cast<size_t> (KitPiece::crash2)].image;
+
+    if (fallbackPiece != KitPiece::count)
+        return pieces[static_cast<size_t> (fallbackPiece)].image;
+
+    return pieces[static_cast<size_t> (KitPiece::snare)].image;
 }
 
 void DrumKitView::applyKitVisuals (const DrumKit& kit)
@@ -319,6 +353,7 @@ void DrumKitView::applyKitVisuals (const DrumKit& kit)
     hitGlowColour = parseHexColour (kit.hitGlowColor, juce::Colour (0xffff8200));
     loadPieceImages();
     loadLayoutFromFile();
+    dynamicPieces.clear();
 
     if (kit.logicalPieces.empty())
     {
@@ -331,38 +366,72 @@ void DrumKitView::applyKitVisuals (const DrumKit& kit)
     std::array<int, static_cast<size_t> (KitPiece::count)> zRank {{ 1, 4, 5, 6, 9, 3, 7, 2, 8 }};
     bool anyCustomZ = false;
 
-    for (const auto& lp : kit.logicalPieces)
+    for (size_t i = 0; i < kit.logicalPieces.size(); ++i)
     {
+        const auto& lp = kit.logicalPieces[i];
+        DynamicPiece dp;
+        dp.id = lp.id;
+        dp.name = lp.name;
+        dp.graphic = lp.graphic;
+        for (const auto& z : lp.zones)
+            dp.instrumentNames.push_back (z.name);
+        dp.zOrder = lp.zOrder;
+
         auto kp = pieceForName (lp.graphic);
         if (kp == KitPiece::count)
             kp = pieceForName (lp.id);
         if (kp == KitPiece::count)
             kp = pieceForName (lp.name);
-        if (kp == KitPiece::count)
-            continue;
 
-        const auto idx = static_cast<size_t> (kp);
+        dp.mappedClassicPiece = kp;
+
+        if (lp.hasCustomLayout)
+        {
+            dp.coords = { lp.normX, lp.normY, std::clamp (lp.normW, 40.0f, 650.0f) };
+        }
+        else if (kp != KitPiece::count)
+        {
+            dp.coords = coords[static_cast<size_t> (kp)];
+        }
+        else
+        {
+            dp.coords = { -200.0f + static_cast<float> (i * 45), -350.0f, 160.0f };
+        }
 
         if (! lp.customPngBytes.empty())
         {
             auto customImg = juce::ImageFileFormat::loadFrom (lp.customPngBytes.data(), lp.customPngBytes.size());
             if (customImg.isValid())
+                dp.image = customImg;
+        }
+
+        if (! dp.image.isValid())
+            dp.image = getDefaultImageForGraphic (lp.graphic, kp);
+
+        if (dp.image.isValid())
+            dp.glowImage = makeGlowImage (dp.image, hitGlowColour);
+
+        if (kp != KitPiece::count)
+        {
+            const auto idx = static_cast<size_t> (kp);
+            if (dp.image.isValid())
             {
-                pieces[idx].image = customImg;
+                pieces[idx].image = dp.image;
                 pieces[idx].scaledImage = {};
                 pieces[idx].scaledGlowImage = {};
-                pieces[idx].glowImage = makeGlowImage (customImg, hitGlowColour);
+                pieces[idx].glowImage = dp.glowImage;
+            }
+            if (lp.hasCustomLayout)
+            {
+                coords[idx].normX = lp.normX;
+                coords[idx].normY = lp.normY;
+                coords[idx].normW = std::clamp (lp.normW, 40.0f, 650.0f);
+                zRank[idx] = lp.zOrder;
+                anyCustomZ = true;
             }
         }
 
-        if (lp.hasCustomLayout)
-        {
-            coords[idx].normX = lp.normX;
-            coords[idx].normY = lp.normY;
-            coords[idx].normW = std::clamp (lp.normW, 40.0f, 650.0f);
-            zRank[idx] = lp.zOrder;
-            anyCustomZ = true;
-        }
+        dynamicPieces.push_back (std::move (dp));
     }
 
     if (anyCustomZ)
@@ -463,9 +532,66 @@ bool DrumKitView::isPieceScaledCacheValid (KitPiece piece) const noexcept
 
 void DrumKitView::triggerHit (const juce::String& instrumentName, float velocity)
 {
+    bool matchedAnyDynamic = false;
+    if (! dynamicPieces.empty())
+    {
+        const auto target = instrumentName.trim().toLowerCase();
+        for (size_t i = 0; i < dynamicPieces.size(); ++i)
+        {
+            auto& dp = dynamicPieces[i];
+            bool hit = false;
+            if (juce::String (dp.name).trim().equalsIgnoreCase (instrumentName)
+                || juce::String (dp.id).trim().equalsIgnoreCase (instrumentName))
+            {
+                hit = true;
+            }
+            else
+            {
+                for (const auto& in : dp.instrumentNames)
+                {
+                    if (juce::String (in).trim().equalsIgnoreCase (instrumentName)
+                        || target.contains (juce::String (in).trim().toLowerCase()))
+                    {
+                        hit = true;
+                        break;
+                    }
+                }
+            }
+
+            if (! hit && dp.mappedClassicPiece != KitPiece::count)
+            {
+                if (pieceForName (instrumentName) == dp.mappedClassicPiece)
+                    hit = true;
+            }
+
+            if (hit)
+            {
+                dp.flash = std::clamp (velocity, 0.40f, 1.0f);
+                dp.squash = std::clamp (velocity * 0.75f, 0.20f, 1.0f);
+                matchedAnyDynamic = true;
+            }
+        }
+        if (matchedAnyDynamic)
+        {
+            repaint();
+            return;
+        }
+    }
+
     const auto piece = pieceForName (instrumentName);
     if (piece != KitPiece::count)
         triggerHitForPiece (piece, velocity);
+}
+
+void DrumKitView::triggerHitForDynamicPiece (int index, float velocity)
+{
+    if (index >= 0 && index < static_cast<int> (dynamicPieces.size()))
+    {
+        auto& dp = dynamicPieces[static_cast<size_t> (index)];
+        dp.flash = std::clamp (velocity, 0.40f, 1.0f);
+        dp.squash = std::clamp (velocity * 0.75f, 0.20f, 1.0f);
+        repaint();
+    }
 }
 
 void DrumKitView::triggerHitForPiece (KitPiece piece, float velocity)
@@ -479,8 +605,45 @@ void DrumKitView::triggerHitForPiece (KitPiece piece, float velocity)
     repaint (dirtyBoundsForPiece (piece));
 }
 
+int DrumKitView::dynamicPieceAt (juce::Point<float> pos) const
+{
+    if (dynamicPieces.empty())
+        return -1;
+
+    std::vector<size_t> hitOrder (dynamicPieces.size());
+    for (size_t i = 0; i < dynamicPieces.size(); ++i) hitOrder[i] = i;
+    std::sort (hitOrder.begin(), hitOrder.end(), [&] (size_t a, size_t b) {
+        return dynamicPieces[a].zOrder > dynamicPieces[b].zOrder; // Front to back
+    });
+
+    for (auto idx : hitOrder)
+    {
+        const auto& dp = dynamicPieces[idx];
+        if (dp.bounds.contains (pos) && dp.image.isValid())
+        {
+            const float u = (pos.x - dp.bounds.getX()) / dp.bounds.getWidth();
+            const float v = (pos.y - dp.bounds.getY()) / dp.bounds.getHeight();
+            const int px = juce::jlimit (0, dp.image.getWidth() - 1, static_cast<int> (u * dp.image.getWidth()));
+            const int py = juce::jlimit (0, dp.image.getHeight() - 1, static_cast<int> (v * dp.image.getHeight()));
+
+            if (dp.image.getPixelAt (px, py).getAlpha() > 25)
+                return static_cast<int> (idx);
+        }
+    }
+
+    return -1;
+}
+
 KitPiece DrumKitView::pieceAt (juce::Point<float> pos) const
 {
+    if (! dynamicPieces.empty())
+    {
+        const int dynIdx = dynamicPieceAt (pos);
+        if (dynIdx >= 0)
+            return dynamicPieces[static_cast<size_t> (dynIdx)].mappedClassicPiece;
+        return KitPiece::count;
+    }
+
     // Hit-test in reverse Z-order (foreground first)
     const KitPiece order[] = {
         KitPiece::floorTom,
@@ -579,6 +742,33 @@ void DrumKitView::mouseDown (const juce::MouseEvent& e)
     }
 
     // Normal play mode: click triggers drum hit
+    if (! dynamicPieces.empty())
+    {
+        const int dynIdx = dynamicPieceAt (e.position);
+        if (dynIdx >= 0)
+        {
+            constexpr float maxVelocity = 1.0f;
+            triggerHitForDynamicPiece (dynIdx, maxVelocity);
+
+            const auto& dp = dynamicPieces[static_cast<size_t> (dynIdx)];
+            if (onDynamicPieceHit != nullptr)
+                onDynamicPieceHit (dynIdx, juce::String (dp.name), maxVelocity);
+
+            if (onDynamicPieceClicked != nullptr)
+                onDynamicPieceClicked (dynIdx, juce::String (dp.name));
+
+            if (dp.mappedClassicPiece != KitPiece::count)
+            {
+                if (onPieceHit != nullptr)
+                    onPieceHit (dp.mappedClassicPiece, maxVelocity);
+
+                if (onPieceClicked != nullptr)
+                    onPieceClicked (dp.mappedClassicPiece);
+            }
+            return;
+        }
+    }
+
     const auto piece = pieceAt (e.position);
     if (piece != KitPiece::count)
     {
@@ -784,6 +974,31 @@ void DrumKitView::timerCallback()
             dirtyRect = dirtyRect.getUnion (dirtyBoundsForPiece (static_cast<KitPiece> (i)));
     }
 
+    for (auto& dp : dynamicPieces)
+    {
+        bool changed = false;
+        if (dp.flash > 0.001f)
+        {
+            dp.flash = std::max (0.0f, dp.flash - dt / 0.22f);
+            if (dp.flash <= 0.001f)
+                dp.flash = 0.0f;
+            changed = true;
+        }
+        if (dp.squash > 0.001f)
+        {
+            dp.squash = std::max (0.0f, dp.squash - dt / 0.15f);
+            if (dp.squash <= 0.001f)
+                dp.squash = 0.0f;
+            changed = true;
+        }
+
+        if (changed)
+        {
+            const auto region = dp.glowBounds.isEmpty() ? dp.bounds : dp.glowBounds.getUnion (dp.bounds);
+            dirtyRect = dirtyRect.getUnion (region.expanded (8.0f).getSmallestIntegerContainer().getIntersection (getLocalBounds()));
+        }
+    }
+
     if (toastAlpha > 0.001f)
     {
         toastAlpha = std::max (0.0f, toastAlpha - dt / 2.0f); // fade out over 2s
@@ -834,25 +1049,45 @@ void DrumKitView::rebuildKitOutline()
     juce::Image composite (juce::Image::ARGB, W, H, true);
     {
         juce::Graphics cg (composite);
-        const KitPiece renderOrder[] = {
-            KitPiece::kick,
-            KitPiece::crash1,
-            KitPiece::hihat,
-            KitPiece::snare,
-            KitPiece::tom1,
-            KitPiece::tom2,
-            KitPiece::ride,
-            KitPiece::crash2,
-            KitPiece::floorTom
-        };
-
-        for (auto piece : renderOrder)
+        if (! dynamicPieces.empty())
         {
-            const auto& p = pieces[static_cast<size_t> (piece)];
-            if (p.scaledImage.isValid() && ! p.bounds.isEmpty())
-                cg.drawImageAt (p.scaledImage, juce::roundToInt (p.bounds.getX()), juce::roundToInt (p.bounds.getY()));
-            else if (p.image.isValid() && ! p.bounds.isEmpty())
-                cg.drawImage (p.image, p.bounds, juce::RectanglePlacement::stretchToFit);
+            std::vector<size_t> order (dynamicPieces.size());
+            for (size_t i = 0; i < dynamicPieces.size(); ++i) order[i] = i;
+            std::sort (order.begin(), order.end(), [&] (size_t a, size_t b) {
+                return dynamicPieces[a].zOrder < dynamicPieces[b].zOrder;
+            });
+
+            for (auto idx : order)
+            {
+                const auto& dp = dynamicPieces[idx];
+                if (dp.scaledImage.isValid() && ! dp.bounds.isEmpty())
+                    cg.drawImageAt (dp.scaledImage, juce::roundToInt (dp.bounds.getX()), juce::roundToInt (dp.bounds.getY()));
+                else if (dp.image.isValid() && ! dp.bounds.isEmpty())
+                    cg.drawImage (dp.image, dp.bounds, juce::RectanglePlacement::stretchToFit);
+            }
+        }
+        else
+        {
+            const KitPiece renderOrder[] = {
+                KitPiece::kick,
+                KitPiece::crash1,
+                KitPiece::hihat,
+                KitPiece::snare,
+                KitPiece::tom1,
+                KitPiece::tom2,
+                KitPiece::ride,
+                KitPiece::crash2,
+                KitPiece::floorTom
+            };
+
+            for (auto piece : renderOrder)
+            {
+                const auto& p = pieces[static_cast<size_t> (piece)];
+                if (p.scaledImage.isValid() && ! p.bounds.isEmpty())
+                    cg.drawImageAt (p.scaledImage, juce::roundToInt (p.bounds.getX()), juce::roundToInt (p.bounds.getY()));
+                else if (p.image.isValid() && ! p.bounds.isEmpty())
+                    cg.drawImage (p.image, p.bounds, juce::RectanglePlacement::stretchToFit);
+            }
         }
     }
 
@@ -956,26 +1191,48 @@ void DrumKitView::rebuildStaticKitCache()
         if (theme.isDark && unifiedKitOutlineImage.isValid())
             cg.drawImageAt (unifiedKitOutlineImage, 0, 0);
 
-        const KitPiece renderOrder[] = {
-            KitPiece::kick,
-            KitPiece::crash1,
-            KitPiece::hihat,
-            KitPiece::snare,
-            KitPiece::tom1,
-            KitPiece::tom2,
-            KitPiece::ride,
-            KitPiece::crash2,
-            KitPiece::floorTom
-        };
-
-        for (auto piece : renderOrder)
+        if (! dynamicPieces.empty())
         {
-            const auto& p = pieces[static_cast<size_t> (piece)];
-            if (p.scaledImage.isValid() && ! p.bounds.isEmpty())
+            std::vector<size_t> order (dynamicPieces.size());
+            for (size_t i = 0; i < dynamicPieces.size(); ++i) order[i] = i;
+            std::sort (order.begin(), order.end(), [&] (size_t a, size_t b) {
+                return dynamicPieces[a].zOrder < dynamicPieces[b].zOrder;
+            });
+
+            for (auto idx : order)
             {
-                cg.drawImageAt (p.scaledImage,
-                                juce::roundToInt (p.bounds.getX()),
-                                juce::roundToInt (p.bounds.getY()));
+                const auto& dp = dynamicPieces[idx];
+                if (dp.scaledImage.isValid() && ! dp.bounds.isEmpty())
+                {
+                    cg.drawImageAt (dp.scaledImage,
+                                    juce::roundToInt (dp.bounds.getX()),
+                                    juce::roundToInt (dp.bounds.getY()));
+                }
+            }
+        }
+        else
+        {
+            const KitPiece renderOrder[] = {
+                KitPiece::kick,
+                KitPiece::crash1,
+                KitPiece::hihat,
+                KitPiece::snare,
+                KitPiece::tom1,
+                KitPiece::tom2,
+                KitPiece::ride,
+                KitPiece::crash2,
+                KitPiece::floorTom
+            };
+
+            for (auto piece : renderOrder)
+            {
+                const auto& p = pieces[static_cast<size_t> (piece)];
+                if (p.scaledImage.isValid() && ! p.bounds.isEmpty())
+                {
+                    cg.drawImageAt (p.scaledImage,
+                                    juce::roundToInt (p.bounds.getX()),
+                                    juce::roundToInt (p.bounds.getY()));
+                }
             }
         }
     }
@@ -1034,6 +1291,44 @@ void DrumKitView::layout()
         }
     }
 
+    if (! dynamicPieces.empty())
+    {
+        for (auto& dp : dynamicPieces)
+        {
+            if (! dp.image.isValid())
+                continue;
+
+            const float aspect = static_cast<float> (dp.image.getHeight()) / static_cast<float> (dp.image.getWidth());
+            const float width = dp.coords.normW * scale;
+            const float height = width * aspect;
+            const float x = cx + dp.coords.normX * scale;
+            const float y = gy + dp.coords.normY * scale;
+
+            dp.bounds = juce::Rectangle<float> (x, y, width, height);
+
+            const int targetW = std::max (1, juce::roundToInt (width));
+            const int targetH = std::max (1, juce::roundToInt (height));
+            if (dp.scaledImage.getWidth() != targetW || dp.scaledImage.getHeight() != targetH)
+                dp.scaledImage = dp.image.rescaled (targetW, targetH, juce::Graphics::mediumResamplingQuality);
+
+            if (dp.glowImage.isValid() && dp.glowImage.getWidth() > 72 && dp.glowImage.getHeight() > 72)
+            {
+                const float padRatioX = 36.0f / static_cast<float> (dp.glowImage.getWidth() - 72);
+                const float padRatioY = 36.0f / static_cast<float> (dp.glowImage.getHeight() - 72);
+                dp.glowBounds = dp.bounds.expanded (dp.bounds.getWidth() * padRatioX,
+                                                    dp.bounds.getHeight() * padRatioY);
+                const int glowW = std::max (1, juce::roundToInt (dp.glowBounds.getWidth()));
+                const int glowH = std::max (1, juce::roundToInt (dp.glowBounds.getHeight()));
+                if (dp.scaledGlowImage.getWidth() != glowW || dp.scaledGlowImage.getHeight() != glowH)
+                    dp.scaledGlowImage = dp.glowImage.rescaled (glowW, glowH, juce::Graphics::mediumResamplingQuality);
+            }
+            else
+            {
+                dp.glowBounds = dp.bounds;
+            }
+        }
+    }
+
     // Top Header Buttons
     const float topY = 12.0f;
     editToggleBtnBounds = {};
@@ -1073,6 +1368,17 @@ void DrumKitView::paint (juce::Graphics& g)
             break;
         }
     }
+    if (! anyAnimating)
+    {
+        for (const auto& dp : dynamicPieces)
+        {
+            if (dp.flash > 0.001f || dp.squash > 0.001f)
+            {
+                anyAnimating = true;
+                break;
+            }
+        }
+    }
 
     // Fast path: when stationary in play mode, blit the pre-composited static kit cache directly
     if (! editMode && ! anyAnimating && staticKitImage.isValid())
@@ -1108,69 +1414,125 @@ void DrumKitView::paint (juce::Graphics& g)
             g.drawImageAt (unifiedKitOutlineImage, 0, 0);
         }
 
-        // 3. Render back-to-front Z-order matching user layer stack:
-        // kick -> crash_1 -> hihat -> snare -> tom_1 -> tom_2 -> ride -> crash_2 -> f_tom
-        const KitPiece renderOrder[] = {
-            KitPiece::kick,
-            KitPiece::crash1,
-            KitPiece::hihat,
-            KitPiece::snare,
-            KitPiece::tom1,
-            KitPiece::tom2,
-            KitPiece::ride,
-            KitPiece::crash2,
-            KitPiece::floorTom
-        };
-
         const auto clipBounds = g.getClipBounds();
 
-        for (auto piece : renderOrder)
+        if (! dynamicPieces.empty())
         {
-            const auto& p = pieces[static_cast<size_t> (piece)];
-            if (! p.image.isValid() || p.bounds.isEmpty())
-                continue;
+            std::vector<size_t> renderOrder (dynamicPieces.size());
+            for (size_t i = 0; i < dynamicPieces.size(); ++i) renderOrder[i] = i;
+            std::sort (renderOrder.begin(), renderOrder.end(), [&] (size_t a, size_t b) {
+                return dynamicPieces[a].zOrder < dynamicPieces[b].zOrder;
+            });
 
-            const auto pieceClip = (p.glowBounds.isEmpty() ? p.bounds : p.glowBounds.getUnion (p.bounds))
-                                       .expanded (6.0f)
-                                       .getSmallestIntegerContainer();
-            if (! clipBounds.intersects (pieceClip))
-                continue;
-
-            // Radiant orange halo glow behind the piece when hit (using pre-scaled glow cache)
-            if (p.flash > 0.001f)
+            for (auto idx : renderOrder)
             {
-                g.setOpacity (std::clamp (p.flash, 0.0f, 1.0f));
-                if (p.scaledGlowImage.isValid())
+                const auto& dp = dynamicPieces[idx];
+                if (! dp.image.isValid() || dp.bounds.isEmpty())
+                    continue;
+
+                const auto pieceClip = (dp.glowBounds.isEmpty() ? dp.bounds : dp.glowBounds.getUnion (dp.bounds))
+                                           .expanded (6.0f)
+                                           .getSmallestIntegerContainer();
+                if (! clipBounds.intersects (pieceClip))
+                    continue;
+
+                if (dp.flash > 0.001f)
                 {
-                    g.drawImageAt (p.scaledGlowImage,
-                                   juce::roundToInt (p.glowBounds.getX()),
-                                   juce::roundToInt (p.glowBounds.getY()));
+                    g.setOpacity (std::clamp (dp.flash, 0.0f, 1.0f));
+                    if (dp.scaledGlowImage.isValid())
+                    {
+                        g.drawImageAt (dp.scaledGlowImage,
+                                       juce::roundToInt (dp.glowBounds.getX()),
+                                       juce::roundToInt (dp.glowBounds.getY()));
+                    }
+                    else if (dp.glowImage.isValid())
+                    {
+                        g.drawImage (dp.glowImage, dp.glowBounds, juce::RectanglePlacement::stretchToFit);
+                    }
+                    g.setOpacity (1.0f);
                 }
-                else if (p.glowImage.isValid())
-                {
-                    g.drawImage (p.glowImage, p.glowBounds, juce::RectanglePlacement::stretchToFit);
-                }
-                g.setOpacity (1.0f);
-            }
 
-            // Squash/pulse on impact, or 1:1 fast blit when stationary
-            if (p.squash > 0.001f)
-            {
-                const float pulseScale = 1.0f + p.squash * 0.035f;
-                const auto drawBounds = p.bounds.withSizeKeepingCentre (p.bounds.getWidth() * pulseScale,
-                                                                        p.bounds.getHeight() * pulseScale);
-                g.drawImage (p.scaledImage.isValid() ? p.scaledImage : p.image,
-                             drawBounds, juce::RectanglePlacement::stretchToFit);
+                if (dp.squash > 0.001f)
+                {
+                    const float pulseScale = 1.0f + dp.squash * 0.035f;
+                    const auto drawBounds = dp.bounds.withSizeKeepingCentre (dp.bounds.getWidth() * pulseScale,
+                                                                            dp.bounds.getHeight() * pulseScale);
+                    g.drawImage (dp.scaledImage.isValid() ? dp.scaledImage : dp.image,
+                                 drawBounds, juce::RectanglePlacement::stretchToFit);
+                }
+                else if (dp.scaledImage.isValid())
+                {
+                    g.drawImageAt (dp.scaledImage,
+                                   juce::roundToInt (dp.bounds.getX()),
+                                   juce::roundToInt (dp.bounds.getY()));
+                }
+                else
+                {
+                    g.drawImage (dp.image, dp.bounds, juce::RectanglePlacement::stretchToFit);
+                }
             }
-            else if (p.scaledImage.isValid())
+        }
+        else
+        {
+            // 3. Render back-to-front Z-order matching classic standard kit:
+            const KitPiece renderOrder[] = {
+                KitPiece::kick,
+                KitPiece::crash1,
+                KitPiece::hihat,
+                KitPiece::snare,
+                KitPiece::tom1,
+                KitPiece::tom2,
+                KitPiece::ride,
+                KitPiece::crash2,
+                KitPiece::floorTom
+            };
+
+            for (auto piece : renderOrder)
             {
-                g.drawImageAt (p.scaledImage,
-                               juce::roundToInt (p.bounds.getX()),
-                               juce::roundToInt (p.bounds.getY()));
-            }
-            else
-            {
-                g.drawImage (p.image, p.bounds, juce::RectanglePlacement::stretchToFit);
+                const auto& p = pieces[static_cast<size_t> (piece)];
+                if (! p.image.isValid() || p.bounds.isEmpty())
+                    continue;
+
+                const auto pieceClip = (p.glowBounds.isEmpty() ? p.bounds : p.glowBounds.getUnion (p.bounds))
+                                           .expanded (6.0f)
+                                           .getSmallestIntegerContainer();
+                if (! clipBounds.intersects (pieceClip))
+                    continue;
+
+                if (p.flash > 0.001f)
+                {
+                    g.setOpacity (std::clamp (p.flash, 0.0f, 1.0f));
+                    if (p.scaledGlowImage.isValid())
+                    {
+                        g.drawImageAt (p.scaledGlowImage,
+                                       juce::roundToInt (p.glowBounds.getX()),
+                                       juce::roundToInt (p.glowBounds.getY()));
+                    }
+                    else if (p.glowImage.isValid())
+                    {
+                        g.drawImage (p.glowImage, p.glowBounds, juce::RectanglePlacement::stretchToFit);
+                    }
+                    g.setOpacity (1.0f);
+                }
+
+                if (p.squash > 0.001f)
+                {
+                    const float pulseScale = 1.0f + p.squash * 0.035f;
+                    const auto drawBounds = p.bounds.withSizeKeepingCentre (p.bounds.getWidth() * pulseScale,
+                                                                            p.bounds.getHeight() * pulseScale);
+                    g.drawImage (p.scaledImage.isValid() ? p.scaledImage : p.image,
+                                 drawBounds, juce::RectanglePlacement::stretchToFit);
+                }
+                else if (p.scaledImage.isValid())
+                {
+                    g.drawImageAt (p.scaledImage,
+                                   juce::roundToInt (p.bounds.getX()),
+                                   juce::roundToInt (p.bounds.getY()));
+                }
+                else
+                {
+                    g.drawImage (p.image, p.bounds, juce::RectanglePlacement::stretchToFit);
+                }
             }
         }
     }

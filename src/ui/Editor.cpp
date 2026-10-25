@@ -426,6 +426,82 @@ Editor::Editor (PluginProcessor& p)
         }
     };
 
+    kitView.onDynamicPieceHit = [this] (int dynamicIndex, const juce::String& pieceName, float velocity)
+    {
+        int targetLogicalIdx = -1;
+        if (dynamicIndex >= 0 && dynamicIndex < static_cast<int> (logicalInstruments.size())
+            && logicalInstruments[dynamicIndex].name.equalsIgnoreCase (pieceName))
+        {
+            targetLogicalIdx = dynamicIndex;
+        }
+
+        if (targetLogicalIdx < 0)
+        {
+            for (size_t i = 0; i < logicalInstruments.size(); ++i)
+            {
+                if (logicalInstruments[i].name.equalsIgnoreCase (pieceName))
+                {
+                    targetLogicalIdx = static_cast<int> (i);
+                    break;
+                }
+            }
+        }
+
+        if (targetLogicalIdx < 0 && dynamicIndex >= 0 && dynamicIndex < static_cast<int> (logicalInstruments.size()))
+            targetLogicalIdx = dynamicIndex;
+
+        if (targetLogicalIdx >= 0)
+        {
+            selectLogicalInstrument (targetLogicalIdx);
+            const int targetZone = (targetLogicalIdx < static_cast<int> (logicalInstruments.size()))
+                                       ? logicalInstruments[targetLogicalIdx].selectedZoneIndex : 0;
+            selectZone (targetLogicalIdx, targetZone, false);
+
+            const int samplerIdx = getActiveSamplerIndex();
+            if (samplerIdx >= 0)
+            {
+                const auto note = processor.getMidiMap().noteForInstrument (samplerIdx);
+                const int midiNote = (note >= 0) ? note : 36;
+
+                const auto instName = processor.getSampler().instrumentName (samplerIdx);
+                processor.getSampler().noteOn (samplerIdx, midiNote, velocity,
+                                               processor.getSampler().currentSamplePosition());
+
+                scope.hitReceived (instName, logicalInstruments[targetLogicalIdx].piece, midiNote, velocity);
+            }
+        }
+    };
+
+    kitView.onDynamicPieceClicked = [this] (int dynamicIndex, const juce::String& pieceName)
+    {
+        int targetLogicalIdx = -1;
+        if (dynamicIndex >= 0 && dynamicIndex < static_cast<int> (logicalInstruments.size())
+            && logicalInstruments[dynamicIndex].name.equalsIgnoreCase (pieceName))
+        {
+            targetLogicalIdx = dynamicIndex;
+        }
+        if (targetLogicalIdx < 0)
+        {
+            for (size_t i = 0; i < logicalInstruments.size(); ++i)
+            {
+                if (logicalInstruments[i].name.equalsIgnoreCase (pieceName))
+                {
+                    targetLogicalIdx = static_cast<int> (i);
+                    break;
+                }
+            }
+        }
+        if (targetLogicalIdx < 0 && dynamicIndex >= 0 && dynamicIndex < static_cast<int> (logicalInstruments.size()))
+            targetLogicalIdx = dynamicIndex;
+
+        if (targetLogicalIdx >= 0)
+        {
+            selectLogicalInstrument (targetLogicalIdx);
+            const int targetZone = logicalInstruments[targetLogicalIdx].selectedZoneIndex;
+            selectZone (targetLogicalIdx, targetZone, false);
+        }
+    };
+
     processor.addListener (this);
     logo = logoDrawable();
 

@@ -592,6 +592,7 @@ bool GlorpKitReader::readNativeInstruments (std::vector<GlorpInstrumentSpec>& in
                 {
                     zone.power = zroot->attributeFloat ("power", 1.0f);
                     zone.roundRobin = zroot->attributeInt ("round-robin", 1);
+                    zone.velocityLayers = zroot->attributeInt ("velocity-layers", 0);
 
                     const auto zoneDir = instDir + "/" + zone.name;
 
@@ -604,6 +605,8 @@ bool GlorpKitReader::readNativeInstruments (std::vector<GlorpInstrumentSpec>& in
                         sref.power = sn->attributeFloat ("power", 1.0f);
                         sref.fileChannel = sn->attributeInt ("channel", 1) - 1;
                         if (sref.fileChannel < 0) sref.fileChannel = 0;
+                        sref.velocityLayer = sn->attributeInt ("velocity", 0);
+                        sref.roundRobin = sn->attributeInt ("round-robin", 0);
 
                         std::string fullSamplePath = zoneDir + "/" + fileAttr;
                         const auto* entry = getEntry (fullSamplePath);

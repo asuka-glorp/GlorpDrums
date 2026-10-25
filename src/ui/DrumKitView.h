@@ -53,6 +53,8 @@ public:
     /// Fired when a piece is clicked to trigger sound (at max velocity) and select in settings panel.
     std::function<void (KitPiece, float velocity)> onPieceHit;
     std::function<void (KitPiece)> onPieceClicked;
+    std::function<void (int dynamicIndex, const juce::String& pieceName, float velocity)> onDynamicPieceHit;
+    std::function<void (int dynamicIndex, const juce::String& pieceName)> onDynamicPieceClicked;
 
     bool isEditMode() const noexcept { return editMode; }
     void setEditMode (bool enabled);
@@ -101,6 +103,32 @@ public:
         return {};
     }
 
+    struct DynamicPiece
+    {
+        std::string id;
+        std::string name;
+        std::string graphic;
+        std::vector<std::string> instrumentNames;
+        PieceCoords coords;
+        int zOrder = 0;
+        juce::Rectangle<float> bounds;
+        juce::Rectangle<float> glowBounds;
+        juce::Image image;
+        juce::Image glowImage;
+        juce::Image scaledImage;
+        juce::Image scaledGlowImage;
+        float flash = 0.0f;
+        float squash = 0.0f;
+        KitPiece mappedClassicPiece = KitPiece::count;
+    };
+
+    bool hasDynamicPieces() const noexcept { return ! dynamicPieces.empty(); }
+    size_t getNumDynamicPieces() const noexcept { return dynamicPieces.size(); }
+    const std::vector<DynamicPiece>& getDynamicPieces() const noexcept { return dynamicPieces; }
+    int dynamicPieceAt (juce::Point<float> pos) const;
+    void triggerHitForDynamicPiece (int index, float velocity);
+    juce::Image getDefaultImageForGraphic (const std::string& graphic, KitPiece fallbackPiece);
+
 private:
     struct Piece
     {
@@ -120,6 +148,7 @@ private:
 
     std::array<Piece, static_cast<size_t> (KitPiece::count)> pieces;
     std::array<PieceCoords, static_cast<size_t> (KitPiece::count)> coords;
+    std::vector<DynamicPiece> dynamicPieces;
     std::vector<juce::String> instrumentNames;
 
     KitPiece hoveredPiece = KitPiece::count;

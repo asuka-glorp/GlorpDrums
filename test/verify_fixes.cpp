@@ -1404,7 +1404,7 @@ int main()
         };
 
         // 19.1 Verify piece coordinate mapping and dragging
-        glorp::GlorpKitEditorComponent editor;
+        glorp::GlorpKitEditorComponent editor (false);
         editor.setSize (1280, 800);
         auto& proj = editor.getProject();
         proj.createNewBlankKit();
@@ -1551,6 +1551,177 @@ int main()
 
         tempDir.deleteRecursively();
         std::cout << "-> Canvas Coordinates Dragging, Zone Scrolling & Custom Graphics Display: PASSED!\n";
+    }
+
+    // 20. Verify Ludwig 12-Piece Kit Loading, Velocity & Round-Robin Matrix Ordering, Canvas Guides, and Arbitrary Dynamic Kits in DrumKitView
+    std::cout << "\n--- Section 20: Ludwig 12-Piece Kit, 4-RR Velocity Matrix, Stage Guides & Dynamic Kit in DrumKitView ---\n";
+    {
+        const juce::File ludwigTestFile ("/tmp/ludwig_test.glorpkit");
+        if (ludwigTestFile.existsAsFile())
+        {
+            glorp::GlorpKitProject proj;
+            std::string openErr;
+            bool opened = proj.openGlorpKitArchive (ludwigTestFile.getFullPathName().toStdString(), openErr);
+            std::cout << "Opening /tmp/ludwig_test.glorpkit: " << (opened ? "SUCCESS" : "FAILED") << " (err: " << openErr << ")\n";
+            VERIFY_CHECK (opened);
+            VERIFY_CHECK (proj.pieces.size() >= 12);
+
+            // Find Snare piece
+            const glorp::EditablePiece* snarePiece = nullptr;
+            for (const auto& p : proj.pieces)
+            {
+                if (p.name.find ("Snare") != std::string::npos || p.id == "snare")
+                {
+                    snarePiece = &p;
+                    break;
+                }
+            }
+            VERIFY_CHECK (snarePiece != nullptr);
+
+            // Find Snare Center zone
+            const glorp::EditableZone* centerZone = nullptr;
+            for (const auto& z : snarePiece->zones)
+            {
+                if (z.name == "Center" || z.name == "Head Center" || z.name == "ctr" || z.name == "head_center" || z.name == "Snare Head Center")
+                {
+                    centerZone = &z;
+                    break;
+                }
+            }
+            VERIFY_CHECK (centerZone != nullptr);
+
+            std::cout << "Snare Center zone detected: numVelocityLayers=" << centerZone->numVelocityLayers
+                      << ", numRoundRobins=" << centerZone->numRoundRobins
+                      << ", total hits=" << centerZone->hits.size() << "\n";
+
+            // Verify Center has 13 velocity layers and 4 round robins (A, B, C, D)
+            VERIFY_CHECK (centerZone->numVelocityLayers == 13);
+            VERIFY_CHECK (centerZone->numRoundRobins == 4);
+            VERIFY_CHECK (centerZone->hits.size() == 52); // 13 * 4 = 52 hits!
+
+            // Verify hits are mapped to distinct (vel, rr) cells without overlap or scrambled ordering
+            std::set<std::pair<int, int>> cellsOccupied;
+            for (const auto& h : centerZone->hits)
+            {
+                VERIFY_CHECK (h.velocityLayerIndex >= 0 && h.velocityLayerIndex < 13);
+                VERIFY_CHECK (h.roundRobinIndex >= 0 && h.roundRobinIndex < 4);
+                cellsOccupied.insert ({ h.velocityLayerIndex, h.roundRobinIndex });
+            }
+            VERIFY_CHECK (cellsOccupied.size() == 52); // Every single cell from (0,0) to (12,3) is filled!
+
+            // Test Ideal Stage Guides
+            const auto& guides = glorp::GlorpKitEditorComponent::getIdealStageGuides();
+            VERIFY_CHECK (guides.size() == 12);
+            VERIFY_CHECK (glorp::GlorpKitEditorComponent::findMatchingStageGuide ("Snare", "snare") == 1);
+            VERIFY_CHECK (glorp::GlorpKitEditorComponent::findMatchingStageGuide ("Tom 3", "tom_2") == 5);
+            VERIFY_CHECK (glorp::GlorpKitEditorComponent::findMatchingStageGuide ("Floor Tom 2", "f_tom") == 7);
+            VERIFY_CHECK (glorp::GlorpKitEditorComponent::findMatchingStageGuide ("Crash 3", "crash_2") == 11);
+
+            // Test Editor Window with Guides
+            glorp::GlorpKitEditorComponent editor (false);
+            editor.setSize (1280, 800);
+            editor.openKitFile (ludwigTestFile);
+
+            // Render stage canvas guides screenshot
+            juce::Image guideSnap (juce::Image::ARGB, 1280, 800, true);
+            juce::Graphics gg (guideSnap);
+            editor.paintEntireComponent (gg, false);
+            juce::File guideSnapFile ("/home/servandoc/.gemini/antigravity/brain/cf30153d-b421-4187-8ed5-1bdf793c8e28/live_phase7_canvas_guides.png");
+            guideSnapFile.deleteFile();
+            if (auto s = std::unique_ptr<juce::FileOutputStream> (guideSnapFile.createOutputStream()))
+                juce::PNGImageFormat().writeImageToStream (guideSnap, *s);
+            std::cout << "-> Rendered Stage Canvas Guides screenshot: " << guideSnapFile.getFullPathName() << "\n";
+
+            // Now test loading kit into DrumKit and DrumKitView
+            auto loadedKit = glorp::DrumKit::load (ludwigTestFile.getFullPathName().toStdString());
+            VERIFY_CHECK (loadedKit.error.empty());
+            VERIFY_CHECK (loadedKit.logicalPieces.size() >= 12);
+
+            glorp::DrumKitView dkv;
+            dkv.setSize (924, 621);
+            dkv.applyKitVisuals (loadedKit);
+
+            // Verify DrumKitView has dynamic pieces enabled and all 12 pieces are present!
+            VERIFY_CHECK (dkv.hasDynamicPieces());
+            VERIFY_CHECK (dkv.getNumDynamicPieces() >= 12);
+
+            const auto& dynPieces = dkv.getDynamicPieces();
+            for (size_t di = 0; di < dynPieces.size(); ++di)
+            {
+                const auto& dp = dynPieces[di];
+                VERIFY_CHECK (! dp.name.empty());
+                VERIFY_CHECK (! dp.bounds.isEmpty());
+                std::cout << "  Dynamic Piece #" << di << ": " << dp.name << " bounds=("
+                          << dp.bounds.getX() << ", " << dp.bounds.getY() << ", " << dp.bounds.getWidth() << "x" << dp.bounds.getHeight() << ")\n";
+            }
+
+            // Test hitting Tom 3, Floor Tom 2, Crash 3 (Crash Istanbul Xist)
+            dkv.triggerHit ("Tom 3", 0.95f);
+            dkv.triggerHit ("Floor Tom 2", 0.90f);
+            dkv.triggerHit ("Crash Istanbul Xist", 0.85f);
+
+            bool foundTom3Hit = false, foundFloor2Hit = false, foundCrash3Hit = false;
+            for (const auto& dp : dkv.getDynamicPieces())
+            {
+                if (dp.name.find ("Tom 3") != std::string::npos && dp.flash > 0.5f) foundTom3Hit = true;
+                if (dp.name.find ("Floor Tom 2") != std::string::npos && dp.flash > 0.5f) foundFloor2Hit = true;
+                if (dp.name.find ("Crash Istanbul Xist") != std::string::npos && dp.flash > 0.5f) foundCrash3Hit = true;
+            }
+            VERIFY_CHECK (foundTom3Hit);
+            VERIFY_CHECK (foundFloor2Hit);
+            VERIFY_CHECK (foundCrash3Hit);
+
+            // Render live screenshot of DrumKitView displaying all 12 Ludwig kit pieces in the plugin
+            juce::Image ludwigPluginSnap (juce::Image::ARGB, 924, 621, true);
+            juce::Graphics lpg (ludwigPluginSnap);
+            dkv.paintEntireComponent (lpg, false);
+            juce::File ludwigPluginFile ("/home/servandoc/.gemini/antigravity/brain/cf30153d-b421-4187-8ed5-1bdf793c8e28/live_phase7_ludwig_12piece_plugin.png");
+            ludwigPluginFile.deleteFile();
+            if (auto s = std::unique_ptr<juce::FileOutputStream> (ludwigPluginFile.createOutputStream()))
+                juce::PNGImageFormat().writeImageToStream (ludwigPluginSnap, *s);
+            std::cout << "-> Rendered DrumKitView 12-Piece Ludwig screenshot: " << ludwigPluginFile.getFullPathName() << "\n";
+
+            // Test round-trip re-export and re-open to verify matrix persistence
+            const juce::File reexportFile ("/tmp/ludwig_reexport.glorpkit");
+            reexportFile.deleteFile();
+            std::string reexportErr;
+            bool exported = proj.exportToGlorpKit (reexportFile.getFullPathName().toStdString(), reexportErr);
+            VERIFY_CHECK (exported);
+            VERIFY_CHECK (reexportFile.existsAsFile() && reexportFile.getSize() > 1024);
+
+            glorp::GlorpKitProject reProj;
+            std::string reOpenErr;
+            bool reOpened = reProj.openGlorpKitArchive (reexportFile.getFullPathName().toStdString(), reOpenErr);
+            VERIFY_CHECK (reOpened);
+            VERIFY_CHECK (reProj.pieces.size() >= 12);
+
+            const glorp::EditableZone* reCenterZone = nullptr;
+            for (const auto& p : reProj.pieces)
+            {
+                if (p.name.find ("Snare") != std::string::npos || p.id == "snare")
+                {
+                    for (const auto& z : p.zones)
+                    {
+                        if (z.name == "Center" || z.name == "Head Center" || z.name == "ctr" || z.name == "head_center" || z.name == "Snare Head Center")
+                        {
+                            reCenterZone = &z;
+                            break;
+                        }
+                    }
+                }
+            }
+            VERIFY_CHECK (reCenterZone != nullptr);
+            VERIFY_CHECK (reCenterZone->numVelocityLayers == 13);
+            VERIFY_CHECK (reCenterZone->numRoundRobins == 4);
+            VERIFY_CHECK (reCenterZone->hits.size() == 52);
+
+            reexportFile.deleteFile();
+            std::cout << "-> Section 20 Ludwig 12-Piece & 4-RR Matrix Tests: PASSED!\n";
+        }
+        else
+        {
+            std::cout << "[WARN] /tmp/ludwig_test.glorpkit not found; skipping Section 20 file-based test.\n";
+        }
     }
 
     processor.releaseResources();

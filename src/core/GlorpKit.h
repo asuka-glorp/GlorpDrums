@@ -54,6 +54,8 @@ struct GlorpSampleRef
     std::string mic;
     int fileChannel = 0; // 0-based
     float power = 1.0f;
+    int velocityLayer = 0; // 1-based (0 if not explicitly tagged)
+    int roundRobin = 0;    // 1-based (0 if not explicitly tagged)
     int64_t archiveOffset = -1;
     int64_t archiveLength = -1;
 };
@@ -73,6 +75,7 @@ struct GlorpZoneSpec
     int altNote = -1;
     float power = 1.0f;
     int roundRobin = 1;
+    int velocityLayers = 0;
     std::vector<GlorpSampleRef> samples;
     std::vector<GlorpChokeTarget> chokes;
 };

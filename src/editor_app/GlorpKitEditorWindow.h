@@ -92,6 +92,19 @@ public:
     void importPngAssets (const juce::Array<juce::File>& pngFiles);
     void updateInspectorEditors();
 
+    struct StageGuide
+    {
+        const char* id;
+        const char* label;
+        float normX;
+        float normY;
+        float normW;
+        float normH;
+        int zOrder;
+    };
+    static const std::vector<StageGuide>& getIdealStageGuides();
+    static int findMatchingStageGuide (const std::string& name, const std::string& graphicId);
+
     struct MatrixCellHit
     {
         int hitIndex = -1;
@@ -156,6 +169,7 @@ private:
     std::vector<float> selectedHitWaveform;
 
     bool snapToGrid = true;
+    bool showStageGuides = true;
     bool previewKitMode = false;
     bool isDraggingCanvasPiece = false;
     bool isResizingCanvasPiece = false;
@@ -209,7 +223,7 @@ private:
     // Center-Top Panel (2D Stage Canvas)
     juce::Rectangle<float> canvasPanelBounds;
     juce::Rectangle<float> canvasViewportBounds;
-    juce::Rectangle<float> btnSnapGrid, btnPreviewKit, btnBringFront, btnSendBack, btnResetLayout;
+    juce::Rectangle<float> btnSnapGrid, btnStageGuides, btnPreviewKit, btnBringFront, btnSendBack, btnResetLayout;
     juce::Rectangle<float> btnBlankAddPiece, btnBlankImportFolder, btnBlankImportOra;
 
     // -- Undo / Redo History Stack -------------------------------------------
@@ -253,7 +267,7 @@ private:
     // Right Panel (Piece, Zone & Sample Inspector)
     juce::Rectangle<float> rightPanelBounds;
     juce::Rectangle<float> cardPieceBounds, cardZoneBounds, cardSampleBounds;
-    juce::Rectangle<float> btnLoadCustomPng, btnBuiltinAsset, btnOutputBus, btnChokeGroup;
+    juce::Rectangle<float> btnLoadCustomPng, btnBuiltinAsset, btnAlignGuide, btnOutputBus, btnChokeGroup;
     juce::Rectangle<float> pillNormX, pillNormY, pillNormW, pillZOrder;
     juce::Rectangle<float> btnMidiNote, btnAltNote, btnMidiLearn, btnChokeTarget, btnPlaySample;
     juce::Rectangle<float> waveformPreviewBounds;
@@ -310,6 +324,7 @@ private:
     void showMatrixCellContextMenu (const MatrixCellHit& cell);
     void showHitGlowColorMenu();
     void showBuiltinAssetMenu();
+    void showAlignGuideMenu();
     void showOutputBusMenu();
     void showChokeGroupMenu();
     void showMidiNoteMenu();

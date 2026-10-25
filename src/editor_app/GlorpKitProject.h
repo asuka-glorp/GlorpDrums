@@ -34,8 +34,8 @@ struct EditableHit
 {
     std::string name;
     float power = 1.0f;
-    int velocityLayerIndex = 0;
-    int roundRobinIndex = 0;
+    int velocityLayerIndex = -1;
+    int roundRobinIndex = -1;
     std::vector<EditableMicSample> micSamples;
 };
 
