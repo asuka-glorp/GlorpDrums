@@ -169,6 +169,7 @@ private:
     std::vector<float> selectedHitWaveform;
 
     bool snapToGrid = true;
+    bool showSafeZone = true;
     bool showStageGuides = true;
     bool previewKitMode = false;
     bool isDraggingCanvasPiece = false;
@@ -223,7 +224,7 @@ private:
     // Center-Top Panel (2D Stage Canvas)
     juce::Rectangle<float> canvasPanelBounds;
     juce::Rectangle<float> canvasViewportBounds;
-    juce::Rectangle<float> btnSnapGrid, btnStageGuides, btnPreviewKit, btnBringFront, btnSendBack, btnResetLayout;
+    juce::Rectangle<float> btnSnapGrid, btnSafeZone, btnStageGuides, btnPreviewKit, btnBringFront, btnSendBack, btnResetLayout;
     juce::Rectangle<float> btnBlankAddPiece, btnBlankImportFolder, btnBlankImportOra;
 
     // -- Undo / Redo History Stack -------------------------------------------

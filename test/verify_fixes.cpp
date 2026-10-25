@@ -1655,21 +1655,84 @@ int main()
                           << dp.bounds.getX() << ", " << dp.bounds.getY() << ", " << dp.bounds.getWidth() << "x" << dp.bounds.getHeight() << ")\n";
             }
 
-            // Test hitting Tom 3, Floor Tom 2, Crash 3 (Crash Istanbul Xist)
+            // Helper to get a dynamic piece by name substring
+            auto findDynPiece = [&] (const std::string& partial) -> const glorp::DrumKitView::DynamicPiece* {
+                for (const auto& dp : dkv.getDynamicPieces())
+                    if (dp.name.find (partial) != std::string::npos)
+                        return &dp;
+                return nullptr;
+            };
+
+            auto clearFlashes = [&] () {
+                dkv.applyKitVisuals (loadedKit);
+            };
+
+            // Test 1: Hit Crash Sabian 16 -> ONLY Crash Sabian 16 flashes, NOT Crash Sabian 14 or Crash Istanbul or Ride!
+            clearFlashes();
+            dkv.triggerHit ("Crash Sabian 16", 0.95f);
+            auto* pSabian16 = findDynPiece ("Crash Sabian 16");
+            auto* pSabian14 = findDynPiece ("Crash Sabian 14");
+            auto* pIstanbul = findDynPiece ("Crash Istanbul Xist");
+            auto* pRide     = findDynPiece ("Ride");
+            auto* pTom1     = findDynPiece ("Tom 1");
+            VERIFY_CHECK (pSabian16 != nullptr && pSabian16->flash > 0.5f);
+            VERIFY_CHECK (pSabian14 != nullptr && pSabian14->flash < 0.01f);
+            VERIFY_CHECK (pIstanbul != nullptr && pIstanbul->flash < 0.01f);
+            VERIFY_CHECK (pRide     != nullptr && pRide->flash < 0.01f);
+            VERIFY_CHECK (pTom1     != nullptr && pTom1->flash < 0.01f);
+
+            // Test 2: Hit Crash Sabian 14 -> ONLY Crash Sabian 14 flashes
+            clearFlashes();
+            dkv.triggerHit ("Crash Sabian 14", 0.95f);
+            pSabian16 = findDynPiece ("Crash Sabian 16");
+            pSabian14 = findDynPiece ("Crash Sabian 14");
+            pIstanbul = findDynPiece ("Crash Istanbul Xist");
+            VERIFY_CHECK (pSabian14 != nullptr && pSabian14->flash > 0.5f);
+            VERIFY_CHECK (pSabian16 != nullptr && pSabian16->flash < 0.01f);
+            VERIFY_CHECK (pIstanbul != nullptr && pIstanbul->flash < 0.01f);
+
+            // Test 3: Hit Tom 1 -> ONLY Tom 1 flashes, NOT Tom 2 or Tom 3 or Floor Toms!
+            clearFlashes();
+            dkv.triggerHit ("Tom 1", 0.95f);
+            pTom1 = findDynPiece ("Tom 1");
+            auto* pTom2   = findDynPiece ("Tom 2");
+            auto* pTom3   = findDynPiece ("Tom 3");
+            auto* pFloor1 = findDynPiece ("Floor Tom 1");
+            auto* pFloor2 = findDynPiece ("Floor Tom 2");
+            VERIFY_CHECK (pTom1 != nullptr && pTom1->flash > 0.5f);
+            VERIFY_CHECK (pTom2 != nullptr && pTom2->flash < 0.01f);
+            VERIFY_CHECK (pTom3 != nullptr && pTom3->flash < 0.01f);
+            VERIFY_CHECK (pFloor1 != nullptr && pFloor1->flash < 0.01f);
+            VERIFY_CHECK (pFloor2 != nullptr && pFloor2->flash < 0.01f);
+
+            // Test 4: Hit Tom 2 -> ONLY Tom 2 flashes
+            clearFlashes();
+            dkv.triggerHit ("Tom 2", 0.95f);
+            pTom1 = findDynPiece ("Tom 1");
+            pTom2 = findDynPiece ("Tom 2");
+            pTom3 = findDynPiece ("Tom 3");
+            VERIFY_CHECK (pTom2 != nullptr && pTom2->flash > 0.5f);
+            VERIFY_CHECK (pTom1 != nullptr && pTom1->flash < 0.01f);
+            VERIFY_CHECK (pTom3 != nullptr && pTom3->flash < 0.01f);
+
+            // Test 5: Test triggerHitForSamplerIndex for Tom 3
+            clearFlashes();
+            pTom3 = findDynPiece ("Tom 3");
+            VERIFY_CHECK (pTom3 != nullptr && ! pTom3->samplerIndices.empty());
+            int tom3SamplerIdx = pTom3->samplerIndices.front();
+            bool hitHandled = dkv.triggerHitForSamplerIndex (tom3SamplerIdx, 0.90f);
+            VERIFY_CHECK (hitHandled);
+            pTom1 = findDynPiece ("Tom 1");
+            pTom2 = findDynPiece ("Tom 2");
+            pTom3 = findDynPiece ("Tom 3");
+            VERIFY_CHECK (pTom3 != nullptr && pTom3->flash > 0.5f);
+            VERIFY_CHECK (pTom1 != nullptr && pTom1->flash < 0.01f);
+            VERIFY_CHECK (pTom2 != nullptr && pTom2->flash < 0.01f);
+
+            // Restore flashes for screenshot
             dkv.triggerHit ("Tom 3", 0.95f);
             dkv.triggerHit ("Floor Tom 2", 0.90f);
             dkv.triggerHit ("Crash Istanbul Xist", 0.85f);
-
-            bool foundTom3Hit = false, foundFloor2Hit = false, foundCrash3Hit = false;
-            for (const auto& dp : dkv.getDynamicPieces())
-            {
-                if (dp.name.find ("Tom 3") != std::string::npos && dp.flash > 0.5f) foundTom3Hit = true;
-                if (dp.name.find ("Floor Tom 2") != std::string::npos && dp.flash > 0.5f) foundFloor2Hit = true;
-                if (dp.name.find ("Crash Istanbul Xist") != std::string::npos && dp.flash > 0.5f) foundCrash3Hit = true;
-            }
-            VERIFY_CHECK (foundTom3Hit);
-            VERIFY_CHECK (foundFloor2Hit);
-            VERIFY_CHECK (foundCrash3Hit);
 
             // Render live screenshot of DrumKitView displaying all 12 Ludwig kit pieces in the plugin
             juce::Image ludwigPluginSnap (juce::Image::ARGB, 924, 621, true);

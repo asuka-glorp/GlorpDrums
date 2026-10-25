@@ -47,6 +47,10 @@ public:
     void triggerHit (const juce::String& instrumentName, float velocity);
     void triggerHitForPiece (KitPiece piece, float velocity);
 
+    /// Fires a hit animation on the dynamic piece that owns the given sampler index.
+    /// Returns true if a matching dynamic piece was found and animated.
+    bool triggerHitForSamplerIndex (int samplerIndex, float velocity);
+
     /// Which piece an instrument name most likely refers to.
     static KitPiece pieceForName (const juce::String& name);
 
@@ -108,6 +112,7 @@ public:
         std::string id;
         std::string name;
         std::string graphic;
+        std::vector<int> samplerIndices;
         std::vector<std::string> instrumentNames;
         PieceCoords coords;
         int zOrder = 0;

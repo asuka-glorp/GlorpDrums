@@ -704,7 +704,7 @@ void GlorpKitEditorComponent::resized()
     canvasViewportBounds = canvasPanelBounds.reduced (12.0f, 38.0f).withTrimmedBottom (6.0f);
     computeCanvasPieceBounds();
 
-    cardPieceBounds  = { rightPanelBounds.getX() + 10.0f, rightPanelBounds.getY() + 36.0f, rightPanelBounds.getWidth() - 20.0f, 252.0f };
+    cardPieceBounds  = { rightPanelBounds.getX() + 10.0f, rightPanelBounds.getY() + 36.0f, rightPanelBounds.getWidth() - 20.0f, 222.0f };
     cardZoneBounds   = { rightPanelBounds.getX() + 10.0f, cardPieceBounds.getBottom() + 8.0f, rightPanelBounds.getWidth() - 20.0f, 178.0f };
     cardSampleBounds = { rightPanelBounds.getX() + 10.0f, cardZoneBounds.getBottom() + 8.0f, rightPanelBounds.getWidth() - 20.0f,
                          std::max (160.0f, rightPanelBounds.getBottom() - (cardZoneBounds.getBottom() + 18.0f)) };
@@ -977,9 +977,10 @@ void GlorpKitEditorComponent::paintCanvasPanel (juce::Graphics& g)
     makeToolBtn (btnResetLayout, 64.0f, "Reset",   false,          103);
     makeToolBtn (btnSendBack,    58.0f, "Back",    false,          105);
     makeToolBtn (btnBringFront,  62.0f, "Front",   false,          107);
-    makeToolBtn (btnPreviewKit,  76.0f, "Preview", previewKitMode, 109);
-    makeToolBtn (btnStageGuides, 66.0f, "Guides",  showStageGuides,110);
-    makeToolBtn (btnSnapGrid,    62.0f, "Grid",    snapToGrid,     111);
+    makeToolBtn (btnPreviewKit,  76.0f, "Preview",   previewKitMode, 109);
+    makeToolBtn (btnSafeZone,    78.0f, "Safe Zone", showSafeZone,   110);
+    btnStageGuides = btnSafeZone;
+    makeToolBtn (btnSnapGrid,    62.0f, "Grid",      snapToGrid,     111);
 
     juce::Colour stageBg = theme.isDark ? juce::Colour (0xff12141a) : juce::Colour (0xffefe7d6);
     Sketch::box (g, canvasViewportBounds, stageBg, theme.ink, 6.0f, 1.9f, 2, 113);
@@ -1009,50 +1010,94 @@ void GlorpKitEditorComponent::paintCanvasPanel (juce::Graphics& g)
         const float cx = canvasViewportBounds.getX() + W * 0.50f;
         const float gy = canvasViewportBounds.getY() + H * 0.94f;
 
-        if (showStageGuides)
+        if (showSafeZone)
         {
-            const auto& guides = getIdealStageGuides();
-            const int matchedSelGuide = (selectedPieceIdx >= 0 && selectedPieceIdx < (int) project.pieces.size())
-                                            ? findMatchingStageGuide (project.pieces[(size_t) selectedPieceIdx].name,
-                                                                     project.pieces[(size_t) selectedPieceIdx].graphicId)
-                                            : -1;
+            const float frameW = 880.0f * scale;
+            const float frameH = 620.0f * scale;
+            const float frameX = cx - 440.0f * scale;
+            const float frameY = gy - 582.8f * scale;
+            const juce::Rectangle<float> stageFrame { frameX, frameY, frameW, frameH };
+            const juce::Rectangle<float> actionSafe = stageFrame.reduced (22.0f * scale);
 
-            g.setColour (theme.inkSoft.withAlpha (0.16f));
-            const float dashPattern[2] = { 4.0f, 4.0f };
-            g.drawDashedLine (juce::Line<float> (cx, canvasViewportBounds.getY() + 10.0f, cx, canvasViewportBounds.getBottom() - 10.0f),
-                              dashPattern, 2, 1.0f);
-            g.drawDashedLine (juce::Line<float> (canvasViewportBounds.getX() + 10.0f, gy, canvasViewportBounds.getRight() - 10.0f, gy),
-                              dashPattern, 2, 1.0f);
-
-            for (size_t gi = 0; gi < guides.size(); ++gi)
+            // 1. Subtle shading for out-of-stage areas outside the 880x620 frame
+            g.setColour (theme.ink.withAlpha (theme.isDark ? 0.32f : 0.08f));
+            if (stageFrame.getX() > canvasViewportBounds.getX())
             {
-                const auto& gd = guides[gi];
-                const float gw = gd.normW * scale;
-                const float gh = gd.normH * scale;
-                const float gx = cx + gd.normX * scale;
-                const float gyPos = gy + gd.normY * scale;
-                const juce::Rectangle<float> gRect { gx, gyPos, gw, gh };
-
-                const bool isMatched = (matchedSelGuide == static_cast<int> (gi));
-                const juce::Colour col = isMatched ? theme.accent : theme.inkSoft;
-                const float fillAlpha = isMatched ? 0.12f : 0.035f;
-
-                g.setColour (col.withAlpha (fillAlpha));
-                g.fillEllipse (gRect);
-
-                juce::Path ellipsePath;
-                ellipsePath.addEllipse (gRect);
-                const float oDash[2] = { isMatched ? 6.0f : 4.0f, 4.0f };
-                g.setColour (col.withAlpha (isMatched ? 0.90f : 0.28f));
-                juce::Path dashed;
-                juce::PathStrokeType (isMatched ? 2.0f : 1.2f).createDashedStroke (dashed, ellipsePath, oDash, 2);
-                g.fillPath (dashed);
-
-                g.setFont (Fonts::title (isMatched ? 11.5f : 10.0f));
-                g.setColour (col.withAlpha (isMatched ? 0.95f : 0.45f));
-                g.drawText (gd.label, gRect.withSizeKeepingCentre (gRect.getWidth(), 18.0f),
-                            juce::Justification::centred, false);
+                g.fillRect (juce::Rectangle<float> (canvasViewportBounds.getX(), canvasViewportBounds.getY(),
+                                                    stageFrame.getX() - canvasViewportBounds.getX(), canvasViewportBounds.getHeight()));
+                g.fillRect (juce::Rectangle<float> (stageFrame.getRight(), canvasViewportBounds.getY(),
+                                                    canvasViewportBounds.getRight() - stageFrame.getRight(), canvasViewportBounds.getHeight()));
             }
+            if (stageFrame.getY() > canvasViewportBounds.getY())
+            {
+                g.fillRect (juce::Rectangle<float> (stageFrame.getX(), canvasViewportBounds.getY(),
+                                                    stageFrame.getWidth(), stageFrame.getY() - canvasViewportBounds.getY()));
+            }
+            if (canvasViewportBounds.getBottom() > stageFrame.getBottom())
+            {
+                g.fillRect (juce::Rectangle<float> (stageFrame.getX(), stageFrame.getBottom(),
+                                                    stageFrame.getWidth(), canvasViewportBounds.getBottom() - stageFrame.getBottom()));
+            }
+
+            // 2. Center vertical axis and stage floor baseline
+            const float dashPattern[2] = { 4.0f, 4.0f };
+            g.setColour (theme.inkSoft.withAlpha (0.22f));
+            g.drawDashedLine (juce::Line<float> (cx, stageFrame.getY() + 4.0f, cx, stageFrame.getBottom() - 4.0f),
+                              dashPattern, 2, 1.0f);
+            g.drawDashedLine (juce::Line<float> (stageFrame.getX() + 4.0f, gy, stageFrame.getRight() - 4.0f, gy),
+                              dashPattern, 2, 1.0f);
+
+            // Floor baseline indicator
+            g.setFont (Fonts::title (9.5f));
+            g.setColour (theme.inkSoft.withAlpha (0.45f));
+            g.drawText ("STAGE FLOOR BASELINE (BASS DRUM REST)",
+                        juce::Rectangle<float> (stageFrame.getX() + 10.0f, gy + 3.0f, 240.0f, 14.0f),
+                        juce::Justification::centredLeft, false);
+
+            // 3. Outer Stage Frame Bounding Box with comic sketch stroke & corner viewfinder brackets
+            g.setColour (theme.accent.withAlpha (0.75f));
+            g.drawRect (stageFrame, 1.8f);
+
+            const float bracketLen = 18.0f * scale;
+            const float bThick = 2.8f;
+            g.setColour (theme.ink);
+
+            // Top-Left corner bracket
+            g.drawLine (stageFrame.getX(), stageFrame.getY(), stageFrame.getX() + bracketLen, stageFrame.getY(), bThick);
+            g.drawLine (stageFrame.getX(), stageFrame.getY(), stageFrame.getX(), stageFrame.getY() + bracketLen, bThick);
+
+            // Top-Right corner bracket
+            g.drawLine (stageFrame.getRight() - bracketLen, stageFrame.getY(), stageFrame.getRight(), stageFrame.getY(), bThick);
+            g.drawLine (stageFrame.getRight(), stageFrame.getY(), stageFrame.getRight(), stageFrame.getY() + bracketLen, bThick);
+
+            // Bottom-Left corner bracket
+            g.drawLine (stageFrame.getX(), stageFrame.getBottom() - bracketLen, stageFrame.getX(), stageFrame.getBottom(), bThick);
+            g.drawLine (stageFrame.getX(), stageFrame.getBottom(), stageFrame.getX() + bracketLen, stageFrame.getBottom(), bThick);
+
+            // Bottom-Right corner bracket
+            g.drawLine (stageFrame.getRight() - bracketLen, stageFrame.getBottom(), stageFrame.getRight(), stageFrame.getBottom(), bThick);
+            g.drawLine (stageFrame.getRight(), stageFrame.getBottom() - bracketLen, stageFrame.getRight(), stageFrame.getBottom(), bThick);
+
+            // 4. Inset Action-Safe border (dashed)
+            const float actionDash[2] = { 6.0f, 5.0f };
+            g.setColour (theme.accent.withAlpha (0.35f));
+            juce::Path actionPath;
+            actionPath.addRectangle (actionSafe);
+            juce::Path dashedAction;
+            juce::PathStrokeType (1.0f).createDashedStroke (dashedAction, actionPath, actionDash, 2);
+            g.fillPath (dashedAction);
+
+            // 5. Safe Zone Title Badge / Pill
+            juce::Rectangle<float> titlePill { stageFrame.getX() + 14.0f, stageFrame.getY() + 10.0f, 210.0f, 20.0f };
+            Sketch::box (g, titlePill, theme.panel.withAlpha (0.90f), theme.ink, 4.0f, 1.4f, 1, 991);
+            g.setColour (theme.accent);
+            g.fillEllipse (juce::Rectangle<float> (titlePill.getX() + 7.0f, titlePill.getY() + 6.0f, 8.0f, 8.0f));
+            g.setColour (theme.ink);
+            g.drawEllipse (juce::Rectangle<float> (titlePill.getX() + 7.0f, titlePill.getY() + 6.0f, 8.0f, 8.0f), 1.0f);
+            g.setFont (Fonts::title (10.5f));
+            g.drawText ("SAFE ZONE (880 x 620 STAGE)",
+                        juce::Rectangle<float> (titlePill.getX() + 20.0f, titlePill.getY(), titlePill.getWidth() - 24.0f, titlePill.getHeight()),
+                        juce::Justification::centredLeft, false);
         }
 
         const auto& pieces = project.pieces;
@@ -1492,11 +1537,8 @@ void GlorpKitEditorComponent::paintRightInspector (juce::Graphics& g)
     drawMetricPill (pillNormW,  "Width",  juce::String ((int) piece.normW) + "px", 279);
     drawMetricPill (pillZOrder, "Z-Ord",  juce::String (piece.zOrder),         281);
 
-    const float guideY = normY + 40.0f;
-    btnAlignGuide = { cardPieceBounds.getX() + 10.0f, guideY, cardPieceBounds.getWidth() - 20.0f, 25.0f };
-    Sketch::button (g, btnAlignGuide, "🎯 Align to Stage Guide...", theme.panel, theme.ink, false, 282, Fonts::title (11.5f));
-
-    const float busY = guideY + 30.0f;
+    const float busY = normY + 42.0f;
+    btnAlignGuide = {};
     const float halfW = (cardPieceBounds.getWidth() - 26.0f) * 0.5f;
     btnOutputBus  = { cardPieceBounds.getX() + 10.0f, busY, halfW, 25.0f };
     btnChokeGroup = { btnOutputBus.getRight() + 6.0f, busY, halfW, 25.0f };
@@ -1897,7 +1939,13 @@ void GlorpKitEditorComponent::mouseDown (const juce::MouseEvent& e)
     }
 
     if (btnSnapGrid.contains (pt))    { snapToGrid = ! snapToGrid; repaint(); return; }
-    if (btnStageGuides.contains (pt)) { showStageGuides = ! showStageGuides; repaint(); return; }
+    if (btnSafeZone.contains (pt) || btnStageGuides.contains (pt))
+    {
+        showSafeZone = ! showSafeZone;
+        showStageGuides = showSafeZone;
+        repaint();
+        return;
+    }
     if (btnPreviewKit.contains (pt))  { previewKitMode = ! previewKitMode; repaint(); return; }
     if (btnBringFront.contains (pt) && selectedPieceIdx >= 0)
     {

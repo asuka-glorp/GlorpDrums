@@ -374,7 +374,23 @@ void DrumKitView::applyKitVisuals (const DrumKit& kit)
         dp.name = lp.name;
         dp.graphic = lp.graphic;
         for (const auto& z : lp.zones)
-            dp.instrumentNames.push_back (z.name);
+        {
+            if (z.samplerIndex >= 0)
+                dp.samplerIndices.push_back (z.samplerIndex);
+
+            // Add fully-qualified zone instrument names matching Sampler instrument names
+            dp.instrumentNames.push_back (lp.name + "." + z.name);
+            dp.instrumentNames.push_back (lp.name + " " + z.name);
+            dp.instrumentNames.push_back (lp.name + "_" + z.name);
+            if (! lp.id.empty())
+            {
+                dp.instrumentNames.push_back (lp.id + "." + z.name);
+                dp.instrumentNames.push_back (lp.id + "_" + z.name);
+            }
+        }
+        dp.instrumentNames.push_back (lp.name);
+        if (! lp.id.empty())
+            dp.instrumentNames.push_back (lp.id);
         dp.zOrder = lp.zOrder;
 
         auto kp = pieceForName (lp.graphic);
@@ -530,55 +546,117 @@ bool DrumKitView::isPieceScaledCacheValid (KitPiece piece) const noexcept
     return p.scaledImage.isValid() && p.scaledGlowImage.isValid();
 }
 
-void DrumKitView::triggerHit (const juce::String& instrumentName, float velocity)
+bool DrumKitView::triggerHitForSamplerIndex (int samplerIndex, float velocity)
 {
-    bool matchedAnyDynamic = false;
-    if (! dynamicPieces.empty())
+    if (dynamicPieces.empty() || samplerIndex < 0)
+        return false;
+
+    for (size_t i = 0; i < dynamicPieces.size(); ++i)
     {
-        const auto target = instrumentName.trim().toLowerCase();
-        for (size_t i = 0; i < dynamicPieces.size(); ++i)
+        auto& dp = dynamicPieces[i];
+        for (int sIdx : dp.samplerIndices)
         {
-            auto& dp = dynamicPieces[i];
-            bool hit = false;
-            if (juce::String (dp.name).trim().equalsIgnoreCase (instrumentName)
-                || juce::String (dp.id).trim().equalsIgnoreCase (instrumentName))
-            {
-                hit = true;
-            }
-            else
-            {
-                for (const auto& in : dp.instrumentNames)
-                {
-                    if (juce::String (in).trim().equalsIgnoreCase (instrumentName)
-                        || target.contains (juce::String (in).trim().toLowerCase()))
-                    {
-                        hit = true;
-                        break;
-                    }
-                }
-            }
-
-            if (! hit && dp.mappedClassicPiece != KitPiece::count)
-            {
-                if (pieceForName (instrumentName) == dp.mappedClassicPiece)
-                    hit = true;
-            }
-
-            if (hit)
+            if (sIdx == samplerIndex)
             {
                 dp.flash = std::clamp (velocity, 0.40f, 1.0f);
                 dp.squash = std::clamp (velocity * 0.75f, 0.20f, 1.0f);
-                matchedAnyDynamic = true;
+                repaint();
+                return true;
             }
         }
-        if (matchedAnyDynamic)
+    }
+    return false;
+}
+
+void DrumKitView::triggerHit (const juce::String& instrumentName, float velocity)
+{
+    const auto trimmedName = instrumentName.trim();
+    if (trimmedName.isEmpty())
+        return;
+
+    if (! dynamicPieces.empty())
+    {
+        // 1. Exact match against piece name, id, or qualified instrument names
+        for (auto& dp : dynamicPieces)
         {
+            if (trimmedName.equalsIgnoreCase (juce::String (dp.name)) || trimmedName.equalsIgnoreCase (juce::String (dp.id)))
+            {
+                dp.flash = std::clamp (velocity, 0.40f, 1.0f);
+                dp.squash = std::clamp (velocity * 0.75f, 0.20f, 1.0f);
+                repaint();
+                return;
+            }
+            for (const auto& in : dp.instrumentNames)
+            {
+                if (trimmedName.equalsIgnoreCase (juce::String (in)))
+                {
+                    dp.flash = std::clamp (velocity, 0.40f, 1.0f);
+                    dp.squash = std::clamp (velocity * 0.75f, 0.20f, 1.0f);
+                    repaint();
+                    return;
+                }
+            }
+        }
+
+        // 2. Prefix match (e.g. instrumentName is "Crash Sabian 16.edge" -> starts with "Crash Sabian 16." or "Crash Sabian 16 ")
+        for (auto& dp : dynamicPieces)
+        {
+            const auto prefixDot   = juce::String (dp.name) + ".";
+            const auto prefixSpace = juce::String (dp.name) + " ";
+            const auto prefixUnder = juce::String (dp.name) + "_";
+            if (trimmedName.startsWithIgnoreCase (prefixDot)
+                || trimmedName.startsWithIgnoreCase (prefixSpace)
+                || trimmedName.startsWithIgnoreCase (prefixUnder))
+            {
+                dp.flash = std::clamp (velocity, 0.40f, 1.0f);
+                dp.squash = std::clamp (velocity * 0.75f, 0.20f, 1.0f);
+                repaint();
+                return;
+            }
+
+            if (! dp.id.empty())
+            {
+                const auto idDot   = juce::String (dp.id) + ".";
+                const auto idSpace = juce::String (dp.id) + " ";
+                const auto idUnder = juce::String (dp.id) + "_";
+                if (trimmedName.startsWithIgnoreCase (idDot)
+                    || trimmedName.startsWithIgnoreCase (idSpace)
+                    || trimmedName.startsWithIgnoreCase (idUnder))
+                {
+                    dp.flash = std::clamp (velocity, 0.40f, 1.0f);
+                    dp.squash = std::clamp (velocity * 0.75f, 0.20f, 1.0f);
+                    repaint();
+                    return;
+                }
+            }
+        }
+
+        // 3. Unique graphic match (e.g. "crash_1" or "crash_2" if uniquely assigned)
+        int graphicMatchIdx = -1;
+        int matchCount = 0;
+        for (size_t i = 0; i < dynamicPieces.size(); ++i)
+        {
+            if (trimmedName.equalsIgnoreCase (juce::String (dynamicPieces[i].graphic)))
+            {
+                graphicMatchIdx = static_cast<int> (i);
+                matchCount++;
+            }
+        }
+        if (matchCount == 1 && graphicMatchIdx >= 0)
+        {
+            auto& dp = dynamicPieces[static_cast<size_t> (graphicMatchIdx)];
+            dp.flash = std::clamp (velocity, 0.40f, 1.0f);
+            dp.squash = std::clamp (velocity * 0.75f, 0.20f, 1.0f);
             repaint();
             return;
         }
+
+        // When dynamic pieces exist, DO NOT fall back to classic piece categories (e.g. pieceForName -> crash1)
+        // because that would cause all crashes and all toms to glow together!
+        return;
     }
 
-    const auto piece = pieceForName (instrumentName);
+    const auto piece = pieceForName (trimmedName);
     if (piece != KitPiece::count)
         triggerHitForPiece (piece, velocity);
 }
@@ -757,14 +835,6 @@ void DrumKitView::mouseDown (const juce::MouseEvent& e)
             if (onDynamicPieceClicked != nullptr)
                 onDynamicPieceClicked (dynIdx, juce::String (dp.name));
 
-            if (dp.mappedClassicPiece != KitPiece::count)
-            {
-                if (onPieceHit != nullptr)
-                    onPieceHit (dp.mappedClassicPiece, maxVelocity);
-
-                if (onPieceClicked != nullptr)
-                    onPieceClicked (dp.mappedClassicPiece);
-            }
             return;
         }
     }

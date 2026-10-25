@@ -1496,8 +1496,11 @@ void Editor::selectZone (int logicalIndex, int zoneIndex, bool triggerPreview)
                                        processor.getSampler().currentSamplePosition());
         scope.hitReceived (inst.name, inst.piece, midiNote, 1.0f);
 
-        if (inst.piece != KitPiece::count)
-            kitView.triggerHitForPiece (inst.piece, 1.0f);
+        if (! kitView.triggerHitForSamplerIndex (samplerIdx, 1.0f))
+        {
+            if (inst.piece != KitPiece::count)
+                kitView.triggerHitForPiece (inst.piece, 1.0f);
+        }
     }
 
     repaint();
@@ -1671,9 +1674,13 @@ void Editor::timerCallback()
 
     while (sampler.popHit (event))
     {
-        const auto instName = processor.getSampler().instrumentName (event.instrumentIndex);
-        kitView.triggerHit (instName, event.velocity);
+        if (! kitView.triggerHitForSamplerIndex (event.instrumentIndex, event.velocity))
+        {
+            const auto instName = processor.getSampler().instrumentName (event.instrumentIndex);
+            kitView.triggerHit (instName, event.velocity);
+        }
 
+        const auto instName = processor.getSampler().instrumentName (event.instrumentIndex);
         const auto piece = DrumKitView::pieceForName (instName);
         scope.hitReceived (instName, piece, event.note, event.velocity);
     }
