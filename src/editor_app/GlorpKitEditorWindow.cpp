@@ -911,11 +911,25 @@ void GlorpKitEditorComponent::paintLeftPanel (juce::Graphics& g)
                                    micBoxBounds.getY() + 28.0f + row * (pillH + 5.0f),
                                    pillW, pillH };
         Sketch::box (g, r, theme.panel, theme.inkSoft, 4.0f, 1.2f, 1, 95 + (int) i);
+
+        juce::Rectangle<float> delR;
+        juce::Rectangle<float> textR = r.reduced (5.0f, 1.0f);
+        if (chans.size() > 1)
+        {
+            delR = { r.getRight() - 17.0f, r.getY() + 3.0f, 14.0f, 16.0f };
+            textR = textR.withTrimmedRight (14.0f);
+
+            // Draw delete (x) button on mic pill
+            g.setColour (juce::Colour (0xffe74c3c).withAlpha (0.85f));
+            g.setFont (Fonts::title (10.0f));
+            g.drawText ("x", delR, juce::Justification::centred, false);
+        }
+
         g.setColour (theme.ink);
-        g.setFont (Fonts::body (12.0f));
+        g.setFont (Fonts::body (11.5f));
         g.drawText (juce::String ((int) i + 1) + ": " + juce::String (chans[i].name),
-                    r.reduced (6.0f, 1.0f), juce::Justification::centredLeft, true);
-        micPillHits.push_back ({ (int) i, r });
+                    textR, juce::Justification::centredLeft, true);
+        micPillHits.push_back ({ (int) i, r, delR });
     }
 }
 
@@ -1225,6 +1239,8 @@ void GlorpKitEditorComponent::paintMatrixPanel (juce::Graphics& g)
 
     btnImportWavs = { matrixPanelBounds.getRight() - 116.0f, matrixPanelBounds.getY() + 6.0f, 106.0f, 24.0f };
     btnAutoPower  = { btnImportWavs.getX() - 98.0f,         matrixPanelBounds.getY() + 6.0f, 92.0f,  24.0f };
+    btnTargetMic  = { btnAutoPower.getX() - 118.0f,         matrixPanelBounds.getY() + 6.0f, 110.0f, 24.0f };
+    Sketch::button (g, btnTargetMic,  "Mic: " + juce::String (targetImportMic) + " v", theme.panel, theme.ink, false, 151, Fonts::title (11.0f));
     Sketch::button (g, btnAutoPower,  "Auto Power",    theme.trough, theme.ink, false, 153, Fonts::title (11.5f));
     Sketch::button (g, btnImportWavs, "+ Import WAVs", theme.accent, theme.ink, false, 155, Fonts::title (11.5f));
 
@@ -1234,7 +1250,7 @@ void GlorpKitEditorComponent::paintMatrixPanel (juce::Graphics& g)
     const int curRR = (selectedZoneIdx >= 0 && selectedZoneIdx < (int) piece.zones.size())
                           ? piece.zones[(size_t) selectedZoneIdx].numRoundRobins : 4;
 
-    btnRrUp     = { btnAutoPower.getX() - 28.0f,  matrixPanelBounds.getY() + 6.0f, 22.0f, 24.0f };
+    btnRrUp     = { btnTargetMic.getX() - 28.0f,  matrixPanelBounds.getY() + 6.0f, 22.0f, 24.0f };
     pillRrCount = { btnRrUp.getX() - 56.0f,       matrixPanelBounds.getY() + 6.0f, 52.0f, 24.0f };
     btnRrDown   = { pillRrCount.getX() - 26.0f,   matrixPanelBounds.getY() + 6.0f, 22.0f, 24.0f };
 
@@ -1548,6 +1564,12 @@ void GlorpKitEditorComponent::paintRightInspector (juce::Graphics& g)
                                 : ("Choke: " + juce::String (piece.chokeGroup));
     Sketch::button (g, btnChokeGroup, chokeLbl, theme.panel, theme.ink, false, 285, Fonts::title (11.5f));
 
+    const float busY2 = busY + 28.0f;
+    btnPieceMic = { cardPieceBounds.getX() + 10.0f, busY2, cardPieceBounds.getWidth() - 20.0f, 25.0f };
+    const std::string domPieceMic = project.getPieceDominantMicrophone (selectedPieceIdx);
+    Sketch::button (g, btnPieceMic, "Piece Mic: " + juce::String (domPieceMic) + " (Route All) v",
+                    theme.panel, theme.ink, false, 287, Fonts::title (11.0f));
+
     // 2. ARTICULATION ZONE & MIDI MAPPING CARD
     Sketch::box (g, cardZoneBounds, theme.trough, theme.ink, 5.0f, 1.8f, 2, 291);
     g.setColour (theme.accent);
@@ -1576,10 +1598,18 @@ void GlorpKitEditorComponent::paintRightInspector (juce::Graphics& g)
         Sketch::button (g, btnAltNote, "Alt Note: " + juce::String (zn.altNote >= 0 ? midiNoteName (zn.altNote) : "None"),
                         theme.panel, theme.ink, false, 297, Fonts::title (11.5f));
 
-        btnChokeTarget = { cardZoneBounds.getX() + 10.0f, zy1 + 63.0f, cardZoneBounds.getWidth() - 20.0f, 25.0f };
-        juce::String ctText = zn.chokes.empty() ? "Chokes Zone: None"
-                                                : ("Chokes Zone: " + juce::String (zn.chokes.front().zone) + " (" + juce::String ((int) zn.chokes.front().chokeTimeMs) + "ms)");
-        Sketch::button (g, btnChokeTarget, ctText, theme.panel, theme.ink, false, 299, Fonts::title (11.5f));
+        const float halfZoneW = (cardZoneBounds.getWidth() - 26.0f) * 0.5f;
+        const float zy2 = zy1 + 61.0f;
+        btnZoneMic     = { cardZoneBounds.getX() + 10.0f, zy2, halfZoneW, 25.0f };
+        btnChokeTarget = { btnZoneMic.getRight() + 6.0f, zy2, halfZoneW, 25.0f };
+
+        const std::string domZoneMic = project.getZoneDominantMicrophone (selectedPieceIdx, selectedZoneIdx);
+        Sketch::button (g, btnZoneMic, "Zone Mic: " + juce::String (domZoneMic) + " v",
+                        theme.panel, theme.ink, false, 298, Fonts::title (11.0f));
+
+        juce::String ctText = zn.chokes.empty() ? "Choke: None"
+                                                : ("Choke: " + juce::String (zn.chokes.front().zone));
+        Sketch::button (g, btnChokeTarget, ctText, theme.panel, theme.ink, false, 299, Fonts::title (11.0f));
 
         g.setColour (theme.inkSoft);
         g.setFont (Fonts::body (12.0f));
@@ -1615,6 +1645,7 @@ void GlorpKitEditorComponent::paintRightInspector (juce::Graphics& g)
     }
 
     micAssignHits.clear();
+    btnAddMicLayer = {};
     if (selectedZoneIdx >= 0 && selectedZoneIdx < (int) piece.zones.size())
     {
         const auto& zn = piece.zones[(size_t) selectedZoneIdx];
@@ -1623,18 +1654,37 @@ void GlorpKitEditorComponent::paintRightInspector (juce::Graphics& g)
             const auto& hit = zn.hits[(size_t) selectedHitIdx];
             float my = waveformPreviewBounds.getBottom() + 6.0f;
             const float rowH = 22.0f;
-            for (const auto& mf : hit.micSamples)
+            for (size_t mi = 0; mi < hit.micSamples.size(); ++mi)
             {
-                if (my + rowH > cardSampleBounds.getBottom() - 4.0f) break;
+                const auto& mf = hit.micSamples[mi];
+                if (my + rowH > cardSampleBounds.getBottom() - 28.0f) break;
                 juce::Rectangle<float> mr { cardSampleBounds.getX() + 10.0f, my, cardSampleBounds.getWidth() - 20.0f, rowH - 2.0f };
                 Sketch::box (g, mr, theme.panel, theme.inkSoft.withAlpha (0.6f), 3.0f, 1.1f, 1, 310 + (int) my);
+
+                const float badgeW = std::max (60.0f, (float) mf.mic.length() * 7.5f + 18.0f);
+                juce::Rectangle<float> badgeR { mr.getX() + 4.0f, mr.getY() + 1.0f, badgeW, mr.getHeight() - 2.0f };
+                Sketch::box (g, badgeR, theme.trough, theme.accent, 3.0f, 1.1f, 1, 311 + (int) mi);
                 g.setColour (theme.ink);
-                g.setFont (Fonts::body (11.5f));
-                g.drawText ("[" + juce::String (mf.mic) + "]  " + juce::String (mf.fileName),
-                            mr.reduced (6.0f, 1.0f), juce::Justification::centredLeft, true);
-                micAssignHits.push_back ({ mf.mic, mr });
+                g.setFont (Fonts::title (10.5f));
+                g.drawText (juce::String (mf.mic) + " v", badgeR, juce::Justification::centred, false);
+
+                juce::Rectangle<float> delR { mr.getRight() - 18.0f, mr.getY() + 1.0f, 16.0f, mr.getHeight() - 2.0f };
+                g.setColour (juce::Colour (0xffe74c3c));
+                g.setFont (Fonts::title (11.0f));
+                g.drawText ("x", delR, juce::Justification::centred, false);
+
+                juce::Rectangle<float> fileR { badgeR.getRight() + 6.0f, mr.getY(), delR.getX() - (badgeR.getRight() + 8.0f), mr.getHeight() };
+                g.setColour (theme.ink);
+                g.setFont (Fonts::body (11.0f));
+                g.drawText (mf.fileName, fileR, juce::Justification::centredLeft, true);
+
+                micAssignHits.push_back ({ (int) mi, mf.mic, mr, badgeR, delR });
                 my += rowH;
             }
+
+            btnAddMicLayer = { cardSampleBounds.getX() + 10.0f, std::min (my + 2.0f, cardSampleBounds.getBottom() - 24.0f),
+                               cardSampleBounds.getWidth() - 20.0f, 22.0f };
+            Sketch::button (g, btnAddMicLayer, "+ Add Mic Layer to Hit...", theme.trough, theme.ink, false, 320, Fonts::title (10.5f));
         }
     }
 }
@@ -1931,8 +1981,31 @@ void GlorpKitEditorComponent::mouseDown (const juce::MouseEvent& e)
     }
     for (const auto& mp : micPillHits)
     {
+        if (mp.deleteBounds.contains (pt))
+        {
+            promptDeleteMic (mp.micIndex);
+            return;
+        }
         if (mp.bounds.contains (pt))
         {
+            if (e.mods.isPopupMenu())
+            {
+                juce::PopupMenu m;
+                const auto mName = juce::String (project.mics[(size_t) mp.micIndex].name);
+                m.addSectionHeader ("Mic Channel: " + mName);
+                m.addItem (1, "Rename Mic Channel...");
+                if (project.mics.size() > 1)
+                    m.addItem (2, "Delete Mic Channel");
+                m.addItem (3, "Set as Active Target Mic (" + mName + ")");
+                m.showMenuAsync (juce::PopupMenu::Options().withTargetScreenArea (localAreaToGlobal (mp.bounds.toNearestInt())),
+                    [this, idx = mp.micIndex, mName] (int res)
+                    {
+                        if (res == 1) promptRenameMic (idx);
+                        else if (res == 2) promptDeleteMic (idx);
+                        else if (res == 3) { targetImportMic = mName.toStdString(); showStatusToast ("Target mic: " + mName); repaint(); }
+                    });
+                return;
+            }
             promptRenameMic (mp.micIndex);
             return;
         }
@@ -2020,9 +2093,14 @@ void GlorpKitEditorComponent::mouseDown (const juce::MouseEvent& e)
         showStatusToast ("Auto-computed RMS/Peak sample power & sorted velocity layers");
         return;
     }
+    if (btnTargetMic.contains (pt))
+    {
+        promptSelectTargetMic();
+        return;
+    }
     if (btnImportWavs.contains (pt))
     {
-        promptImportWavsForCurrentZone ("close");
+        promptImportWavsForCurrentZone (targetImportMic);
         return;
     }
     if (btnVelDown.contains (pt) && selectedPieceIdx >= 0 && selectedZoneIdx >= 0)
@@ -2230,12 +2308,22 @@ void GlorpKitEditorComponent::mouseDown (const juce::MouseEvent& e)
     if (btnAlignGuide.contains (pt))    { showAlignGuideMenu(); return; }
     if (btnOutputBus.contains (pt))     { showOutputBusMenu(); return; }
     if (btnChokeGroup.contains (pt))    { showChokeGroupMenu(); return; }
+    if (btnPieceMic.contains (pt) && selectedPieceIdx >= 0)
+    {
+        promptRoutePieceMic (selectedPieceIdx);
+        return;
+    }
     if (btnMidiNote.contains (pt))      { showMidiNoteMenu(); return; }
     if (btnMidiLearn.contains (pt))
     {
         midiLearnArmed = ! midiLearnArmed;
         showStatusToast (midiLearnArmed ? "MIDI Learn armed — strike any pad on your e-kit..." : "MIDI Learn cancelled");
         repaint();
+        return;
+    }
+    if (btnZoneMic.contains (pt) && selectedPieceIdx >= 0 && selectedZoneIdx >= 0)
+    {
+        promptRouteZoneMic (selectedPieceIdx, selectedZoneIdx);
         return;
     }
     if (btnChokeTarget.contains (pt) && selectedPieceIdx >= 0)
@@ -2267,11 +2355,21 @@ void GlorpKitEditorComponent::mouseDown (const juce::MouseEvent& e)
     }
     for (const auto& mr : micAssignHits)
     {
-        if (mr.bounds.contains (pt))
+        if (mr.delBounds.contains (pt))
         {
-            promptImportWavsForCurrentZone (mr.micName);
+            deleteMicLayerFromSelectedHit (mr.micSampleIdx);
             return;
         }
+        if (mr.badgeBounds.contains (pt) || mr.bounds.contains (pt))
+        {
+            promptReassignMicForSample (mr.micSampleIdx);
+            return;
+        }
+    }
+    if (btnAddMicLayer.contains (pt))
+    {
+        promptAddMicLayerToSelectedHit();
+        return;
     }
 }
 
@@ -2596,9 +2694,9 @@ void GlorpKitEditorComponent::filesDropped (const juce::StringArray& files, int 
             wavPaths.push_back (af.getFullPathName().toStdString());
 
         pushUndoState ("Import Audio Samples");
-        int count = project.importAudioFilesIntoZone (selectedPieceIdx, selectedZoneIdx, wavPaths, "close");
+        int count = project.importAudioFilesIntoZone (selectedPieceIdx, selectedZoneIdx, wavPaths, targetImportMic);
         reloadProjectIntoEngine();
-        showStatusToast ("Imported " + juce::String (count) + " audio sample(s) into zone");
+        showStatusToast ("Imported " + juce::String (count) + " audio sample(s) into zone [" + juce::String (targetImportMic) + "]");
     }
 
     juce::ignoreUnused (x, y);
@@ -2927,6 +3025,13 @@ void GlorpKitEditorComponent::showMatrixCellContextMenu (const MatrixCellHit& ce
         const auto& hit = zone.hits[(size_t) cell.hitIndex];
         m.addItem (1, "Audition Hit (" + juce::String (hit.name) + ")");
         m.addItem (2, "Replace WAV Sample...");
+
+        juce::PopupMenu hitMicM;
+        for (size_t i = 0; i < project.mics.size(); ++i)
+            hitMicM.addItem (100 + (int) i, project.mics[i].name);
+        m.addSubMenu ("Assign this Hit to Mic", hitMicM);
+        m.addItem (20, "+ Add Additional Mic Layer to this Hit...");
+
         m.addSeparator();
         m.addItem (3, "Remove Sample from Cell");
     }
@@ -2934,6 +3039,17 @@ void GlorpKitEditorComponent::showMatrixCellContextMenu (const MatrixCellHit& ce
     {
         m.addItem (10, "Import WAV Sample into this Cell...");
     }
+
+    m.addSeparator();
+    juce::PopupMenu zoneMicM;
+    for (size_t i = 0; i < project.mics.size(); ++i)
+        zoneMicM.addItem (300 + (int) i, "Route to " + project.mics[i].name);
+    m.addSubMenu ("Assign Entire Zone '" + zone.name + "' to Mic", zoneMicM);
+
+    juce::PopupMenu pieceMicM;
+    for (size_t i = 0; i < project.mics.size(); ++i)
+        pieceMicM.addItem (400 + (int) i, "Route to " + project.mics[i].name);
+    m.addSubMenu ("Assign Entire Instrument '" + piece.name + "' to Mic", pieceMicM);
 
     m.showMenuAsync (juce::PopupMenu::Options().withTargetScreenArea (localAreaToGlobal (cell.bounds.toNearestInt())),
         [this, cell] (int res)
@@ -2945,6 +3061,54 @@ void GlorpKitEditorComponent::showMatrixCellContextMenu (const MatrixCellHit& ce
             else if (res == 2 || res == 10)
             {
                 promptImportWavForSpecificCell (cell.velLayer, cell.rrIndex);
+            }
+            else if (res == 20)
+            {
+                selectHit (cell.hitIndex, false);
+                promptAddMicLayerToSelectedHit();
+            }
+            else if (res >= 100 && res < 200)
+            {
+                int micIdx = res - 100;
+                if (micIdx >= 0 && micIdx < (int) project.mics.size() && selectedPieceIdx >= 0 && selectedZoneIdx >= 0)
+                {
+                    auto& z = project.pieces[(size_t) selectedPieceIdx].zones[(size_t) selectedZoneIdx];
+                    if (cell.hitIndex >= 0 && cell.hitIndex < (int) z.hits.size())
+                    {
+                        const auto& micName = project.mics[(size_t) micIdx].name;
+                        pushUndoState ("Assign Hit to Mic " + micName);
+                        if (! z.hits[(size_t) cell.hitIndex].micSamples.empty())
+                            z.hits[(size_t) cell.hitIndex].micSamples.front().mic = micName;
+                        reloadProjectIntoEngine();
+                        repaint();
+                    }
+                }
+            }
+            else if (res >= 300 && res < 400)
+            {
+                int micIdx = res - 300;
+                if (micIdx >= 0 && micIdx < (int) project.mics.size() && selectedPieceIdx >= 0 && selectedZoneIdx >= 0)
+                {
+                    const auto& micName = project.mics[(size_t) micIdx].name;
+                    pushUndoState ("Assign Zone to Mic " + micName);
+                    project.setZoneMicrophone (selectedPieceIdx, selectedZoneIdx, micName);
+                    reloadProjectIntoEngine();
+                    showStatusToast ("Assigned zone to " + micName);
+                    repaint();
+                }
+            }
+            else if (res >= 400 && res < 500)
+            {
+                int micIdx = res - 400;
+                if (micIdx >= 0 && micIdx < (int) project.mics.size() && selectedPieceIdx >= 0)
+                {
+                    const auto& micName = project.mics[(size_t) micIdx].name;
+                    pushUndoState ("Assign Instrument to Mic " + micName);
+                    project.setPieceMicrophone (selectedPieceIdx, micName);
+                    reloadProjectIntoEngine();
+                    showStatusToast ("Assigned all samples in instrument to " + micName);
+                    repaint();
+                }
             }
             else if (res == 3)
             {
@@ -3062,6 +3226,50 @@ void GlorpKitEditorComponent::applyOpenRasterImport (const juce::File& file, con
     repaint();
 }
 
+class CustomGlowColorPicker : public juce::Component, public juce::ChangeListener
+{
+public:
+    CustomGlowColorPicker (GlorpKitEditorComponent& owner, juce::Colour initialColor)
+        : editor (owner), selector (juce::ColourSelector::showColourAtTop
+                                  | juce::ColourSelector::editableColour
+                                  | juce::ColourSelector::showSliders
+                                  | juce::ColourSelector::showColourspace)
+    {
+        selector.setSize (320, 360);
+        selector.setCurrentColour (initialColor);
+        selector.addChangeListener (this);
+        addAndMakeVisible (selector);
+        setSize (320, 360);
+    }
+
+    ~CustomGlowColorPicker() override
+    {
+        selector.removeChangeListener (this);
+    }
+
+    void changeListenerCallback (juce::ChangeBroadcaster*) override
+    {
+        editor.setHitGlowColourHex (toHexColourString (selector.getCurrentColour()));
+    }
+
+    void resized() override
+    {
+        selector.setBounds (getLocalBounds());
+    }
+
+private:
+    GlorpKitEditorComponent& editor;
+    juce::ColourSelector selector;
+};
+
+void GlorpKitEditorComponent::showCustomGlowColorPicker()
+{
+    auto picker = std::make_unique<CustomGlowColorPicker> (*this, hitGlowColour);
+    juce::CallOutBox::launchAsynchronously (std::move (picker),
+                                            localAreaToGlobal (btnGlowColor.toNearestInt()),
+                                            this);
+}
+
 void GlorpKitEditorComponent::showHitGlowColorMenu()
 {
     struct PresetColor { const char* name; const char* hex; };
@@ -3084,12 +3292,16 @@ void GlorpKitEditorComponent::showHitGlowColorMenu()
         const bool ticked = (juce::String (curHex).equalsIgnoreCase (presets[i].hex));
         m.addItem (i + 1, presets[i].name, true, ticked);
     }
+    m.addSeparator();
+    m.addItem (100, "Custom Color (Hue Wheel & Sliders)...");
 
     m.showMenuAsync (juce::PopupMenu::Options().withTargetScreenArea (localAreaToGlobal (btnGlowColor.toNearestInt())),
                      [this] (int res)
                      {
                          if (res >= 1 && res <= 8)
                              setHitGlowColourHex (presets[res - 1].hex);
+                         else if (res == 100)
+                             showCustomGlowColorPicker();
                      });
 }
 
@@ -3463,6 +3675,324 @@ void GlorpKitEditorComponent::promptRenameZone (int pieceIndex, int zoneIndex)
         }
         delete alert;
     }));
+}
+
+void GlorpKitEditorComponent::promptSelectTargetMic()
+{
+    juce::PopupMenu m;
+    m.addSectionHeader ("Active Target Mic Channel");
+    for (size_t i = 0; i < project.mics.size(); ++i)
+    {
+        const auto& mic = project.mics[i];
+        m.addItem ((int) i + 1, mic.name, true, mic.name == targetImportMic);
+    }
+    m.addSeparator();
+
+    if (selectedPieceIdx >= 0 && selectedPieceIdx < (int) project.pieces.size())
+    {
+        const auto& p = project.pieces[(size_t) selectedPieceIdx];
+        if (selectedZoneIdx >= 0 && selectedZoneIdx < (int) p.zones.size())
+        {
+            juce::PopupMenu zoneM;
+            for (size_t i = 0; i < project.mics.size(); ++i)
+                zoneM.addItem (200 + (int) i, "Route to " + project.mics[i].name);
+            m.addSubMenu ("Route Current Zone '" + p.zones[(size_t) selectedZoneIdx].name + "'", zoneM);
+        }
+        juce::PopupMenu pieceM;
+        for (size_t i = 0; i < project.mics.size(); ++i)
+            pieceM.addItem (300 + (int) i, "Route to " + project.mics[i].name);
+        m.addSubMenu ("Route Entire Instrument '" + p.name + "'", pieceM);
+        m.addSeparator();
+    }
+
+    m.addItem (1000, "+ Add New Mic Channel...");
+    if (project.mics.size() > 1)
+    {
+        juce::PopupMenu delM;
+        for (size_t i = 0; i < project.mics.size(); ++i)
+            delM.addItem (500 + (int) i, project.mics[i].name);
+        m.addSubMenu ("Delete Mic Channel", delM);
+    }
+
+    m.showMenuAsync (juce::PopupMenu::Options().withTargetScreenArea (localAreaToGlobal (btnTargetMic.toNearestInt())),
+        [this] (int res)
+        {
+            if (res > 0 && res <= (int) project.mics.size())
+            {
+                targetImportMic = project.mics[(size_t) (res - 1)].name;
+                showStatusToast ("Active target mic set to: " + juce::String (targetImportMic));
+                repaint();
+            }
+            else if (res >= 200 && res < 300)
+            {
+                int micIdx = res - 200;
+                if (micIdx >= 0 && micIdx < (int) project.mics.size() && selectedPieceIdx >= 0 && selectedZoneIdx >= 0)
+                {
+                    const auto& micName = project.mics[(size_t) micIdx].name;
+                    pushUndoState ("Route Zone to " + micName);
+                    project.setZoneMicrophone (selectedPieceIdx, selectedZoneIdx, micName);
+                    reloadProjectIntoEngine();
+                    showStatusToast ("Routed zone '" + project.pieces[(size_t) selectedPieceIdx].zones[(size_t) selectedZoneIdx].name + "' to " + micName);
+                    repaint();
+                }
+            }
+            else if (res >= 300 && res < 400)
+            {
+                int micIdx = res - 300;
+                if (micIdx >= 0 && micIdx < (int) project.mics.size() && selectedPieceIdx >= 0)
+                {
+                    const auto& micName = project.mics[(size_t) micIdx].name;
+                    pushUndoState ("Route Instrument to " + micName);
+                    project.setPieceMicrophone (selectedPieceIdx, micName);
+                    reloadProjectIntoEngine();
+                    showStatusToast ("Routed all samples in '" + project.pieces[(size_t) selectedPieceIdx].name + "' to " + micName);
+                    repaint();
+                }
+            }
+            else if (res >= 500 && res < 600)
+            {
+                promptDeleteMic (res - 500);
+            }
+            else if (res == 1000)
+            {
+                std::string newMic = "AuxMic" + std::to_string (project.mics.size() + 1);
+                project.addChannel (newMic);
+                targetImportMic = newMic;
+                showStatusToast ("Added new mic channel: " + juce::String (newMic));
+                repaint();
+            }
+        });
+}
+
+void GlorpKitEditorComponent::promptRoutePieceMic (int pieceIndex)
+{
+    if (pieceIndex < 0 || pieceIndex >= (int) project.pieces.size()) return;
+    const auto& p = project.pieces[(size_t) pieceIndex];
+
+    juce::PopupMenu m;
+    m.addSectionHeader ("Route Entire Instrument '" + p.name + "' to Mic:");
+    for (size_t i = 0; i < project.mics.size(); ++i)
+    {
+        m.addItem ((int) i + 1, "Route all samples to: " + project.mics[i].name);
+    }
+    m.addSeparator();
+    m.addItem (1000, "+ Add New Mic Channel...");
+
+    m.showMenuAsync (juce::PopupMenu::Options().withTargetScreenArea (localAreaToGlobal (btnPieceMic.toNearestInt())),
+        [this, pieceIndex] (int res)
+        {
+            if (res > 0 && res <= (int) project.mics.size())
+            {
+                const auto& newMic = project.mics[(size_t) (res - 1)].name;
+                pushUndoState ("Route Instrument '" + project.pieces[(size_t) pieceIndex].name + "' to " + newMic);
+                project.setPieceMicrophone (pieceIndex, newMic);
+                reloadProjectIntoEngine();
+                showStatusToast ("Assigned all samples in '" + project.pieces[(size_t) pieceIndex].name + "' to " + newMic);
+                repaint();
+            }
+            else if (res == 1000)
+            {
+                std::string newMic = "AuxMic" + std::to_string (project.mics.size() + 1);
+                project.addChannel (newMic);
+                pushUndoState ("Route Instrument to " + newMic);
+                project.setPieceMicrophone (pieceIndex, newMic);
+                reloadProjectIntoEngine();
+                showStatusToast ("Created and routed to: " + newMic);
+                repaint();
+            }
+        });
+}
+
+void GlorpKitEditorComponent::promptRouteZoneMic (int pieceIndex, int zoneIndex)
+{
+    if (pieceIndex < 0 || pieceIndex >= (int) project.pieces.size()) return;
+    const auto& p = project.pieces[(size_t) pieceIndex];
+    if (zoneIndex < 0 || zoneIndex >= (int) p.zones.size()) return;
+    const auto& z = p.zones[(size_t) zoneIndex];
+
+    juce::PopupMenu m;
+    m.addSectionHeader ("Route Zone '" + z.name + "' to Mic:");
+    for (size_t i = 0; i < project.mics.size(); ++i)
+    {
+        m.addItem ((int) i + 1, "Route all samples to: " + project.mics[i].name);
+    }
+    m.addSeparator();
+    m.addItem (1000, "+ Add New Mic Channel...");
+
+    m.showMenuAsync (juce::PopupMenu::Options().withTargetScreenArea (localAreaToGlobal (btnZoneMic.toNearestInt())),
+        [this, pieceIndex, zoneIndex] (int res)
+        {
+            if (res > 0 && res <= (int) project.mics.size())
+            {
+                const auto& newMic = project.mics[(size_t) (res - 1)].name;
+                pushUndoState ("Route Zone '" + project.pieces[(size_t) pieceIndex].zones[(size_t) zoneIndex].name + "' to " + newMic);
+                project.setZoneMicrophone (pieceIndex, zoneIndex, newMic);
+                reloadProjectIntoEngine();
+                showStatusToast ("Assigned all samples in zone '" + project.pieces[(size_t) pieceIndex].zones[(size_t) zoneIndex].name + "' to " + newMic);
+                repaint();
+            }
+            else if (res == 1000)
+            {
+                std::string newMic = "AuxMic" + std::to_string (project.mics.size() + 1);
+                project.addChannel (newMic);
+                pushUndoState ("Route Zone to " + newMic);
+                project.setZoneMicrophone (pieceIndex, zoneIndex, newMic);
+                reloadProjectIntoEngine();
+                showStatusToast ("Created and routed to: " + newMic);
+                repaint();
+            }
+        });
+}
+
+void GlorpKitEditorComponent::promptDeleteMic (int micIndex)
+{
+    if (micIndex < 0 || micIndex >= (int) project.mics.size()) return;
+    if (project.mics.size() <= 1)
+    {
+        showStatusToast ("Cannot delete the only remaining microphone channel.");
+        return;
+    }
+    const std::string micName = project.mics[(size_t) micIndex].name;
+    const std::string fallbackMic = project.mics[micIndex == 0 ? 1 : 0].name;
+
+    auto* alert = new juce::AlertWindow ("Delete Microphone Channel",
+        "Are you sure you want to delete '" + juce::String (micName) + "'?\nAny samples currently assigned to it will be safely reassigned to '" + juce::String (fallbackMic) + "'.",
+        juce::AlertWindow::WarningIcon);
+    alert->addButton ("Delete Mic", 1, juce::KeyPress (juce::KeyPress::returnKey));
+    alert->addButton ("Cancel", 0, juce::KeyPress (juce::KeyPress::escapeKey));
+
+    alert->enterModalState (true, juce::ModalCallbackFunction::create ([this, alert, micIndex, micName, fallbackMic] (int result)
+    {
+        if (result == 1)
+        {
+            pushUndoState ("Delete Mic Channel '" + micName + "'");
+            std::string err;
+            if (project.deleteMic (micIndex, err))
+            {
+                if (targetImportMic == micName)
+                    targetImportMic = fallbackMic;
+                reloadProjectIntoEngine();
+                showStatusToast ("Deleted mic channel '" + juce::String (micName) + "' (reassigned to '" + juce::String (fallbackMic) + "')");
+                repaint();
+            }
+            else
+            {
+                showStatusToast ("Error: " + juce::String (err));
+            }
+        }
+        delete alert;
+    }));
+}
+
+void GlorpKitEditorComponent::promptReassignMicForSample (int micSampleIdx)
+{
+    if (selectedPieceIdx < 0 || selectedPieceIdx >= (int) project.pieces.size()) return;
+    auto& p = project.pieces[(size_t) selectedPieceIdx];
+    if (selectedZoneIdx < 0 || selectedZoneIdx >= (int) p.zones.size()) return;
+    auto& z = p.zones[(size_t) selectedZoneIdx];
+    if (selectedHitIdx < 0 || selectedHitIdx >= (int) z.hits.size()) return;
+    auto& h = z.hits[(size_t) selectedHitIdx];
+    if (micSampleIdx < 0 || micSampleIdx >= (int) h.micSamples.size()) return;
+
+    juce::PopupMenu m;
+    m.addSectionHeader ("Reassign Sample to Mic Channel");
+    for (size_t i = 0; i < project.mics.size(); ++i)
+    {
+        const auto& mic = project.mics[i];
+        m.addItem ((int) i + 1, mic.name, true, mic.name == h.micSamples[(size_t) micSampleIdx].mic);
+    }
+    m.addSeparator();
+    m.addItem (1000, "+ Add New Mic Channel...");
+
+    m.showMenuAsync (juce::PopupMenu::Options().withTargetScreenArea (
+        juce::Rectangle<int> (getMouseXYRelative().x, getMouseXYRelative().y, 1, 1)),
+        [this, micSampleIdx] (int res)
+        {
+            if (res > 0 && res <= (int) project.mics.size())
+            {
+                auto& p2 = project.pieces[(size_t) selectedPieceIdx];
+                auto& z2 = p2.zones[(size_t) selectedZoneIdx];
+                auto& h2 = z2.hits[(size_t) selectedHitIdx];
+                if (micSampleIdx < (int) h2.micSamples.size())
+                {
+                    pushUndoState ("Reassign sample to mic " + project.mics[(size_t) (res - 1)].name);
+                    h2.micSamples[(size_t) micSampleIdx].mic = project.mics[(size_t) (res - 1)].name;
+                    reloadProjectIntoEngine();
+                    repaint();
+                }
+            }
+            else if (res == 1000)
+            {
+                std::string newMic = "AuxMic" + std::to_string (project.mics.size() + 1);
+                project.addChannel (newMic);
+                auto& p2 = project.pieces[(size_t) selectedPieceIdx];
+                auto& z2 = p2.zones[(size_t) selectedZoneIdx];
+                auto& h2 = z2.hits[(size_t) selectedHitIdx];
+                if (micSampleIdx < (int) h2.micSamples.size())
+                {
+                    pushUndoState ("Reassign sample to mic " + newMic);
+                    h2.micSamples[(size_t) micSampleIdx].mic = newMic;
+                    reloadProjectIntoEngine();
+                    repaint();
+                }
+            }
+        });
+}
+
+void GlorpKitEditorComponent::promptAddMicLayerToSelectedHit()
+{
+    if (selectedPieceIdx < 0 || selectedPieceIdx >= (int) project.pieces.size()) return;
+    auto& p = project.pieces[(size_t) selectedPieceIdx];
+    if (selectedZoneIdx < 0 || selectedZoneIdx >= (int) p.zones.size()) return;
+    auto& z = p.zones[(size_t) selectedZoneIdx];
+    if (selectedHitIdx < 0 || selectedHitIdx >= (int) z.hits.size()) return;
+
+    auto chooser = std::make_shared<juce::FileChooser> ("Select Additional Audio File for this Hit",
+                                                        juce::File::getSpecialLocation (juce::File::userHomeDirectory),
+                                                        "*.wav;*.flac;*.ogg;*.aif;*.aiff");
+    chooser->launchAsync (juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
+        [this, chooser] (const juce::FileChooser& fc)
+        {
+            auto f = fc.getResult();
+            if (f.existsAsFile() && selectedPieceIdx >= 0 && selectedZoneIdx >= 0 && selectedHitIdx >= 0)
+            {
+                auto& p2 = project.pieces[(size_t) selectedPieceIdx];
+                if (selectedZoneIdx < (int) p2.zones.size())
+                {
+                    auto& z2 = p2.zones[(size_t) selectedZoneIdx];
+                    if (selectedHitIdx < (int) z2.hits.size())
+                    {
+                        pushUndoState ("Add Mic Layer to Hit");
+                        EditableMicSample ms;
+                        ms.mic = targetImportMic;
+                        ms.fileName = f.getFileName().toStdString();
+                        ms.sourceDiskPath = f.getFullPathName().toStdString();
+                        z2.hits[(size_t) selectedHitIdx].micSamples.push_back (std::move (ms));
+                        reloadProjectIntoEngine();
+                        showStatusToast ("Added mic layer [" + juce::String (targetImportMic) + "] to hit");
+                        repaint();
+                    }
+                }
+            }
+        });
+}
+
+void GlorpKitEditorComponent::deleteMicLayerFromSelectedHit (int micSampleIdx)
+{
+    if (selectedPieceIdx < 0 || selectedPieceIdx >= (int) project.pieces.size()) return;
+    auto& p = project.pieces[(size_t) selectedPieceIdx];
+    if (selectedZoneIdx < 0 || selectedZoneIdx >= (int) p.zones.size()) return;
+    auto& z = p.zones[(size_t) selectedZoneIdx];
+    if (selectedHitIdx < 0 || selectedHitIdx >= (int) z.hits.size()) return;
+    auto& h = z.hits[(size_t) selectedHitIdx];
+    if (micSampleIdx >= 0 && micSampleIdx < (int) h.micSamples.size())
+    {
+        pushUndoState ("Remove Mic Layer from Hit");
+        h.micSamples.erase (h.micSamples.begin() + micSampleIdx);
+        reloadProjectIntoEngine();
+        showStatusToast ("Removed mic layer");
+        repaint();
+    }
 }
 
 //==============================================================================

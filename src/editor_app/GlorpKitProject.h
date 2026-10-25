@@ -210,7 +210,8 @@ public:
 
     bool openGlorpKitArchive (const std::string& archivePath, std::string& outError);
     bool importDrumGizmoXml (const std::string& drumkitXmlPath, std::string& outError);
-    bool exportToGlorpKit (const std::string& outputArchivePath, std::string& outError) const;
+    bool exportToGlorpKit (const std::string& outputArchivePath, std::string& outError);
+    bool relinkSamplesFromDirectory (const std::string& directoryPath);
 
     /// Builds a playable DrumKit in memory so the editor's Sampler can audition hits live.
     DrumKit buildRuntimeDrumKit() const;
@@ -219,9 +220,17 @@ public:
     // -- Piece, Mic & Zone Management ----------------------------------------
     bool renamePiece (int pieceIndex, const std::string& newName, const std::string& newId = "");
     bool renameMic (int micIndex, const std::string& newName);
+    bool deleteMic (int micIndex, std::string& outError);
+    bool deleteMic (int micIndex) { std::string err; return deleteMic (micIndex, err); }
     bool renameZone (int pieceIndex, int zoneIndex, const std::string& newName);
     bool deleteZone (int pieceIndex, int zoneIndex, std::string& outError);
     bool deleteZone (int pieceIndex, int zoneIndex) { std::string err; return deleteZone (pieceIndex, zoneIndex, err); }
+
+    // -- High-level Mic Routing ----------------------------------------------
+    bool setPieceMicrophone (int pieceIndex, const std::string& micName, const std::string& oldMicToReplace = "");
+    bool setZoneMicrophone (int pieceIndex, int zoneIndex, const std::string& micName, const std::string& oldMicToReplace = "");
+    std::string getPieceDominantMicrophone (int pieceIndex) const;
+    std::string getZoneDominantMicrophone (int pieceIndex, int zoneIndex) const;
 
     // -- Z-Order & Piece Helpers ---------------------------------------------
     void normalizeZOrders();

@@ -167,6 +167,17 @@ bool GlorpKitWriter::addSliceFromArchive (const std::string& relativeArchivePath
     if (! in.good())
         return false;
 
+    // Validate WAV header integrity if writing a .wav entry: must begin with "RIFF"
+    if (normName.size() >= 4 && (normName.compare (normName.size() - 4, 4, ".wav") == 0 ||
+                                 normName.compare (normName.size() - 4, 4, ".WAV") == 0))
+    {
+        char riffHeader[4] = {};
+        in.read (riffHeader, 4);
+        if (in.gcount() < 4 || std::memcmp (riffHeader, "RIFF", 4) != 0)
+            return false;
+        in.seekg (offset);
+    }
+
     // Pass 1: compute CRC32 over the slice
     uint32_t crc = 0;
     constexpr size_t kChunkSize = 65536;
