@@ -5,7 +5,7 @@
       - kit.xml (or legacy drumkit.xml) manifest
       - instruments/<piece>/instrument.xml
       - instruments/<piece>/<zone>/zone.xml
-      - instruments/<piece>/<zone>/samples/*.wav
+      - instruments/<piece>/<zone>/samples/ (WAV audio files)
       - presets/factory-mixer.xml
 
     When stored uncompressed (ZIP_STORED, method 0), SampleCache memory-maps

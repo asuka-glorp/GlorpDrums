@@ -1623,4 +1623,217 @@ bool GlorpKitProject::deleteZone (int pieceIndex, int zoneIndex, std::string& ou
     return true;
 }
 
+bool GlorpKitProject::deleteMic (int micIndex, std::string& outError)
+{
+    if (micIndex < 0 || micIndex >= (int) mics.size())
+    {
+        outError = "Invalid mic index";
+        return false;
+    }
+    if (mics.size() <= 1)
+    {
+        outError = "Cannot delete the only microphone channel";
+        return false;
+    }
+
+    const std::string deletedMic = mics[(size_t) micIndex].name;
+    const std::string fallbackMic = mics[micIndex == 0 ? 1 : 0].name;
+
+    for (auto& p : pieces)
+    {
+        for (auto& z : p.zones)
+        {
+            for (auto& h : z.hits)
+            {
+                for (auto& ms : h.micSamples)
+                {
+                    if (ms.mic == deletedMic)
+                        ms.mic = fallbackMic;
+                }
+            }
+        }
+    }
+
+    mics.erase (mics.begin() + micIndex);
+    return true;
+}
+
+bool GlorpKitProject::relinkSamplesFromDirectory (const std::string& directoryPath)
+{
+    if (directoryPath.empty())
+        return false;
+
+    std::error_code ec;
+    if (! fs::exists (directoryPath, ec) || ! fs::is_directory (directoryPath, ec))
+        return false;
+
+    std::map<std::string, std::string> foundFiles;
+    for (const auto& entry : fs::recursive_directory_iterator (directoryPath, fs::directory_options::skip_permission_denied, ec))
+    {
+        if (entry.is_regular_file (ec))
+            foundFiles[entry.path().filename().string()] = entry.path().string();
+    }
+
+    bool anyRelinked = false;
+    for (auto& p : pieces)
+    {
+        for (auto& z : p.zones)
+        {
+            for (auto& h : z.hits)
+            {
+                for (auto& ms : h.micSamples)
+                {
+                    if (! fs::exists (ms.sourceDiskPath, ec))
+                    {
+                        auto it = foundFiles.find (ms.fileName);
+                        if (it != foundFiles.end())
+                        {
+                            ms.sourceDiskPath = it->second;
+                            anyRelinked = true;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return anyRelinked;
+}
+
+bool GlorpKitProject::setPieceMicrophone (int pieceIndex, const std::string& micName, const std::string& oldMicToReplace)
+{
+    if (pieceIndex < 0 || pieceIndex >= (int) pieces.size() || micName.empty())
+        return false;
+
+    bool micExists = false;
+    for (const auto& m : mics)
+    {
+        if (m.name == micName)
+        {
+            micExists = true;
+            break;
+        }
+    }
+    if (! micExists)
+        addChannel (micName);
+
+    auto& p = pieces[(size_t) pieceIndex];
+    for (auto& z : p.zones)
+    {
+        for (auto& h : z.hits)
+        {
+            for (auto& ms : h.micSamples)
+            {
+                if (oldMicToReplace.empty() || ms.mic == oldMicToReplace)
+                    ms.mic = micName;
+            }
+        }
+    }
+    return true;
+}
+
+bool GlorpKitProject::setZoneMicrophone (int pieceIndex, int zoneIndex, const std::string& micName, const std::string& oldMicToReplace)
+{
+    if (pieceIndex < 0 || pieceIndex >= (int) pieces.size() || micName.empty())
+        return false;
+    auto& p = pieces[(size_t) pieceIndex];
+    if (zoneIndex < 0 || zoneIndex >= (int) p.zones.size())
+        return false;
+
+    bool micExists = false;
+    for (const auto& m : mics)
+    {
+        if (m.name == micName)
+        {
+            micExists = true;
+            break;
+        }
+    }
+    if (! micExists)
+        addChannel (micName);
+
+    auto& z = p.zones[(size_t) zoneIndex];
+    for (auto& h : z.hits)
+    {
+        for (auto& ms : h.micSamples)
+        {
+            if (oldMicToReplace.empty() || ms.mic == oldMicToReplace)
+                ms.mic = micName;
+        }
+    }
+    return true;
+}
+
+std::string GlorpKitProject::getPieceDominantMicrophone (int pieceIndex) const
+{
+    if (pieceIndex < 0 || pieceIndex >= (int) pieces.size())
+        return mics.empty() ? "close" : mics.front().name;
+
+    std::map<std::string, int> counts;
+    const auto& p = pieces[(size_t) pieceIndex];
+    for (const auto& z : p.zones)
+    {
+        for (const auto& h : z.hits)
+        {
+            for (const auto& ms : h.micSamples)
+            {
+                if (! ms.mic.empty())
+                    counts[ms.mic]++;
+            }
+        }
+    }
+
+    std::string bestMic;
+    int maxCount = -1;
+    for (const auto& pair : counts)
+    {
+        if (pair.second > maxCount)
+        {
+            maxCount = pair.second;
+            bestMic = pair.first;
+        }
+    }
+
+    if (bestMic.empty())
+        return mics.empty() ? "close" : mics.front().name;
+
+    return bestMic;
+}
+
+std::string GlorpKitProject::getZoneDominantMicrophone (int pieceIndex, int zoneIndex) const
+{
+    if (pieceIndex < 0 || pieceIndex >= (int) pieces.size())
+        return mics.empty() ? "close" : mics.front().name;
+
+    const auto& p = pieces[(size_t) pieceIndex];
+    if (zoneIndex < 0 || zoneIndex >= (int) p.zones.size())
+        return mics.empty() ? "close" : mics.front().name;
+
+    std::map<std::string, int> counts;
+    const auto& z = p.zones[(size_t) zoneIndex];
+    for (const auto& h : z.hits)
+    {
+        for (const auto& ms : h.micSamples)
+        {
+            if (! ms.mic.empty())
+                counts[ms.mic]++;
+        }
+    }
+
+    std::string bestMic;
+    int maxCount = -1;
+    for (const auto& pair : counts)
+    {
+        if (pair.second > maxCount)
+        {
+            maxCount = pair.second;
+            bestMic = pair.first;
+        }
+    }
+
+    if (bestMic.empty())
+        return mics.empty() ? "close" : mics.front().name;
+
+    return bestMic;
+}
+
 } // namespace glorp

@@ -218,6 +218,7 @@ private:
     {
         int micIndex = 0;
         juce::Rectangle<float> bounds;
+        juce::Rectangle<float> deleteBounds;
     };
     std::vector<MicPillHit> micPillHits;
 
@@ -245,6 +246,8 @@ private:
     juce::Rectangle<float> btnAutoPower, btnImportWavs, btnDeleteZone;
     juce::Rectangle<float> btnVelDown, pillVelCount, btnVelUp;
     juce::Rectangle<float> btnRrDown, pillRrCount, btnRrUp;
+    juce::Rectangle<float> btnTargetMic;
+    std::string targetImportMic = "close";
     juce::Rectangle<float> zoneTabBarBounds, btnZoneScrollLeft, btnZoneScrollRight;
     float zoneScrollX = 0.0f;
     float maxZoneScrollX = 0.0f;
@@ -271,11 +274,15 @@ private:
     juce::Rectangle<float> btnLoadCustomPng, btnBuiltinAsset, btnAlignGuide, btnOutputBus, btnChokeGroup;
     juce::Rectangle<float> pillNormX, pillNormY, pillNormW, pillZOrder;
     juce::Rectangle<float> btnMidiNote, btnAltNote, btnMidiLearn, btnChokeTarget, btnPlaySample;
+    juce::Rectangle<float> btnPieceMic, btnZoneMic, btnAddMicLayer;
     juce::Rectangle<float> waveformPreviewBounds;
     struct MicAssignRowHit
     {
+        int micSampleIdx = -1;
         std::string micName;
         juce::Rectangle<float> bounds;
+        juce::Rectangle<float> badgeBounds;
+        juce::Rectangle<float> delBounds;
     };
     std::vector<MicAssignRowHit> micAssignHits;
 
@@ -299,8 +306,15 @@ private:
     void startAuditionSynth (int pieceIdx, float velocity);
     void showAudioSettingsDialog();
     void promptRenameMic (int micIndex);
+    void promptDeleteMic (int micIndex);
     void promptRenamePiece (int pieceIndex);
     void promptRenameZone (int pieceIndex, int zoneIndex);
+    void promptSelectTargetMic();
+    void promptRoutePieceMic (int pieceIndex);
+    void promptRouteZoneMic (int pieceIndex, int zoneIndex);
+    void promptReassignMicForSample (int micSampleIdx);
+    void promptAddMicLayerToSelectedHit();
+    void deleteMicLayerFromSelectedHit (int micSampleIdx);
 
     // -- Internal Helpers ----------------------------------------------------
     void loadBuiltinSprites();
@@ -323,6 +337,7 @@ private:
     void promptImportWavsForCurrentZone (const std::string& targetMic = "close");
     void promptImportWavForSpecificCell (int velLayer, int roundRobin);
     void showMatrixCellContextMenu (const MatrixCellHit& cell);
+    void showCustomGlowColorPicker();
     void showHitGlowColorMenu();
     void showBuiltinAssetMenu();
     void showAlignGuideMenu();

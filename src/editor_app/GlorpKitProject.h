@@ -210,7 +210,7 @@ public:
 
     bool openGlorpKitArchive (const std::string& archivePath, std::string& outError);
     bool importDrumGizmoXml (const std::string& drumkitXmlPath, std::string& outError);
-    bool exportToGlorpKit (const std::string& outputArchivePath, std::string& outError);
+    bool exportToGlorpKit (const std::string& outputArchivePath, std::string& outError) const;
     bool relinkSamplesFromDirectory (const std::string& directoryPath);
 
     /// Builds a playable DrumKit in memory so the editor's Sampler can audition hits live.
