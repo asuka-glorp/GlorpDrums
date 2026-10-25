@@ -737,6 +737,12 @@ void GlorpKitEditorComponent::paintHeader (juce::Graphics& g)
     drawHeaderBtn (btnImportOra, 114.0f, "Import .ORA...", theme.trough, 26);
     drawHeaderBtn (btnSaveKit,   124.0f, "Save .glorpkit", theme.accent, 27);
 
+    // Undo / Redo Buttons
+    const juce::Colour undoCol = canUndo() ? theme.trough : theme.trough.withAlpha (0.4f);
+    const juce::Colour redoCol = canRedo() ? theme.trough : theme.trough.withAlpha (0.4f);
+    drawHeaderBtn (btnUndo, 62.0f, "Undo", undoCol, 28);
+    drawHeaderBtn (btnRedo, 62.0f, "Redo", redoCol, 29);
+
     float rx = headerBounds.getRight() - 12.0f;
     btnThemeToggle = { rx - 68.0f, btnY, 68.0f, btnH };
     rx = btnThemeToggle.getX() - 7.0f;
@@ -937,6 +943,34 @@ void GlorpKitEditorComponent::paintCanvasPanel (juce::Graphics& g)
         }
 
         const auto& pieces = project.pieces;
+        if (pieces.empty())
+        {
+            auto card = canvasViewportBounds.reduced (60.0f, 40.0f);
+            Sketch::box (g, card, theme.panel, theme.inkSoft, 8.0f, 1.8f, 2, 777);
+
+            g.setColour (theme.ink);
+            g.setFont (Fonts::title (20.0f));
+            g.drawText ("Blank .glorpkit Project Initialized",
+                        card.withHeight (32.0f).withTop (card.getY() + 20.0f),
+                        juce::Justification::centred, false);
+
+            g.setColour (theme.inkSoft);
+            g.setFont (Fonts::body (13.5f));
+            g.drawText ("Get started by adding individual kit pieces or importing an entire asset collection:",
+                        card.withHeight (24.0f).withTop (card.getY() + 54.0f),
+                        juce::Justification::centred, false);
+
+            const float btnW = (card.getWidth() - 60.0f) / 3.0f;
+            const float by = card.getBottom() - 54.0f;
+            btnBlankAddPiece     = { card.getX() + 20.0f, by, btnW, 36.0f };
+            btnBlankImportFolder = { btnBlankAddPiece.getRight() + 10.0f, by, btnW, 36.0f };
+            btnBlankImportOra    = { btnBlankImportFolder.getRight() + 10.0f, by, btnW, 36.0f };
+
+            Sketch::button (g, btnBlankAddPiece,     "+ Add First Piece",       theme.accent, theme.ink, false, 778, Fonts::title (13.0f));
+            Sketch::button (g, btnBlankImportFolder, "Import Assets Folder...", theme.trough, theme.ink, false, 779, Fonts::title (13.0f));
+            Sketch::button (g, btnBlankImportOra,    "Import .ORA Image...",    theme.trough, theme.ink, false, 780, Fonts::title (13.0f));
+        }
+
         std::vector<int> zSorted (pieces.size());
         for (size_t i = 0; i < pieces.size(); ++i) zSorted[i] = (int) i;
         std::sort (zSorted.begin(), zSorted.end(), [&] (int a, int b)
@@ -1031,10 +1065,38 @@ void GlorpKitEditorComponent::paintMatrixPanel (juce::Graphics& g)
                 matrixPanelBounds.withHeight (26.0f).withLeft (matrixPanelBounds.getX() + 12.0f),
                 juce::Justification::centredLeft, false);
 
-    btnImportWavs = { matrixPanelBounds.getRight() - 122.0f, matrixPanelBounds.getY() + 6.0f, 110.0f, 24.0f };
-    btnAutoPower  = { btnImportWavs.getX() - 104.0f,         matrixPanelBounds.getY() + 6.0f, 98.0f,  24.0f };
-    Sketch::button (g, btnAutoPower,  "Auto Power",     theme.trough, theme.ink, false, 153, Fonts::title (11.5f));
-    Sketch::button (g, btnImportWavs, "+ Import WAVs",  theme.accent, theme.ink, false, 155, Fonts::title (11.5f));
+    btnImportWavs = { matrixPanelBounds.getRight() - 116.0f, matrixPanelBounds.getY() + 6.0f, 106.0f, 24.0f };
+    btnAutoPower  = { btnImportWavs.getX() - 98.0f,         matrixPanelBounds.getY() + 6.0f, 92.0f,  24.0f };
+    Sketch::button (g, btnAutoPower,  "Auto Power",    theme.trough, theme.ink, false, 153, Fonts::title (11.5f));
+    Sketch::button (g, btnImportWavs, "+ Import WAVs", theme.accent, theme.ink, false, 155, Fonts::title (11.5f));
+
+    // Dynamic grid dimension steppers: RR and Velocity
+    const int curVL = (selectedZoneIdx >= 0 && selectedZoneIdx < (int) piece.zones.size())
+                          ? piece.zones[(size_t) selectedZoneIdx].numVelocityLayers : 5;
+    const int curRR = (selectedZoneIdx >= 0 && selectedZoneIdx < (int) piece.zones.size())
+                          ? piece.zones[(size_t) selectedZoneIdx].numRoundRobins : 4;
+
+    btnRrUp     = { btnAutoPower.getX() - 28.0f,  matrixPanelBounds.getY() + 6.0f, 22.0f, 24.0f };
+    pillRrCount = { btnRrUp.getX() - 56.0f,       matrixPanelBounds.getY() + 6.0f, 52.0f, 24.0f };
+    btnRrDown   = { pillRrCount.getX() - 26.0f,   matrixPanelBounds.getY() + 6.0f, 22.0f, 24.0f };
+
+    btnVelUp     = { btnRrDown.getX() - 32.0f,    matrixPanelBounds.getY() + 6.0f, 22.0f, 24.0f };
+    pillVelCount = { btnVelUp.getX() - 60.0f,     matrixPanelBounds.getY() + 6.0f, 56.0f, 24.0f };
+    btnVelDown   = { pillVelCount.getX() - 26.0f, matrixPanelBounds.getY() + 6.0f, 22.0f, 24.0f };
+
+    Sketch::button (g, btnVelDown, "-", theme.trough, theme.ink, false, 181, Fonts::title (12.0f));
+    Sketch::box (g, pillVelCount, theme.panel, theme.inkSoft, 4.0f, 1.2f, 1, 182);
+    g.setColour (theme.ink);
+    g.setFont (Fonts::title (11.5f));
+    g.drawText ("Vel: " + juce::String (curVL), pillVelCount, juce::Justification::centred, false);
+    Sketch::button (g, btnVelUp, "+", theme.trough, theme.ink, false, 183, Fonts::title (12.0f));
+
+    Sketch::button (g, btnRrDown, "-", theme.trough, theme.ink, false, 184, Fonts::title (12.0f));
+    Sketch::box (g, pillRrCount, theme.panel, theme.inkSoft, 4.0f, 1.2f, 1, 185);
+    g.setColour (theme.ink);
+    g.setFont (Fonts::title (11.5f));
+    g.drawText ("RR: " + juce::String (curRR), pillRrCount, juce::Justification::centred, false);
+    Sketch::button (g, btnRrUp, "+", theme.trough, theme.ink, false, 186, Fonts::title (12.0f));
 
     zoneTabHits.clear();
     float zx = matrixPanelBounds.getX() + 12.0f;
@@ -1068,15 +1130,27 @@ void GlorpKitEditorComponent::paintMatrixPanel (juce::Graphics& g)
     if (selectedZoneIdx < 0 || selectedZoneIdx >= (int) piece.zones.size()) return;
     const auto& zone = piece.zones[(size_t) selectedZoneIdx];
 
-    auto gridArea = matrixPanelBounds.reduced (12.0f, 8.0f).withTop (zy + 30.0f);
-    const int numVelRows = 5;
-    const int numRrCols  = 4;
+    const int numVelRows = juce::jlimit (1, 24, curVL);
+    const int numRrCols  = juce::jlimit (1, 8,  curRR);
+
     const float labelColW = 86.0f;
     const float colHeaderH = 20.0f;
-    const float cellW = (gridArea.getWidth() - labelColW) / (float) numRrCols;
-    const float cellH = std::max (20.0f, (gridArea.getHeight() - colHeaderH) / (float) numVelRows);
+    const float scrollbarW = 10.0f;
 
-    const char* velLabels[5] = { "v5 (FF 1.0)", "v4 (F 0.8)", "v3 (MF 0.6)", "v2 (MP 0.4)", "v1 (PP 0.2)" };
+    auto gridArea = matrixPanelBounds.reduced (12.0f, 6.0f).withTop (zy + 28.0f);
+    const float naturalCellH = 25.0f;
+    const float totalContentH = colHeaderH + (float) numVelRows * naturalCellH;
+    const bool needsScroll = (totalContentH > gridArea.getHeight());
+    const float availW = gridArea.getWidth() - labelColW - (needsScroll ? scrollbarW : 2.0f);
+    const float cellW = availW / (float) numRrCols;
+    const float cellH = needsScroll ? naturalCellH : std::max (22.0f, (gridArea.getHeight() - colHeaderH) / (float) numVelRows);
+
+    if (needsScroll)
+        matrixScrollY = juce::jlimit (0.0f, totalContentH - gridArea.getHeight(), matrixScrollY);
+    else
+        matrixScrollY = 0.0f;
+
+    // RR Column headers
     for (int c = 0; c < numRrCols; ++c)
     {
         juce::Rectangle<float> hdr { gridArea.getX() + labelColW + c * cellW, gridArea.getY(), cellW - 4.0f, colHeaderH };
@@ -1085,62 +1159,116 @@ void GlorpKitEditorComponent::paintMatrixPanel (juce::Graphics& g)
         g.drawText ("Round Robin RR" + juce::String (c + 1), hdr, juce::Justification::centred, false);
     }
 
-    for (int r = 0; r < numVelRows; ++r)
     {
-        const int velLayer = (numVelRows - 1) - r;
-        const float cy = gridArea.getY() + colHeaderH + r * cellH;
-        juce::Rectangle<float> rowLbl { gridArea.getX(), cy, labelColW - 6.0f, cellH - 3.0f };
-        g.setColour (theme.ink);
-        g.setFont (Fonts::title (11.5f));
-        g.drawText (velLabels[r], rowLbl, juce::Justification::centredLeft, false);
+        juce::Graphics::ScopedSaveState clipGuard (g);
+        g.reduceClipRegion (gridArea.withTrimmedTop (colHeaderH).toNearestInt());
 
-        for (int c = 0; c < numRrCols; ++c)
+        for (int r = 0; r < numVelRows; ++r)
         {
-            juce::Rectangle<float> cellR { gridArea.getX() + labelColW + c * cellW, cy, cellW - 5.0f, cellH - 3.0f };
-            int foundHit = -1;
-            for (size_t hi = 0; hi < zone.hits.size(); ++hi)
-            {
-                const int hVel = juce::jlimit (0, numVelRows - 1, zone.hits[hi].velocityLayerIndex);
-                const int hRr  = juce::jlimit (0, numRrCols - 1,  zone.hits[hi].roundRobinIndex);
-                if (hVel == velLayer && hRr == c)
-                {
-                    foundHit = (int) hi;
-                    break;
-                }
-            }
-            // Fallback sequential placement when hits don't have explicit grid coords yet
-            if (foundHit < 0)
-            {
-                const int flatIdx = r * numRrCols + c;
-                if (flatIdx < (int) zone.hits.size() && zone.hits.size() <= 4)
-                    foundHit = flatIdx;
-            }
+            const int velLayer = (numVelRows - 1) - r;
+            const float cy = gridArea.getY() + colHeaderH + r * cellH - matrixScrollY;
+            if (cy + cellH < gridArea.getY() + colHeaderH || cy > gridArea.getBottom())
+                continue;
 
-            const bool isCellSel = (foundHit >= 0 && foundHit == selectedHitIdx);
-            juce::Colour cellBg  = foundHit >= 0
-                                       ? (isCellSel ? theme.accent.withAlpha (0.32f) : goodCol.withAlpha (0.18f))
-                                       : theme.trough.withAlpha (0.65f);
-            juce::Colour cellBrd = isCellSel ? theme.accent : theme.inkSoft.withAlpha (0.65f);
-            Sketch::box (g, cellR, cellBg, cellBrd, 4.0f, isCellSel ? 2.0f : 1.2f, 1, 200 + r * 10 + c);
+            juce::Rectangle<float> rowLbl { gridArea.getX(), cy, labelColW - 6.0f, cellH - 3.0f };
+            g.setColour (theme.ink);
+            g.setFont (Fonts::title (11.0f));
 
-            if (foundHit >= 0)
+            juce::String velLbl = "v" + juce::String (velLayer + 1);
+            if (numVelRows == 5)
             {
-                const auto& h = zone.hits[(size_t) foundHit];
-                g.setColour (theme.ink);
-                g.setFont (Fonts::body (11.5f));
-                char pbuf[64];
-                std::snprintf (pbuf, sizeof (pbuf), "%s  [p:%.2f]", h.name.c_str(), h.power);
-                g.drawText (pbuf, cellR.reduced (6.0f, 1.0f), juce::Justification::centredLeft, true);
+                static const char* labels5[5] = { " (PP 0.2)", " (MP 0.4)", " (MF 0.6)", " (F 0.8)", " (FF 1.0)" };
+                velLbl += labels5[velLayer];
             }
             else
             {
-                g.setColour (theme.inkSoft.withAlpha (0.55f));
-                g.setFont (Fonts::body (11.0f));
-                g.drawText ("(drop WAV)", cellR, juce::Justification::centred, false);
+                const float pwr = (numVelRows > 1) ? 0.12f + 0.88f * ((float) velLayer / (float) (numVelRows - 1)) : 1.0f;
+                char pbuf[32];
+                std::snprintf (pbuf, sizeof (pbuf), " (%.2f)", pwr);
+                velLbl += pbuf;
             }
+            g.drawText (velLbl, rowLbl, juce::Justification::centredLeft, false);
 
-            matrixCellHits.push_back ({ foundHit, velLayer, c, cellR });
+            for (int c = 0; c < numRrCols; ++c)
+            {
+                juce::Rectangle<float> cellR { gridArea.getX() + labelColW + c * cellW, cy, cellW - 5.0f, cellH - 3.0f };
+                int foundHit = -1;
+                for (size_t hi = 0; hi < zone.hits.size(); ++hi)
+                {
+                    const int hVel = juce::jlimit (0, numVelRows - 1, zone.hits[hi].velocityLayerIndex);
+                    const int hRr  = juce::jlimit (0, numRrCols - 1,  zone.hits[hi].roundRobinIndex);
+                    if (hVel == velLayer && hRr == c)
+                    {
+                        foundHit = (int) hi;
+                        break;
+                    }
+                }
+                if (foundHit < 0 && zone.hits.size() <= 4)
+                {
+                    const int flatIdx = r * numRrCols + c;
+                    if (flatIdx < (int) zone.hits.size())
+                        foundHit = flatIdx;
+                }
+
+                const bool isCellSel = (foundHit >= 0 && foundHit == selectedHitIdx);
+                const bool isDragSource = (isDraggingMatrixHit && foundHit >= 0 && foundHit == dragMatrixHitIdx);
+                const bool isDropTarget = (isDraggingMatrixHit && cellR.contains (dragMatrixMousePos));
+
+                juce::Colour cellBg = isDropTarget
+                                          ? theme.accent.withAlpha (0.45f)
+                                          : (foundHit >= 0
+                                                 ? (isCellSel ? theme.accent.withAlpha (0.32f) : goodCol.withAlpha (0.18f))
+                                                 : theme.trough.withAlpha (0.65f));
+                juce::Colour cellBrd = isDropTarget
+                                           ? theme.accent
+                                           : (isCellSel ? theme.accent : theme.inkSoft.withAlpha (0.65f));
+
+                Sketch::box (g, cellR, cellBg, cellBrd, 4.0f, (isCellSel || isDropTarget) ? 2.0f : 1.2f, 1, 200 + r * 10 + c);
+
+                if (foundHit >= 0)
+                {
+                    const auto& h = zone.hits[(size_t) foundHit];
+                    g.setColour (isDragSource ? theme.inkSoft.withAlpha (0.5f) : theme.ink);
+                    g.setFont (Fonts::body (11.0f));
+                    char pbuf[64];
+                    std::snprintf (pbuf, sizeof (pbuf), "%s  [p:%.2f]", h.name.c_str(), h.power);
+                    g.drawText (isDragSource ? "[moving...]" : pbuf, cellR.reduced (6.0f, 1.0f), juce::Justification::centredLeft, true);
+                }
+                else
+                {
+                    g.setColour (theme.inkSoft.withAlpha (0.55f));
+                    g.setFont (Fonts::body (10.5f));
+                    g.drawText (isDropTarget ? "[drop here]" : "(drop WAV)", cellR, juce::Justification::centred, false);
+                }
+
+                matrixCellHits.push_back ({ foundHit, velLayer, c, cellR });
+            }
         }
+    }
+
+    // Scrollbar if needed
+    if (needsScroll)
+    {
+        juce::Rectangle<float> sbTrack { gridArea.getRight() - scrollbarW, gridArea.getY() + colHeaderH, scrollbarW, gridArea.getHeight() - colHeaderH };
+        g.setColour (theme.trough.withAlpha (0.6f));
+        g.fillRect (sbTrack);
+        const float visibleFrac = (gridArea.getHeight() - colHeaderH) / totalContentH;
+        const float thumbH = std::max (20.0f, sbTrack.getHeight() * visibleFrac);
+        const float scrollRange = totalContentH - (gridArea.getHeight() - colHeaderH);
+        const float thumbY = sbTrack.getY() + (matrixScrollY / scrollRange) * (sbTrack.getHeight() - thumbH);
+        g.setColour (theme.inkSoft.withAlpha (0.5f));
+        g.fillRoundedRectangle ({ sbTrack.getX() + 2.0f, thumbY, scrollbarW - 4.0f, thumbH }, 3.0f);
+    }
+
+    // Floating dragged hit badge
+    if (isDraggingMatrixHit && dragMatrixHitIdx >= 0 && dragMatrixHitIdx < (int) zone.hits.size())
+    {
+        const auto& dh = zone.hits[(size_t) dragMatrixHitIdx];
+        juce::Rectangle<float> badge { dragMatrixMousePos.x - 70.0f, dragMatrixMousePos.y - 14.0f, 140.0f, 28.0f };
+        Sketch::box (g, badge, theme.accent, theme.ink, 5.0f, 2.0f, 2, 888);
+        g.setColour (theme.ink);
+        g.setFont (Fonts::title (11.5f));
+        g.drawText (dh.name, badge.reduced (4.0f, 2.0f), juce::Justification::centred, true);
     }
 }
 
@@ -1458,6 +1586,8 @@ int GlorpKitEditorComponent::canvasPieceAt (juce::Point<float> pt) const
 void GlorpKitEditorComponent::mouseDown (const juce::MouseEvent& e)
 {
     const auto pt = e.position;
+    preInteractionProject = project;
+    isCapturingInteraction = true;
 
     if (tutorialActive)
     {
@@ -1474,6 +1604,7 @@ void GlorpKitEditorComponent::mouseDown (const juce::MouseEvent& e)
 
     if (btnNewKit.contains (pt))
     {
+        pushUndoState ("New Blank Kit");
         project.createNewBlankKit();
         reloadProjectIntoEngine();
         selectPiece (-1, false);
@@ -1484,6 +1615,31 @@ void GlorpKitEditorComponent::mouseDown (const juce::MouseEvent& e)
     if (btnImportDg.contains (pt))     { promptImportDrumGizmo(); return; }
     if (btnImportOra.contains (pt))    { promptImportOpenRaster(); return; }
     if (btnSaveKit.contains (pt))      { promptSaveGlorpKit(); return; }
+    if (btnUndo.contains (pt))         { undo(); return; }
+    if (btnRedo.contains (pt))         { redo(); return; }
+
+    if (project.pieces.empty())
+    {
+        if (btnBlankAddPiece.contains (pt))
+        {
+            pushUndoState ("Add Kit Piece");
+            int newIdx = project.addPieceWithAutoLayout ("Snare", "snare");
+            reloadProjectIntoEngine();
+            selectPiece (newIdx, false);
+            showStatusToast ("Added first kit piece: Snare");
+            return;
+        }
+        if (btnBlankImportFolder.contains (pt))
+        {
+            promptImportAssetsFolder();
+            return;
+        }
+        if (btnBlankImportOra.contains (pt))
+        {
+            promptImportOpenRaster();
+            return;
+        }
+    }
     if (btnAudioSettings.contains (pt)){ showAudioSettingsDialog(); return; }
     if (btnGlowColor.contains (pt))    { showHitGlowColorMenu(); return; }
     if (btnTour.contains (pt))         { setTutorialVisible (true, 0); return; }
@@ -1631,6 +1787,7 @@ void GlorpKitEditorComponent::mouseDown (const juce::MouseEvent& e)
 
     if (btnAutoPower.contains (pt) && selectedPieceIdx >= 0)
     {
+        pushUndoState ("Auto Power");
         project.autoComputeZonePowers (selectedPieceIdx, selectedZoneIdx);
         reloadProjectIntoEngine();
         showStatusToast ("Auto-computed RMS/Peak sample power & sorted velocity layers");
@@ -1639,6 +1796,113 @@ void GlorpKitEditorComponent::mouseDown (const juce::MouseEvent& e)
     if (btnImportWavs.contains (pt))
     {
         promptImportWavsForCurrentZone ("close");
+        return;
+    }
+    if (btnVelDown.contains (pt) && selectedPieceIdx >= 0 && selectedZoneIdx >= 0)
+    {
+        auto& p = project.pieces[(size_t) selectedPieceIdx];
+        if (selectedZoneIdx < (int) p.zones.size())
+        {
+            auto& zn = p.zones[(size_t) selectedZoneIdx];
+            if (zn.numVelocityLayers > 1)
+            {
+                pushUndoState ("Decrease Velocity Layers");
+                project.setZoneGridDimensions (selectedPieceIdx, selectedZoneIdx, zn.numVelocityLayers - 1, zn.numRoundRobins);
+                reloadProjectIntoEngine();
+                repaint();
+            }
+        }
+        return;
+    }
+    if (btnVelUp.contains (pt) && selectedPieceIdx >= 0 && selectedZoneIdx >= 0)
+    {
+        auto& p = project.pieces[(size_t) selectedPieceIdx];
+        if (selectedZoneIdx < (int) p.zones.size())
+        {
+            auto& zn = p.zones[(size_t) selectedZoneIdx];
+            if (zn.numVelocityLayers < 24)
+            {
+                pushUndoState ("Increase Velocity Layers");
+                project.setZoneGridDimensions (selectedPieceIdx, selectedZoneIdx, zn.numVelocityLayers + 1, zn.numRoundRobins);
+                reloadProjectIntoEngine();
+                repaint();
+            }
+        }
+        return;
+    }
+    if (btnRrDown.contains (pt) && selectedPieceIdx >= 0 && selectedZoneIdx >= 0)
+    {
+        auto& p = project.pieces[(size_t) selectedPieceIdx];
+        if (selectedZoneIdx < (int) p.zones.size())
+        {
+            auto& zn = p.zones[(size_t) selectedZoneIdx];
+            if (zn.numRoundRobins > 1)
+            {
+                pushUndoState ("Decrease Round Robins");
+                project.setZoneGridDimensions (selectedPieceIdx, selectedZoneIdx, zn.numVelocityLayers, zn.numRoundRobins - 1);
+                reloadProjectIntoEngine();
+                repaint();
+            }
+        }
+        return;
+    }
+    if (btnRrUp.contains (pt) && selectedPieceIdx >= 0 && selectedZoneIdx >= 0)
+    {
+        auto& p = project.pieces[(size_t) selectedPieceIdx];
+        if (selectedZoneIdx < (int) p.zones.size())
+        {
+            auto& zn = p.zones[(size_t) selectedZoneIdx];
+            if (zn.numRoundRobins < 8)
+            {
+                pushUndoState ("Increase Round Robins");
+                project.setZoneGridDimensions (selectedPieceIdx, selectedZoneIdx, zn.numVelocityLayers, zn.numRoundRobins + 1);
+                reloadProjectIntoEngine();
+                repaint();
+            }
+        }
+        return;
+    }
+    if (pillVelCount.contains (pt) && selectedPieceIdx >= 0 && selectedZoneIdx >= 0)
+    {
+        juce::PopupMenu m;
+        m.addSectionHeader ("Velocity Layers");
+        const int counts[] = { 1, 2, 3, 4, 5, 6, 8, 10, 12, 13, 16, 20, 24 };
+        int currentVL = project.pieces[(size_t) selectedPieceIdx].zones[(size_t) selectedZoneIdx].numVelocityLayers;
+        for (int c : counts)
+            m.addItem (c, juce::String (c) + " Layers", true, c == currentVL);
+        m.showMenuAsync (juce::PopupMenu::Options().withTargetScreenArea (localAreaToGlobal (pillVelCount.toNearestInt())),
+            [this] (int res)
+            {
+                if (res > 0 && selectedPieceIdx >= 0 && selectedZoneIdx >= 0)
+                {
+                    pushUndoState ("Set Velocity Layers to " + juce::String (res));
+                    auto& zn = project.pieces[(size_t) selectedPieceIdx].zones[(size_t) selectedZoneIdx];
+                    project.setZoneGridDimensions (selectedPieceIdx, selectedZoneIdx, res, zn.numRoundRobins);
+                    reloadProjectIntoEngine();
+                    repaint();
+                }
+            });
+        return;
+    }
+    if (pillRrCount.contains (pt) && selectedPieceIdx >= 0 && selectedZoneIdx >= 0)
+    {
+        juce::PopupMenu m;
+        m.addSectionHeader ("Round Robin Columns");
+        int currentRR = project.pieces[(size_t) selectedPieceIdx].zones[(size_t) selectedZoneIdx].numRoundRobins;
+        for (int c = 1; c <= 8; ++c)
+            m.addItem (c, juce::String (c) + " Round Robins", true, c == currentRR);
+        m.showMenuAsync (juce::PopupMenu::Options().withTargetScreenArea (localAreaToGlobal (pillRrCount.toNearestInt())),
+            [this] (int res)
+            {
+                if (res > 0 && selectedPieceIdx >= 0 && selectedZoneIdx >= 0)
+                {
+                    pushUndoState ("Set Round Robins to " + juce::String (res));
+                    auto& zn = project.pieces[(size_t) selectedPieceIdx].zones[(size_t) selectedZoneIdx];
+                    project.setZoneGridDimensions (selectedPieceIdx, selectedZoneIdx, zn.numVelocityLayers, res);
+                    reloadProjectIntoEngine();
+                    repaint();
+                }
+            });
         return;
     }
     if (btnDeleteZone.contains (pt) && selectedPieceIdx >= 0)
@@ -1696,10 +1960,26 @@ void GlorpKitEditorComponent::mouseDown (const juce::MouseEvent& e)
     {
         if (cell.bounds.contains (pt))
         {
+            if (e.mods.isPopupMenu())
+            {
+                showMatrixCellContextMenu (cell);
+                return;
+            }
+
             if (cell.hitIndex >= 0)
-                selectHit (cell.hitIndex, true);
+            {
+                selectHit (cell.hitIndex, false);
+                isPotentialMatrixDrag = true;
+                dragMatrixHitIdx      = cell.hitIndex;
+                dragMatrixSourceVel   = cell.velLayer;
+                dragMatrixSourceRr    = cell.rrIndex;
+                dragMatrixStartPos    = pt;
+                dragMatrixMousePos    = pt;
+            }
             else
-                promptImportWavsForCurrentZone ("close");
+            {
+                promptImportWavForSpecificCell (cell.velLayer, cell.rrIndex);
+            }
             return;
         }
     }
@@ -1755,6 +2035,18 @@ void GlorpKitEditorComponent::mouseDown (const juce::MouseEvent& e)
 
 void GlorpKitEditorComponent::mouseDrag (const juce::MouseEvent& e)
 {
+    if (isPotentialMatrixDrag && dragMatrixHitIdx >= 0)
+    {
+        if (e.position.getDistanceFrom (dragMatrixStartPos) > 4.0f)
+            isDraggingMatrixHit = true;
+        if (isDraggingMatrixHit)
+        {
+            dragMatrixMousePos = e.position;
+            repaint();
+            return;
+        }
+    }
+
     if (isDraggingLayerRow && dragLayerPieceIndex >= 0)
     {
         for (const auto& row : layerRowHits)
@@ -1775,37 +2067,127 @@ void GlorpKitEditorComponent::mouseDrag (const juce::MouseEvent& e)
     if (selectedPieceIdx < 0 || selectedPieceIdx >= (int) project.pieces.size()) return;
     auto& piece = project.pieces[(size_t) selectedPieceIdx];
 
-    if (isDraggingCanvasPiece && canvasViewportBounds.getWidth() > 20.0f)
+    const float W = canvasViewportBounds.getWidth();
+    const float H = canvasViewportBounds.getHeight();
+    const float scale = std::min (W / 880.0f, H / 620.0f);
+
+    if (isDraggingCanvasPiece && scale > 0.001f)
     {
-        const float dx = (e.position.x - dragStartPos.x) / canvasViewportBounds.getWidth();
-        const float dy = (e.position.y - dragStartPos.y) / canvasViewportBounds.getHeight();
-        float nx = juce::jlimit (0.06f, 0.94f, dragStartX + dx);
-        float ny = juce::jlimit (0.08f, 0.92f, dragStartY + dy);
+        const float dx = (e.position.x - dragStartPos.x) / scale;
+        const float dy = (e.position.y - dragStartPos.y) / scale;
+        piece.normX = dragStartX + dx;
+        piece.normY = dragStartY + dy;
         if (snapToGrid && ! e.mods.isShiftDown())
         {
-            nx = std::round (nx * 40.0f) / 40.0f;
-            ny = std::round (ny * 40.0f) / 40.0f;
+            piece.normX = std::round (piece.normX / 10.0f) * 10.0f;
+            piece.normY = std::round (piece.normY / 10.0f) * 10.0f;
         }
-        piece.normX = nx;
-        piece.normY = ny;
         computeCanvasPieceBounds();
         repaint();
     }
-    else if (isResizingCanvasPiece)
+    else if (isResizingCanvasPiece && scale > 0.001f)
     {
-        const float dw = (e.position.x - dragStartPos.x) * 1.4f;
-        piece.normW = juce::jlimit (64.0f, 360.0f, dragStartW + dw);
+        const float dw = (e.position.x - dragStartPos.x) / scale;
+        piece.normW = std::clamp (dragStartW + dw, 40.0f, 650.0f);
         computeCanvasPieceBounds();
         repaint();
     }
 }
 
-void GlorpKitEditorComponent::mouseUp (const juce::MouseEvent&)
+void GlorpKitEditorComponent::mouseUp (const juce::MouseEvent& e)
 {
+    if (isDraggingMatrixHit && dragMatrixHitIdx >= 0)
+    {
+        for (const auto& cell : matrixCellHits)
+        {
+            if (cell.bounds.contains (e.position))
+            {
+                if (cell.velLayer != dragMatrixSourceVel || cell.rrIndex != dragMatrixSourceRr)
+                {
+                    if (cell.hitIndex >= 0)
+                    {
+                        pushUndoState ("Swap Matrix Samples");
+                        project.swapSampleCells (selectedPieceIdx, selectedZoneIdx, dragMatrixHitIdx, cell.hitIndex);
+                        showStatusToast ("Swapped sample with RR" + juce::String (cell.rrIndex + 1) + " v" + juce::String (cell.velLayer + 1));
+                    }
+                    else
+                    {
+                        pushUndoState ("Move Matrix Sample");
+                        project.moveSampleToCell (selectedPieceIdx, selectedZoneIdx, dragMatrixHitIdx, cell.velLayer, cell.rrIndex);
+                        showStatusToast ("Moved sample to RR" + juce::String (cell.rrIndex + 1) + " v" + juce::String (cell.velLayer + 1));
+                    }
+                    reloadProjectIntoEngine();
+                    rebuildPieceSprites();
+                    repaint();
+                }
+                break;
+            }
+        }
+        isDraggingMatrixHit = false;
+        isPotentialMatrixDrag = false;
+        dragMatrixHitIdx = -1;
+        repaint();
+    }
+    else if (isPotentialMatrixDrag)
+    {
+        triggerAuditionForZone (selectedPieceIdx, selectedZoneIdx);
+        isPotentialMatrixDrag = false;
+        dragMatrixHitIdx = -1;
+    }
+
+    if (isDraggingCanvasPiece || isResizingCanvasPiece)
+    {
+        bool changed = false;
+        if (project.pieces.size() == preInteractionProject.pieces.size() && selectedPieceIdx >= 0 && selectedPieceIdx < (int) project.pieces.size())
+        {
+            const auto& p1 = project.pieces[(size_t) selectedPieceIdx];
+            const auto& p0 = preInteractionProject.pieces[(size_t) selectedPieceIdx];
+            if (std::abs (p1.normX - p0.normX) > 0.001f ||
+                std::abs (p1.normY - p0.normY) > 0.001f ||
+                std::abs (p1.normW - p0.normW) > 0.001f)
+            {
+                changed = true;
+            }
+        }
+        if (changed)
+        {
+            HistorySnapshot snap;
+            snap.project = preInteractionProject;
+            snap.selectedPieceIdx = selectedPieceIdx;
+            snap.selectedZoneIdx  = selectedZoneIdx;
+            snap.actionDescription = "Move/Resize " + project.pieces[(size_t) selectedPieceIdx].name;
+            undoStack.push_back (std::move (snap));
+            if (undoStack.size() > 50) undoStack.erase (undoStack.begin());
+            redoStack.clear();
+        }
+    }
+    else if (isDraggingLayerRow)
+    {
+        bool changed = false;
+        if (project.pieces.size() == preInteractionProject.pieces.size())
+        {
+            for (size_t i = 0; i < project.pieces.size(); ++i)
+                if (project.pieces[i].zOrder != preInteractionProject.pieces[i].zOrder)
+                    changed = true;
+        }
+        if (changed)
+        {
+            HistorySnapshot snap;
+            snap.project = preInteractionProject;
+            snap.selectedPieceIdx = selectedPieceIdx;
+            snap.selectedZoneIdx  = selectedZoneIdx;
+            snap.actionDescription = "Reorder Z-Layers";
+            undoStack.push_back (std::move (snap));
+            if (undoStack.size() > 50) undoStack.erase (undoStack.begin());
+            redoStack.clear();
+        }
+    }
+
     isDraggingCanvasPiece = false;
     isResizingCanvasPiece = false;
     isDraggingLayerRow = false;
     dragLayerPieceIndex = -1;
+    isCapturingInteraction = false;
 }
 
 void GlorpKitEditorComponent::mouseMove (const juce::MouseEvent& e)
@@ -1823,6 +2205,13 @@ void GlorpKitEditorComponent::mouseMove (const juce::MouseEvent& e)
 
 void GlorpKitEditorComponent::mouseWheelMove (const juce::MouseEvent& e, const juce::MouseWheelDetails& wheel)
 {
+    if (matrixPanelBounds.contains (e.position))
+    {
+        matrixScrollY -= wheel.deltaY * 50.0f;
+        repaint();
+        return;
+    }
+
     if (selectedPieceIdx < 0 || selectedPieceIdx >= (int) project.pieces.size()) return;
     auto& piece = project.pieces[(size_t) selectedPieceIdx];
 
@@ -1841,6 +2230,23 @@ void GlorpKitEditorComponent::mouseWheelMove (const juce::MouseEvent& e, const j
 
 bool GlorpKitEditorComponent::keyPressed (const juce::KeyPress& key)
 {
+    if (key.getModifiers().isCommandDown() || key.getModifiers().isCtrlDown())
+    {
+        if (key.isKeyCurrentlyDown ('z') || key.isKeyCurrentlyDown ('Z'))
+        {
+            if (key.getModifiers().isShiftDown())
+                redo();
+            else
+                undo();
+            return true;
+        }
+        if (key.isKeyCurrentlyDown ('y') || key.isKeyCurrentlyDown ('Y'))
+        {
+            redo();
+            return true;
+        }
+    }
+
     if (tutorialActive)
     {
         if (key == juce::KeyPress::rightKey || key == juce::KeyPress::returnKey) { nextTutorialStep(); return true; }
@@ -1860,8 +2266,12 @@ bool GlorpKitEditorComponent::isInterestedInFileDrag (const juce::StringArray& f
 {
     for (const auto& f : files)
     {
+        juce::File file (f);
+        if (file.isDirectory())
+            return true;
         if (f.endsWithIgnoreCase (".wav") || f.endsWithIgnoreCase (".flac") || f.endsWithIgnoreCase (".ogg")
-            || f.endsWithIgnoreCase (".png") || f.endsWithIgnoreCase (".glorpkit") || f.endsWithIgnoreCase (".xml"))
+            || f.endsWithIgnoreCase (".png") || f.endsWithIgnoreCase (".ora")
+            || f.endsWithIgnoreCase (".glorpkit") || f.endsWithIgnoreCase (".xml"))
             return true;
     }
     return false;
@@ -1870,40 +2280,73 @@ bool GlorpKitEditorComponent::isInterestedInFileDrag (const juce::StringArray& f
 void GlorpKitEditorComponent::filesDropped (const juce::StringArray& files, int x, int y)
 {
     if (files.isEmpty()) return;
-    juce::File first (files[0]);
 
-    if (first.hasFileExtension (".glorpkit") || first.hasFileExtension (".xml"))
+    juce::Array<juce::File> pngFiles;
+    juce::Array<juce::File> audioFiles;
+    juce::File glorpKitOrXmlToOpen;
+
+    for (const auto& rawPath : files)
     {
-        openKitFile (first);
-        return;
-    }
-    if (first.hasFileExtension (".png") && selectedPieceIdx >= 0)
-    {
-        juce::MemoryBlock mb;
-        if (first.loadFileAsData (mb) && mb.getSize() > 8)
+        juce::File f (rawPath);
+        if (! f.exists()) continue;
+
+        if (f.hasFileExtension (".ora"))
         {
-            auto& p = project.pieces[(size_t) selectedPieceIdx];
-            p.customPngFileName = first.getFileName().toStdString();
-            p.customPngBytes.assign ((const uint8_t*) mb.getData(), (const uint8_t*) mb.getData() + mb.getSize());
-            rebuildPieceSprites();
-            showStatusToast ("Loaded custom PNG sprite for " + juce::String (p.name) + ": " + first.getFileName());
-            repaint();
+            importOpenRasterFile (f);
+            return;
         }
+
+        if (f.isDirectory())
+        {
+            auto childPngs = f.findChildFiles (juce::File::findFiles, false, "*.png");
+            if (childPngs.isEmpty())
+                childPngs = f.findChildFiles (juce::File::findFiles, true, "*.png");
+            pngFiles.addArray (childPngs);
+
+            auto childWavs = f.findChildFiles (juce::File::findFiles, true, "*.wav;*.flac;*.ogg");
+            audioFiles.addArray (childWavs);
+        }
+        else
+        {
+            if (f.hasFileExtension (".glorpkit") || f.hasFileExtension (".xml"))
+            {
+                if (! glorpKitOrXmlToOpen.exists())
+                    glorpKitOrXmlToOpen = f;
+            }
+            else if (f.hasFileExtension (".png"))
+            {
+                pngFiles.add (f);
+            }
+            else if (f.hasFileExtension (".wav") || f.hasFileExtension (".flac") || f.hasFileExtension (".ogg"))
+            {
+                audioFiles.add (f);
+            }
+        }
+    }
+
+    if (glorpKitOrXmlToOpen.existsAsFile())
+    {
+        openKitFile (glorpKitOrXmlToOpen);
         return;
     }
 
-    std::vector<std::string> wavPaths;
-    for (const auto& f : files)
+    if (! pngFiles.isEmpty())
     {
-        if (f.endsWithIgnoreCase (".wav") || f.endsWithIgnoreCase (".flac") || f.endsWithIgnoreCase (".ogg"))
-            wavPaths.push_back (f.toStdString());
+        importPngAssets (pngFiles);
     }
-    if (! wavPaths.empty() && selectedPieceIdx >= 0)
+
+    if (! audioFiles.isEmpty() && selectedPieceIdx >= 0)
     {
+        std::vector<std::string> wavPaths;
+        for (const auto& af : audioFiles)
+            wavPaths.push_back (af.getFullPathName().toStdString());
+
+        pushUndoState ("Import Audio Samples");
         int count = project.importAudioFilesIntoZone (selectedPieceIdx, selectedZoneIdx, wavPaths, "close");
         reloadProjectIntoEngine();
-        showStatusToast ("Imported & RMS-sorted " + juce::String (count) + " audio samples into zone");
+        showStatusToast ("Imported " + juce::String (count) + " audio sample(s) into zone");
     }
+
     juce::ignoreUnused (x, y);
 }
 
@@ -2666,6 +3109,253 @@ void GlorpKitEditorComponent::promptRenameZone (int pieceIndex, int zoneIndex)
         }
         delete alert;
     }));
+}
+
+//==============================================================================
+void GlorpKitEditorComponent::pushUndoState (const juce::String& actionDescription)
+{
+    HistorySnapshot snap;
+    snap.project = project;
+    snap.selectedPieceIdx = selectedPieceIdx;
+    snap.selectedZoneIdx  = selectedZoneIdx;
+    snap.actionDescription = actionDescription;
+
+    undoStack.push_back (std::move (snap));
+    if (undoStack.size() > 50)
+        undoStack.erase (undoStack.begin());
+
+    redoStack.clear();
+}
+
+void GlorpKitEditorComponent::undo()
+{
+    if (undoStack.empty())
+    {
+        showStatusToast ("Nothing to undo");
+        return;
+    }
+
+    HistorySnapshot current;
+    current.project = project;
+    current.selectedPieceIdx = selectedPieceIdx;
+    current.selectedZoneIdx  = selectedZoneIdx;
+    current.actionDescription = "Current State";
+    redoStack.push_back (std::move (current));
+
+    HistorySnapshot prev = std::move (undoStack.back());
+    undoStack.pop_back();
+
+    project = std::move (prev.project);
+    selectedPieceIdx = juce::jlimit (-1, (int) project.pieces.size() - 1, prev.selectedPieceIdx);
+    if (selectedPieceIdx >= 0)
+    {
+        auto& p = project.pieces[(size_t) selectedPieceIdx];
+        selectedZoneIdx = juce::jlimit (0, std::max (0, (int) p.zones.size() - 1), prev.selectedZoneIdx);
+    }
+    else
+    {
+        selectedZoneIdx = -1;
+    }
+
+    rebuildPieceSprites();
+    reloadProjectIntoEngine();
+    updateInspectorEditors();
+    showStatusToast ("Undid: " + prev.actionDescription);
+    repaint();
+}
+
+void GlorpKitEditorComponent::redo()
+{
+    if (redoStack.empty())
+    {
+        showStatusToast ("Nothing to redo");
+        return;
+    }
+
+    HistorySnapshot current;
+    current.project = project;
+    current.selectedPieceIdx = selectedPieceIdx;
+    current.selectedZoneIdx  = selectedZoneIdx;
+    current.actionDescription = "Current State";
+    undoStack.push_back (std::move (current));
+
+    HistorySnapshot next = std::move (redoStack.back());
+    redoStack.pop_back();
+
+    project = std::move (next.project);
+    selectedPieceIdx = juce::jlimit (-1, (int) project.pieces.size() - 1, next.selectedPieceIdx);
+    if (selectedPieceIdx >= 0)
+    {
+        auto& p = project.pieces[(size_t) selectedPieceIdx];
+        selectedZoneIdx = juce::jlimit (0, std::max (0, (int) p.zones.size() - 1), next.selectedZoneIdx);
+    }
+    else
+    {
+        selectedZoneIdx = -1;
+    }
+
+    rebuildPieceSprites();
+    reloadProjectIntoEngine();
+    updateInspectorEditors();
+    showStatusToast ("Redid: " + next.actionDescription);
+    repaint();
+}
+
+void GlorpKitEditorComponent::promptImportAssetsFolder()
+{
+    auto startDir = juce::File ("/home/servandoc/Downloads/ludwig assets");
+    if (! startDir.isDirectory())
+        startDir = juce::File::getSpecialLocation (juce::File::userHomeDirectory).getChildFile ("Downloads");
+
+    auto chooser = std::make_shared<juce::FileChooser> (
+        "Select Assets Directory Containing Drum PNGs / WAVs",
+        startDir,
+        "");
+
+    chooser->launchAsync (juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectDirectories,
+                          [this, chooser] (const juce::FileChooser& fc)
+    {
+        auto result = fc.getResult();
+        if (result.isDirectory())
+        {
+            importAssetsFromDirectory (result);
+        }
+    });
+}
+
+void GlorpKitEditorComponent::importAssetsFromDirectory (const juce::File& dir)
+{
+    if (! dir.isDirectory()) return;
+
+    auto pngFiles = dir.findChildFiles (juce::File::findFiles, false, "*.png");
+    if (pngFiles.isEmpty())
+        pngFiles = dir.findChildFiles (juce::File::findFiles, true, "*.png");
+
+    auto audioFiles = dir.findChildFiles (juce::File::findFiles, true, "*.wav;*.flac;*.ogg");
+
+    if (pngFiles.isEmpty() && audioFiles.isEmpty())
+    {
+        showStatusToast ("No PNG or WAV files found in: " + dir.getFileName());
+        return;
+    }
+
+    if (! pngFiles.isEmpty())
+        importPngAssets (pngFiles);
+
+    if (! audioFiles.isEmpty() && selectedPieceIdx >= 0)
+    {
+        std::vector<std::string> wavPaths;
+        for (const auto& af : audioFiles)
+            wavPaths.push_back (af.getFullPathName().toStdString());
+        project.importAudioFilesIntoZone (selectedPieceIdx, selectedZoneIdx, wavPaths, "close");
+        reloadProjectIntoEngine();
+        showStatusToast ("Imported " + juce::String (pngFiles.size()) + " sprites & " + juce::String (audioFiles.size()) + " audio files");
+    }
+}
+
+void GlorpKitEditorComponent::importPngAssets (const juce::Array<juce::File>& pngFiles)
+{
+    if (pngFiles.isEmpty()) return;
+
+    pushUndoState ("Import PNG Assets (" + juce::String (pngFiles.size()) + " files)");
+
+    int importedCount = 0;
+    for (const auto& f : pngFiles)
+    {
+        juce::MemoryBlock mb;
+        if (! f.loadFileAsData (mb) || mb.getSize() < 16)
+            continue;
+
+        const std::string stem = f.getFileNameWithoutExtension().toLowerCase().toStdString();
+        std::vector<uint8_t> pngBytes ((const uint8_t*) mb.getData(), (const uint8_t*) mb.getData() + mb.getSize());
+
+        // Check if an existing piece matches
+        int matchedIdx = -1;
+        for (size_t i = 0; i < project.pieces.size(); ++i)
+        {
+            const auto& p = project.pieces[i];
+            const std::string pId = sanitizeId (p.id);
+            const std::string pName = sanitizeId (p.name);
+            if (pId == stem || pName == stem || stem.find (pId) != std::string::npos || pId.find (stem) != std::string::npos)
+            {
+                matchedIdx = (int) i;
+                break;
+            }
+        }
+
+        if (matchedIdx >= 0)
+        {
+            auto& p = project.pieces[(size_t) matchedIdx];
+            p.customPngFileName = f.getFileName().toStdString();
+            p.customPngBytes = std::move (pngBytes);
+            p.hasCustomLayout = true;
+            importedCount++;
+        }
+        else
+        {
+            int newIdx = project.addPieceWithAutoLayout (stem, stem, pngBytes);
+            if (newIdx >= 0)
+            {
+                project.pieces[(size_t) newIdx].customPngFileName = f.getFileName().toStdString();
+                importedCount++;
+            }
+        }
+    }
+
+    project.normalizeZOrders();
+    rebuildPieceSprites();
+    reloadProjectIntoEngine();
+
+    if (! project.pieces.empty())
+    {
+        int sel = 0;
+        for (size_t i = 0; i < project.pieces.size(); ++i)
+        {
+            if (project.pieces[i].id.find ("snare") != std::string::npos)
+            {
+                sel = (int) i;
+                break;
+            }
+        }
+        selectPiece (sel, false);
+    }
+    else
+    {
+        selectPiece (-1, false);
+    }
+
+    showStatusToast ("Loaded " + juce::String (importedCount) + " drum kit graphic sprites!");
+    repaint();
+}
+
+void GlorpKitEditorComponent::updateInspectorEditors()
+{
+    const bool hasPiece = (selectedPieceIdx >= 0 && selectedPieceIdx < (int) project.pieces.size());
+    pieceNameEditor.setVisible (hasPiece);
+    pieceIdEditor.setVisible (hasPiece);
+    zoneNameEditor.setVisible (hasPiece);
+
+    suppressEditorCallbacks = true;
+    if (hasPiece)
+    {
+        const auto& p = project.pieces[(size_t) selectedPieceIdx];
+        pieceNameEditor.setText (p.name, juce::dontSendNotification);
+        pieceIdEditor.setText (p.id, juce::dontSendNotification);
+        if (selectedZoneIdx >= 0 && selectedZoneIdx < (int) p.zones.size())
+            zoneNameEditor.setText (p.zones[(size_t) selectedZoneIdx].name, juce::dontSendNotification);
+        else
+            zoneNameEditor.setText ("", juce::dontSendNotification);
+        pieceNameEditor.setColour (juce::TextEditor::textColourId, theme.ink);
+        pieceIdEditor.setColour (juce::TextEditor::textColourId, theme.inkSoft);
+        zoneNameEditor.setColour (juce::TextEditor::textColourId, theme.ink);
+    }
+    else
+    {
+        pieceNameEditor.setText ("", juce::dontSendNotification);
+        pieceIdEditor.setText ("", juce::dontSendNotification);
+        zoneNameEditor.setText ("", juce::dontSendNotification);
+    }
+    suppressEditorCallbacks = false;
 }
 
 } // namespace glorp

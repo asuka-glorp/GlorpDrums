@@ -68,6 +68,19 @@ public:
     void dismissOraOverlay() { oraOverlay.reset(); repaint(); }
     void importOpenRasterFile (const juce::File& file);
 
+    // -- Undo / Redo History -------------------------------------------------
+    void pushUndoState (const juce::String& actionDescription);
+    void undo();
+    void redo();
+    bool canUndo() const noexcept { return ! undoStack.empty(); }
+    bool canRedo() const noexcept { return ! redoStack.empty(); }
+
+    // -- Asset Importing -----------------------------------------------------
+    void promptImportAssetsFolder();
+    void importAssetsFromDirectory (const juce::File& dir);
+    void importPngAssets (const juce::Array<juce::File>& pngFiles);
+    void updateInspectorEditors();
+
     struct MatrixCellHit
     {
         int hitIndex = -1;
@@ -158,6 +171,7 @@ private:
     // Top Header
     juce::Rectangle<float> headerBounds;
     juce::Rectangle<float> btnNewKit, btnOpenKit, btnImportDg, btnImportOra, btnSaveKit;
+    juce::Rectangle<float> btnUndo, btnRedo;
     juce::Rectangle<float> pillKitMeta, btnGlowColor, btnAudioSettings, btnTour, btnThemeToggle;
 
     // Left Panel (Z-Layer Stack & Mic Buses)
@@ -185,10 +199,35 @@ private:
     juce::Rectangle<float> canvasPanelBounds;
     juce::Rectangle<float> canvasViewportBounds;
     juce::Rectangle<float> btnSnapGrid, btnPreviewKit, btnBringFront, btnSendBack, btnResetLayout;
+    juce::Rectangle<float> btnBlankAddPiece, btnBlankImportFolder, btnBlankImportOra;
+
+    // -- Undo / Redo History Stack -------------------------------------------
+    struct HistorySnapshot
+    {
+        GlorpKitProject project;
+        int selectedPieceIdx = -1;
+        int selectedZoneIdx  = -1;
+        juce::String actionDescription;
+    };
+    std::vector<HistorySnapshot> undoStack;
+    std::vector<HistorySnapshot> redoStack;
+    GlorpKitProject preInteractionProject;
+    bool isCapturingInteraction = false;
 
     // Center-Bottom Panel (Articulation Zones & Velocity/RR Matrix)
     juce::Rectangle<float> matrixPanelBounds;
     juce::Rectangle<float> btnAutoPower, btnImportWavs, btnDeleteZone;
+    juce::Rectangle<float> btnVelDown, pillVelCount, btnVelUp;
+    juce::Rectangle<float> btnRrDown, pillRrCount, btnRrUp;
+    float matrixScrollY = 0.0f;
+    bool isDraggingMatrixHit = false;
+    bool isPotentialMatrixDrag = false;
+    int dragMatrixHitIdx = -1;
+    int dragMatrixSourceVel = -1;
+    int dragMatrixSourceRr = -1;
+    juce::Point<float> dragMatrixMousePos;
+    juce::Point<float> dragMatrixStartPos;
+
     struct ZoneTabHit
     {
         int zoneIndex = -1; // -1 = "+ Add Zone"
