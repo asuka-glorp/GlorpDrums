@@ -69,4 +69,5 @@ jobs:
             build/GlorpDrums_artefacts/Release/VST3/GlorpDrums.vst3
             build/GlorpDrums_artefacts/Release/LV2/GlorpDrums.lv2
             build/GlorpDrums_artefacts/Release/Standalone/GlorpDrums
+            build/GlorpKitEditor_artefacts/Release/GlorpKitEditor
           if-no-files-found: warn

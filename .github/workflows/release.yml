@@ -68,27 +68,55 @@ jobs:
 
       - name: Package
         run: |
-          # Bundle default demo kit into release package structure
-          mkdir -p build/GlorpDrums_artefacts/Release/kits
-          cp -r test/kits/GlorpDemoKit build/GlorpDrums_artefacts/Release/kits/
+          RELEASE_STAGING="build/release_staging"
+          rm -rf "${RELEASE_STAGING}"
+          mkdir -p "${RELEASE_STAGING}/kits"
+          mkdir -p "${RELEASE_STAGING}/VST3"
+          mkdir -p "${RELEASE_STAGING}/LV2"
+          mkdir -p "${RELEASE_STAGING}/Standalone"
+          mkdir -p "${RELEASE_STAGING}/GlorpKit Studio"
 
-          # Also package standalone demo kit archive
-          tar czf build/GlorpDrums_artefacts/Release/GlorpDemoKit.tar.gz -C test/kits GlorpDemoKit
+          # 1. Copy default demo kit (.glorpkit)
+          if [ -f "test/kits/GlorpDemoKit.glorpkit" ]; then
+            cp "test/kits/GlorpDemoKit.glorpkit" "${RELEASE_STAGING}/kits/"
+          fi
+          if [ -d "test/kits/GlorpDemoKit" ]; then
+            cp -r "test/kits/GlorpDemoKit" "${RELEASE_STAGING}/kits/"
+          fi
 
-          cd build/GlorpDrums_artefacts/Release
-          tar czf GlorpDrums-${{ matrix.os }}.tar.gz \
-            VST3/GlorpDrums.vst3 \
-            LV2/GlorpDrums.lv2 \
-            Standalone/GlorpDrums \
-            kits/GlorpDemoKit
+          # 2. Copy compiled plugins and standalone binaries
+          cp -r build/GlorpDrums_artefacts/Release/VST3/GlorpDrums.vst3 "${RELEASE_STAGING}/VST3/"
+          cp -r build/GlorpDrums_artefacts/Release/LV2/GlorpDrums.lv2 "${RELEASE_STAGING}/LV2/"
+          cp build/GlorpDrums_artefacts/Release/Standalone/GlorpDrums "${RELEASE_STAGING}/Standalone/"
+
+          # 3. Copy GlorpKit Editor binary into "GlorpKit Studio"
+          cp build/GlorpKitEditor_artefacts/Release/GlorpKitEditor "${RELEASE_STAGING}/GlorpKit Studio/"
+          chmod +x "${RELEASE_STAGING}/GlorpKit Studio/GlorpKitEditor"
+
+          # 4. Package standalone demo kit archive
+          mkdir -p build/dist
+          if [ -f "test/kits/GlorpDemoKit.glorpkit" ]; then
+            tar czf build/dist/GlorpDemoKit.tar.gz -C test/kits GlorpDemoKit.glorpkit
+          else
+            tar czf build/dist/GlorpDemoKit.tar.gz -C test/kits GlorpDemoKit
+          fi
+
+          # 5. Package main release bundle
+          cd "${RELEASE_STAGING}"
+          tar czf "${GITHUB_WORKSPACE}/build/dist/GlorpDrums-${{ matrix.os }}.tar.gz" \
+            kits \
+            LV2 \
+            VST3 \
+            Standalone \
+            "GlorpKit Studio"
 
       - name: Upload release asset
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ inputs.tag_name || github.ref_name }}
           files: |
-            build/GlorpDrums_artefacts/Release/GlorpDrums-${{ matrix.os }}.tar.gz
-            build/GlorpDrums_artefacts/Release/GlorpDemoKit.tar.gz
+            build/dist/GlorpDrums-${{ matrix.os }}.tar.gz
+            build/dist/GlorpDemoKit.tar.gz
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
