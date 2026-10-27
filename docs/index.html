@@ -299,8 +299,6 @@
             <button onclick="setHeroImage('dark_kit_view.png')" class="underline hover:text-[var(--accent)] cursor-pointer">Dark View</button>
             <span>•</span>
             <button onclick="setHeroImage('screenshot.png')" class="underline hover:text-[var(--accent)] cursor-pointer">Sketch View</button>
-            <span>•</span>
-            <button onclick="setHeroImage('live_phase7_ludwig_12piece_plugin.png')" class="underline hover:text-[var(--accent)] cursor-pointer">12-Piece Ludwig</button>
           </div>
         </div>
       </div>
@@ -333,8 +331,6 @@
 
     <!-- Responsive Embedded Video Frame -->
     <div class="comic-card rounded-2xl p-4 sm:p-6 space-y-4">
-      <div class="video-wrapper rounded-xl">
-        <iframe id="videoIframe" src="https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ" title="GlorpDrums Video Demo" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
       <div class="video-wrapper rounded-xl relative overflow-hidden bg-black flex items-center justify-center">
         <iframe id="videoIframe" src="https://www.youtube-nocookie.com/embed/gszPxE3Zv8Y" title="GlorpDrums Video Demo" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
         <!-- Coming Soon Placeholder (shown for Demo 3) -->
@@ -357,8 +353,6 @@
           <span id="videoTitleLabel" class="font-bold text-base text-[var(--accent)] block">Demo 1: Full Kit Playthrough</span>
           <span id="videoDescLabel" class="text-[var(--ink-soft)]">Live e-kit playing test: multi-zone pad triggers, continuous hi-hat pedal tracking, and choke damping.</span>
         </div>
-        <span class="text-[var(--ink-muted)] sm:text-right shrink-0">1080p 60fps</span>
-        <span id="videoBadgeLabel" class="text-[var(--ink-muted)] sm:text-right shrink-0">1080p 60fps</span>
       </div>
     </div>
   </section>
@@ -527,12 +521,12 @@
         </div>
         <h2 class="font-display text-3xl sm:text-4xl uppercase tracking-wide">Drum Kits (.glorpkit)</h2>
         <p class="text-sm text-[var(--ink-soft)] max-w-2xl">
-          High-fidelity multi-velocity, multi-channel acoustic drum libraries packaged into zero-copy, memory-mapped <code class="font-code text-xs bg-[var(--code-bg)] text-[var(--ink)] px-1 py-0.5 rounded">.glorpkit</code> archives. Simply download and drop into <code class="font-code text-xs bg-[var(--code-bg)] text-[var(--ink)] px-1 py-0.5 rounded">~/.glorpdrums/kits/</code>.
+          High-fidelity multi-velocity, multi-channel acoustic drum libraries packaged into zero-copy, memory-mapped <code class="font-code text-xs bg-[var(--code-bg)] text-[var(--ink)] px-1 py-0.5 rounded">.glorpkit</code> archives. Built using open Creative Commons samples from <a href="https://tchackpoum.com/Eng.html" target="_blank" rel="noopener noreferrer" class="underline hover:text-[var(--accent)] font-bold">ReaperDrummer (Tchackpoum)</a>. Download and drop into <code class="font-code text-xs bg-[var(--code-bg)] text-[var(--ink)] px-1 py-0.5 rounded">~/.glorpdrums/kits/</code>.
         </p>
       </div>
-      <a href="https://github.com/asuka-glorp/GlorpDrums/releases/latest" target="_blank" rel="noopener noreferrer" class="comic-btn px-4 py-2 rounded-xl font-mono text-xs uppercase flex items-center gap-1.5">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-        Releases Hub
+      <a href="https://tchackpoum.com/Eng.html" target="_blank" rel="noopener noreferrer" class="comic-btn-secondary px-4 py-2 rounded-xl font-mono text-xs uppercase flex items-center gap-1.5" title="Visit Tchackpoum / ReaperDrummer Project">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+        Tchackpoum CC Library ↗
       </a>
     </div>
 
@@ -554,7 +548,7 @@
           </div>
 
           <p class="text-sm text-[var(--ink-soft)] leading-relaxed">
-            The reference production kit featured in our live demos. Deep mahogany shells, Ludwig Supraphonic snare, Meinl Byzance cymbals, recorded with calibrated overhead and room bleed matrices for natural acoustic drum space.
+            The reference production kit featured in our live playthroughs. Deep vintage 1970s mahogany shells, Ludwig Supraphonic 400 snare, Paiste &amp; Meinl Byzance cymbals, recorded with calibrated overhead and room bleed matrices for authentic live room acoustics.
           </p>
 
           <div class="grid grid-cols-2 gap-2 text-xs font-mono text-[var(--ink-soft)] bg-[var(--code-bg)]/40 p-3 rounded-xl border border-[var(--border)]/30">
@@ -563,10 +557,14 @@
             <div>• <strong>Robins:</strong> 4 round-robins</div>
             <div>• <strong>Channels:</strong> 6 discrete mics</div>
           </div>
+
+          <p class="text-[11px] font-mono text-[var(--ink-muted)]">
+            Source: <a href="https://tchackpoum.com/Eng.html" target="_blank" rel="noopener noreferrer" class="underline hover:text-[var(--accent)]">ReaperDrummer (Tchackpoum)</a> • Creative Commons (CC-BY-4.0)
+          </p>
         </div>
 
         <div class="space-y-2 pt-2">
-          <a href="https://github.com/asuka-glorp/GlorpDrums/releases/latest" target="_blank" rel="noopener noreferrer" class="comic-btn w-full py-3 rounded-xl font-mono text-sm uppercase flex items-center justify-center gap-2">
+          <a href="https://gofile.io/d/03d4ddbd-1647-4983-9ce5-10a3156ea4e7" target="_blank" rel="noopener noreferrer" class="comic-btn w-full py-3 rounded-xl font-mono text-sm uppercase flex items-center justify-center gap-2">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
             Download Ludwig Cortex (.glorpkit)
           </a>
@@ -574,41 +572,56 @@
         </div>
       </div>
 
-      <!-- Kit 2: Glorp Demo Kit -->
+      <!-- Kit 2: Premier Signia Kit -->
       <div class="comic-card rounded-2xl p-6 sm:p-8 space-y-6 flex flex-col justify-between border-2">
         <div class="space-y-4">
           <div class="flex items-center justify-between">
-            <span class="inline-block px-2.5 py-1 rounded bg-black/10 dark:bg-white/10 text-[var(--ink)] font-mono text-xs font-bold border-2 border-[var(--border)] uppercase">
-              Factory Preset
+            <span class="inline-block px-2.5 py-1 rounded bg-[var(--accent)] text-black font-mono text-xs font-bold border-2 border-[var(--border)] uppercase">
+              Maple Studio Kit
             </span>
-            <span class="font-mono text-xs font-bold text-[var(--ink-muted)]">~850 MB ZIP64</span>
+            <span class="font-mono text-xs font-bold text-[var(--accent)]">~1.5 GB ZIP64</span>
           </div>
 
           <div>
-            <h3 class="font-display text-2xl uppercase">Glorp Demo Studio Kit</h3>
-            <p class="text-xs font-mono text-[var(--ink-muted)]">Standard 5-Piece Rock Kit • Factory Preset</p>
+            <h3 class="font-display text-2xl uppercase">Premier Signia</h3>
+            <p class="text-xs font-mono text-[var(--ink-muted)]">Classic British Maple Kit • Punch &amp; Resonance</p>
           </div>
 
           <p class="text-sm text-[var(--ink-soft)] leading-relaxed">
-            The lightweight factory reference kit designed for immediate low-latency rehearsal and quick tracking. Features punchy maple shells, crisp cymbals, continuous hi-hat positions, and full ReaperDrummer keymap compatibility.
+            Crafted from premium thin undersized maple shells with beech reinforcement rings. Delivers warm singing sustain, explosive tom tone, tight snare crack, and rich cymbal dynamics across multiple velocity layers and round-robin variations.
           </p>
 
           <div class="grid grid-cols-2 gap-2 text-xs font-mono text-[var(--ink-soft)] bg-[var(--code-bg)]/40 p-3 rounded-xl border border-[var(--border)]/30">
-            <div>• <strong>Pieces:</strong> 9 instruments</div>
-            <div>• <strong>Layers:</strong> 8 velocities</div>
-            <div>• <strong>Robins:</strong> 3 round-robins</div>
-            <div>• <strong>Bleed Matrix:</strong> Calibrated</div>
+            <div>• <strong>Shells:</strong> Premier Signia Maple</div>
+            <div>• <strong>Layers:</strong> Multi-velocity articulations</div>
+            <div>• <strong>Robins:</strong> Round-robin variations</div>
+            <div>• <strong>Bleed Matrix:</strong> Studio Overheads &amp; Room</div>
           </div>
+
+          <p class="text-[11px] font-mono text-[var(--ink-muted)]">
+            Source: <a href="https://tchackpoum.com/Eng.html" target="_blank" rel="noopener noreferrer" class="underline hover:text-[var(--accent)]">ReaperDrummer (Tchackpoum)</a> • Creative Commons (CC-BY-4.0)
+          </p>
         </div>
 
         <div class="space-y-2 pt-2">
-          <a href="https://github.com/asuka-glorp/GlorpDrums/releases/latest" target="_blank" rel="noopener noreferrer" class="comic-btn-secondary w-full py-3 rounded-xl font-mono text-sm uppercase flex items-center justify-center gap-2">
+          <a href="https://gofile.io/d/6abb75b4-3941-451f-9209-7f1f2e9ddf6a" target="_blank" rel="noopener noreferrer" class="comic-btn w-full py-3 rounded-xl font-mono text-sm uppercase flex items-center justify-center gap-2">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-            Download Demo Kit (.glorpkit)
+            Download Premier Signia (.glorpkit)
           </a>
-          <p class="text-[11px] font-mono text-[var(--ink-muted)] text-center">Included automatically with the standalone installer</p>
+          <p class="text-[11px] font-mono text-[var(--ink-muted)] text-center">Place in <span class="text-[var(--accent)] font-code">~/.glorpdrums/kits/</span></p>
         </div>
       </div>
+    </div>
+
+    <!-- Attribution Callout Banner -->
+    <div class="comic-card p-4 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-3 text-xs font-mono text-[var(--ink-soft)] bg-[var(--code-bg)]/50 border border-[var(--border)]">
+      <div class="flex items-center gap-2">
+        <span class="text-base">ℹ️</span>
+        <span><strong>Sample Attribution:</strong> Both drum kits are packaged from the acoustic drum sample recordings by <strong>Tchackpoum / ReaperDrummer</strong>, distributed freely under Creative Commons (CC-BY-4.0).</span>
+      </div>
+      <a href="https://tchackpoum.com/Eng.html" target="_blank" rel="noopener noreferrer" class="underline hover:text-[var(--accent)] font-bold shrink-0">
+        Visit Tchackpoum.com ↗
+      </a>
     </div>
   </section>
 
@@ -732,16 +745,15 @@
       </div>
 
       <div class="flex items-center gap-4">
-        <a href="https://github.com/asuka-glorp/GlorpDrums/" target="_blank" rel="noopener noreferrer" class="hover:underline hover:text-[var(--accent)]">GitHub</a>
         <a href="https://github.com/asuka-glorp/GlorpDrums" target="_blank" rel="noopener noreferrer" class="hover:underline hover:text-[var(--accent)]">GitHub</a>
         <span>•</span>
-        <a href="https://github.com/asuka-glorp/GlorpDrums//issues" target="_blank" rel="noopener noreferrer" class="hover:underline hover:text-[var(--accent)]">Issues</a>
         <a href="https://github.com/asuka-glorp/GlorpDrums/releases/latest" target="_blank" rel="noopener noreferrer" class="hover:underline hover:text-[var(--accent)]">Releases</a>
         <span>•</span>
-        <a href="https://drive.google.com/drive/folders/14eSb17o4aXm6neqrlVAfPcXrx5GzndgD?usp=drive_link" target="_blank" rel="noopener noreferrer" class="hover:underline hover:text-[var(--accent)]">Drum Kits Library</a>
         <a href="https://github.com/asuka-glorp/GlorpDrums/issues" target="_blank" rel="noopener noreferrer" class="hover:underline hover:text-[var(--accent)]">Issues</a>
         <span>•</span>
         <a href="#kits" class="hover:underline hover:text-[var(--accent)]">Drum Kits Library</a>
+        <span>•</span>
+        <a href="https://tchackpoum.com/Eng.html" target="_blank" rel="noopener noreferrer" class="hover:underline hover:text-[var(--accent)]">Tchackpoum CC</a>
       </div>
     </div>
   </footer>
@@ -773,23 +785,18 @@
     // =========================================================================
     const DEMO_VIDEOS = [
       {
-        id: "dQw4w9WgXcQ", // Demo 1: Full kit playthrough
         id: "gszPxE3Zv8Y", // Demo 1: Full kit playthrough
         title: "Demo 1: Full Kit Playthrough",
         desc: "Live e-kit playing test: multi-zone pad triggers, continuous hi-hat pedal tracking, and choke damping.",
-        comingSoon: false,
+        comingSoon: false
       },
       {
-        id: "L_LUpnjgPso", // Demo 2: Practice & Setlists
         id: "TuvksPTFmJw", // Demo 2: Practice & Setlists
         title: "Demo 2: Practice & Setlists",
         desc: "Automated tempo detection, backing track scrubbing, and seamless between-song count-ins.",
         comingSoon: false
       },
       {
-        id: "3JZ_D3ELwOQ", // Demo 3: GlorpKit Studio Editor
-        title: "Demo 3: GlorpKit Studio Editor",
-        desc: "OpenRaster (.ora) artwork import, velocity matrix power sorting, and microphone routing.",
         id: null, // Demo 3: GlorpKit Studio Editor (Coming Soon)
         title: "Demo 3: GlorpKit Studio Editor (Coming Soon)",
         desc: "OpenRaster (.ora) artwork import, velocity matrix power sorting, and microphone routing. Full walkthrough coming soon!",
@@ -799,7 +806,6 @@
 
     // Helper: Extracts clean 11-char YouTube ID from either an ID or any YouTube URL
     function parseYouTubeId(input) {
-      if (!input) return "dQw4w9WgXcQ";
       if (!input) return "gszPxE3Zv8Y";
       const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
       const match = String(input).trim().match(regExp);
@@ -808,8 +814,6 @@
 
     function switchVideo(index) {
       const v = DEMO_VIDEOS[index];
-      const videoId = parseYouTubeId(v.id);
-      document.getElementById('videoIframe').src = `https://www.youtube-nocookie.com/embed/${videoId}`;
       const iframe = document.getElementById('videoIframe');
       const placeholder = document.getElementById('videoPlaceholder');
       const badge = document.getElementById('videoBadgeLabel');
