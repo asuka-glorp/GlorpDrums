@@ -776,22 +776,20 @@
         id: "dQw4w9WgXcQ", // Demo 1: Full kit playthrough
         id: "gszPxE3Zv8Y", // Demo 1: Full kit playthrough
         title: "Demo 1: Full Kit Playthrough",
-        desc: "Live e-kit playing test: multi-zone pad triggers, continuous hi-hat pedal tracking, and choke damping."
         desc: "Live e-kit playing test: multi-zone pad triggers, continuous hi-hat pedal tracking, and choke damping.",
-        comingSoon: false
+        comingSoon: false,
       },
       {
         id: "L_LUpnjgPso", // Demo 2: Practice & Setlists
         id: "TuvksPTFmJw", // Demo 2: Practice & Setlists
         title: "Demo 2: Practice & Setlists",
-        desc: "Automated tempo detection, backing track scrubbing, and seamless between-song count-ins."
         desc: "Automated tempo detection, backing track scrubbing, and seamless between-song count-ins.",
         comingSoon: false
       },
       {
         id: "3JZ_D3ELwOQ", // Demo 3: GlorpKit Studio Editor
         title: "Demo 3: GlorpKit Studio Editor",
-        desc: "OpenRaster (.ora) artwork import, velocity matrix power sorting, and microphone routing."
+        desc: "OpenRaster (.ora) artwork import, velocity matrix power sorting, and microphone routing.",
         id: null, // Demo 3: GlorpKit Studio Editor (Coming Soon)
         title: "Demo 3: GlorpKit Studio Editor (Coming Soon)",
         desc: "OpenRaster (.ora) artwork import, velocity matrix power sorting, and microphone routing. Full walkthrough coming soon!",
@@ -912,7 +910,6 @@
     // 1-Click Clipboard Copy with visual confirmation
     function copyBuildCommands() {
       const cmds = "git clone --recurse-submodules https://github.com/asuka-glorp/GlorpDrums/.git\ncd GlorpDrums\ncmake -B build -DCMAKE_BUILD_TYPE=Release\ncmake --build build -j$(nproc)\n./build/verify_fixes && ./build/glorp_core_tests";
-      const cmds = "git clone --recurse-submodules https://github.com/asuka-glorp/GlorpDrums.git\ncd GlorpDrums\ncmake -B build -DCMAKE_BUILD_TYPE=Release\ncmake --build build -j$(nproc)\n./build/verify_fixes && ./build/glorp_core_tests";
       navigator.clipboard.writeText(cmds).then(() => {
         const btn = document.getElementById('copyBtn');
         const origText = btn.innerText;
