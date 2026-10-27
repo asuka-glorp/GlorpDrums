@@ -206,6 +206,7 @@
       <nav class="hidden md:flex items-center gap-6 font-mono text-xs font-bold uppercase">
         <a href="#features" class="hover:text-[var(--accent)] transition-colors">Features</a>
         <a href="#demos" class="hover:text-[var(--accent)] transition-colors">Video Demos</a>
+        <a href="#kits" class="hover:text-[var(--accent)] transition-colors">Drum Kits</a>
         <a href="#studio" class="hover:text-[var(--accent)] transition-colors">GlorpKit Studio</a>
         <a href="#screenshots" class="hover:text-[var(--accent)] transition-colors">Screenshots</a>
         <a href="#installation" class="hover:text-[var(--accent)] transition-colors">Install</a>
@@ -219,8 +220,14 @@
           <span id="themeBtnText" class="hidden sm:inline">Theme</span>
         </button>
 
+        <!-- Download Latest Release Button -->
+        <a href="https://github.com/asuka-glorp/GlorpDrums/releases/latest" target="_blank" rel="noopener noreferrer" class="comic-btn px-3 py-1.5 rounded-lg text-xs font-mono uppercase flex items-center gap-1.5" title="Download Latest Release from GitHub">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+          <span class="hidden sm:inline">Download</span>
+        </a>
+
         <!-- GitHub Repository Button -->
-        <a href="https://github.com/asuka-glorp/GlorpDrums/" target="_blank" rel="noopener noreferrer" class="comic-btn px-3.5 py-1.5 rounded-lg text-xs font-mono uppercase flex items-center gap-1.5">
+        <a href="https://github.com/asuka-glorp/GlorpDrums" target="_blank" rel="noopener noreferrer" class="comic-btn-secondary px-3 py-1.5 rounded-lg text-xs font-mono uppercase flex items-center gap-1.5">
           <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/></svg>
           <span class="hidden sm:inline">GitHub</span>
         </a>
@@ -263,9 +270,15 @@
         <div class="flex flex-wrap gap-3 pt-2">
           <a href="#demos" class="comic-btn px-6 py-3 rounded-xl font-mono text-sm uppercase flex items-center gap-2">
             ▶ Watch Video Demos
+          <a href="https://github.com/asuka-glorp/GlorpDrums/releases/latest" target="_blank" rel="noopener noreferrer" class="comic-btn px-6 py-3 rounded-xl font-mono text-sm uppercase flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+            Download Latest Release
           </a>
-          <a href="https://drive.google.com/drive/folders/14eSb17o4aXm6neqrlVAfPcXrx5GzndgD?usp=drive_link" target="_blank" rel="noopener noreferrer" class="comic-btn-secondary px-5 py-3 rounded-xl font-mono text-sm uppercase flex items-center gap-2">
-            🥁 Download Drum Kits
+          <a href="#kits" class="comic-btn-secondary px-5 py-3 rounded-xl font-mono text-sm uppercase flex items-center gap-2">
+            🥁 Drum Kits (.glorpkit)
+          </a>
+          <a href="#demos" class="comic-btn-secondary px-5 py-3 rounded-xl font-mono text-sm uppercase flex items-center gap-2">
+            ▶ Watch Demos
           </a>
           <a href="#installation" class="comic-btn-secondary px-5 py-3 rounded-xl font-mono text-sm uppercase">
             Build from Source
@@ -313,7 +326,7 @@
           2. Practice &amp; Setlists
         </button>
         <button id="tabDemo2" onclick="switchVideo(2)" class="comic-btn-secondary px-3 py-1.5 rounded-lg uppercase">
-          3. GlorpKit Studio Editor
+          3. GlorpKit Studio (Coming Soon)
         </button>
       </div>
     </div>
@@ -322,6 +335,21 @@
     <div class="comic-card rounded-2xl p-4 sm:p-6 space-y-4">
       <div class="video-wrapper rounded-xl">
         <iframe id="videoIframe" src="https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ" title="GlorpDrums Video Demo" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+      <div class="video-wrapper rounded-xl relative overflow-hidden bg-black flex items-center justify-center">
+        <iframe id="videoIframe" src="https://www.youtube-nocookie.com/embed/gszPxE3Zv8Y" title="GlorpDrums Video Demo" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+        <!-- Coming Soon Placeholder (shown for Demo 3) -->
+        <div id="videoPlaceholder" class="absolute inset-0 hidden flex flex-col items-center justify-center text-center p-6 bg-[#16171a] border-4 border-dashed border-[var(--border)]">
+          <div class="w-16 h-16 rounded-2xl bg-[var(--accent)] text-black flex items-center justify-center text-3xl font-black mb-3 shadow-[4px_4px_0_0_#000]">
+            🎬
+          </div>
+          <span class="inline-block px-3 py-1 rounded bg-[var(--accent)] text-black font-mono text-xs font-bold border-2 border-[var(--border)] mb-2 uppercase">
+            Coming Soon
+          </span>
+          <h3 class="font-display text-2xl sm:text-3xl uppercase tracking-wider text-white">GlorpKit Studio Video In Production</h3>
+          <p class="text-xs sm:text-sm font-mono text-[var(--ink-muted)] max-w-md mt-2 leading-relaxed">
+            A comprehensive workflow walkthrough demonstrating OpenRaster (.ora) multi-layer artwork import, interactive velocity matrix sorting, and ZIP64 kit packaging will be published soon.
+          </p>
+        </div>
       </div>
 
       <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 font-mono text-xs pt-1">
@@ -330,6 +358,7 @@
           <span id="videoDescLabel" class="text-[var(--ink-soft)]">Live e-kit playing test: multi-zone pad triggers, continuous hi-hat pedal tracking, and choke damping.</span>
         </div>
         <span class="text-[var(--ink-muted)] sm:text-right shrink-0">1080p 60fps</span>
+        <span id="videoBadgeLabel" class="text-[var(--ink-muted)] sm:text-right shrink-0">1080p 60fps</span>
       </div>
     </div>
   </section>
@@ -488,6 +517,102 @@
   </section>
 
   <!-- ========================================================================= -->
+  <!-- SECTION: DRUM KITS LIBRARY (.glorpkit)                                    -->
+  <!-- ========================================================================= -->
+  <section id="kits" class="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 py-12 border-t-[3px] border-[var(--border)] space-y-8">
+    <div class="flex flex-wrap items-end justify-between gap-4">
+      <div class="space-y-2">
+        <div class="inline-block px-2.5 py-1 rounded bg-[var(--accent)] text-black font-mono text-xs font-bold border-2 border-[var(--border)] uppercase">
+          Sample Library
+        </div>
+        <h2 class="font-display text-3xl sm:text-4xl uppercase tracking-wide">Drum Kits (.glorpkit)</h2>
+        <p class="text-sm text-[var(--ink-soft)] max-w-2xl">
+          High-fidelity multi-velocity, multi-channel acoustic drum libraries packaged into zero-copy, memory-mapped <code class="font-code text-xs bg-[var(--code-bg)] text-[var(--ink)] px-1 py-0.5 rounded">.glorpkit</code> archives. Simply download and drop into <code class="font-code text-xs bg-[var(--code-bg)] text-[var(--ink)] px-1 py-0.5 rounded">~/.glorpdrums/kits/</code>.
+        </p>
+      </div>
+      <a href="https://github.com/asuka-glorp/GlorpDrums/releases/latest" target="_blank" rel="noopener noreferrer" class="comic-btn px-4 py-2 rounded-xl font-mono text-xs uppercase flex items-center gap-1.5">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+        Releases Hub
+      </a>
+    </div>
+
+    <!-- Kits Cards Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <!-- Kit 1: Ludwig Black Cortex Flagship Kit -->
+      <div class="comic-card rounded-2xl p-6 sm:p-8 space-y-6 flex flex-col justify-between border-2">
+        <div class="space-y-4">
+          <div class="flex items-center justify-between">
+            <span class="inline-block px-2.5 py-1 rounded bg-[var(--accent)] text-black font-mono text-xs font-bold border-2 border-[var(--border)] uppercase">
+              Flagship Kit
+            </span>
+            <span class="font-mono text-xs font-bold text-[var(--accent)]">~1.6 GB ZIP64</span>
+          </div>
+
+          <div>
+            <h3 class="font-display text-2xl uppercase">Ludwig Black Cortex</h3>
+            <p class="text-xs font-mono text-[var(--ink-muted)]">12-Piece Acoustic Kit • Direct &amp; Overhead Bleed</p>
+          </div>
+
+          <p class="text-sm text-[var(--ink-soft)] leading-relaxed">
+            The reference production kit featured in our live demos. Deep mahogany shells, Ludwig Supraphonic snare, Meinl Byzance cymbals, recorded with calibrated overhead and room bleed matrices for natural acoustic drum space.
+          </p>
+
+          <div class="grid grid-cols-2 gap-2 text-xs font-mono text-[var(--ink-soft)] bg-[var(--code-bg)]/40 p-3 rounded-xl border border-[var(--border)]/30">
+            <div>• <strong>Pieces:</strong> 12 instruments</div>
+            <div>• <strong>Layers:</strong> Up to 13 velocities</div>
+            <div>• <strong>Robins:</strong> 4 round-robins</div>
+            <div>• <strong>Channels:</strong> 6 discrete mics</div>
+          </div>
+        </div>
+
+        <div class="space-y-2 pt-2">
+          <a href="https://github.com/asuka-glorp/GlorpDrums/releases/latest" target="_blank" rel="noopener noreferrer" class="comic-btn w-full py-3 rounded-xl font-mono text-sm uppercase flex items-center justify-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+            Download Ludwig Cortex (.glorpkit)
+          </a>
+          <p class="text-[11px] font-mono text-[var(--ink-muted)] text-center">Place in <span class="text-[var(--accent)] font-code">~/.glorpdrums/kits/</span></p>
+        </div>
+      </div>
+
+      <!-- Kit 2: Glorp Demo Kit -->
+      <div class="comic-card rounded-2xl p-6 sm:p-8 space-y-6 flex flex-col justify-between border-2">
+        <div class="space-y-4">
+          <div class="flex items-center justify-between">
+            <span class="inline-block px-2.5 py-1 rounded bg-black/10 dark:bg-white/10 text-[var(--ink)] font-mono text-xs font-bold border-2 border-[var(--border)] uppercase">
+              Factory Preset
+            </span>
+            <span class="font-mono text-xs font-bold text-[var(--ink-muted)]">~850 MB ZIP64</span>
+          </div>
+
+          <div>
+            <h3 class="font-display text-2xl uppercase">Glorp Demo Studio Kit</h3>
+            <p class="text-xs font-mono text-[var(--ink-muted)]">Standard 5-Piece Rock Kit • Factory Preset</p>
+          </div>
+
+          <p class="text-sm text-[var(--ink-soft)] leading-relaxed">
+            The lightweight factory reference kit designed for immediate low-latency rehearsal and quick tracking. Features punchy maple shells, crisp cymbals, continuous hi-hat positions, and full ReaperDrummer keymap compatibility.
+          </p>
+
+          <div class="grid grid-cols-2 gap-2 text-xs font-mono text-[var(--ink-soft)] bg-[var(--code-bg)]/40 p-3 rounded-xl border border-[var(--border)]/30">
+            <div>• <strong>Pieces:</strong> 9 instruments</div>
+            <div>• <strong>Layers:</strong> 8 velocities</div>
+            <div>• <strong>Robins:</strong> 3 round-robins</div>
+            <div>• <strong>Bleed Matrix:</strong> Calibrated</div>
+          </div>
+        </div>
+
+        <div class="space-y-2 pt-2">
+          <a href="https://github.com/asuka-glorp/GlorpDrums/releases/latest" target="_blank" rel="noopener noreferrer" class="comic-btn-secondary w-full py-3 rounded-xl font-mono text-sm uppercase flex items-center justify-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+            Download Demo Kit (.glorpkit)
+          </a>
+          <p class="text-[11px] font-mono text-[var(--ink-muted)] text-center">Included automatically with the standalone installer</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================================================================= -->
   <!-- SECTION: SCREENSHOT GALLERY                                               -->
   <!-- ========================================================================= -->
   <section id="screenshots" class="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 py-12 border-t-[3px] border-[var(--border)] space-y-6">
@@ -569,6 +694,7 @@
         <div class="font-mono text-xs text-[#00d2ff] space-y-2 overflow-x-auto">
           <p class="text-white/40"># 1. Clone repository with submodules (JUCE)</p>
           <p class="text-white">git clone --recurse-submodules https://github.com/asuka-glorp/GlorpDrums/.git</p>
+          <p class="text-white">git clone --recurse-submodules https://github.com/asuka-glorp/GlorpDrums.git</p>
           <p class="text-white">cd GlorpDrums</p>
           <p class="text-white/40 pt-1"># 2. Configure release build with CMake</p>
           <p class="text-white">cmake -B build -DCMAKE_BUILD_TYPE=Release</p>
@@ -607,10 +733,15 @@
 
       <div class="flex items-center gap-4">
         <a href="https://github.com/asuka-glorp/GlorpDrums/" target="_blank" rel="noopener noreferrer" class="hover:underline hover:text-[var(--accent)]">GitHub</a>
+        <a href="https://github.com/asuka-glorp/GlorpDrums" target="_blank" rel="noopener noreferrer" class="hover:underline hover:text-[var(--accent)]">GitHub</a>
         <span>•</span>
         <a href="https://github.com/asuka-glorp/GlorpDrums//issues" target="_blank" rel="noopener noreferrer" class="hover:underline hover:text-[var(--accent)]">Issues</a>
+        <a href="https://github.com/asuka-glorp/GlorpDrums/releases/latest" target="_blank" rel="noopener noreferrer" class="hover:underline hover:text-[var(--accent)]">Releases</a>
         <span>•</span>
         <a href="https://drive.google.com/drive/folders/14eSb17o4aXm6neqrlVAfPcXrx5GzndgD?usp=drive_link" target="_blank" rel="noopener noreferrer" class="hover:underline hover:text-[var(--accent)]">Drum Kits Library</a>
+        <a href="https://github.com/asuka-glorp/GlorpDrums/issues" target="_blank" rel="noopener noreferrer" class="hover:underline hover:text-[var(--accent)]">Issues</a>
+        <span>•</span>
+        <a href="#kits" class="hover:underline hover:text-[var(--accent)]">Drum Kits Library</a>
       </div>
     </div>
   </footer>
@@ -643,24 +774,35 @@
     const DEMO_VIDEOS = [
       {
         id: "dQw4w9WgXcQ", // Demo 1: Full kit playthrough
+        id: "gszPxE3Zv8Y", // Demo 1: Full kit playthrough
         title: "Demo 1: Full Kit Playthrough",
         desc: "Live e-kit playing test: multi-zone pad triggers, continuous hi-hat pedal tracking, and choke damping."
+        desc: "Live e-kit playing test: multi-zone pad triggers, continuous hi-hat pedal tracking, and choke damping.",
+        comingSoon: false
       },
       {
         id: "L_LUpnjgPso", // Demo 2: Practice & Setlists
+        id: "TuvksPTFmJw", // Demo 2: Practice & Setlists
         title: "Demo 2: Practice & Setlists",
         desc: "Automated tempo detection, backing track scrubbing, and seamless between-song count-ins."
+        desc: "Automated tempo detection, backing track scrubbing, and seamless between-song count-ins.",
+        comingSoon: false
       },
       {
         id: "3JZ_D3ELwOQ", // Demo 3: GlorpKit Studio Editor
         title: "Demo 3: GlorpKit Studio Editor",
         desc: "OpenRaster (.ora) artwork import, velocity matrix power sorting, and microphone routing."
+        id: null, // Demo 3: GlorpKit Studio Editor (Coming Soon)
+        title: "Demo 3: GlorpKit Studio Editor (Coming Soon)",
+        desc: "OpenRaster (.ora) artwork import, velocity matrix power sorting, and microphone routing. Full walkthrough coming soon!",
+        comingSoon: true
       }
     ];
 
     // Helper: Extracts clean 11-char YouTube ID from either an ID or any YouTube URL
     function parseYouTubeId(input) {
       if (!input) return "dQw4w9WgXcQ";
+      if (!input) return "gszPxE3Zv8Y";
       const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
       const match = String(input).trim().match(regExp);
       return (match && match[2].length === 11) ? match[2] : String(input).trim();
@@ -670,6 +812,22 @@
       const v = DEMO_VIDEOS[index];
       const videoId = parseYouTubeId(v.id);
       document.getElementById('videoIframe').src = `https://www.youtube-nocookie.com/embed/${videoId}`;
+      const iframe = document.getElementById('videoIframe');
+      const placeholder = document.getElementById('videoPlaceholder');
+      const badge = document.getElementById('videoBadgeLabel');
+
+      if (v.comingSoon) {
+        iframe.classList.add('hidden');
+        placeholder.classList.remove('hidden');
+        if (badge) badge.innerText = "Coming Soon";
+      } else {
+        const videoId = parseYouTubeId(v.id);
+        iframe.src = `https://www.youtube-nocookie.com/embed/${videoId}`;
+        iframe.classList.remove('hidden');
+        placeholder.classList.add('hidden');
+        if (badge) badge.innerText = "1080p 60fps";
+      }
+
       document.getElementById('videoTitleLabel').innerText = v.title;
       document.getElementById('videoDescLabel').innerText = v.desc;
 
@@ -754,6 +912,7 @@
     // 1-Click Clipboard Copy with visual confirmation
     function copyBuildCommands() {
       const cmds = "git clone --recurse-submodules https://github.com/asuka-glorp/GlorpDrums/.git\ncd GlorpDrums\ncmake -B build -DCMAKE_BUILD_TYPE=Release\ncmake --build build -j$(nproc)\n./build/verify_fixes && ./build/glorp_core_tests";
+      const cmds = "git clone --recurse-submodules https://github.com/asuka-glorp/GlorpDrums.git\ncd GlorpDrums\ncmake -B build -DCMAKE_BUILD_TYPE=Release\ncmake --build build -j$(nproc)\n./build/verify_fixes && ./build/glorp_core_tests";
       navigator.clipboard.writeText(cmds).then(() => {
         const btn = document.getElementById('copyBtn');
         const origText = btn.innerText;
