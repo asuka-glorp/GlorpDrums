@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GlorpDrums — Open-Source Acoustic Drum Sampler</title>
+  <meta name="description" content="A sample-based acoustic drum plugin and standalone workstation built with JUCE and C++20 for Linux. Zero-copy mmap playback, multi-zone articulations, continuous e-drum tracking, 16-bus multi-out bleed matrix, and rehearsal suite.">
+  <link rel="icon" type="image/svg+xml" href="logo.svg">
+  <link rel="alternate icon" type="image/png" href="logo.png">
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="GlorpDrums — Open-Source Acoustic Drum Sampler">
+  <meta property="og:description" content="Sample-based acoustic drum plugin (VST3, LV2, Standalone) built with JUCE and modern C++20.">
+  <meta property="og:image" content="logo.png">
+  <meta property="og:type" content="website">
+
+  <!-- Tailwind CSS -->
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+
+  <!-- Google Fonts: Lilita One (Headings), Patrick Hand (Comic Subtitles), Space Mono (Code/Specs), Inter (Body) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Patrick+Hand&family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    /* =======================================================================
+       THEME VARIABLES: Authentic Glorp Sketch & Dark Themes
+       Matched directly to src/ui/Theme.h
+       ======================================================================= */
+    :root {
+      --bg: #e2e5e2;              /* Warm comic sketch paper background */
+      --paper: #fcfdfc;           /* Clean card panel paper */
+      --ink: #101114;             /* Solid dark ink */
+      --ink-soft: #4b4e54;        /* Charcoal secondary ink */
+      --ink-muted: #6c7078;       /* Muted annotation ink */
+      --border: #101114;          /* Dark comic ink outline */
+      --shadow: #101114;          /* Solid black comic offset shadow */
+      --accent: #ea8c16;          /* Signature warm amber orange */
+      --accent-hover: #ff9b26;    /* Bright active orange */
+      --code-bg: #ede8dc;         /* Recessed trough parchment */
+      --card-bg: #fcfdfc;
+      --card-hover: #ffffff;
+      --header-bg: rgba(252, 253, 252, 0.94);
+      --badge-bg: #ffffff;
+    }
+
+    .dark {
+      --bg: #141517;              /* Deep dark studio slate */
+      --paper: #1c1d21;           /* Dark panel */
+      --ink: #f4f5f6;             /* Crisp white ink */
+      --ink-soft: #b8bcc4;        /* Soft silver ink */
+      --ink-muted: #828792;       /* Dim charcoal annotation */
+      --border: #ffffff;          /* Pure white ink sketchy border */
+      --shadow: #000000;          /* Deep pitch-black drop shadow */
+      --accent: #ea8c16;          /* Vibrant orange highlight */
+      --accent-hover: #ff9b26;
+      --code-bg: #121316;         /* Dark recessed well */
+      --card-bg: #1c1d21;
+      --card-hover: #252830;
+      --header-bg: rgba(28, 29, 33, 0.94);
+      --badge-bg: #22252c;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--ink);
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      transition: background-color 0.15s ease, color 0.15s ease;
+    }
+
+    .font-display { font-family: 'Lilita One', Impact, sans-serif; }
+    .font-hand { font-family: 'Patrick Hand', 'Comic Sans MS', cursive, sans-serif; }
+    .font-code { font-family: 'Space Mono', monospace; }
+
+    /* Halftone dot pattern overlay */
+    .halftone-bg {
+      background-image: radial-gradient(currentColor 1.2px, transparent 1.2px);
+      background-size: 20px 20px;
+      opacity: 0.055;
+    }
+
+    /* Comic sketch borders & tactile offset shadows */
+    .comic-card {
+      background: var(--paper);
+      border: 3px solid var(--border);
+      box-shadow: 5px 5px 0px var(--shadow);
+      transition: all 0.15s ease-in-out;
+    }
+
+    .comic-btn {
+      background: var(--accent);
+      color: #101114;
+      border: 2.5px solid var(--border);
+      box-shadow: 4px 4px 0px var(--shadow);
+      font-weight: 700;
+      transition: all 0.12s ease-in-out;
+      cursor: pointer;
+    }
+    .comic-btn:hover {
+      background: var(--accent-hover);
+      transform: translate(-2px, -2px);
+      box-shadow: 6px 6px 0px var(--shadow);
+    }
+    .comic-btn:active {
+      transform: translate(2px, 2px);
+      box-shadow: 2px 2px 0px var(--shadow);
+    }
+
+    .comic-btn-secondary {
+      background: var(--paper);
+      color: var(--ink);
+      border: 2.5px solid var(--border);
+      box-shadow: 4px 4px 0px var(--shadow);
+      font-weight: 700;
+      transition: all 0.12s ease-in-out;
+      cursor: pointer;
+    }
+    .comic-btn-secondary:hover {
+      background: var(--card-hover);
+      color: var(--accent);
+      border-color: var(--accent);
+      transform: translate(-2px, -2px);
+      box-shadow: 6px 6px 0px var(--shadow);
+    }
+    .comic-btn-secondary:active {
+      transform: translate(2px, 2px);
+      box-shadow: 2px 2px 0px var(--shadow);
+    }
+
+    .comic-frame {
+      border: 3px solid var(--border);
+      box-shadow: 5px 5px 0px var(--shadow);
+      transition: all 0.15s ease-in-out;
+    }
+
+    /* Logo color inversion for dark mode: black vector path turns pure white */
+    .dark .logo-filter {
+      filter: invert(1) brightness(1.2);
+    }
+
+    /* 16:9 Responsive Video Aspect Ratio Container */
+    .video-wrapper {
+      position: relative;
+      padding-bottom: 56.25%; /* 16:9 */
+      height: 0;
+      overflow: hidden;
+      border: 3px solid var(--border);
+      box-shadow: 5px 5px 0px var(--shadow);
+      background: #000;
+    }
+    .video-wrapper iframe {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      border: 0;
+    }
+
+    /* Custom scrollbars */
+    ::-webkit-scrollbar {
+      width: 10px;
+      height: 10px;
+    }
+    ::-webkit-scrollbar-track {
+      background: var(--bg);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 4px;
+    }
+  </style>
+
+  <!-- Anti-FOUC Theme Initialization -->
+  <script>
+    (function() {
+      try {
+        const saved = localStorage.getItem('glorp-theme');
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        if (saved === 'dark' || (!saved && prefersDark)) {
+          document.documentElement.classList.add('dark');
+        } else {
+          document.documentElement.classList.remove('dark');
+        }
+      } catch(e) {}
+    })();
+  </script>
+</head>
+<body id="pageBody" class="min-h-screen relative flex flex-col">
+
+  <!-- Background Halftone Overlay -->
+  <div class="fixed inset-0 halftone-bg pointer-events-none text-current z-0"></div>
+
+  <!-- ========================================================================= -->
+  <!-- STICKY NAVBAR                                                             -->
+  <!-- ========================================================================= -->
+  <header class="sticky top-0 z-40 bg-[var(--header-bg)] backdrop-blur-md border-b-[3px] border-[var(--border)] transition-colors">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
+      <!-- Logo + Brand Name -->
+      <a href="#" class="flex items-center gap-3 group">
+        <img src="logo.svg" alt="GlorpDrums Logo" class="w-10 h-10 object-contain logo-filter transition-transform group-hover:scale-105">
+        <span class="font-display text-2xl tracking-wide uppercase">GlorpDrums</span>
+      </a>
+
+      <!-- Navigation Links -->
+      <nav class="hidden md:flex items-center gap-6 font-mono text-xs font-bold uppercase">
+        <a href="#features" class="hover:text-[var(--accent)] transition-colors">Features</a>
+        <a href="#demos" class="hover:text-[var(--accent)] transition-colors">Video Demos</a>
+        <a href="#studio" class="hover:text-[var(--accent)] transition-colors">GlorpKit Studio</a>
+        <a href="#screenshots" class="hover:text-[var(--accent)] transition-colors">Screenshots</a>
+        <a href="#installation" class="hover:text-[var(--accent)] transition-colors">Install</a>
+      </nav>
+
+      <!-- Right CTAs & Theme Toggle -->
+      <div class="flex items-center gap-3">
+        <!-- Theme Toggle Button -->
+        <button onclick="toggleTheme()" class="comic-btn-secondary px-3 py-1.5 rounded-lg text-xs font-mono flex items-center gap-1.5" title="Toggle Theme (Light Sketch / Dark)">
+          <span id="themeBtnIcon">🌙</span>
+          <span id="themeBtnText" class="hidden sm:inline">Theme</span>
+        </button>
+
+        <!-- GitHub Repository Button -->
+        <a href="https://github.com/asuka-glorp/GlorpDrums/" target="_blank" rel="noopener noreferrer" class="comic-btn px-3.5 py-1.5 rounded-lg text-xs font-mono uppercase flex items-center gap-1.5">
+          <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/></svg>
+          <span class="hidden sm:inline">GitHub</span>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- ========================================================================= -->
+  <!-- HERO SECTION                                                              -->
+  <!-- ========================================================================= -->
+  <section class="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 pt-12 pb-14 space-y-8">
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+      <!-- Left: Logo & Headline Description -->
+      <div class="lg:col-span-7 space-y-5">
+        <div class="flex items-center gap-3">
+          <img src="logo.svg" alt="GlorpDrums Logo" class="w-16 h-16 sm:w-20 sm:h-20 object-contain logo-filter">
+          <div>
+            <div class="inline-block px-2.5 py-0.5 rounded bg-[var(--accent)] text-black font-mono text-xs font-bold border-2 border-[var(--border)] mb-1">
+              OPEN-SOURCE ACOUSTIC DRUM ENGINE
+            </div>
+            <h1 class="font-display text-4xl sm:text-6xl tracking-wide uppercase leading-none">
+              GlorpDrums
+            </h1>
+          </div>
+        </div>
+
+        <p class="text-base sm:text-lg text-[var(--ink-soft)] leading-relaxed">
+          A sample-based acoustic drum plugin and standalone workstation built with JUCE and modern C++20 for Linux musicians. Designed with zero-copy sample playback, multi-zone articulations, continuous e-drum calibration, acoustic crosstalk bleed, and an integrated rehearsal suite.
+        </p>
+
+        <!-- Feature Badges -->
+        <div class="flex flex-wrap gap-2 font-mono text-xs">
+          <span class="comic-card px-3 py-1 rounded-md text-[var(--ink)]">C++20 &amp; JUCE 8</span>
+          <span class="comic-card px-3 py-1 rounded-md text-[var(--ink)]">VST3 / LV2 / Standalone</span>
+          <span class="comic-card px-3 py-1 rounded-md text-[var(--ink)]">16 Stereo DAW Buses</span>
+          <span class="comic-card px-3 py-1 rounded-md text-[var(--ink)]">Zero-Copy Memory Mapped (.glorpkit)</span>
+        </div>
+
+        <!-- Action CTAs -->
+        <div class="flex flex-wrap gap-3 pt-2">
+          <a href="#demos" class="comic-btn px-6 py-3 rounded-xl font-mono text-sm uppercase flex items-center gap-2">
+            ▶ Watch Video Demos
+          </a>
+          <a href="https://drive.google.com/drive/folders/14eSb17o4aXm6neqrlVAfPcXrx5GzndgD?usp=drive_link" target="_blank" rel="noopener noreferrer" class="comic-btn-secondary px-5 py-3 rounded-xl font-mono text-sm uppercase flex items-center gap-2">
+            🥁 Download Drum Kits
+          </a>
+          <a href="#installation" class="comic-btn-secondary px-5 py-3 rounded-xl font-mono text-sm uppercase">
+            Build from Source
+          </a>
+        </div>
+      </div>
+
+      <!-- Right: Main Showcase Image Frame -->
+      <div class="lg:col-span-5 space-y-2">
+        <div class="comic-frame rounded-2xl overflow-hidden bg-black relative group cursor-pointer" onclick="openLightbox(document.getElementById('heroImage').src, 'GlorpDrums Interface View')">
+          <img id="heroImage" src="dark_kit_view.png" alt="GlorpDrums Kit View" class="w-full h-auto object-cover group-hover:scale-102 transition-transform">
+        </div>
+
+        <!-- View Switcher Tabs -->
+        <div class="flex items-center justify-between text-xs font-mono text-[var(--ink-muted)] px-1">
+          <span>Interface Preview:</span>
+          <div class="flex items-center gap-2 font-bold">
+            <button onclick="setHeroImage('dark_kit_view.png')" class="underline hover:text-[var(--accent)] cursor-pointer">Dark View</button>
+            <span>•</span>
+            <button onclick="setHeroImage('screenshot.png')" class="underline hover:text-[var(--accent)] cursor-pointer">Sketch View</button>
+            <span>•</span>
+            <button onclick="setHeroImage('live_phase7_ludwig_12piece_plugin.png')" class="underline hover:text-[var(--accent)] cursor-pointer">12-Piece Ludwig</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================================================================= -->
+  <!-- SECTION: EMBEDDED YOUTUBE VIDEO DEMOS                                     -->
+  <!-- ========================================================================= -->
+  <section id="demos" class="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 py-12 border-t-[3px] border-[var(--border)] space-y-6">
+    <div class="flex flex-wrap items-center justify-between gap-4">
+      <div>
+        <h2 class="font-display text-3xl sm:text-4xl uppercase tracking-wide">Video Demonstrations</h2>
+        <p class="text-sm text-[var(--ink-soft)]">Live playthroughs, rehearsal workflows, and custom drumkit design.</p>
+      </div>
+
+      <!-- Demo Video Selector Tabs -->
+      <div class="flex flex-wrap gap-2 font-mono text-xs">
+        <button id="tabDemo0" onclick="switchVideo(0)" class="comic-btn px-3 py-1.5 rounded-lg uppercase">
+          1. Full Kit Demo
+        </button>
+        <button id="tabDemo1" onclick="switchVideo(1)" class="comic-btn-secondary px-3 py-1.5 rounded-lg uppercase">
+          2. Practice &amp; Setlists
+        </button>
+        <button id="tabDemo2" onclick="switchVideo(2)" class="comic-btn-secondary px-3 py-1.5 rounded-lg uppercase">
+          3. GlorpKit Studio Editor
+        </button>
+      </div>
+    </div>
+
+    <!-- Responsive Embedded Video Frame -->
+    <div class="comic-card rounded-2xl p-4 sm:p-6 space-y-4">
+      <div class="video-wrapper rounded-xl">
+        <iframe id="videoIframe" src="https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ" title="GlorpDrums Video Demo" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+      </div>
+
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 font-mono text-xs pt-1">
+        <div>
+          <span id="videoTitleLabel" class="font-bold text-base text-[var(--accent)] block">Demo 1: Full Kit Playthrough</span>
+          <span id="videoDescLabel" class="text-[var(--ink-soft)]">Live e-kit playing test: multi-zone pad triggers, continuous hi-hat pedal tracking, and choke damping.</span>
+        </div>
+        <span class="text-[var(--ink-muted)] sm:text-right shrink-0">1080p 60fps</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================================================================= -->
+  <!-- SECTION: CORE FEATURE MODULES                                             -->
+  <!-- ========================================================================= -->
+  <section id="features" class="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 py-12 border-t-[3px] border-[var(--border)] space-y-10">
+    <div class="space-y-2">
+      <h2 class="font-display text-3xl sm:text-4xl uppercase tracking-wide">Core Features &amp; Capabilities</h2>
+      <p class="text-sm text-[var(--ink-soft)]">A breakdown of the sound engine, mixer console, practice deck, and authoring tools.</p>
+    </div>
+
+    <!-- Feature Row 1: Native GlorpKit Format & Acoustic Multi-Zone Engine -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div class="comic-card rounded-2xl p-6 sm:p-8 space-y-4 flex flex-col justify-between">
+        <div class="space-y-3">
+          <div class="inline-block px-2.5 py-1 rounded bg-[var(--accent)] text-black font-mono text-xs font-bold border-2 border-[var(--border)]">
+            ARCHIVE ENGINE
+          </div>
+          <h3 class="font-display text-2xl uppercase">Native GlorpKit Format (.glorpkit)</h3>
+          <p class="text-sm text-[var(--ink-soft)] leading-relaxed">
+            Eliminates sprawling directories of thousands of loose audio files by packaging complete drum kits into a standardized ZIP64 archive. Samples are streamed directly from disk via zero-copy memory mapping (<code class="font-code text-xs bg-[var(--code-bg)] text-[var(--ink)] px-1 py-0.5 rounded">mmap</code>) without extracting to temporary files.
+          </p>
+          <ul class="list-disc list-inside text-xs sm:text-sm text-[var(--ink-soft)] space-y-1 pl-1">
+            <li>Zero extraction overhead: instantaneous kit loading</li>
+            <li>ZIP64 support for massive multi-gigabyte libraries</li>
+            <li>Backward compatibility with legacy DrumGizmo XML setups</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="comic-card rounded-2xl p-6 sm:p-8 space-y-4 flex flex-col justify-between">
+        <div class="space-y-3">
+          <div class="inline-block px-2.5 py-1 rounded bg-[var(--accent)] text-black font-mono text-xs font-bold border-2 border-[var(--border)]">
+            EXPRESSION &amp; CALIBRATION
+          </div>
+          <h3 class="font-display text-2xl uppercase">Multi-Zone &amp; E-Drum Calibration</h3>
+          <p class="text-sm text-[var(--ink-soft)] leading-relaxed">
+            Tailored for electronic drum kit responsiveness with smooth continuous hi-hat pedal tracking across CC#4 (equal-power crossfading between Closed, Semi-Open, Open, and Splash), 15ms anti-click cymbal choke damping, and customizable velocity response curves.
+          </p>
+          <ul class="list-disc list-inside text-xs sm:text-sm text-[var(--ink-soft)] space-y-1 pl-1">
+            <li>Snare Head, Rimshot, RimClick, and Muffled articulations</li>
+            <li>Dynamic foot chick &amp; rapid stomp-and-release splash gestures</li>
+            <li>Linear, Logarithmic, Exponential, and S-Curve response presets</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Feature Row 2: Mixer, Multi-Out & Bleed Matrix (With Visual Image) -->
+    <div class="comic-card rounded-2xl p-6 sm:p-8 space-y-6">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+        <div class="lg:col-span-5 space-y-4">
+          <div class="inline-block px-2.5 py-1 rounded bg-[var(--accent)] text-black font-mono text-xs font-bold border-2 border-[var(--border)]">
+            MIXING CONSOLE
+          </div>
+          <h3 class="font-display text-3xl uppercase">16-Bus Multi-Out &amp; Bleed Matrix</h3>
+          <p class="text-sm text-[var(--ink-soft)] leading-relaxed">
+            Route individual kit pieces or microphone groups across 16 discrete stereo DAW stem pairs (<code class="font-code text-xs bg-[var(--code-bg)] text-[var(--ink)] px-1 py-0.5 rounded">Out 1/2</code> through <code class="font-code text-xs bg-[var(--code-bg)] text-[var(--ink)] px-1 py-0.5 rounded">Out 31/32</code>) for multitrack mixing in Reaper, Ardour, or Bitwig.
+          </p>
+          <ul class="list-disc list-inside text-xs sm:text-sm text-[var(--ink-soft)] space-y-1 pl-1">
+            <li><strong>Acoustic Bleed Matrix:</strong> Simulates natural room crosstalk between instruments with delay compensation.</li>
+            <li><strong>Per-Channel DSP FX:</strong> Inline 3-band parametric EQ, VCA drum compressor, tape/tube saturation, and dual-envelope transient shaper.</li>
+            <li><strong>Stereo Fold-Down:</strong> Automatically protects aux-routed voices on standard 2-channel stereo tracks.</li>
+          </ul>
+        </div>
+
+        <div class="lg:col-span-7 grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div class="space-y-1.5">
+            <div class="comic-frame rounded-xl overflow-hidden bg-black cursor-pointer group" onclick="openLightbox('dark_mixer_view.png', 'Mixer View Console')">
+              <img src="dark_mixer_view.png" alt="Mixer View" class="w-full h-auto group-hover:scale-102 transition-transform">
+            </div>
+            <p class="text-xs font-mono text-[var(--ink-muted)]">Per-mic channel strips &amp; master limiter</p>
+          </div>
+          <div class="space-y-1.5">
+            <div class="comic-frame rounded-xl overflow-hidden bg-black cursor-pointer group" onclick="openLightbox('mixer_bleed_matrix_dark.png', 'Acoustic Bleed Matrix')">
+              <img src="mixer_bleed_matrix_dark.png" alt="Bleed Matrix" class="w-full h-auto group-hover:scale-102 transition-transform">
+            </div>
+            <p class="text-xs font-mono text-[var(--ink-muted)]">Acoustic crosstalk matrix with spill controls</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Feature Row 3: Practice Suite & Setlists -->
+    <div class="comic-card rounded-2xl p-6 sm:p-8 space-y-6">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+        <div class="lg:col-span-7 space-y-2">
+          <div class="comic-frame rounded-xl overflow-hidden bg-black cursor-pointer group" onclick="openLightbox('practice_view_screenshot.png', 'Practice Tab Deck')">
+            <img src="practice_view_screenshot.png" alt="Practice View" class="w-full h-auto group-hover:scale-102 transition-transform">
+          </div>
+          <p class="text-xs font-mono text-[var(--ink-muted)]">Full-width waveform deck with tempo detection &amp; 3-column setlist console</p>
+        </div>
+
+        <div class="lg:col-span-5 space-y-4">
+          <div class="inline-block px-2.5 py-1 rounded bg-[var(--accent)] text-black font-mono text-xs font-bold border-2 border-[var(--border)]">
+            PRACTICE &amp; REHEARSAL
+          </div>
+          <h3 class="font-display text-3xl uppercase">Setlists &amp; Tempo Detection</h3>
+          <p class="text-sm text-[var(--ink-soft)] leading-relaxed">
+            The integrated practice suite allows drummers to rehearse against backing tracks, detect tempos automatically, organize multi-song setlists, and record performances.
+          </p>
+          <ul class="list-disc list-inside text-xs sm:text-sm text-[var(--ink-soft)] space-y-1 pl-1">
+            <li><strong>Smart Tempo Detection:</strong> Multi-window spectral flux novelty analysis detects track BPM, downbeat phase, and confidence score.</li>
+            <li><strong>Persistent Song Library:</strong> Saves track tempo, Beat-1 grid offset, and meter to <code class="font-code text-xs bg-[var(--code-bg)] text-[var(--ink)] px-1 py-0.5 rounded">song_library.xml</code> for instant recall in any setlist.</li>
+            <li><strong>Sequential Standby Preloading:</strong> Zero-latency transitions between setlist songs with phase-locked count-ins.</li>
+            <li><strong>Dual WAV + MIDI Capture:</strong> Records uncompressed 24-bit audio and SMF Type 1 MIDI files simultaneously.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================================================================= -->
+  <!-- SECTION: GLORPKIT STUDIO (STANDALONE KIT CREATOR)                         -->
+  <!-- ========================================================================= -->
+  <section id="studio" class="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 py-12 border-t-[3px] border-[var(--border)] space-y-8">
+    <div class="flex flex-wrap items-center justify-between gap-4">
+      <div>
+        <h2 class="font-display text-3xl sm:text-4xl uppercase tracking-wide">GlorpKit Studio</h2>
+        <p class="text-sm text-[var(--ink-soft)]">The companion standalone visual application for designing, editing, and packaging drum kits.</p>
+      </div>
+      <span class="comic-card px-3 py-1 rounded-md text-xs font-mono">STANDALONE APP</span>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+      <div class="space-y-4">
+        <p class="text-sm sm:text-base text-[var(--ink-soft)] leading-relaxed">
+          GlorpKit Studio is a dedicated authoring tool bundled directly with GlorpDrums. It lets you create custom multi-articulation drum kits from raw audio samples or layered artwork:
+        </p>
+
+        <div class="space-y-3 font-mono text-xs sm:text-sm">
+          <div class="p-3.5 comic-card rounded-xl">
+            <strong class="text-[var(--accent)] block text-sm font-display uppercase mb-1">OpenRaster (.ora) Artwork Import</strong>
+            Extract layered graphics directly from Krita or GIMP, auto-assign sprites to instruments, and preserve physical stage coordinates.
+          </div>
+          <div class="p-3.5 comic-card rounded-xl">
+            <strong class="text-[var(--accent)] block text-sm font-display uppercase mb-1">Custom Velocity &amp; Round-Robin Matrix</strong>
+            Add up to 13 velocity layers and custom round-robin columns, with automated RMS/Peak hit power sorting.
+          </div>
+          <div class="p-3.5 comic-card rounded-xl">
+            <strong class="text-[var(--accent)] block text-sm font-display uppercase mb-1">High-Level Microphone Routing &amp; Glow Picker</strong>
+            Batch-route whole instruments or zones to specific mic channels in one click, with channel deletion and an interactive 360° Hue color wheel.
+          </div>
+        </div>
+      </div>
+
+      <div class="space-y-4">
+        <div class="comic-frame rounded-xl overflow-hidden bg-black cursor-pointer group" onclick="openLightbox('live_phase7_mic_routing_ui.png', 'GlorpKit Studio Mic Routing & Glow Picker')">
+          <img src="live_phase7_mic_routing_ui.png" alt="GlorpKit Studio UI" class="w-full h-auto group-hover:scale-102 transition-transform">
+        </div>
+        <p class="text-xs font-mono text-[var(--ink-muted)] text-center">GlorpKit Studio: Instrument mic routing, channel deletion, and custom cyan glow picker</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================================================================= -->
+  <!-- SECTION: SCREENSHOT GALLERY                                               -->
+  <!-- ========================================================================= -->
+  <section id="screenshots" class="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 py-12 border-t-[3px] border-[var(--border)] space-y-6">
+    <div class="flex items-center justify-between">
+      <div>
+        <h2 class="font-display text-3xl sm:text-4xl uppercase tracking-wide">Screenshot Gallery</h2>
+        <p class="text-sm text-[var(--ink-soft)]">Click any screenshot to view full-resolution image.</p>
+      </div>
+      <span class="text-xs font-mono text-[var(--ink-muted)]">Light &amp; Dark Themes</span>
+    </div>
+
+    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+      <div class="comic-frame rounded-xl overflow-hidden bg-black cursor-pointer group" onclick="openLightbox('dark_kit_view.png', 'Dark Theme Kit View')">
+        <img src="dark_kit_view.png" alt="Dark Kit View" class="w-full h-36 object-cover group-hover:scale-105 transition-transform">
+        <span class="block p-2 bg-[var(--paper)] text-xs font-mono border-t-2 border-[var(--border)] truncate">Dark Theme Kit View</span>
+      </div>
+
+      <div class="comic-frame rounded-xl overflow-hidden bg-black cursor-pointer group" onclick="openLightbox('screenshot.png', 'Sketch Theme Kit View')">
+        <img src="screenshot.png" alt="Sketch Kit View" class="w-full h-36 object-cover group-hover:scale-105 transition-transform">
+        <span class="block p-2 bg-[var(--paper)] text-xs font-mono border-t-2 border-[var(--border)] truncate">Sketch (Light) Theme</span>
+      </div>
+
+      <div class="comic-frame rounded-xl overflow-hidden bg-black cursor-pointer group" onclick="openLightbox('live_phase7_ludwig_12piece_plugin.png', '12-Piece Ludwig Black Cortex Kit')">
+        <img src="live_phase7_ludwig_12piece_plugin.png" alt="12-Piece Ludwig Kit" class="w-full h-36 object-cover group-hover:scale-105 transition-transform">
+        <span class="block p-2 bg-[var(--paper)] text-xs font-mono border-t-2 border-[var(--border)] truncate">12-Piece Ludwig Kit</span>
+      </div>
+
+      <div class="comic-frame rounded-xl overflow-hidden bg-black cursor-pointer group" onclick="openLightbox('mixer_fx_screenshot.png', 'Channel DSP Rack')">
+        <img src="mixer_fx_screenshot.png" alt="DSP FX Rack" class="w-full h-36 object-cover group-hover:scale-105 transition-transform">
+        <span class="block p-2 bg-[var(--paper)] text-xs font-mono border-t-2 border-[var(--border)] truncate">Channel DSP FX Rack</span>
+      </div>
+
+      <div class="comic-frame rounded-xl overflow-hidden bg-black cursor-pointer group" onclick="openLightbox('live_phase7_ludwig_samples_matrix.png', '13-Velocity Layer Matrix')">
+        <img src="live_phase7_ludwig_samples_matrix.png" alt="Sample Matrix" class="w-full h-36 object-cover group-hover:scale-105 transition-transform">
+        <span class="block p-2 bg-[var(--paper)] text-xs font-mono border-t-2 border-[var(--border)] truncate">13-Velocity Matrix</span>
+      </div>
+
+      <div class="comic-frame rounded-xl overflow-hidden bg-black cursor-pointer group" onclick="openLightbox('live_phase7_ora_import_dialog.png', 'OpenRaster (.ora) Layer Importer')">
+        <img src="live_phase7_ora_import_dialog.png" alt="OpenRaster Dialog" class="w-full h-36 object-cover group-hover:scale-105 transition-transform">
+        <span class="block p-2 bg-[var(--paper)] text-xs font-mono border-t-2 border-[var(--border)] truncate">OpenRaster Importer</span>
+      </div>
+
+      <div class="comic-frame rounded-xl overflow-hidden bg-black cursor-pointer group" onclick="openLightbox('practice_song_db_modal.png', 'Persistent Song Library Database')">
+        <img src="practice_song_db_modal.png" alt="Song Database" class="w-full h-36 object-cover group-hover:scale-105 transition-transform">
+        <span class="block p-2 bg-[var(--paper)] text-xs font-mono border-t-2 border-[var(--border)] truncate">Persistent Song DB</span>
+      </div>
+
+      <div class="comic-frame rounded-xl overflow-hidden bg-black cursor-pointer group" onclick="openLightbox('edrum_wizard_screenshot.png', 'E-Drum MIDI Calibration Wizard')">
+        <img src="edrum_wizard_screenshot.png" alt="E-Drum Wizard" class="w-full h-36 object-cover group-hover:scale-105 transition-transform">
+        <span class="block p-2 bg-[var(--paper)] text-xs font-mono border-t-2 border-[var(--border)] truncate">E-Drum MIDI Setup</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================================================================= -->
+  <!-- SECTION: BUILDING & INSTALLATION                                          -->
+  <!-- ========================================================================= -->
+  <section id="installation" class="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 py-12 border-t-[3px] border-[var(--border)] space-y-6">
+    <div class="space-y-2">
+      <h2 class="font-display text-3xl sm:text-4xl uppercase tracking-wide">Building from Source</h2>
+      <p class="text-sm text-[var(--ink-soft)]">Compile GlorpDrums on Linux (x86_64) using CMake and GCC or Clang.</p>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+      <!-- Terminal Box -->
+      <div class="lg:col-span-8 comic-card rounded-2xl p-5 sm:p-6 bg-[#121316] text-white space-y-4">
+        <div class="flex items-center justify-between border-b border-white/20 pb-3">
+          <div class="flex items-center gap-2">
+            <span class="w-3 h-3 rounded-full bg-red-500 inline-block"></span>
+            <span class="w-3 h-3 rounded-full bg-yellow-500 inline-block"></span>
+            <span class="w-3 h-3 rounded-full bg-green-500 inline-block"></span>
+            <span class="font-mono text-xs text-white/70 ml-2">bash terminal</span>
+          </div>
+          <button onclick="copyBuildCommands()" id="copyBtn" class="comic-btn px-3 py-1 rounded text-xs font-mono uppercase">
+            📋 Copy Commands
+          </button>
+        </div>
+
+        <div class="font-mono text-xs text-[#00d2ff] space-y-2 overflow-x-auto">
+          <p class="text-white/40"># 1. Clone repository with submodules (JUCE)</p>
+          <p class="text-white">git clone --recurse-submodules https://github.com/asuka-glorp/GlorpDrums/.git</p>
+          <p class="text-white">cd GlorpDrums</p>
+          <p class="text-white/40 pt-1"># 2. Configure release build with CMake</p>
+          <p class="text-white">cmake -B build -DCMAKE_BUILD_TYPE=Release</p>
+          <p class="text-white/40 pt-1"># 3. Compile all targets (GlorpDrums, VST3, LV2, GlorpKitEditor)</p>
+          <p class="text-white">cmake --build build -j$(nproc)</p>
+          <p class="text-white/40 pt-1"># 4. Verify test suite</p>
+          <p class="text-white">./build/verify_fixes &amp;&amp; ./build/glorp_core_tests</p>
+        </div>
+      </div>
+
+      <!-- System Requirements Card -->
+      <div class="lg:col-span-4 comic-card rounded-2xl p-5 sm:p-6 space-y-3 font-mono text-xs">
+        <h4 class="font-display text-lg uppercase text-[var(--accent)]">Prerequisites</h4>
+        <ul class="space-y-2 text-[var(--ink-soft)]">
+          <li>• <strong>Compiler:</strong> C++20 compliant (GCC &ge; 11 or Clang &ge; 14)</li>
+          <li>• <strong>Build System:</strong> CMake &ge; 3.22</li>
+          <li>• <strong>Audio Drivers:</strong> ALSA development headers (<code class="bg-[var(--code-bg)] text-[var(--ink)] px-1 py-0.5 rounded">libasound2-dev</code>)</li>
+          <li>• <strong>Graphics / GUI:</strong> FreeType &amp; X11 development libraries (<code class="bg-[var(--code-bg)] text-[var(--ink)] px-1 py-0.5 rounded">libx11-dev</code>, <code class="bg-[var(--code-bg)] text-[var(--ink)] px-1 py-0.5 rounded">libxrandr-dev</code>, etc.)</li>
+        </ul>
+        <div class="pt-2 border-t border-[var(--border)]/20 text-[var(--ink-muted)]">
+          Binaries output to <code class="text-[var(--accent)] font-bold">build/GlorpDrums_artefacts/Release/</code>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================================================================= -->
+  <!-- FOOTER                                                                    -->
+  <!-- ========================================================================= -->
+  <footer class="mt-auto border-t-[3px] border-[var(--border)] bg-[var(--paper)] py-8 transition-colors">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 flex flex-wrap items-center justify-between gap-4 font-mono text-xs text-[var(--ink-muted)]">
+      <div class="flex items-center gap-3">
+        <img src="logo.svg" alt="GlorpDrums Logo" class="w-8 h-8 object-contain logo-filter">
+        <span>GlorpDrums • Created by <strong>Asuka Glorp</strong> • Open Source (GPL / CC-BY-4.0)</span>
+      </div>
+
+      <div class="flex items-center gap-4">
+        <a href="https://github.com/asuka-glorp/GlorpDrums/" target="_blank" rel="noopener noreferrer" class="hover:underline hover:text-[var(--accent)]">GitHub</a>
+        <span>•</span>
+        <a href="https://github.com/asuka-glorp/GlorpDrums//issues" target="_blank" rel="noopener noreferrer" class="hover:underline hover:text-[var(--accent)]">Issues</a>
+        <span>•</span>
+        <a href="https://drive.google.com/drive/folders/14eSb17o4aXm6neqrlVAfPcXrx5GzndgD?usp=drive_link" target="_blank" rel="noopener noreferrer" class="hover:underline hover:text-[var(--accent)]">Drum Kits Library</a>
+      </div>
+    </div>
+  </footer>
+
+  <!-- ========================================================================= -->
+  <!-- LIGHTBOX MODAL FOR SCREENSHOTS                                            -->
+  <!-- ========================================================================= -->
+  <div id="lightboxModal" class="fixed inset-0 bg-[#101114]/85 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4" onclick="closeLightbox()">
+    <div class="comic-card max-w-5xl w-full rounded-2xl overflow-hidden p-4 space-y-3" onclick="event.stopPropagation()">
+      <div class="flex items-center justify-between border-b-2 border-[var(--border)] pb-2">
+        <h4 id="lightboxTitle" class="font-display text-xl text-[var(--accent)] uppercase">Screenshot View</h4>
+        <button onclick="closeLightbox()" class="w-8 h-8 rounded-lg bg-[var(--accent)] border-2 border-[var(--border)] font-display text-sm hover:brightness-110 cursor-pointer" title="Close Lightbox">
+          ✕
+        </button>
+      </div>
+      <div class="border-[2.5px] border-[var(--border)] rounded-xl overflow-hidden bg-black max-h-[75vh] flex items-center justify-center">
+        <img id="lightboxImg" src="" alt="Enlarged Screenshot" class="max-h-[72vh] w-auto object-contain">
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- JAVASCRIPT CONTROLLERS                                                    -->
+  <!-- ========================================================================= -->
+  <script>
+    // =========================================================================
+    // YOUTUBE DEMO VIDEOS CONFIGURATION
+    // You can drop in YouTube video IDs or full URLs (e.g. "https://youtu.be/...")
+    // =========================================================================
+    const DEMO_VIDEOS = [
+      {
+        id: "dQw4w9WgXcQ", // Demo 1: Full kit playthrough
+        title: "Demo 1: Full Kit Playthrough",
+        desc: "Live e-kit playing test: multi-zone pad triggers, continuous hi-hat pedal tracking, and choke damping."
+      },
+      {
+        id: "L_LUpnjgPso", // Demo 2: Practice & Setlists
+        title: "Demo 2: Practice & Setlists",
+        desc: "Automated tempo detection, backing track scrubbing, and seamless between-song count-ins."
+      },
+      {
+        id: "3JZ_D3ELwOQ", // Demo 3: GlorpKit Studio Editor
+        title: "Demo 3: GlorpKit Studio Editor",
+        desc: "OpenRaster (.ora) artwork import, velocity matrix power sorting, and microphone routing."
+      }
+    ];
+
+    // Helper: Extracts clean 11-char YouTube ID from either an ID or any YouTube URL
+    function parseYouTubeId(input) {
+      if (!input) return "dQw4w9WgXcQ";
+      const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+      const match = String(input).trim().match(regExp);
+      return (match && match[2].length === 11) ? match[2] : String(input).trim();
+    }
+
+    function switchVideo(index) {
+      const v = DEMO_VIDEOS[index];
+      const videoId = parseYouTubeId(v.id);
+      document.getElementById('videoIframe').src = `https://www.youtube-nocookie.com/embed/${videoId}`;
+      document.getElementById('videoTitleLabel').innerText = v.title;
+      document.getElementById('videoDescLabel').innerText = v.desc;
+
+      for (let i = 0; i < DEMO_VIDEOS.length; i++) {
+        const btn = document.getElementById(`tabDemo${i}`);
+        if (btn) {
+          if (i === index) {
+            btn.className = "comic-btn px-3 py-1.5 rounded-lg uppercase";
+          } else {
+            btn.className = "comic-btn-secondary px-3 py-1.5 rounded-lg uppercase";
+          }
+        }
+      }
+    }
+
+    // Hero image preview switcher
+    function setHeroImage(src) {
+      const img = document.getElementById('heroImage');
+      if (img) img.src = src;
+    }
+
+    // Lightbox modal controller
+    function openLightbox(src, title) {
+      const img = document.getElementById('lightboxImg');
+      const titleEl = document.getElementById('lightboxTitle');
+      const modal = document.getElementById('lightboxModal');
+      if (img) img.src = src;
+      if (titleEl) titleEl.innerText = title;
+      if (modal) modal.classList.remove('hidden');
+    }
+
+    function closeLightbox() {
+      const modal = document.getElementById('lightboxModal');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    // Close lightbox on Escape key
+    window.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') closeLightbox();
+    });
+
+    // Theme Switcher Controller: Light (Sketch) & Dark Modes
+    function applyTheme(isDark) {
+      const root = document.documentElement;
+      const btnText = document.getElementById('themeBtnText');
+      const btnIcon = document.getElementById('themeBtnIcon');
+
+      if (isDark) {
+        root.classList.add('dark');
+        if (btnText) btnText.textContent = "Light";
+        if (btnIcon) btnIcon.textContent = "☀️";
+      } else {
+        root.classList.remove('dark');
+        if (btnText) btnText.textContent = "Dark";
+        if (btnIcon) btnIcon.textContent = "🌙";
+      }
+    }
+
+    function toggleTheme() {
+      const isDark = !document.documentElement.classList.contains('dark');
+      applyTheme(isDark);
+      try {
+        localStorage.setItem('glorp-theme', isDark ? 'dark' : 'light');
+      } catch(e) {}
+    }
+
+    // Initialize button labels on DOM ready
+    document.addEventListener('DOMContentLoaded', function() {
+      const isCurrentlyDark = document.documentElement.classList.contains('dark');
+      applyTheme(isCurrentlyDark);
+    });
+
+    // Listen for OS theme changes if user hasn't explicitly set preference
+    if (window.matchMedia) {
+      window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
+        if (!localStorage.getItem('glorp-theme')) {
+          applyTheme(e.matches);
+        }
+      });
+    }
+
+    // 1-Click Clipboard Copy with visual confirmation
+    function copyBuildCommands() {
+      const cmds = "git clone --recurse-submodules https://github.com/asuka-glorp/GlorpDrums/.git\ncd GlorpDrums\ncmake -B build -DCMAKE_BUILD_TYPE=Release\ncmake --build build -j$(nproc)\n./build/verify_fixes && ./build/glorp_core_tests";
+      navigator.clipboard.writeText(cmds).then(() => {
+        const btn = document.getElementById('copyBtn');
+        const origText = btn.innerText;
+        btn.innerText = "✓ Copied!";
+        setTimeout(() => { btn.innerText = origText; }, 2000);
+      }).catch(() => {
+        alert("Build commands copied to clipboard!");
+      });
+    }
+  </script>
+</body>
+</html>
