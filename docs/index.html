@@ -329,7 +329,6 @@
     <!-- Responsive Embedded Video Frame -->
     <div class="comic-card rounded-2xl p-4 sm:p-6 space-y-4">
       <div class="video-wrapper rounded-xl relative overflow-hidden bg-black flex items-center justify-center">
-        <iframe id="videoIframe" src="https://www.youtube-nocookie.com/embed/gszPxE3Zv8Y" title="GlorpDrums Video Demo" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
         <iframe id="videoIframe" src="https://www.youtube.com/embed/gszPxE3Zv8Y" title="GlorpDrums Video Demo" frameborder="0" referrerpolicy="strict-origin-when-cross-origin" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
         <!-- Coming Soon Placeholder (shown for Demo 3) -->
         <div id="videoPlaceholder" class="absolute inset-0 hidden flex flex-col items-center justify-center text-center p-6 bg-[#16171a] border-4 border-dashed border-[var(--border)]">
@@ -828,7 +827,6 @@
         if (directLink) directLink.classList.add('hidden');
       } else {
         const videoId = parseYouTubeId(v.id);
-        iframe.src = `https://www.youtube-nocookie.com/embed/${videoId}`;
         iframe.src = `https://www.youtube.com/embed/${videoId}`;
         iframe.classList.remove('hidden');
         placeholder.classList.add('hidden');
