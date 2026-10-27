@@ -221,13 +221,13 @@
         </button>
 
         <!-- Download Latest Release Button -->
-        <a href="https://github.com/scrisostomo1510-byte/GlorpDrums/releases/latest" target="_blank" rel="noopener noreferrer" class="comic-btn px-3 py-1.5 rounded-lg text-xs font-mono uppercase flex items-center gap-1.5" title="Download Latest Release from GitHub">
+        <a href="https://github.com/asuka-glorp/GlorpDrums/releases/latest" target="_blank" rel="noopener noreferrer" class="comic-btn px-3 py-1.5 rounded-lg text-xs font-mono uppercase flex items-center gap-1.5" title="Download Latest Release from GitHub">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
           <span class="hidden sm:inline">Download</span>
         </a>
 
         <!-- GitHub Repository Button -->
-        <a href="https://github.com/scrisostomo1510-byte/GlorpDrums" target="_blank" rel="noopener noreferrer" class="comic-btn-secondary px-3 py-1.5 rounded-lg text-xs font-mono uppercase flex items-center gap-1.5">
+        <a href="https://github.com/asuka-glorp/GlorpDrums" target="_blank" rel="noopener noreferrer" class="comic-btn-secondary px-3 py-1.5 rounded-lg text-xs font-mono uppercase flex items-center gap-1.5">
           <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/></svg>
           <span class="hidden sm:inline">GitHub</span>
         </a>
@@ -268,15 +268,14 @@
 
         <!-- Action CTAs -->
         <div class="flex flex-wrap gap-3 pt-2">
-          <a href="https://github.com/scrisostomo1510-byte/GlorpDrums/releases/latest" target="_blank" rel="noopener noreferrer" class="comic-btn px-6 py-3 rounded-xl font-mono text-sm uppercase flex items-center gap-2">
+          <a href="#demos" class="comic-btn px-6 py-3 rounded-xl font-mono text-sm uppercase flex items-center gap-2">
+            ▶ Watch Video Demos
+          <a href="https://github.com/asuka-glorp/GlorpDrums/releases/latest" target="_blank" rel="noopener noreferrer" class="comic-btn px-6 py-3 rounded-xl font-mono text-sm uppercase flex items-center gap-2">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
             Download Latest Release
           </a>
           <a href="#kits" class="comic-btn-secondary px-5 py-3 rounded-xl font-mono text-sm uppercase flex items-center gap-2">
             🥁 Drum Kits (.glorpkit)
-          </a>
-          <a href="#demos" class="comic-btn-secondary px-5 py-3 rounded-xl font-mono text-sm uppercase flex items-center gap-2">
-            ▶ Watch Demos
           </a>
           <a href="#installation" class="comic-btn-secondary px-5 py-3 rounded-xl font-mono text-sm uppercase">
             Build from Source
@@ -330,6 +329,7 @@
     <!-- Responsive Embedded Video Frame -->
     <div class="comic-card rounded-2xl p-4 sm:p-6 space-y-4">
       <div class="video-wrapper rounded-xl relative overflow-hidden bg-black flex items-center justify-center">
+        <iframe id="videoIframe" src="https://www.youtube-nocookie.com/embed/gszPxE3Zv8Y" title="GlorpDrums Video Demo" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
         <iframe id="videoIframe" src="https://www.youtube.com/embed/gszPxE3Zv8Y" title="GlorpDrums Video Demo" frameborder="0" referrerpolicy="strict-origin-when-cross-origin" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
         <!-- Coming Soon Placeholder (shown for Demo 3) -->
         <div id="videoPlaceholder" class="absolute inset-0 hidden flex flex-col items-center justify-center text-center p-6 bg-[#16171a] border-4 border-dashed border-[var(--border)]">
@@ -710,7 +710,8 @@
 
         <div class="font-mono text-xs text-[#00d2ff] space-y-2 overflow-x-auto">
           <p class="text-white/40"># 1. Clone repository with submodules (JUCE)</p>
-          <p class="text-white">git clone --recurse-submodules https://github.com/scrisostomo1510-byte/GlorpDrums.git</p>
+          <p class="text-white">git clone --recurse-submodules https://github.com/asuka-glorp/GlorpDrums/.git</p>
+          <p class="text-white">git clone --recurse-submodules https://github.com/asuka-glorp/GlorpDrums.git</p>
           <p class="text-white">cd GlorpDrums</p>
           <p class="text-white/40 pt-1"># 2. Configure release build with CMake</p>
           <p class="text-white">cmake -B build -DCMAKE_BUILD_TYPE=Release</p>
@@ -748,15 +749,13 @@
       </div>
 
       <div class="flex items-center gap-4">
-        <a href="https://github.com/scrisostomo1510-byte/GlorpDrums" target="_blank" rel="noopener noreferrer" class="hover:underline hover:text-[var(--accent)]">GitHub</a>
+        <a href="https://github.com/asuka-glorp/GlorpDrums" target="_blank" rel="noopener noreferrer" class="hover:underline hover:text-[var(--accent)]">GitHub</a>
         <span>•</span>
-        <a href="https://github.com/scrisostomo1510-byte/GlorpDrums/releases/latest" target="_blank" rel="noopener noreferrer" class="hover:underline hover:text-[var(--accent)]">Releases</a>
+        <a href="https://github.com/asuka-glorp/GlorpDrums/releases/latest" target="_blank" rel="noopener noreferrer" class="hover:underline hover:text-[var(--accent)]">Releases</a>
         <span>•</span>
-        <a href="https://github.com/scrisostomo1510-byte/GlorpDrums/issues" target="_blank" rel="noopener noreferrer" class="hover:underline hover:text-[var(--accent)]">Issues</a>
+        <a href="https://github.com/asuka-glorp/GlorpDrums/issues" target="_blank" rel="noopener noreferrer" class="hover:underline hover:text-[var(--accent)]">Issues</a>
         <span>•</span>
         <a href="#kits" class="hover:underline hover:text-[var(--accent)]">Drum Kits Library</a>
-        <span>•</span>
-        <a href="https://tchackpoum.com/Eng.html" target="_blank" rel="noopener noreferrer" class="hover:underline hover:text-[var(--accent)]">Tchackpoum CC</a>
       </div>
     </div>
   </footer>
@@ -923,7 +922,7 @@
 
     // 1-Click Clipboard Copy with visual confirmation
     function copyBuildCommands() {
-      const cmds = "git clone --recurse-submodules https://github.com/scrisostomo1510-byte/GlorpDrums.git\ncd GlorpDrums\ncmake -B build -DCMAKE_BUILD_TYPE=Release\ncmake --build build -j$(nproc)\n./build/verify_fixes && ./build/glorp_core_tests";
+      const cmds = "git clone --recurse-submodules https://github.com/asuka-glorp/GlorpDrums/.git\ncd GlorpDrums\ncmake -B build -DCMAKE_BUILD_TYPE=Release\ncmake --build build -j$(nproc)\n./build/verify_fixes && ./build/glorp_core_tests";
       navigator.clipboard.writeText(cmds).then(() => {
         const btn = document.getElementById('copyBtn');
         const origText = btn.innerText;
