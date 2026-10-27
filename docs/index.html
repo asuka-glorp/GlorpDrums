@@ -333,6 +333,7 @@
     <div class="comic-card rounded-2xl p-4 sm:p-6 space-y-4">
       <div class="video-wrapper rounded-xl relative overflow-hidden bg-black flex items-center justify-center">
         <iframe id="videoIframe" src="https://www.youtube-nocookie.com/embed/gszPxE3Zv8Y" title="GlorpDrums Video Demo" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+        <iframe id="videoIframe" src="https://www.youtube.com/embed/gszPxE3Zv8Y" title="GlorpDrums Video Demo" frameborder="0" referrerpolicy="strict-origin-when-cross-origin" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
         <!-- Coming Soon Placeholder (shown for Demo 3) -->
         <div id="videoPlaceholder" class="absolute inset-0 hidden flex flex-col items-center justify-center text-center p-6 bg-[#16171a] border-4 border-dashed border-[var(--border)]">
           <div class="w-16 h-16 rounded-2xl bg-[var(--accent)] text-black flex items-center justify-center text-3xl font-black mb-3 shadow-[4px_4px_0_0_#000]">
@@ -349,9 +350,15 @@
       </div>
 
       <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 font-mono text-xs pt-1">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 font-mono text-xs pt-1">
         <div>
           <span id="videoTitleLabel" class="font-bold text-base text-[var(--accent)] block">Demo 1: Full Kit Playthrough</span>
           <span id="videoDescLabel" class="text-[var(--ink-soft)]">Live e-kit playing test: multi-zone pad triggers, continuous hi-hat pedal tracking, and choke damping.</span>
+        </div>
+        <div class="flex items-center gap-3 sm:text-right shrink-0">
+          <a id="videoDirectLink" href="https://youtu.be/gszPxE3Zv8Y" target="_blank" rel="noopener noreferrer" class="comic-btn-secondary px-3 py-1 rounded-lg uppercase flex items-center gap-1" title="Watch directly on YouTube">
+            Watch on YouTube ↗
+          </a>
         </div>
       </div>
     </div>
@@ -817,17 +824,24 @@
       const iframe = document.getElementById('videoIframe');
       const placeholder = document.getElementById('videoPlaceholder');
       const badge = document.getElementById('videoBadgeLabel');
+      const directLink = document.getElementById('videoDirectLink');
 
       if (v.comingSoon) {
         iframe.classList.add('hidden');
         placeholder.classList.remove('hidden');
         if (badge) badge.innerText = "Coming Soon";
+        if (directLink) directLink.classList.add('hidden');
       } else {
         const videoId = parseYouTubeId(v.id);
         iframe.src = `https://www.youtube-nocookie.com/embed/${videoId}`;
+        iframe.src = `https://www.youtube.com/embed/${videoId}`;
         iframe.classList.remove('hidden');
         placeholder.classList.add('hidden');
         if (badge) badge.innerText = "1080p 60fps";
+        if (directLink) {
+          directLink.href = `https://youtu.be/${videoId}`;
+          directLink.classList.remove('hidden');
+        }
       }
 
       document.getElementById('videoTitleLabel').innerText = v.title;
