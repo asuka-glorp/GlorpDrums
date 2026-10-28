@@ -141,6 +141,9 @@ juce_generate_juce_header(GlorpDrums)
 
 target_sources(GlorpDrums PRIVATE
     src/plugin/PluginProcessor.cpp
+    src/plugin/ParameterManager.cpp
+    src/plugin/MidiRouter.cpp
+    src/plugin/AudioEngine.cpp
     src/plugin/PluginEditor.h
     src/core/XmlLite.cpp
     src/core/DrumKit.cpp

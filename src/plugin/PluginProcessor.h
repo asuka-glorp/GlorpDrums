@@ -15,15 +15,13 @@
 
 #include "KitScanner.h"
 #include "MidiMap.h"
-#include "Sampler.h"
 #include "Settings.h"
-#include "AudioRecorder.h"
-#include "BackingTrackPlayer.h"
-#include "Metronome.h"
-#include "MidiRecorder.h"
 #include "SetlistPlayer.h"
 #include "SongDatabase.h"
 #include "TempoDetector.h"
+#include "ParameterManager.h"
+#include "MidiRouter.h"
+#include "AudioEngine.h"
 
 #include <juce_audio_processors/juce_audio_processors.h>
 
@@ -82,16 +80,19 @@ public:
     juce::AudioProcessorParameter* findParameter (const juce::String& paramID) const;
 
     // -- GlorpDrums --------------------------------------------------------
-    Sampler& getSampler() noexcept { return sampler; }
-    MidiMap& getMidiMap() noexcept { return midiMap; }
+    Sampler& getSampler() noexcept { return audioEngine.getSampler(); }
+    MidiMap& getMidiMap() noexcept { return midiRouter.getMidiMap(); }
     Settings& getSettings() noexcept { return settings; }
-    BackingTrackPlayer& getBackingTrackPlayer() noexcept { return backingTrackPlayer; }
-    Metronome& getMetronome() noexcept { return metronome; }
+    BackingTrackPlayer& getBackingTrackPlayer() noexcept { return audioEngine.getBackingTrackPlayer(); }
+    Metronome& getMetronome() noexcept { return audioEngine.getMetronome(); }
     SongDatabase& getSongDatabase() noexcept { return songDatabase; }
     SetlistPlayer& getSetlistPlayer() noexcept { return setlistPlayer; }
-    AudioRecorder& getAudioRecorder() noexcept { return audioRecorder; }
-    MidiRecorder& getMidiRecorder() noexcept { return midiRecorder; }
+    AudioRecorder& getAudioRecorder() noexcept { return audioEngine.getAudioRecorder(); }
+    MidiRecorder& getMidiRecorder() noexcept { return audioEngine.getMidiRecorder(); }
     TempoDetector::Worker& getTempoWorker() noexcept { return tempoWorker; }
+
+    AudioEngine& getAudioEngine() noexcept { return audioEngine; }
+    const AudioEngine& getAudioEngine() const noexcept { return audioEngine; }
 
     /// The stable identifier a knob uses when it appears in a MIDI map.
     static juce::String controlIdForInstrument (const juce::String& suffix, int index);
@@ -134,40 +135,16 @@ public:
     void drainControlQueue();
 
 private:
-    /// A MIDI-learned control value waiting for the message thread.
-    struct PendingControl
-    {
-        std::string id;
-        float value = 0.0f;
-    };
-
-    static constexpr int controlRingSize = config::CONTROL_RING_SIZE;
-    PendingControl controlRing[controlRingSize];
-    std::atomic<int> controlWrite { 0 };
-    std::atomic<int> controlRead { 0 };
-
-    void enqueueControlValue (const juce::String& controlId, float normalised);
-    bool dequeueControlValue (juce::String& controlId, float& normalised);
-
     static BusesProperties createBusesProperties();
-    void createParameterLayout();
     void notifyParametersChanged();
 
-    /// Parses a control id like "inst.3.pitch" back into its parts.
-    bool parseControlId (const juce::String& controlId, int& instrumentIndex,
-                         juce::String& field) const;
+    ParameterManager parameterManager;
+    MidiRouter midiRouter;
+    AudioEngine audioEngine;
 
-    void applyControlValue (int instrumentIndex, const juce::String& field, float normalised);
-
-    Sampler sampler;
-    MidiMap midiMap;
     Settings settings;
-    BackingTrackPlayer backingTrackPlayer;
-    Metronome metronome;
     SongDatabase songDatabase;
-    SetlistPlayer setlistPlayer { songDatabase, backingTrackPlayer, metronome };
-    AudioRecorder audioRecorder;
-    MidiRecorder midiRecorder;
+    SetlistPlayer setlistPlayer { songDatabase, audioEngine.getBackingTrackPlayer(), audioEngine.getMetronome() };
     TempoDetector::Worker tempoWorker;
 
     std::vector<KitEntry> kitList;
@@ -179,19 +156,6 @@ private:
     std::atomic<float> lastSnareCC16 { 0.5f };
 
     juce::ListenerList<Listener> listeners;
-
-    // Parameter handles, kept so state and MIDI learn can address them.
-    juce::AudioParameterFloat* masterLevelParam = nullptr;
-    juce::AudioParameterFloat* masterPanParam = nullptr;
-    juce::AudioParameterFloat* attackParam = nullptr;
-    juce::AudioParameterFloat* decayParam = nullptr;
-    juce::AudioParameterFloat* humanizeParam = nullptr;
-    juce::AudioParameterFloat* velCurveParam = nullptr;
-    std::vector<juce::AudioParameterFloat*> instrumentLevelParams;
-    std::vector<juce::AudioParameterFloat*> instrumentPanParams;
-    std::vector<juce::AudioParameterFloat*> instrumentPitchParams;
-    std::vector<juce::AudioParameterFloat*> instrumentDynamicsParams;
-    std::vector<juce::AudioParameterChoice*> instrumentBusParams;
 
     juce::UndoManager* undoManager = nullptr;
 
