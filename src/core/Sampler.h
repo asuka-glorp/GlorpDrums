@@ -22,10 +22,7 @@
 
 #pragma once
 
-#ifndef GLORP_MAX_INSTRUMENT_BUSES
-#define GLORP_MAX_INSTRUMENT_BUSES 32
-#endif
-
+#include "Config.h"
 #include "ChannelFX.h"
 #include "DrumKit.h"
 #include "SampleCache.h"
@@ -348,7 +345,7 @@ private:
     float nextRandom();
     void  pushHitEvent (const HitEvent& event) noexcept;
 
-    static constexpr int maxVoices = 64;
+    static constexpr int maxVoices = config::MAX_VOICES;
 
     // -- audio thread state ------------------------------------------------
     VoicePool pool;
@@ -357,7 +354,7 @@ private:
     std::vector<int> roundRobinCursor;
     std::vector<int> instrumentBuses;
     int64_t sampleClock = 0;
-    int currentBlockSize = 512;
+    int currentBlockSize = config::DEFAULT_BLOCK_SIZE;
 
     std::atomic<bool> kitLoaded { false };
     std::atomic<bool> anySolo { false };
@@ -389,7 +386,7 @@ private:
     std::atomic<bool>  cc4Active { false };    ///< true once an e-drum pedal sends CC#4
     std::atomic<float> snarePosition { 0.5f }; ///< 0 = edge, 1 = center
 
-    static constexpr int hitRingSize = 512;
+    static constexpr int hitRingSize = config::HIT_RING_SIZE;
     HitEvent hitRing[hitRingSize];
     std::atomic<int> hitWrite { 0 };
     std::atomic<int> hitRead { 0 };

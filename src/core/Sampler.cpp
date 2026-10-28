@@ -98,18 +98,18 @@ bool Sampler::loadKit (DrumKit kit, juce::String& error)
         return false;
     }
 
-    if (static_cast<int> (kit.instruments.size()) > GLORP_MAX_INSTRUMENT_BUSES)
+    if (static_cast<int> (kit.instruments.size()) > config::MAX_INSTRUMENT_BUSES)
     {
         // Not a hard failure. Big kits are normal - CrocellKit_full alone has 27
         // instruments - and refusing to play it would be worse than losing a bit of
         // per-instrument separation on the extras. Everything past the last bus
         // shares that bus, and the user is told.
-        const auto overflow = static_cast<int> (kit.instruments.size()) - GLORP_MAX_INSTRUMENT_BUSES;
+        const auto overflow = static_cast<int> (kit.instruments.size()) - config::MAX_INSTRUMENT_BUSES;
         kit.warnings.push_back ("This kit has " + std::to_string (kit.instruments.size())
-                              + " instruments but there are only " + std::to_string (GLORP_MAX_INSTRUMENT_BUSES)
+                              + " instruments but there are only " + std::to_string (config::MAX_INSTRUMENT_BUSES)
                               + " output buses, so the last " + std::to_string (overflow)
                               + " instruments share a bus. Rebuild with a higher "
-                                "-DGLORP_MAX_INSTRUMENT_BUSES for full separation.");
+                                "-Dconfig::MAX_INSTRUMENT_BUSES for full separation.");
     }
 
     std::vector<InstrumentRuntime> resolved;
@@ -159,7 +159,7 @@ bool Sampler::loadKit (DrumKit kit, juce::String& error)
 
     // The number of buses in use is bounded by what was built; anything beyond
     // that shares the last bus rather than being dropped.
-    busCount = std::min (instrumentCount, GLORP_MAX_INSTRUMENT_BUSES);
+    busCount = std::min (instrumentCount, config::MAX_INSTRUMENT_BUSES);
     kitTitle = kit.title;
 
     channelParams.assign (static_cast<size_t> (instrumentCount), ChannelParams {});

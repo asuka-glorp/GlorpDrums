@@ -27,6 +27,8 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 
+#include "Config.h"
+
 #include <atomic>
 #include <memory>
 #include <string>
@@ -37,8 +39,8 @@ namespace glorp
 class PluginProcessor : public juce::AudioProcessor
 {
 public:
-    static constexpr int maxSupportedInstruments = 64;
-    static constexpr int maxOutputBuses = 16;
+    static constexpr int maxSupportedInstruments = config::MAX_SUPPORTED_INSTRUMENTS;
+    static constexpr int maxOutputBuses = config::MAX_OUTPUT_BUSES;
 
     PluginProcessor();
     ~PluginProcessor() override;
@@ -139,7 +141,7 @@ private:
         float value = 0.0f;
     };
 
-    static constexpr int controlRingSize = 128;
+    static constexpr int controlRingSize = config::CONTROL_RING_SIZE;
     PendingControl controlRing[controlRingSize];
     std::atomic<int> controlWrite { 0 };
     std::atomic<int> controlRead { 0 };

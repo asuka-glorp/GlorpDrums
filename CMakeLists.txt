@@ -27,7 +27,7 @@ option(GLORP_BUILD_TESTS       "Build the headless test suite" ON)
 # host struggles with many outputs.
 set(GLORP_MAX_INSTRUMENT_BUSES 32 CACHE STRING "Stereo output buses reserved for instruments")
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
@@ -201,18 +201,6 @@ target_link_libraries(GlorpDrums
 if(GLORP_BUILD_STANDALONE)
     # ALSA + JACK so the standalone app works with real drum pads and pro audio setups.
     # JACK is enabled for live performance and low-latency monitoring.
-    target_compile_definitions(GlorpDrums PRIVATE JUCE_ALSA=1 JUCE_JACK=1)
-    target_link_libraries(GlorpDrums PRIVATE juce::juce_audio_devices)
-endif()
-
-#==================================================================================
-# Standalone
-#==================================================================================
-# The standalone executable comes from JUCE's own "Standalone" plugin format,
-# which already handles the audio device, MIDI input and window plumbing. Writing
-# our own would only mean maintaining something less well tested.
-
-if(GLORP_BUILD_STANDALONE)
     target_compile_definitions(GlorpDrums PRIVATE JUCE_ALSA=1 JUCE_JACK=1)
     target_link_libraries(GlorpDrums PRIVATE juce::juce_audio_devices)
 endif()
