@@ -27,6 +27,8 @@ jobs:
             cmake \
             pkg-config \
             ccache \
+            clang-format-18 \
+            clang-tidy-18 \
             libasound2-dev \
             libfreetype-dev \
             libfontconfig1-dev \
@@ -54,6 +56,16 @@ jobs:
 
       - name: Configure
         run: cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+
+      - name: Check clang-format
+        run: |
+          clang-format-18 --version
+          clang-format-18 --dry-run --Werror src/
+
+      - name: Check clang-tidy
+        run: |
+          clang-tidy-18 --version
+          clang-tidy-18 -p build src/**/*.cpp --quiet
 
       - name: Build
         run: cmake --build build -j$(nproc)
