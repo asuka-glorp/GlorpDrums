@@ -3,6 +3,8 @@
 */
 
 #include "AudioEngine.h"
+#include "ParameterManager.h"
+#include "MidiRouter.h"
 
 #include <juce_audio_basics/juce_audio_basics.h>
 
@@ -57,70 +59,9 @@ void AudioEngine::blockSizeChanged (int)
 }
 
 //==============================================================================
-void AudioEngine::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midi)
-{
-    juce::ScopedNoDenormals noDenormals;
-
-    const auto numSamples = buffer.getNumSamples();
-    juce::ignoreUnused (buffer.getNumChannels());
-    juce::ignoreUnused (midi);
-
-    // The parameter values are the source of truth, so pull the current snapshot
-    // before rendering rather than trying to keep two copies in step.
-    GlobalParams globals;
-    globals.masterLevel = parameterManager.masterLevelParam != nullptr ? parameterManager.masterLevelParam->get() : 0.8f;
-    globals.masterPan = (parameterManager.masterPanParam != nullptr ? parameterManager.masterPanParam->get() : 0.5f) * 2.0f - 1.0f;
-    globals.attackMs = (parameterManager.attackParam != nullptr ? parameterManager.attackParam->get() : 0.0f) * 60.0f;
-    globals.decayScale = (parameterManager.decayParam != nullptr ? parameterManager.decayParam->get() : 0.5f) * 4.0f;
-    globals.humanize = parameterManager.humanizeParam != nullptr ? parameterManager.humanizeParam->get() : 0.0f;
-    globals.velCurve = parameterManager.velCurveParam != nullptr ? parameterManager.velCurveParam->get() : 1.0f;
-    sampler.setGlobalParams (globals);
-
-    const int samplerLatency = sampler.latencySamples();
-    // Note: latency is handled by the plugin processor
-
-    // Update per-instrument parameters
-    for (int i = 0; i < sampler.numInstruments() && i < static_cast<int> (parameterManager.instrumentLevelParams.size()); ++i)
-    {
-        auto params = sampler.getInstrumentParams (i);
-
-        params.level = parameterManager.instrumentLevelParams[static_cast<size_t> (i)]->get();
-        params.pan = parameterManager.instrumentPanParams[static_cast<size_t> (i)]->get() * 2.0f - 1.0f;
-        params.pitchSemitones = (parameterManager.instrumentPitchParams[static_cast<size_t> (i)]->get() - 0.5f) * 24.0f;
-
-        if (i < static_cast<int> (parameterManager.instrumentDynamicsParams.size()))
-            params.dynamics = parameterManager.instrumentDynamicsParams[static_cast<size_t> (i)]->get();
-
-        sampler.setInstrumentParams (i, params);
-
-        if (i < static_cast<int> (parameterManager.instrumentBusParams.size()))
-            sampler.setInstrumentBus (i, parameterManager.instrumentBusParams[static_cast<size_t> (i)]->getIndex());
-    }
-
-    // MIDI first, so hits scheduled inside this block are rendered by it.
-    for (const auto metadata : midi)
-    {
-        const auto message = metadata.getMessage();
-        const auto sampleOffset = metadata.samplePosition;
-
-        if (midiRecorder.isRecording())
-            midiRecorder.logMessage (message, sampler.currentSamplePosition() + sampleOffset);
-
-        // Delegate MIDI routing to MidiRouter (handles learn, CC routing, E-drum CCs, chokes, note triggering)
-        midiRouter.processMidiMessage (message, sampleOffset, sampler, parameterManager,
-                                       lastHiHatCC4, lastSnareCC16);
-    }
-
-    // Map host output buses to up to 16 stereo bus write pointers (32 channels)
-    busOutputs.fill (nullptr);
-
-    // Note: The actual bus mapping will be done by the plugin processor since it has access to getBusBuffer
-    // For now, we'll render to a flat buffer and the plugin processor will handle bus mapping
-    // This is a simplification - in reality the plugin processor should handle the bus mapping
-}
-
-//==============================================================================
-void AudioEngine::render (float* const* busOutputs, int numBusOutputs, int numSamples, juce::MidiBuffer& midi)
+void AudioEngine::render (float* const* busOutputs, int numBusOutputs, int numSamples, juce::MidiBuffer& midi,
+                          ParameterManager& parameterManager, MidiRouter& midiRouter,
+                          std::atomic<float>& lastHiHatCC4, std::atomic<float>& lastSnareCC16)
 {
     // Update global parameters
     GlobalParams globals;

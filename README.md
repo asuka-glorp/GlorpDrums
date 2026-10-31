@@ -215,7 +215,7 @@ GlorpDrums is purpose-built for electronic drum kits. An integrated **E-Drum Set
 GlorpDrums is actively developed following an ambitious multi-phase roadmap:
 
 * [x] **Phase 1 — E-Drum Input Engine**: Continuous CC#4 hi-hat crossfading, foot chick/splash gestures, and 15ms anti-click cymbal choke damping.
-* [x] **Phase 2 — Full Per-Mic Mixer Tab & Built-in DSP**: Dual-view UI switch ([KIT VIEW] / [MIXER VIEW]), per-mic strips, 3-band EQ, VCA compressor, saturation, transient shaper, master limiter, reverb, and `.glorpmix` presets.
+* [x] **Phase 2 — Full Per-Mic Mixer Tab & Built-in DSP**: Dual-view UI switch ([KIT VIEW] / [MIXER VIEW]), per-mic strips, 3-band EQ, VCA compressor, saturation, transient shaper, master limiter, reverb, and `.glorpmix` presets. **Architecture Refactor**: Decomposed PluginProcessor god class into focused components — `ParameterManager` (parameter layout, MIDI learn, state), `MidiRouter` (MIDI map, note/CC routing), `AudioEngine` (audio rendering pipeline, sampler, backing track, metronome, recorders). **Fixed**: Instrument knobs in Kit View (Volume, Pan, Pitch, Dynamics) now correctly affect audio output.
 * [x] **Phase 3 — Recording Mode & Practice Assistant**: Synchronized 24-bit WAV + SMF Type 1 MIDI recording, backing track player with interactive waveform navigation (middle-click pan & auto-following playhead), spectral-flux tempo detection, sample-accurate metronome with customizable beats per measure, dynamic LED count lights, pre-roll count-in, and 6-lane rolling rhythm ribbon.
 * [x] **Phase 4 — Multi-Mic Leakage & Bleed Matrix**: Matrix routing by logical drum pieces ($9 \times N$ mic columns), physical acoustic crosstalk engine (delay & off-axis filtering), sympathetic snare wire rattle synthesis, master bleed/buzz controls, and production presets (Natural, Clean, Live, OH Only).
 * [x] **Phase 5 — Graphical Optimizations & OpenGL GPU Rendering**:
@@ -228,6 +228,10 @@ GlorpDrums is actively developed following an ambitious multi-phase roadmap:
 * [x] **Phase 7 — Standalone GlorpKit Studio (`GlorpKitEditor`) & Format v2**:
   * **GlorpKit Format v2**: Expanded `.glorpkit` archive specification supporting embedded custom per-piece PNG artwork (`assets/*.png`), normalized canvas coordinates (`norm-x`, `norm-y`, `norm-w`), kit-wide hit glow color (`hit-glow-color`), and customizable Z-order layering (`z-order`).
   * **Standalone Graphical Kit Editor (`GlorpKitEditor`)**: Dedicated desktop application built and packaged alongside GlorpDrums for creating and editing `.glorpkit` archives—featuring WYSIWYG 2D piece dragging and resizing, Z-layer stacking, velocity layer & round-robin sample matrices, multi-zone articulation mapping, customizable hit glow palette, interactive first-time guided tutorial tour, live audio auditioning, and lossless round-trip editing of existing `.glorpkit` files and DrumGizmo XML folders.
+* [x] **Phase 7.5 — Codebase Modernization & Build Improvements**:
+  * **C++20 Standard**: Updated from C++17 to C++20 across the project.
+  * **Centralized Constants**: New `src/core/Config.h` with single source of truth for all compile-time constants (bus counts, voice limits, ring buffer sizes, etc.).
+  * **Build System Cleanup**: Deduplicated CMake configuration, removed stale standalone definitions.
 * [ ] **Phase 8 — Cross-Platform Port (Windows & macOS)**:
   * Port standalone applications and plugin formats (VST3 and CLAP) to **Windows 10/11** with low-latency ASIO and WASAPI audio driver support.
   * Port standalone applications and plugin formats (VST3, CLAP, and **AU / Audio Unit**) to **macOS** with CoreAudio and CoreMIDI support.

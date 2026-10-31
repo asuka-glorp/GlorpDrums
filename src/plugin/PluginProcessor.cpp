@@ -155,7 +155,8 @@ void PluginProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Midi
     }
 
     // Delegate core audio processing to AudioEngine (parameters, MIDI, sampler rendering)
-    audioEngine.render (busOutputs.data(), maxOutputBuses * 2, numSamples, midi);
+    audioEngine.render (busOutputs.data(), maxOutputBuses * 2, numSamples, midi,
+                        parameterManager, midiRouter, lastHiHatCC4, lastSnareCC16);
 
     // Update latency if needed
     const int samplerLatency = audioEngine.getSampler().latencySamples();

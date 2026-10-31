@@ -14,8 +14,6 @@
 #include "Metronome.h"
 #include "AudioRecorder.h"
 #include "MidiRecorder.h"
-#include "ParameterManager.h"
-#include "MidiRouter.h"
 
 #include <juce_audio_processors/juce_audio_processors.h>
 
@@ -24,6 +22,9 @@
 
 namespace glorp
 {
+
+class ParameterManager;
+class MidiRouter;
 
 class AudioEngine
 {
@@ -44,8 +45,8 @@ public:
 
     // -- Audio rendering ------------------------------------------------------
 
-    /// Processes one audio block. Must be called from the audio thread.
-    void processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midi);
+    // Note: processBlock() was removed as it's not used - PluginProcessor calls render() directly.
+    // If needed for standalone, it can be re-added with ParameterManager/MidiRouter parameters.
 
     // -- Sub-component access -------------------------------------------------
 
@@ -69,17 +70,14 @@ public:
 
     /// Processes audio with parameters, MIDI, and renders to bus outputs.
     /// Call from PluginProcessor::processBlock after setting up bus outputs.
-    void render (float* const* busOutputs, int numBusOutputs, int numSamples, juce::MidiBuffer& midi);
+    void render (float* const* busOutputs, int numBusOutputs, int numSamples, juce::MidiBuffer& midi,
+                 ParameterManager& parameterManager, MidiRouter& midiRouter,
+                 std::atomic<float>& lastHiHatCC4, std::atomic<float>& lastSnareCC16);
 
     // -- Configuration --------------------------------------------------------
 
     void setMultiOutMode (bool enabled) { sampler.setMultiOutMode (enabled); }
     bool isMultiOutMode() const noexcept { return sampler.isMultiOutMode(); }
-
-    // -- Hi-hat / snare CC state (for GUI) ------------------------------------
-
-    float getLastHiHatCC4() const noexcept { return lastHiHatCC4.load (std::memory_order_relaxed); }
-    float getLastSnareCC16() const noexcept { return lastSnareCC16.load (std::memory_order_relaxed); }
 
 private:
     // -- Sub-components -------------------------------------------------------
@@ -89,17 +87,9 @@ private:
     AudioRecorder audioRecorder;
     MidiRecorder midiRecorder;
 
-    // -- MIDI routing ---------------------------------------------------------
-    MidiRouter midiRouter;
-    ParameterManager parameterManager;
-
     // -- Engine state ---------------------------------------------------------
     double currentSampleRate = 44100.0;
     int currentBlockSize = 512;
-
-    // -- Hi-hat / snare CC state ----------------------------------------------
-    std::atomic<float> lastHiHatCC4 { 0.0f };
-    std::atomic<float> lastSnareCC16 { 0.5f };
 
     // -- Rendering helpers ----------------------------------------------------
     std::array<float*, config::MAX_OUTPUT_BUSES * 2> busOutputs {};
