@@ -1,0 +1,11 @@
+{
+	"InstallScripts" : 
+	[
+		"/home/servandoc/Documents/DEV/GlorpDrums/build_test/cmake_install.cmake",
+		"/home/servandoc/Documents/DEV/GlorpDrums/build_test/libs/JUCE/cmake_install.cmake",
+		"/home/servandoc/Documents/DEV/GlorpDrums/build_test/libs/JUCE/modules/cmake_install.cmake",
+		"/home/servandoc/Documents/DEV/GlorpDrums/build_test/libs/JUCE/extras/Build/cmake_install.cmake",
+		"/home/servandoc/Documents/DEV/GlorpDrums/build_test/libs/JUCE/extras/Build/juceaide/cmake_install.cmake"
+	],
+	"Parallel" : false
+}

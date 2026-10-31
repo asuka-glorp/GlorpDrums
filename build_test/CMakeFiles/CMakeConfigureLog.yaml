@@ -1,0 +1,2119 @@
+
+---
+events:
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/CMakeDetermineSystem.cmake:12 (find_program)"
+      - "CMakeLists.txt:3 (project)"
+    mode: "program"
+    variable: "CMAKE_UNAME"
+    description: "Path to a program."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "uname"
+    candidate_directories:
+      - "/home/servandoc/.grok/bin/"
+      - "/home/servandoc/.opencode/bin/"
+      - "/home/servandoc/.local/bin/"
+      - "/home/servandoc/bin/"
+      - "/home/servandoc/.cargo/bin/"
+      - "/home/servandoc/.nix-profile/bin/"
+      - "/usr/share/Modules/bin/"
+      - "/usr/local/bin/"
+      - "/usr/bin/"
+      - "/bin/"
+      - "/var/lib/snapd/snap/bin/"
+    searched_directories:
+      - "/home/servandoc/.grok/bin/uname"
+      - "/home/servandoc/.opencode/bin/uname"
+      - "/home/servandoc/.local/bin/uname"
+      - "/home/servandoc/bin/uname"
+      - "/home/servandoc/.cargo/bin/uname"
+      - "/home/servandoc/.nix-profile/bin/uname"
+      - "/usr/share/Modules/bin/uname"
+      - "/usr/local/bin/uname"
+    found: "/usr/bin/uname"
+    search_context:
+      ENV{PATH}:
+        - "/home/servandoc/.grok/bin"
+        - "/home/servandoc/.opencode/bin"
+        - "/home/servandoc/.local/bin"
+        - "/home/servandoc/bin"
+        - "/home/servandoc/.cargo/bin"
+        - "/home/servandoc/.nix-profile/bin"
+        - "/usr/share/Modules/bin"
+        - "/usr/local/bin"
+        - "/usr/bin"
+        - "/bin"
+        - "/var/lib/snapd/snap/bin"
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/CMakeDetermineSystem.cmake:212 (message)"
+      - "CMakeLists.txt:3 (project)"
+    message: |
+      The system is: Linux - 7.2.11-200.nobara.fc44.x86_64 - x86_64
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/CMakeUnixFindMake.cmake:5 (find_program)"
+      - "CMakeLists.txt:3 (project)"
+    mode: "program"
+    variable: "CMAKE_MAKE_PROGRAM"
+    description: "Path to a program."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "gmake"
+      - "make"
+      - "smake"
+    candidate_directories:
+      - "/home/servandoc/.grok/bin/"
+      - "/home/servandoc/.opencode/bin/"
+      - "/home/servandoc/.local/bin/"
+      - "/home/servandoc/bin/"
+      - "/home/servandoc/.cargo/bin/"
+      - "/home/servandoc/.nix-profile/bin/"
+      - "/usr/share/Modules/bin/"
+      - "/usr/local/bin/"
+      - "/usr/bin/"
+      - "/bin/"
+      - "/var/lib/snapd/snap/bin/"
+    searched_directories:
+      - "/home/servandoc/.grok/bin/gmake"
+      - "/home/servandoc/.opencode/bin/gmake"
+      - "/home/servandoc/.local/bin/gmake"
+      - "/home/servandoc/bin/gmake"
+      - "/home/servandoc/.cargo/bin/gmake"
+      - "/home/servandoc/.nix-profile/bin/gmake"
+      - "/usr/share/Modules/bin/gmake"
+      - "/usr/local/bin/gmake"
+    found: "/usr/bin/gmake"
+    search_context:
+      ENV{PATH}:
+        - "/home/servandoc/.grok/bin"
+        - "/home/servandoc/.opencode/bin"
+        - "/home/servandoc/.local/bin"
+        - "/home/servandoc/bin"
+        - "/home/servandoc/.cargo/bin"
+        - "/home/servandoc/.nix-profile/bin"
+        - "/usr/share/Modules/bin"
+        - "/usr/local/bin"
+        - "/usr/bin"
+        - "/bin"
+        - "/var/lib/snapd/snap/bin"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/CMakeDetermineCompiler.cmake:73 (find_program)"
+      - "/usr/share/cmake/Modules/CMakeDetermineCCompiler.cmake:64 (_cmake_find_compiler)"
+      - "CMakeLists.txt:3 (project)"
+    mode: "program"
+    variable: "CMAKE_C_COMPILER"
+    description: "C compiler"
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "cc"
+      - "gcc"
+      - "cl"
+      - "bcc"
+      - "xlc"
+      - "icx"
+      - "clang"
+    candidate_directories:
+      - "/home/servandoc/.grok/bin/"
+      - "/home/servandoc/.opencode/bin/"
+      - "/home/servandoc/.local/bin/"
+      - "/home/servandoc/bin/"
+      - "/home/servandoc/.cargo/bin/"
+      - "/home/servandoc/.nix-profile/bin/"
+      - "/usr/share/Modules/bin/"
+      - "/usr/local/bin/"
+      - "/usr/bin/"
+      - "/bin/"
+      - "/var/lib/snapd/snap/bin/"
+    searched_directories:
+      - "/home/servandoc/.grok/bin/cc"
+      - "/home/servandoc/.opencode/bin/cc"
+      - "/home/servandoc/.local/bin/cc"
+      - "/home/servandoc/bin/cc"
+      - "/home/servandoc/.cargo/bin/cc"
+      - "/home/servandoc/.nix-profile/bin/cc"
+      - "/usr/share/Modules/bin/cc"
+      - "/usr/local/bin/cc"
+    found: "/usr/bin/cc"
+    search_context:
+      ENV{PATH}:
+        - "/home/servandoc/.grok/bin"
+        - "/home/servandoc/.opencode/bin"
+        - "/home/servandoc/.local/bin"
+        - "/home/servandoc/bin"
+        - "/home/servandoc/.cargo/bin"
+        - "/home/servandoc/.nix-profile/bin"
+        - "/usr/share/Modules/bin"
+        - "/usr/local/bin"
+        - "/usr/bin"
+        - "/bin"
+        - "/var/lib/snapd/snap/bin"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/CMakeDetermineCompilerId.cmake:468 (find_file)"
+      - "/usr/share/cmake/Modules/CMakeDetermineCompilerId.cmake:506 (CMAKE_DETERMINE_COMPILER_ID_WRITE)"
+      - "/usr/share/cmake/Modules/CMakeDetermineCompilerId.cmake:8 (CMAKE_DETERMINE_COMPILER_ID_BUILD)"
+      - "/usr/share/cmake/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "/usr/share/cmake/Modules/CMakeDetermineCCompiler.cmake:122 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:3 (project)"
+    mode: "file"
+    variable: "src_in"
+    description: "Path to a file."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "CMakeCCompilerId.c.in"
+    candidate_directories:
+      - "/usr/share/cmake/Modules/"
+    found: "/usr/share/cmake/Modules/CMakeCCompilerId.c.in"
+    search_context:
+      ENV{PATH}:
+        - "/home/servandoc/.grok/bin"
+        - "/home/servandoc/.opencode/bin"
+        - "/home/servandoc/.local/bin"
+        - "/home/servandoc/bin"
+        - "/home/servandoc/.cargo/bin"
+        - "/home/servandoc/.nix-profile/bin"
+        - "/usr/share/Modules/bin"
+        - "/usr/local/bin"
+        - "/usr/bin"
+        - "/bin"
+        - "/var/lib/snapd/snap/bin"
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/CMakeDetermineCompilerId.cmake:17 (message)"
+      - "/usr/share/cmake/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "/usr/share/cmake/Modules/CMakeDetermineCCompiler.cmake:122 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:3 (project)"
+    message: |
+      Compiling the C compiler identification source file "CMakeCCompilerId.c" succeeded.
+      Compiler: /usr/bin/cc 
+      Build flags: 
+      Id flags:  
+      
+      The output was:
+      0
+      
+      
+      Compilation of the C compiler identification source "CMakeCCompilerId.c" produced "a.out"
+      
+      The C compiler identification is GNU, found in:
+        /home/servandoc/Documents/DEV/GlorpDrums/build_test/CMakeFiles/4.3.0/CompilerIdC/a.out
+      
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/CMakeFindBinUtils.cmake:243 (find_program)"
+      - "/usr/share/cmake/Modules/CMakeDetermineCCompiler.cmake:200 (include)"
+      - "CMakeLists.txt:3 (project)"
+    mode: "program"
+    variable: "CMAKE_AR"
+    description: "Path to a program."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: false
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: false
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "ar"
+    candidate_directories:
+      - "/usr/bin/"
+      - "/home/servandoc/.grok/bin/"
+      - "/home/servandoc/.opencode/bin/"
+      - "/home/servandoc/.local/bin/"
+      - "/home/servandoc/bin/"
+      - "/home/servandoc/.cargo/bin/"
+      - "/home/servandoc/.nix-profile/bin/"
+      - "/usr/share/Modules/bin/"
+      - "/usr/local/bin/"
+      - "/bin/"
+      - "/var/lib/snapd/snap/bin/"
+    found: "/usr/bin/ar"
+    search_context:
+      ENV{PATH}:
+        - "/home/servandoc/.grok/bin"
+        - "/home/servandoc/.opencode/bin"
+        - "/home/servandoc/.local/bin"
+        - "/home/servandoc/bin"
+        - "/home/servandoc/.cargo/bin"
+        - "/home/servandoc/.nix-profile/bin"
+        - "/usr/share/Modules/bin"
+        - "/usr/local/bin"
+        - "/usr/bin"
+        - "/bin"
+        - "/var/lib/snapd/snap/bin"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/CMakeFindBinUtils.cmake:243 (find_program)"
+      - "/usr/share/cmake/Modules/CMakeDetermineCCompiler.cmake:200 (include)"
+      - "CMakeLists.txt:3 (project)"
+    mode: "program"
+    variable: "CMAKE_RANLIB"
+    description: "Path to a program."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: false
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: false
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "ranlib"
+    candidate_directories:
+      - "/usr/bin/"
+      - "/home/servandoc/.grok/bin/"
+      - "/home/servandoc/.opencode/bin/"
+      - "/home/servandoc/.local/bin/"
+      - "/home/servandoc/bin/"
+      - "/home/servandoc/.cargo/bin/"
+      - "/home/servandoc/.nix-profile/bin/"
+      - "/usr/share/Modules/bin/"
+      - "/usr/local/bin/"
+      - "/bin/"
+      - "/var/lib/snapd/snap/bin/"
+    found: "/usr/bin/ranlib"
+    search_context:
+      ENV{PATH}:
+        - "/home/servandoc/.grok/bin"
+        - "/home/servandoc/.opencode/bin"
+        - "/home/servandoc/.local/bin"
+        - "/home/servandoc/bin"
+        - "/home/servandoc/.cargo/bin"
+        - "/home/servandoc/.nix-profile/bin"
+        - "/usr/share/Modules/bin"
+        - "/usr/local/bin"
+        - "/usr/bin"
+        - "/bin"
+        - "/var/lib/snapd/snap/bin"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/CMakeFindBinUtils.cmake:243 (find_program)"
+      - "/usr/share/cmake/Modules/CMakeDetermineCCompiler.cmake:200 (include)"
+      - "CMakeLists.txt:3 (project)"
+    mode: "program"
+    variable: "CMAKE_STRIP"
+    description: "Path to a program."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: false
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: false
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "strip"
+    candidate_directories:
+      - "/usr/bin/"
+      - "/home/servandoc/.grok/bin/"
+      - "/home/servandoc/.opencode/bin/"
+      - "/home/servandoc/.local/bin/"
+      - "/home/servandoc/bin/"
+      - "/home/servandoc/.cargo/bin/"
+      - "/home/servandoc/.nix-profile/bin/"
+      - "/usr/share/Modules/bin/"
+      - "/usr/local/bin/"
+      - "/bin/"
+      - "/var/lib/snapd/snap/bin/"
+    found: "/usr/bin/strip"
+    search_context:
+      ENV{PATH}:
+        - "/home/servandoc/.grok/bin"
+        - "/home/servandoc/.opencode/bin"
+        - "/home/servandoc/.local/bin"
+        - "/home/servandoc/bin"
+        - "/home/servandoc/.cargo/bin"
+        - "/home/servandoc/.nix-profile/bin"
+        - "/usr/share/Modules/bin"
+        - "/usr/local/bin"
+        - "/usr/bin"
+        - "/bin"
+        - "/var/lib/snapd/snap/bin"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/CMakeFindBinUtils.cmake:243 (find_program)"
+      - "/usr/share/cmake/Modules/CMakeDetermineCCompiler.cmake:200 (include)"
+      - "CMakeLists.txt:3 (project)"
+    mode: "program"
+    variable: "CMAKE_LINKER"
+    description: "Path to a program."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: false
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: false
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "ld"
+    candidate_directories:
+      - "/usr/bin/"
+      - "/home/servandoc/.grok/bin/"
+      - "/home/servandoc/.opencode/bin/"
+      - "/home/servandoc/.local/bin/"
+      - "/home/servandoc/bin/"
+      - "/home/servandoc/.cargo/bin/"
+      - "/home/servandoc/.nix-profile/bin/"
+      - "/usr/share/Modules/bin/"
+      - "/usr/local/bin/"
+      - "/bin/"
+      - "/var/lib/snapd/snap/bin/"
+    found: "/usr/bin/ld"
+    search_context:
+      ENV{PATH}:
+        - "/home/servandoc/.grok/bin"
+        - "/home/servandoc/.opencode/bin"
+        - "/home/servandoc/.local/bin"
+        - "/home/servandoc/bin"
+        - "/home/servandoc/.cargo/bin"
+        - "/home/servandoc/.nix-profile/bin"
+        - "/usr/share/Modules/bin"
+        - "/usr/local/bin"
+        - "/usr/bin"
+        - "/bin"
+        - "/var/lib/snapd/snap/bin"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/CMakeFindBinUtils.cmake:243 (find_program)"
+      - "/usr/share/cmake/Modules/CMakeDetermineCCompiler.cmake:200 (include)"
+      - "CMakeLists.txt:3 (project)"
+    mode: "program"
+    variable: "CMAKE_NM"
+    description: "Path to a program."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: false
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: false
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "nm"
+    candidate_directories:
+      - "/usr/bin/"
+      - "/home/servandoc/.grok/bin/"
+      - "/home/servandoc/.opencode/bin/"
+      - "/home/servandoc/.local/bin/"
+      - "/home/servandoc/bin/"
+      - "/home/servandoc/.cargo/bin/"
+      - "/home/servandoc/.nix-profile/bin/"
+      - "/usr/share/Modules/bin/"
+      - "/usr/local/bin/"
+      - "/bin/"
+      - "/var/lib/snapd/snap/bin/"
+    found: "/usr/bin/nm"
+    search_context:
+      ENV{PATH}:
+        - "/home/servandoc/.grok/bin"
+        - "/home/servandoc/.opencode/bin"
+        - "/home/servandoc/.local/bin"
+        - "/home/servandoc/bin"
+        - "/home/servandoc/.cargo/bin"
+        - "/home/servandoc/.nix-profile/bin"
+        - "/usr/share/Modules/bin"
+        - "/usr/local/bin"
+        - "/usr/bin"
+        - "/bin"
+        - "/var/lib/snapd/snap/bin"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/CMakeFindBinUtils.cmake:243 (find_program)"
+      - "/usr/share/cmake/Modules/CMakeDetermineCCompiler.cmake:200 (include)"
+      - "CMakeLists.txt:3 (project)"
+    mode: "program"
+    variable: "CMAKE_OBJDUMP"
+    description: "Path to a program."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: false
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: false
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "objdump"
+    candidate_directories:
+      - "/usr/bin/"
+      - "/home/servandoc/.grok/bin/"
+      - "/home/servandoc/.opencode/bin/"
+      - "/home/servandoc/.local/bin/"
+      - "/home/servandoc/bin/"
+      - "/home/servandoc/.cargo/bin/"
+      - "/home/servandoc/.nix-profile/bin/"
+      - "/usr/share/Modules/bin/"
+      - "/usr/local/bin/"
+      - "/bin/"
+      - "/var/lib/snapd/snap/bin/"
+    found: "/usr/bin/objdump"
+    search_context:
+      ENV{PATH}:
+        - "/home/servandoc/.grok/bin"
+        - "/home/servandoc/.opencode/bin"
+        - "/home/servandoc/.local/bin"
+        - "/home/servandoc/bin"
+        - "/home/servandoc/.cargo/bin"
+        - "/home/servandoc/.nix-profile/bin"
+        - "/usr/share/Modules/bin"
+        - "/usr/local/bin"
+        - "/usr/bin"
+        - "/bin"
+        - "/var/lib/snapd/snap/bin"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/CMakeFindBinUtils.cmake:243 (find_program)"
+      - "/usr/share/cmake/Modules/CMakeDetermineCCompiler.cmake:200 (include)"
+      - "CMakeLists.txt:3 (project)"
+    mode: "program"
+    variable: "CMAKE_OBJCOPY"
+    description: "Path to a program."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: false
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: false
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "objcopy"
+    candidate_directories:
+      - "/usr/bin/"
+      - "/home/servandoc/.grok/bin/"
+      - "/home/servandoc/.opencode/bin/"
+      - "/home/servandoc/.local/bin/"
+      - "/home/servandoc/bin/"
+      - "/home/servandoc/.cargo/bin/"
+      - "/home/servandoc/.nix-profile/bin/"
+      - "/usr/share/Modules/bin/"
+      - "/usr/local/bin/"
+      - "/bin/"
+      - "/var/lib/snapd/snap/bin/"
+    found: "/usr/bin/objcopy"
+    search_context:
+      ENV{PATH}:
+        - "/home/servandoc/.grok/bin"
+        - "/home/servandoc/.opencode/bin"
+        - "/home/servandoc/.local/bin"
+        - "/home/servandoc/bin"
+        - "/home/servandoc/.cargo/bin"
+        - "/home/servandoc/.nix-profile/bin"
+        - "/usr/share/Modules/bin"
+        - "/usr/local/bin"
+        - "/usr/bin"
+        - "/bin"
+        - "/var/lib/snapd/snap/bin"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/CMakeFindBinUtils.cmake:243 (find_program)"
+      - "/usr/share/cmake/Modules/CMakeDetermineCCompiler.cmake:200 (include)"
+      - "CMakeLists.txt:3 (project)"
+    mode: "program"
+    variable: "CMAKE_READELF"
+    description: "Path to a program."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: false
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: false
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "readelf"
+    candidate_directories:
+      - "/usr/bin/"
+      - "/home/servandoc/.grok/bin/"
+      - "/home/servandoc/.opencode/bin/"
+      - "/home/servandoc/.local/bin/"
+      - "/home/servandoc/bin/"
+      - "/home/servandoc/.cargo/bin/"
+      - "/home/servandoc/.nix-profile/bin/"
+      - "/usr/share/Modules/bin/"
+      - "/usr/local/bin/"
+      - "/bin/"
+      - "/var/lib/snapd/snap/bin/"
+    found: "/usr/bin/readelf"
+    search_context:
+      ENV{PATH}:
+        - "/home/servandoc/.grok/bin"
+        - "/home/servandoc/.opencode/bin"
+        - "/home/servandoc/.local/bin"
+        - "/home/servandoc/bin"
+        - "/home/servandoc/.cargo/bin"
+        - "/home/servandoc/.nix-profile/bin"
+        - "/usr/share/Modules/bin"
+        - "/usr/local/bin"
+        - "/usr/bin"
+        - "/bin"
+        - "/var/lib/snapd/snap/bin"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/CMakeFindBinUtils.cmake:243 (find_program)"
+      - "/usr/share/cmake/Modules/CMakeDetermineCCompiler.cmake:200 (include)"
+      - "CMakeLists.txt:3 (project)"
+    mode: "program"
+    variable: "CMAKE_DLLTOOL"
+    description: "Path to a program."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: false
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: false
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "dlltool"
+    candidate_directories:
+      - "/usr/bin/"
+      - "/home/servandoc/.grok/bin/"
+      - "/home/servandoc/.opencode/bin/"
+      - "/home/servandoc/.local/bin/"
+      - "/home/servandoc/bin/"
+      - "/home/servandoc/.cargo/bin/"
+      - "/home/servandoc/.nix-profile/bin/"
+      - "/usr/share/Modules/bin/"
+      - "/usr/local/bin/"
+      - "/bin/"
+      - "/var/lib/snapd/snap/bin/"
+    searched_directories:
+      - "/usr/bin/dlltool"
+      - "/home/servandoc/.grok/bin/dlltool"
+      - "/home/servandoc/.opencode/bin/dlltool"
+      - "/home/servandoc/.local/bin/dlltool"
+      - "/home/servandoc/bin/dlltool"
+      - "/home/servandoc/.cargo/bin/dlltool"
+      - "/home/servandoc/.nix-profile/bin/dlltool"
+      - "/usr/share/Modules/bin/dlltool"
+      - "/usr/local/bin/dlltool"
+      - "/bin/dlltool"
+      - "/var/lib/snapd/snap/bin/dlltool"
+    found: false
+    search_context:
+      ENV{PATH}:
+        - "/home/servandoc/.grok/bin"
+        - "/home/servandoc/.opencode/bin"
+        - "/home/servandoc/.local/bin"
+        - "/home/servandoc/bin"
+        - "/home/servandoc/.cargo/bin"
+        - "/home/servandoc/.nix-profile/bin"
+        - "/usr/share/Modules/bin"
+        - "/usr/local/bin"
+        - "/usr/bin"
+        - "/bin"
+        - "/var/lib/snapd/snap/bin"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/CMakeFindBinUtils.cmake:243 (find_program)"
+      - "/usr/share/cmake/Modules/CMakeDetermineCCompiler.cmake:200 (include)"
+      - "CMakeLists.txt:3 (project)"
+    mode: "program"
+    variable: "CMAKE_ADDR2LINE"
+    description: "Path to a program."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: false
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: false
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "addr2line"
+    candidate_directories:
+      - "/usr/bin/"
+      - "/home/servandoc/.grok/bin/"
+      - "/home/servandoc/.opencode/bin/"
+      - "/home/servandoc/.local/bin/"
+      - "/home/servandoc/bin/"
+      - "/home/servandoc/.cargo/bin/"
+      - "/home/servandoc/.nix-profile/bin/"
+      - "/usr/share/Modules/bin/"
+      - "/usr/local/bin/"
+      - "/bin/"
+      - "/var/lib/snapd/snap/bin/"
+    found: "/usr/bin/addr2line"
+    search_context:
+      ENV{PATH}:
+        - "/home/servandoc/.grok/bin"
+        - "/home/servandoc/.opencode/bin"
+        - "/home/servandoc/.local/bin"
+        - "/home/servandoc/bin"
+        - "/home/servandoc/.cargo/bin"
+        - "/home/servandoc/.nix-profile/bin"
+        - "/usr/share/Modules/bin"
+        - "/usr/local/bin"
+        - "/usr/bin"
+        - "/bin"
+        - "/var/lib/snapd/snap/bin"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/CMakeFindBinUtils.cmake:243 (find_program)"
+      - "/usr/share/cmake/Modules/CMakeDetermineCCompiler.cmake:200 (include)"
+      - "CMakeLists.txt:3 (project)"
+    mode: "program"
+    variable: "CMAKE_TAPI"
+    description: "Path to a program."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: false
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: false
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "tapi"
+    candidate_directories:
+      - "/usr/bin/"
+      - "/home/servandoc/.grok/bin/"
+      - "/home/servandoc/.opencode/bin/"
+      - "/home/servandoc/.local/bin/"
+      - "/home/servandoc/bin/"
+      - "/home/servandoc/.cargo/bin/"
+      - "/home/servandoc/.nix-profile/bin/"
+      - "/usr/share/Modules/bin/"
+      - "/usr/local/bin/"
+      - "/bin/"
+      - "/var/lib/snapd/snap/bin/"
+    searched_directories:
+      - "/usr/bin/tapi"
+      - "/home/servandoc/.grok/bin/tapi"
+      - "/home/servandoc/.opencode/bin/tapi"
+      - "/home/servandoc/.local/bin/tapi"
+      - "/home/servandoc/bin/tapi"
+      - "/home/servandoc/.cargo/bin/tapi"
+      - "/home/servandoc/.nix-profile/bin/tapi"
+      - "/usr/share/Modules/bin/tapi"
+      - "/usr/local/bin/tapi"
+      - "/bin/tapi"
+      - "/var/lib/snapd/snap/bin/tapi"
+    found: false
+    search_context:
+      ENV{PATH}:
+        - "/home/servandoc/.grok/bin"
+        - "/home/servandoc/.opencode/bin"
+        - "/home/servandoc/.local/bin"
+        - "/home/servandoc/bin"
+        - "/home/servandoc/.cargo/bin"
+        - "/home/servandoc/.nix-profile/bin"
+        - "/usr/share/Modules/bin"
+        - "/usr/local/bin"
+        - "/usr/bin"
+        - "/bin"
+        - "/var/lib/snapd/snap/bin"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/Compiler/GNU-FindBinUtils.cmake:18 (find_program)"
+      - "/usr/share/cmake/Modules/CMakeDetermineCCompiler.cmake:201 (include)"
+      - "CMakeLists.txt:3 (project)"
+    mode: "program"
+    variable: "CMAKE_C_COMPILER_AR"
+    description: "A wrapper around 'ar' adding the appropriate '--plugin' option for the GCC compiler"
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: false
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: false
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "gcc-ar-16.2"
+      - "gcc-ar-16"
+      - "gcc-ar16"
+      - "gcc-ar"
+    candidate_directories:
+      - "/usr/bin/"
+      - "/home/servandoc/.grok/bin/"
+      - "/home/servandoc/.opencode/bin/"
+      - "/home/servandoc/.local/bin/"
+      - "/home/servandoc/bin/"
+      - "/home/servandoc/.cargo/bin/"
+      - "/home/servandoc/.nix-profile/bin/"
+      - "/usr/share/Modules/bin/"
+      - "/usr/local/bin/"
+      - "/bin/"
+      - "/var/lib/snapd/snap/bin/"
+    searched_directories:
+      - "/usr/bin/gcc-ar-16.2"
+      - "/home/servandoc/.grok/bin/gcc-ar-16.2"
+      - "/home/servandoc/.opencode/bin/gcc-ar-16.2"
+      - "/home/servandoc/.local/bin/gcc-ar-16.2"
+      - "/home/servandoc/bin/gcc-ar-16.2"
+      - "/home/servandoc/.cargo/bin/gcc-ar-16.2"
+      - "/home/servandoc/.nix-profile/bin/gcc-ar-16.2"
+      - "/usr/share/Modules/bin/gcc-ar-16.2"
+      - "/usr/local/bin/gcc-ar-16.2"
+      - "/bin/gcc-ar-16.2"
+      - "/var/lib/snapd/snap/bin/gcc-ar-16.2"
+      - "/usr/bin/gcc-ar-16"
+      - "/home/servandoc/.grok/bin/gcc-ar-16"
+      - "/home/servandoc/.opencode/bin/gcc-ar-16"
+      - "/home/servandoc/.local/bin/gcc-ar-16"
+      - "/home/servandoc/bin/gcc-ar-16"
+      - "/home/servandoc/.cargo/bin/gcc-ar-16"
+      - "/home/servandoc/.nix-profile/bin/gcc-ar-16"
+      - "/usr/share/Modules/bin/gcc-ar-16"
+      - "/usr/local/bin/gcc-ar-16"
+      - "/bin/gcc-ar-16"
+      - "/var/lib/snapd/snap/bin/gcc-ar-16"
+      - "/usr/bin/gcc-ar16"
+      - "/home/servandoc/.grok/bin/gcc-ar16"
+      - "/home/servandoc/.opencode/bin/gcc-ar16"
+      - "/home/servandoc/.local/bin/gcc-ar16"
+      - "/home/servandoc/bin/gcc-ar16"
+      - "/home/servandoc/.cargo/bin/gcc-ar16"
+      - "/home/servandoc/.nix-profile/bin/gcc-ar16"
+      - "/usr/share/Modules/bin/gcc-ar16"
+      - "/usr/local/bin/gcc-ar16"
+      - "/bin/gcc-ar16"
+      - "/var/lib/snapd/snap/bin/gcc-ar16"
+    found: "/usr/bin/gcc-ar"
+    search_context:
+      ENV{PATH}:
+        - "/home/servandoc/.grok/bin"
+        - "/home/servandoc/.opencode/bin"
+        - "/home/servandoc/.local/bin"
+        - "/home/servandoc/bin"
+        - "/home/servandoc/.cargo/bin"
+        - "/home/servandoc/.nix-profile/bin"
+        - "/usr/share/Modules/bin"
+        - "/usr/local/bin"
+        - "/usr/bin"
+        - "/bin"
+        - "/var/lib/snapd/snap/bin"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/Compiler/GNU-FindBinUtils.cmake:30 (find_program)"
+      - "/usr/share/cmake/Modules/CMakeDetermineCCompiler.cmake:201 (include)"
+      - "CMakeLists.txt:3 (project)"
+    mode: "program"
+    variable: "CMAKE_C_COMPILER_RANLIB"
+    description: "A wrapper around 'ranlib' adding the appropriate '--plugin' option for the GCC compiler"
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: false
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: false
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "gcc-ranlib-16.2"
+      - "gcc-ranlib-16"
+      - "gcc-ranlib16"
+      - "gcc-ranlib"
+    candidate_directories:
+      - "/usr/bin/"
+      - "/home/servandoc/.grok/bin/"
+      - "/home/servandoc/.opencode/bin/"
+      - "/home/servandoc/.local/bin/"
+      - "/home/servandoc/bin/"
+      - "/home/servandoc/.cargo/bin/"
+      - "/home/servandoc/.nix-profile/bin/"
+      - "/usr/share/Modules/bin/"
+      - "/usr/local/bin/"
+      - "/bin/"
+      - "/var/lib/snapd/snap/bin/"
+    searched_directories:
+      - "/usr/bin/gcc-ranlib-16.2"
+      - "/home/servandoc/.grok/bin/gcc-ranlib-16.2"
+      - "/home/servandoc/.opencode/bin/gcc-ranlib-16.2"
+      - "/home/servandoc/.local/bin/gcc-ranlib-16.2"
+      - "/home/servandoc/bin/gcc-ranlib-16.2"
+      - "/home/servandoc/.cargo/bin/gcc-ranlib-16.2"
+      - "/home/servandoc/.nix-profile/bin/gcc-ranlib-16.2"
+      - "/usr/share/Modules/bin/gcc-ranlib-16.2"
+      - "/usr/local/bin/gcc-ranlib-16.2"
+      - "/bin/gcc-ranlib-16.2"
+      - "/var/lib/snapd/snap/bin/gcc-ranlib-16.2"
+      - "/usr/bin/gcc-ranlib-16"
+      - "/home/servandoc/.grok/bin/gcc-ranlib-16"
+      - "/home/servandoc/.opencode/bin/gcc-ranlib-16"
+      - "/home/servandoc/.local/bin/gcc-ranlib-16"
+      - "/home/servandoc/bin/gcc-ranlib-16"
+      - "/home/servandoc/.cargo/bin/gcc-ranlib-16"
+      - "/home/servandoc/.nix-profile/bin/gcc-ranlib-16"
+      - "/usr/share/Modules/bin/gcc-ranlib-16"
+      - "/usr/local/bin/gcc-ranlib-16"
+      - "/bin/gcc-ranlib-16"
+      - "/var/lib/snapd/snap/bin/gcc-ranlib-16"
+      - "/usr/bin/gcc-ranlib16"
+      - "/home/servandoc/.grok/bin/gcc-ranlib16"
+      - "/home/servandoc/.opencode/bin/gcc-ranlib16"
+      - "/home/servandoc/.local/bin/gcc-ranlib16"
+      - "/home/servandoc/bin/gcc-ranlib16"
+      - "/home/servandoc/.cargo/bin/gcc-ranlib16"
+      - "/home/servandoc/.nix-profile/bin/gcc-ranlib16"
+      - "/usr/share/Modules/bin/gcc-ranlib16"
+      - "/usr/local/bin/gcc-ranlib16"
+      - "/bin/gcc-ranlib16"
+      - "/var/lib/snapd/snap/bin/gcc-ranlib16"
+    found: "/usr/bin/gcc-ranlib"
+    search_context:
+      ENV{PATH}:
+        - "/home/servandoc/.grok/bin"
+        - "/home/servandoc/.opencode/bin"
+        - "/home/servandoc/.local/bin"
+        - "/home/servandoc/bin"
+        - "/home/servandoc/.cargo/bin"
+        - "/home/servandoc/.nix-profile/bin"
+        - "/usr/share/Modules/bin"
+        - "/usr/local/bin"
+        - "/usr/bin"
+        - "/bin"
+        - "/var/lib/snapd/snap/bin"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/CMakeDetermineCompiler.cmake:54 (find_program)"
+      - "/usr/share/cmake/Modules/CMakeDetermineCXXCompiler.cmake:69 (_cmake_find_compiler)"
+      - "CMakeLists.txt:3 (project)"
+    mode: "program"
+    variable: "CMAKE_CXX_COMPILER"
+    description: "CXX compiler"
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "c++"
+      - "CC"
+      - "g++"
+      - "aCC"
+      - "cl"
+      - "bcc"
+      - "xlC"
+      - "icpx"
+      - "icx"
+      - "clang++"
+    candidate_directories:
+      - "/usr/bin/"
+    found: "/usr/bin/c++"
+    search_context:
+      ENV{PATH}:
+        - "/home/servandoc/.grok/bin"
+        - "/home/servandoc/.opencode/bin"
+        - "/home/servandoc/.local/bin"
+        - "/home/servandoc/bin"
+        - "/home/servandoc/.cargo/bin"
+        - "/home/servandoc/.nix-profile/bin"
+        - "/usr/share/Modules/bin"
+        - "/usr/local/bin"
+        - "/usr/bin"
+        - "/bin"
+        - "/var/lib/snapd/snap/bin"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/CMakeDetermineCompilerId.cmake:468 (find_file)"
+      - "/usr/share/cmake/Modules/CMakeDetermineCompilerId.cmake:506 (CMAKE_DETERMINE_COMPILER_ID_WRITE)"
+      - "/usr/share/cmake/Modules/CMakeDetermineCompilerId.cmake:8 (CMAKE_DETERMINE_COMPILER_ID_BUILD)"
+      - "/usr/share/cmake/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "/usr/share/cmake/Modules/CMakeDetermineCXXCompiler.cmake:125 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:3 (project)"
+    mode: "file"
+    variable: "src_in"
+    description: "Path to a file."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "CMakeCXXCompilerId.cpp.in"
+    candidate_directories:
+      - "/usr/share/cmake/Modules/"
+    found: "/usr/share/cmake/Modules/CMakeCXXCompilerId.cpp.in"
+    search_context:
+      ENV{PATH}:
+        - "/home/servandoc/.grok/bin"
+        - "/home/servandoc/.opencode/bin"
+        - "/home/servandoc/.local/bin"
+        - "/home/servandoc/bin"
+        - "/home/servandoc/.cargo/bin"
+        - "/home/servandoc/.nix-profile/bin"
+        - "/usr/share/Modules/bin"
+        - "/usr/local/bin"
+        - "/usr/bin"
+        - "/bin"
+        - "/var/lib/snapd/snap/bin"
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/CMakeDetermineCompilerId.cmake:17 (message)"
+      - "/usr/share/cmake/Modules/CMakeDetermineCompilerId.cmake:64 (__determine_compiler_id_test)"
+      - "/usr/share/cmake/Modules/CMakeDetermineCXXCompiler.cmake:125 (CMAKE_DETERMINE_COMPILER_ID)"
+      - "CMakeLists.txt:3 (project)"
+    message: |
+      Compiling the CXX compiler identification source file "CMakeCXXCompilerId.cpp" succeeded.
+      Compiler: /usr/bin/c++ 
+      Build flags: 
+      Id flags:  
+      
+      The output was:
+      0
+      
+      
+      Compilation of the CXX compiler identification source "CMakeCXXCompilerId.cpp" produced "a.out"
+      
+      The CXX compiler identification is GNU, found in:
+        /home/servandoc/Documents/DEV/GlorpDrums/build_test/CMakeFiles/4.3.0/CompilerIdCXX/a.out
+      
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/Compiler/GNU-FindBinUtils.cmake:18 (find_program)"
+      - "/usr/share/cmake/Modules/CMakeDetermineCXXCompiler.cmake:207 (include)"
+      - "CMakeLists.txt:3 (project)"
+    mode: "program"
+    variable: "CMAKE_CXX_COMPILER_AR"
+    description: "A wrapper around 'ar' adding the appropriate '--plugin' option for the GCC compiler"
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: false
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: false
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "gcc-ar-16.2"
+      - "gcc-ar-16"
+      - "gcc-ar16"
+      - "gcc-ar"
+    candidate_directories:
+      - "/usr/bin/"
+      - "/home/servandoc/.grok/bin/"
+      - "/home/servandoc/.opencode/bin/"
+      - "/home/servandoc/.local/bin/"
+      - "/home/servandoc/bin/"
+      - "/home/servandoc/.cargo/bin/"
+      - "/home/servandoc/.nix-profile/bin/"
+      - "/usr/share/Modules/bin/"
+      - "/usr/local/bin/"
+      - "/bin/"
+      - "/var/lib/snapd/snap/bin/"
+    searched_directories:
+      - "/usr/bin/gcc-ar-16.2"
+      - "/home/servandoc/.grok/bin/gcc-ar-16.2"
+      - "/home/servandoc/.opencode/bin/gcc-ar-16.2"
+      - "/home/servandoc/.local/bin/gcc-ar-16.2"
+      - "/home/servandoc/bin/gcc-ar-16.2"
+      - "/home/servandoc/.cargo/bin/gcc-ar-16.2"
+      - "/home/servandoc/.nix-profile/bin/gcc-ar-16.2"
+      - "/usr/share/Modules/bin/gcc-ar-16.2"
+      - "/usr/local/bin/gcc-ar-16.2"
+      - "/bin/gcc-ar-16.2"
+      - "/var/lib/snapd/snap/bin/gcc-ar-16.2"
+      - "/usr/bin/gcc-ar-16"
+      - "/home/servandoc/.grok/bin/gcc-ar-16"
+      - "/home/servandoc/.opencode/bin/gcc-ar-16"
+      - "/home/servandoc/.local/bin/gcc-ar-16"
+      - "/home/servandoc/bin/gcc-ar-16"
+      - "/home/servandoc/.cargo/bin/gcc-ar-16"
+      - "/home/servandoc/.nix-profile/bin/gcc-ar-16"
+      - "/usr/share/Modules/bin/gcc-ar-16"
+      - "/usr/local/bin/gcc-ar-16"
+      - "/bin/gcc-ar-16"
+      - "/var/lib/snapd/snap/bin/gcc-ar-16"
+      - "/usr/bin/gcc-ar16"
+      - "/home/servandoc/.grok/bin/gcc-ar16"
+      - "/home/servandoc/.opencode/bin/gcc-ar16"
+      - "/home/servandoc/.local/bin/gcc-ar16"
+      - "/home/servandoc/bin/gcc-ar16"
+      - "/home/servandoc/.cargo/bin/gcc-ar16"
+      - "/home/servandoc/.nix-profile/bin/gcc-ar16"
+      - "/usr/share/Modules/bin/gcc-ar16"
+      - "/usr/local/bin/gcc-ar16"
+      - "/bin/gcc-ar16"
+      - "/var/lib/snapd/snap/bin/gcc-ar16"
+    found: "/usr/bin/gcc-ar"
+    search_context:
+      ENV{PATH}:
+        - "/home/servandoc/.grok/bin"
+        - "/home/servandoc/.opencode/bin"
+        - "/home/servandoc/.local/bin"
+        - "/home/servandoc/bin"
+        - "/home/servandoc/.cargo/bin"
+        - "/home/servandoc/.nix-profile/bin"
+        - "/usr/share/Modules/bin"
+        - "/usr/local/bin"
+        - "/usr/bin"
+        - "/bin"
+        - "/var/lib/snapd/snap/bin"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/Compiler/GNU-FindBinUtils.cmake:30 (find_program)"
+      - "/usr/share/cmake/Modules/CMakeDetermineCXXCompiler.cmake:207 (include)"
+      - "CMakeLists.txt:3 (project)"
+    mode: "program"
+    variable: "CMAKE_CXX_COMPILER_RANLIB"
+    description: "A wrapper around 'ranlib' adding the appropriate '--plugin' option for the GCC compiler"
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: false
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: false
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "gcc-ranlib-16.2"
+      - "gcc-ranlib-16"
+      - "gcc-ranlib16"
+      - "gcc-ranlib"
+    candidate_directories:
+      - "/usr/bin/"
+      - "/home/servandoc/.grok/bin/"
+      - "/home/servandoc/.opencode/bin/"
+      - "/home/servandoc/.local/bin/"
+      - "/home/servandoc/bin/"
+      - "/home/servandoc/.cargo/bin/"
+      - "/home/servandoc/.nix-profile/bin/"
+      - "/usr/share/Modules/bin/"
+      - "/usr/local/bin/"
+      - "/bin/"
+      - "/var/lib/snapd/snap/bin/"
+    searched_directories:
+      - "/usr/bin/gcc-ranlib-16.2"
+      - "/home/servandoc/.grok/bin/gcc-ranlib-16.2"
+      - "/home/servandoc/.opencode/bin/gcc-ranlib-16.2"
+      - "/home/servandoc/.local/bin/gcc-ranlib-16.2"
+      - "/home/servandoc/bin/gcc-ranlib-16.2"
+      - "/home/servandoc/.cargo/bin/gcc-ranlib-16.2"
+      - "/home/servandoc/.nix-profile/bin/gcc-ranlib-16.2"
+      - "/usr/share/Modules/bin/gcc-ranlib-16.2"
+      - "/usr/local/bin/gcc-ranlib-16.2"
+      - "/bin/gcc-ranlib-16.2"
+      - "/var/lib/snapd/snap/bin/gcc-ranlib-16.2"
+      - "/usr/bin/gcc-ranlib-16"
+      - "/home/servandoc/.grok/bin/gcc-ranlib-16"
+      - "/home/servandoc/.opencode/bin/gcc-ranlib-16"
+      - "/home/servandoc/.local/bin/gcc-ranlib-16"
+      - "/home/servandoc/bin/gcc-ranlib-16"
+      - "/home/servandoc/.cargo/bin/gcc-ranlib-16"
+      - "/home/servandoc/.nix-profile/bin/gcc-ranlib-16"
+      - "/usr/share/Modules/bin/gcc-ranlib-16"
+      - "/usr/local/bin/gcc-ranlib-16"
+      - "/bin/gcc-ranlib-16"
+      - "/var/lib/snapd/snap/bin/gcc-ranlib-16"
+      - "/usr/bin/gcc-ranlib16"
+      - "/home/servandoc/.grok/bin/gcc-ranlib16"
+      - "/home/servandoc/.opencode/bin/gcc-ranlib16"
+      - "/home/servandoc/.local/bin/gcc-ranlib16"
+      - "/home/servandoc/bin/gcc-ranlib16"
+      - "/home/servandoc/.cargo/bin/gcc-ranlib16"
+      - "/home/servandoc/.nix-profile/bin/gcc-ranlib16"
+      - "/usr/share/Modules/bin/gcc-ranlib16"
+      - "/usr/local/bin/gcc-ranlib16"
+      - "/bin/gcc-ranlib16"
+      - "/var/lib/snapd/snap/bin/gcc-ranlib16"
+    found: "/usr/bin/gcc-ranlib"
+    search_context:
+      ENV{PATH}:
+        - "/home/servandoc/.grok/bin"
+        - "/home/servandoc/.opencode/bin"
+        - "/home/servandoc/.local/bin"
+        - "/home/servandoc/bin"
+        - "/home/servandoc/.cargo/bin"
+        - "/home/servandoc/.nix-profile/bin"
+        - "/usr/share/Modules/bin"
+        - "/usr/local/bin"
+        - "/usr/bin"
+        - "/bin"
+        - "/var/lib/snapd/snap/bin"
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/CMakeDetermineCompilerABI.cmake:83 (try_compile)"
+      - "/usr/share/cmake/Modules/CMakeTestCCompiler.cmake:26 (CMAKE_DETERMINE_COMPILER_ABI)"
+      - "CMakeLists.txt:3 (project)"
+    checks:
+      - "Detecting C compiler ABI info"
+    directories:
+      source: "/home/servandoc/Documents/DEV/GlorpDrums/build_test/CMakeFiles/CMakeScratch/TryCompile-m2mUKZ"
+      binary: "/home/servandoc/Documents/DEV/GlorpDrums/build_test/CMakeFiles/CMakeScratch/TryCompile-m2mUKZ"
+    cmakeVariables:
+      CMAKE_CXX_STDLIB_MODULES_JSON: ""
+      CMAKE_C_FLAGS: ""
+      CMAKE_C_FLAGS_DEBUG: "-g"
+      CMAKE_EXE_LINKER_FLAGS: ""
+    buildResult:
+      variable: "CMAKE_C_ABI_COMPILED"
+      cached: true
+      stdout: |
+        Change Dir: '/home/servandoc/Documents/DEV/GlorpDrums/build_test/CMakeFiles/CMakeScratch/TryCompile-m2mUKZ'
+        
+        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/gmake -f Makefile cmTC_ec1ac/fast
+        /usr/bin/gmake  -f CMakeFiles/cmTC_ec1ac.dir/build.make CMakeFiles/cmTC_ec1ac.dir/build
+        gmake[1]: Entering directory '/home/servandoc/Documents/DEV/GlorpDrums/build_test/CMakeFiles/CMakeScratch/TryCompile-m2mUKZ'
+        Building C object CMakeFiles/cmTC_ec1ac.dir/CMakeCCompilerABI.c.o
+        /usr/bin/cc   -v -o CMakeFiles/cmTC_ec1ac.dir/CMakeCCompilerABI.c.o -c /usr/share/cmake/Modules/CMakeCCompilerABI.c
+        Using built-in specs.
+        COLLECT_GCC=/usr/bin/cc
+        OFFLOAD_TARGET_NAMES=nvptx-none:amdgcn-amdhsa
+        OFFLOAD_TARGET_DEFAULT=1
+        Target: x86_64-redhat-linux
+        Configured with: ../configure --enable-bootstrap --enable-languages=c,c++,fortran,objc,obj-c++,ada,go,d,m2,cobol,algol68,lto --prefix=/usr --mandir=/usr/share/man --infodir=/usr/share/info --with-bugurl=https://bugzilla.redhat.com/ --enable-shared --enable-threads=posix --enable-checking=release --enable-multilib --with-system-zlib --enable-__cxa_atexit --disable-libunwind-exceptions --enable-gnu-unique-object --enable-linker-build-id --with-gcc-major-version-only --enable-libstdcxx-backtrace --with-libstdcxx-zoneinfo=/usr/share/zoneinfo --with-linker-hash-style=gnu --enable-plugin --enable-initfini-array --with-isl=/builddir/build/BUILD/gcc-16.2.1-build/gcc-16.2.1-20260819/obj-x86_64-redhat-linux/isl-install --enable-offload-targets=nvptx-none,amdgcn-amdhsa --enable-offload-defaulted --without-cuda-driver --enable-gnu-indirect-function --enable-cet --with-tune=generic --with-tls=gnu2 --with-arch_32=i686 --build=x86_64-redhat-linux --with-build-config=bootstrap-lto --enable-link-serialization=1 --disable-libssp
+        Thread model: posix
+        Supported LTO compression algorithms: zlib zstd
+        gcc version 16.2.1 20260819 (Red Hat 16.2.1-2) (GCC) 
+        COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_ec1ac.dir/CMakeCCompilerABI.c.o' '-c' '-mtune=generic' '-march=x86-64' '-mtls-dialect=gnu2' '-dumpdir' 'CMakeFiles/cmTC_ec1ac.dir/'
+         /usr/libexec/gcc/x86_64-redhat-linux/16/cc1 -quiet -v /usr/share/cmake/Modules/CMakeCCompilerABI.c -quiet -dumpdir CMakeFiles/cmTC_ec1ac.dir/ -dumpbase CMakeCCompilerABI.c.c -dumpbase-ext .c -mtune=generic -march=x86-64 -mtls-dialect=gnu2 -version -o /tmp/cc3IH3O2.s
+        GNU C23 (GCC) version 16.2.1 20260819 (Red Hat 16.2.1-2) (x86_64-redhat-linux)
+        	compiled by GNU C version 16.2.1 20260819 (Red Hat 16.2.1-2), GMP version 6.3.0, MPFR version 4.2.2, MPC version 1.4.1, isl version isl-0.24-GMP
+        
+        GGC heuristics: --param ggc-min-expand=100 --param ggc-min-heapsize=131072
+        ignoring nonexistent directory "/usr/lib/gcc/x86_64-redhat-linux/16/include-fixed"
+        ignoring nonexistent directory "/usr/lib/gcc/x86_64-redhat-linux/16/../../../../x86_64-redhat-linux/include"
+        #include "..." search starts here:
+        #include <...> search starts here:
+         /usr/lib/gcc/x86_64-redhat-linux/16/include
+         /usr/local/include
+         /usr/include
+        End of search list.
+        Compiler executable checksum: 9bab69ee039b57e5d63c6dcf5d331ec2
+        COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_ec1ac.dir/CMakeCCompilerABI.c.o' '-c' '-mtune=generic' '-march=x86-64' '-mtls-dialect=gnu2' '-dumpdir' 'CMakeFiles/cmTC_ec1ac.dir/'
+         as -v --64 -o CMakeFiles/cmTC_ec1ac.dir/CMakeCCompilerABI.c.o /tmp/cc3IH3O2.s
+        GNU assembler version 2.46.1 (x86_64-redhat-linux) using BFD version version 2.46.1-1.fc44
+        COMPILER_PATH=/usr/libexec/gcc/x86_64-redhat-linux/16/:/usr/libexec/gcc/x86_64-redhat-linux/16/:/usr/libexec/gcc/x86_64-redhat-linux/:/usr/lib/gcc/x86_64-redhat-linux/16/:/usr/lib/gcc/x86_64-redhat-linux/
+        LIBRARY_PATH=/usr/lib/gcc/x86_64-redhat-linux/16/:/usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/:/lib/../lib64/:/usr/lib/../lib64/:/usr/lib/gcc/x86_64-redhat-linux/16/../../../:/lib/:/usr/lib/
+        COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_ec1ac.dir/CMakeCCompilerABI.c.o' '-c' '-mtune=generic' '-march=x86-64' '-mtls-dialect=gnu2' '-dumpdir' 'CMakeFiles/cmTC_ec1ac.dir/CMakeCCompilerABI.c.'
+        Linking C executable cmTC_ec1ac
+        /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_ec1ac.dir/link.txt --verbose=1
+        Using built-in specs.
+        COLLECT_GCC=/usr/bin/cc
+        COLLECT_LTO_WRAPPER=/usr/libexec/gcc/x86_64-redhat-linux/16/lto-wrapper
+        OFFLOAD_TARGET_NAMES=nvptx-none:amdgcn-amdhsa
+        OFFLOAD_TARGET_DEFAULT=1
+        Target: x86_64-redhat-linux
+        Configured with: ../configure --enable-bootstrap --enable-languages=c,c++,fortran,objc,obj-c++,ada,go,d,m2,cobol,algol68,lto --prefix=/usr --mandir=/usr/share/man --infodir=/usr/share/info --with-bugurl=https://bugzilla.redhat.com/ --enable-shared --enable-threads=posix --enable-checking=release --enable-multilib --with-system-zlib --enable-__cxa_atexit --disable-libunwind-exceptions --enable-gnu-unique-object --enable-linker-build-id --with-gcc-major-version-only --enable-libstdcxx-backtrace --with-libstdcxx-zoneinfo=/usr/share/zoneinfo --with-linker-hash-style=gnu --enable-plugin --enable-initfini-array --with-isl=/builddir/build/BUILD/gcc-16.2.1-build/gcc-16.2.1-20260819/obj-x86_64-redhat-linux/isl-install --enable-offload-targets=nvptx-none,amdgcn-amdhsa --enable-offload-defaulted --without-cuda-driver --enable-gnu-indirect-function --enable-cet --with-tune=generic --with-tls=gnu2 --with-arch_32=i686 --build=x86_64-redhat-linux --with-build-config=bootstrap-lto --enable-link-serialization=1 --disable-libssp
+        Thread model: posix
+        Supported LTO compression algorithms: zlib zstd
+        gcc version 16.2.1 20260819 (Red Hat 16.2.1-2) (GCC) 
+        COMPILER_PATH=/usr/libexec/gcc/x86_64-redhat-linux/16/:/usr/libexec/gcc/x86_64-redhat-linux/16/:/usr/libexec/gcc/x86_64-redhat-linux/:/usr/lib/gcc/x86_64-redhat-linux/16/:/usr/lib/gcc/x86_64-redhat-linux/
+        LIBRARY_PATH=/usr/lib/gcc/x86_64-redhat-linux/16/:/usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/:/lib/../lib64/:/usr/lib/../lib64/:/usr/lib/gcc/x86_64-redhat-linux/16/../../../:/lib/:/usr/lib/
+        COLLECT_GCC_OPTIONS='-v' '-o' 'cmTC_ec1ac' '-mtune=generic' '-march=x86-64' '-mtls-dialect=gnu2' '-dumpdir' 'cmTC_ec1ac.'
+         /usr/libexec/gcc/x86_64-redhat-linux/16/collect2 -plugin /usr/libexec/gcc/x86_64-redhat-linux/16/liblto_plugin.so -plugin-opt=/usr/libexec/gcc/x86_64-redhat-linux/16/lto-wrapper -plugin-opt=-fresolution=/tmp/ccBRYftH.res -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lgcc_s_asneeded -plugin-opt=-pass-through=-latomic_asneeded -plugin-opt=-pass-through=-lc -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lgcc_s_asneeded --build-id --no-add-needed --eh-frame-hdr --hash-style=gnu -m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 -o cmTC_ec1ac /usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crt1.o /usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crti.o /usr/lib/gcc/x86_64-redhat-linux/16/crtbegin.o -L/usr/lib/gcc/x86_64-redhat-linux/16 -L/usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64 -L/lib/../lib64 -L/usr/lib/../lib64 -L/usr/lib/gcc/x86_64-redhat-linux/16/../../.. -L/lib -L/usr/lib -v CMakeFiles/cmTC_ec1ac.dir/CMakeCCompilerABI.c.o -lgcc -lgcc_s_asneeded -latomic_asneeded -lc -lgcc -lgcc_s_asneeded /usr/lib/gcc/x86_64-redhat-linux/16/crtend.o /usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crtn.o
+        collect2 version 16.2.1 20260819 (Red Hat 16.2.1-2)
+        /usr/bin/ld -plugin /usr/libexec/gcc/x86_64-redhat-linux/16/liblto_plugin.so -plugin-opt=/usr/libexec/gcc/x86_64-redhat-linux/16/lto-wrapper -plugin-opt=-fresolution=/tmp/ccBRYftH.res -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lgcc_s_asneeded -plugin-opt=-pass-through=-latomic_asneeded -plugin-opt=-pass-through=-lc -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lgcc_s_asneeded --build-id --no-add-needed --eh-frame-hdr --hash-style=gnu -m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 -o cmTC_ec1ac /usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crt1.o /usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crti.o /usr/lib/gcc/x86_64-redhat-linux/16/crtbegin.o -L/usr/lib/gcc/x86_64-redhat-linux/16 -L/usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64 -L/lib/../lib64 -L/usr/lib/../lib64 -L/usr/lib/gcc/x86_64-redhat-linux/16/../../.. -L/lib -L/usr/lib -v CMakeFiles/cmTC_ec1ac.dir/CMakeCCompilerABI.c.o -lgcc -lgcc_s_asneeded -latomic_asneeded -lc -lgcc -lgcc_s_asneeded /usr/lib/gcc/x86_64-redhat-linux/16/crtend.o /usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crtn.o
+        GNU ld version 2.46.1-1.fc44
+        COLLECT_GCC_OPTIONS='-v' '-o' 'cmTC_ec1ac' '-mtune=generic' '-march=x86-64' '-mtls-dialect=gnu2' '-dumpdir' 'cmTC_ec1ac.'
+        /usr/bin/cc  -v -Wl,-v CMakeFiles/cmTC_ec1ac.dir/CMakeCCompilerABI.c.o -o cmTC_ec1ac
+        gmake[1]: Leaving directory '/home/servandoc/Documents/DEV/GlorpDrums/build_test/CMakeFiles/CMakeScratch/TryCompile-m2mUKZ'
+        
+      exitCode: 0
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/CMakeDetermineCompilerABI.cmake:217 (message)"
+      - "/usr/share/cmake/Modules/CMakeTestCCompiler.cmake:26 (CMAKE_DETERMINE_COMPILER_ABI)"
+      - "CMakeLists.txt:3 (project)"
+    message: |
+      Parsed C implicit include dir info: rv=done
+        found start of include info
+        found start of implicit include info
+          add: [/usr/lib/gcc/x86_64-redhat-linux/16/include]
+          add: [/usr/local/include]
+          add: [/usr/include]
+        end of search list found
+        collapse include dir [/usr/lib/gcc/x86_64-redhat-linux/16/include] ==> [/usr/lib/gcc/x86_64-redhat-linux/16/include]
+        collapse include dir [/usr/local/include] ==> [/usr/local/include]
+        collapse include dir [/usr/include] ==> [/usr/include]
+        implicit include dirs: [/usr/lib/gcc/x86_64-redhat-linux/16/include;/usr/local/include;/usr/include]
+      
+      
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/CMakeDetermineCompilerABI.cmake:253 (message)"
+      - "/usr/share/cmake/Modules/CMakeTestCCompiler.cmake:26 (CMAKE_DETERMINE_COMPILER_ABI)"
+      - "CMakeLists.txt:3 (project)"
+    message: |
+      Parsed C implicit link information:
+        link line regex: [^( *|.*[/\\])(ld[0-9]*(|\\.[a-rt-z][a-z]*|\\.s[a-np-z][a-z]*|\\.so[a-z]+)|CMAKE_LINK_STARTFILE-NOTFOUND|([^/\\]+-)?ld|collect2)[^/\\]*( |$)]
+        linker tool regex: [^[ 	]*(->|"|[0-9]+>[ 	-]*Build:[ 	0-9]+ ms[ 	]*)?[ 	]*(([^"]*[/\\])?(ld[0-9]*(|\\.[a-rt-z][a-z]*|\\.s[a-np-z][a-z]*|\\.so[a-z]+)))("|,| |$)]
+        ignore line: [Change Dir: '/home/servandoc/Documents/DEV/GlorpDrums/build_test/CMakeFiles/CMakeScratch/TryCompile-m2mUKZ']
+        ignore line: []
+        ignore line: [Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/gmake -f Makefile cmTC_ec1ac/fast]
+        ignore line: [/usr/bin/gmake  -f CMakeFiles/cmTC_ec1ac.dir/build.make CMakeFiles/cmTC_ec1ac.dir/build]
+        ignore line: [gmake[1]: Entering directory '/home/servandoc/Documents/DEV/GlorpDrums/build_test/CMakeFiles/CMakeScratch/TryCompile-m2mUKZ']
+        ignore line: [Building C object CMakeFiles/cmTC_ec1ac.dir/CMakeCCompilerABI.c.o]
+        ignore line: [/usr/bin/cc   -v -o CMakeFiles/cmTC_ec1ac.dir/CMakeCCompilerABI.c.o -c /usr/share/cmake/Modules/CMakeCCompilerABI.c]
+        ignore line: [Using built-in specs.]
+        ignore line: [COLLECT_GCC=/usr/bin/cc]
+        ignore line: [OFFLOAD_TARGET_NAMES=nvptx-none:amdgcn-amdhsa]
+        ignore line: [OFFLOAD_TARGET_DEFAULT=1]
+        ignore line: [Target: x86_64-redhat-linux]
+        ignore line: [Configured with: ../configure --enable-bootstrap --enable-languages=c c++ fortran objc obj-c++ ada go d m2 cobol algol68 lto --prefix=/usr --mandir=/usr/share/man --infodir=/usr/share/info --with-bugurl=https://bugzilla.redhat.com/ --enable-shared --enable-threads=posix --enable-checking=release --enable-multilib --with-system-zlib --enable-__cxa_atexit --disable-libunwind-exceptions --enable-gnu-unique-object --enable-linker-build-id --with-gcc-major-version-only --enable-libstdcxx-backtrace --with-libstdcxx-zoneinfo=/usr/share/zoneinfo --with-linker-hash-style=gnu --enable-plugin --enable-initfini-array --with-isl=/builddir/build/BUILD/gcc-16.2.1-build/gcc-16.2.1-20260819/obj-x86_64-redhat-linux/isl-install --enable-offload-targets=nvptx-none amdgcn-amdhsa --enable-offload-defaulted --without-cuda-driver --enable-gnu-indirect-function --enable-cet --with-tune=generic --with-tls=gnu2 --with-arch_32=i686 --build=x86_64-redhat-linux --with-build-config=bootstrap-lto --enable-link-serialization=1 --disable-libssp]
+        ignore line: [Thread model: posix]
+        ignore line: [Supported LTO compression algorithms: zlib zstd]
+        ignore line: [gcc version 16.2.1 20260819 (Red Hat 16.2.1-2) (GCC) ]
+        ignore line: [COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_ec1ac.dir/CMakeCCompilerABI.c.o' '-c' '-mtune=generic' '-march=x86-64' '-mtls-dialect=gnu2' '-dumpdir' 'CMakeFiles/cmTC_ec1ac.dir/']
+        ignore line: [ /usr/libexec/gcc/x86_64-redhat-linux/16/cc1 -quiet -v /usr/share/cmake/Modules/CMakeCCompilerABI.c -quiet -dumpdir CMakeFiles/cmTC_ec1ac.dir/ -dumpbase CMakeCCompilerABI.c.c -dumpbase-ext .c -mtune=generic -march=x86-64 -mtls-dialect=gnu2 -version -o /tmp/cc3IH3O2.s]
+        ignore line: [GNU C23 (GCC) version 16.2.1 20260819 (Red Hat 16.2.1-2) (x86_64-redhat-linux)]
+        ignore line: [	compiled by GNU C version 16.2.1 20260819 (Red Hat 16.2.1-2)  GMP version 6.3.0  MPFR version 4.2.2  MPC version 1.4.1  isl version isl-0.24-GMP]
+        ignore line: []
+        ignore line: [GGC heuristics: --param ggc-min-expand=100 --param ggc-min-heapsize=131072]
+        ignore line: [ignoring nonexistent directory "/usr/lib/gcc/x86_64-redhat-linux/16/include-fixed"]
+        ignore line: [ignoring nonexistent directory "/usr/lib/gcc/x86_64-redhat-linux/16/../../../../x86_64-redhat-linux/include"]
+        ignore line: [#include "..." search starts here:]
+        ignore line: [#include <...> search starts here:]
+        ignore line: [ /usr/lib/gcc/x86_64-redhat-linux/16/include]
+        ignore line: [ /usr/local/include]
+        ignore line: [ /usr/include]
+        ignore line: [End of search list.]
+        ignore line: [Compiler executable checksum: 9bab69ee039b57e5d63c6dcf5d331ec2]
+        ignore line: [COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_ec1ac.dir/CMakeCCompilerABI.c.o' '-c' '-mtune=generic' '-march=x86-64' '-mtls-dialect=gnu2' '-dumpdir' 'CMakeFiles/cmTC_ec1ac.dir/']
+        ignore line: [ as -v --64 -o CMakeFiles/cmTC_ec1ac.dir/CMakeCCompilerABI.c.o /tmp/cc3IH3O2.s]
+        ignore line: [GNU assembler version 2.46.1 (x86_64-redhat-linux) using BFD version version 2.46.1-1.fc44]
+        ignore line: [COMPILER_PATH=/usr/libexec/gcc/x86_64-redhat-linux/16/:/usr/libexec/gcc/x86_64-redhat-linux/16/:/usr/libexec/gcc/x86_64-redhat-linux/:/usr/lib/gcc/x86_64-redhat-linux/16/:/usr/lib/gcc/x86_64-redhat-linux/]
+        ignore line: [LIBRARY_PATH=/usr/lib/gcc/x86_64-redhat-linux/16/:/usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/:/lib/../lib64/:/usr/lib/../lib64/:/usr/lib/gcc/x86_64-redhat-linux/16/../../../:/lib/:/usr/lib/]
+        ignore line: [COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_ec1ac.dir/CMakeCCompilerABI.c.o' '-c' '-mtune=generic' '-march=x86-64' '-mtls-dialect=gnu2' '-dumpdir' 'CMakeFiles/cmTC_ec1ac.dir/CMakeCCompilerABI.c.']
+        ignore line: [Linking C executable cmTC_ec1ac]
+        ignore line: [/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_ec1ac.dir/link.txt --verbose=1]
+        ignore line: [Using built-in specs.]
+        ignore line: [COLLECT_GCC=/usr/bin/cc]
+        ignore line: [COLLECT_LTO_WRAPPER=/usr/libexec/gcc/x86_64-redhat-linux/16/lto-wrapper]
+        ignore line: [OFFLOAD_TARGET_NAMES=nvptx-none:amdgcn-amdhsa]
+        ignore line: [OFFLOAD_TARGET_DEFAULT=1]
+        ignore line: [Target: x86_64-redhat-linux]
+        ignore line: [Configured with: ../configure --enable-bootstrap --enable-languages=c c++ fortran objc obj-c++ ada go d m2 cobol algol68 lto --prefix=/usr --mandir=/usr/share/man --infodir=/usr/share/info --with-bugurl=https://bugzilla.redhat.com/ --enable-shared --enable-threads=posix --enable-checking=release --enable-multilib --with-system-zlib --enable-__cxa_atexit --disable-libunwind-exceptions --enable-gnu-unique-object --enable-linker-build-id --with-gcc-major-version-only --enable-libstdcxx-backtrace --with-libstdcxx-zoneinfo=/usr/share/zoneinfo --with-linker-hash-style=gnu --enable-plugin --enable-initfini-array --with-isl=/builddir/build/BUILD/gcc-16.2.1-build/gcc-16.2.1-20260819/obj-x86_64-redhat-linux/isl-install --enable-offload-targets=nvptx-none amdgcn-amdhsa --enable-offload-defaulted --without-cuda-driver --enable-gnu-indirect-function --enable-cet --with-tune=generic --with-tls=gnu2 --with-arch_32=i686 --build=x86_64-redhat-linux --with-build-config=bootstrap-lto --enable-link-serialization=1 --disable-libssp]
+        ignore line: [Thread model: posix]
+        ignore line: [Supported LTO compression algorithms: zlib zstd]
+        ignore line: [gcc version 16.2.1 20260819 (Red Hat 16.2.1-2) (GCC) ]
+        ignore line: [COMPILER_PATH=/usr/libexec/gcc/x86_64-redhat-linux/16/:/usr/libexec/gcc/x86_64-redhat-linux/16/:/usr/libexec/gcc/x86_64-redhat-linux/:/usr/lib/gcc/x86_64-redhat-linux/16/:/usr/lib/gcc/x86_64-redhat-linux/]
+        ignore line: [LIBRARY_PATH=/usr/lib/gcc/x86_64-redhat-linux/16/:/usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/:/lib/../lib64/:/usr/lib/../lib64/:/usr/lib/gcc/x86_64-redhat-linux/16/../../../:/lib/:/usr/lib/]
+        ignore line: [COLLECT_GCC_OPTIONS='-v' '-o' 'cmTC_ec1ac' '-mtune=generic' '-march=x86-64' '-mtls-dialect=gnu2' '-dumpdir' 'cmTC_ec1ac.']
+        link line: [ /usr/libexec/gcc/x86_64-redhat-linux/16/collect2 -plugin /usr/libexec/gcc/x86_64-redhat-linux/16/liblto_plugin.so -plugin-opt=/usr/libexec/gcc/x86_64-redhat-linux/16/lto-wrapper -plugin-opt=-fresolution=/tmp/ccBRYftH.res -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lgcc_s_asneeded -plugin-opt=-pass-through=-latomic_asneeded -plugin-opt=-pass-through=-lc -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lgcc_s_asneeded --build-id --no-add-needed --eh-frame-hdr --hash-style=gnu -m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 -o cmTC_ec1ac /usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crt1.o /usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crti.o /usr/lib/gcc/x86_64-redhat-linux/16/crtbegin.o -L/usr/lib/gcc/x86_64-redhat-linux/16 -L/usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64 -L/lib/../lib64 -L/usr/lib/../lib64 -L/usr/lib/gcc/x86_64-redhat-linux/16/../../.. -L/lib -L/usr/lib -v CMakeFiles/cmTC_ec1ac.dir/CMakeCCompilerABI.c.o -lgcc -lgcc_s_asneeded -latomic_asneeded -lc -lgcc -lgcc_s_asneeded /usr/lib/gcc/x86_64-redhat-linux/16/crtend.o /usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crtn.o]
+          arg [/usr/libexec/gcc/x86_64-redhat-linux/16/collect2] ==> ignore
+          arg [-plugin] ==> ignore
+          arg [/usr/libexec/gcc/x86_64-redhat-linux/16/liblto_plugin.so] ==> ignore
+          arg [-plugin-opt=/usr/libexec/gcc/x86_64-redhat-linux/16/lto-wrapper] ==> ignore
+          arg [-plugin-opt=-fresolution=/tmp/ccBRYftH.res] ==> ignore
+          arg [-plugin-opt=-pass-through=-lgcc] ==> ignore
+          arg [-plugin-opt=-pass-through=-lgcc_s_asneeded] ==> ignore
+          arg [-plugin-opt=-pass-through=-latomic_asneeded] ==> ignore
+          arg [-plugin-opt=-pass-through=-lc] ==> ignore
+          arg [-plugin-opt=-pass-through=-lgcc] ==> ignore
+          arg [-plugin-opt=-pass-through=-lgcc_s_asneeded] ==> ignore
+          arg [--build-id] ==> ignore
+          arg [--no-add-needed] ==> ignore
+          arg [--eh-frame-hdr] ==> ignore
+          arg [--hash-style=gnu] ==> ignore
+          arg [-m] ==> ignore
+          arg [elf_x86_64] ==> ignore
+          arg [-dynamic-linker] ==> ignore
+          arg [/lib64/ld-linux-x86-64.so.2] ==> ignore
+          arg [-o] ==> ignore
+          arg [cmTC_ec1ac] ==> ignore
+          arg [/usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crt1.o] ==> obj [/usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crt1.o]
+          arg [/usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crti.o] ==> obj [/usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crti.o]
+          arg [/usr/lib/gcc/x86_64-redhat-linux/16/crtbegin.o] ==> obj [/usr/lib/gcc/x86_64-redhat-linux/16/crtbegin.o]
+          arg [-L/usr/lib/gcc/x86_64-redhat-linux/16] ==> dir [/usr/lib/gcc/x86_64-redhat-linux/16]
+          arg [-L/usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64] ==> dir [/usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64]
+          arg [-L/lib/../lib64] ==> dir [/lib/../lib64]
+          arg [-L/usr/lib/../lib64] ==> dir [/usr/lib/../lib64]
+          arg [-L/usr/lib/gcc/x86_64-redhat-linux/16/../../..] ==> dir [/usr/lib/gcc/x86_64-redhat-linux/16/../../..]
+          arg [-L/lib] ==> dir [/lib]
+          arg [-L/usr/lib] ==> dir [/usr/lib]
+          arg [-v] ==> ignore
+          arg [CMakeFiles/cmTC_ec1ac.dir/CMakeCCompilerABI.c.o] ==> ignore
+          arg [-lgcc] ==> lib [gcc]
+          arg [-lgcc_s_asneeded] ==> lib [gcc_s_asneeded]
+          arg [-latomic_asneeded] ==> lib [atomic_asneeded]
+          arg [-lc] ==> lib [c]
+          arg [-lgcc] ==> lib [gcc]
+          arg [-lgcc_s_asneeded] ==> lib [gcc_s_asneeded]
+          arg [/usr/lib/gcc/x86_64-redhat-linux/16/crtend.o] ==> obj [/usr/lib/gcc/x86_64-redhat-linux/16/crtend.o]
+          arg [/usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crtn.o] ==> obj [/usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crtn.o]
+        ignore line: [collect2 version 16.2.1 20260819 (Red Hat 16.2.1-2)]
+        ignore line: [/usr/bin/ld -plugin /usr/libexec/gcc/x86_64-redhat-linux/16/liblto_plugin.so -plugin-opt=/usr/libexec/gcc/x86_64-redhat-linux/16/lto-wrapper -plugin-opt=-fresolution=/tmp/ccBRYftH.res -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lgcc_s_asneeded -plugin-opt=-pass-through=-latomic_asneeded -plugin-opt=-pass-through=-lc -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-lgcc_s_asneeded --build-id --no-add-needed --eh-frame-hdr --hash-style=gnu -m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 -o cmTC_ec1ac /usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crt1.o /usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crti.o /usr/lib/gcc/x86_64-redhat-linux/16/crtbegin.o -L/usr/lib/gcc/x86_64-redhat-linux/16 -L/usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64 -L/lib/../lib64 -L/usr/lib/../lib64 -L/usr/lib/gcc/x86_64-redhat-linux/16/../../.. -L/lib -L/usr/lib -v CMakeFiles/cmTC_ec1ac.dir/CMakeCCompilerABI.c.o -lgcc -lgcc_s_asneeded -latomic_asneeded -lc -lgcc -lgcc_s_asneeded /usr/lib/gcc/x86_64-redhat-linux/16/crtend.o /usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crtn.o]
+        linker tool for 'C': /usr/bin/ld
+        collapse obj [/usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crt1.o] ==> [/usr/lib64/crt1.o]
+        collapse obj [/usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crti.o] ==> [/usr/lib64/crti.o]
+        collapse obj [/usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crtn.o] ==> [/usr/lib64/crtn.o]
+        collapse library dir [/usr/lib/gcc/x86_64-redhat-linux/16] ==> [/usr/lib/gcc/x86_64-redhat-linux/16]
+        collapse library dir [/usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64] ==> [/usr/lib64]
+        collapse library dir [/lib/../lib64] ==> [/lib64]
+        collapse library dir [/usr/lib/../lib64] ==> [/usr/lib64]
+        collapse library dir [/usr/lib/gcc/x86_64-redhat-linux/16/../../..] ==> [/usr/lib]
+        collapse library dir [/lib] ==> [/lib]
+        collapse library dir [/usr/lib] ==> [/usr/lib]
+        implicit libs: [gcc;gcc_s_asneeded;atomic_asneeded;c;gcc;gcc_s_asneeded]
+        implicit objs: [/usr/lib64/crt1.o;/usr/lib64/crti.o;/usr/lib/gcc/x86_64-redhat-linux/16/crtbegin.o;/usr/lib/gcc/x86_64-redhat-linux/16/crtend.o;/usr/lib64/crtn.o]
+        implicit dirs: [/usr/lib/gcc/x86_64-redhat-linux/16;/usr/lib64;/lib64;/usr/lib;/lib]
+        implicit fwks: []
+      
+      
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/Internal/CMakeDetermineLinkerId.cmake:38 (message)"
+      - "/usr/share/cmake/Modules/CMakeDetermineCompilerABI.cmake:299 (cmake_determine_linker_id)"
+      - "/usr/share/cmake/Modules/CMakeTestCCompiler.cmake:26 (CMAKE_DETERMINE_COMPILER_ABI)"
+      - "CMakeLists.txt:3 (project)"
+    message: |
+      Running the C compiler's linker: "/usr/bin/ld" "-v"
+      GNU ld version 2.46.1-1.fc44
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/CMakeDetermineCompilerABI.cmake:83 (try_compile)"
+      - "/usr/share/cmake/Modules/CMakeTestCXXCompiler.cmake:26 (CMAKE_DETERMINE_COMPILER_ABI)"
+      - "CMakeLists.txt:3 (project)"
+    checks:
+      - "Detecting CXX compiler ABI info"
+    directories:
+      source: "/home/servandoc/Documents/DEV/GlorpDrums/build_test/CMakeFiles/CMakeScratch/TryCompile-nMpHtw"
+      binary: "/home/servandoc/Documents/DEV/GlorpDrums/build_test/CMakeFiles/CMakeScratch/TryCompile-nMpHtw"
+    cmakeVariables:
+      CMAKE_CXX_FLAGS: ""
+      CMAKE_CXX_FLAGS_DEBUG: "-g"
+      CMAKE_CXX_SCAN_FOR_MODULES: "OFF"
+      CMAKE_CXX_STDLIB_MODULES_JSON: ""
+      CMAKE_EXE_LINKER_FLAGS: ""
+    buildResult:
+      variable: "CMAKE_CXX_ABI_COMPILED"
+      cached: true
+      stdout: |
+        Change Dir: '/home/servandoc/Documents/DEV/GlorpDrums/build_test/CMakeFiles/CMakeScratch/TryCompile-nMpHtw'
+        
+        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/gmake -f Makefile cmTC_a6562/fast
+        /usr/bin/gmake  -f CMakeFiles/cmTC_a6562.dir/build.make CMakeFiles/cmTC_a6562.dir/build
+        gmake[1]: Entering directory '/home/servandoc/Documents/DEV/GlorpDrums/build_test/CMakeFiles/CMakeScratch/TryCompile-nMpHtw'
+        Building CXX object CMakeFiles/cmTC_a6562.dir/CMakeCXXCompilerABI.cpp.o
+        /usr/bin/c++   -v -o CMakeFiles/cmTC_a6562.dir/CMakeCXXCompilerABI.cpp.o -c /usr/share/cmake/Modules/CMakeCXXCompilerABI.cpp
+        Using built-in specs.
+        COLLECT_GCC=/usr/bin/c++
+        OFFLOAD_TARGET_NAMES=nvptx-none:amdgcn-amdhsa
+        OFFLOAD_TARGET_DEFAULT=1
+        Target: x86_64-redhat-linux
+        Configured with: ../configure --enable-bootstrap --enable-languages=c,c++,fortran,objc,obj-c++,ada,go,d,m2,cobol,algol68,lto --prefix=/usr --mandir=/usr/share/man --infodir=/usr/share/info --with-bugurl=https://bugzilla.redhat.com/ --enable-shared --enable-threads=posix --enable-checking=release --enable-multilib --with-system-zlib --enable-__cxa_atexit --disable-libunwind-exceptions --enable-gnu-unique-object --enable-linker-build-id --with-gcc-major-version-only --enable-libstdcxx-backtrace --with-libstdcxx-zoneinfo=/usr/share/zoneinfo --with-linker-hash-style=gnu --enable-plugin --enable-initfini-array --with-isl=/builddir/build/BUILD/gcc-16.2.1-build/gcc-16.2.1-20260819/obj-x86_64-redhat-linux/isl-install --enable-offload-targets=nvptx-none,amdgcn-amdhsa --enable-offload-defaulted --without-cuda-driver --enable-gnu-indirect-function --enable-cet --with-tune=generic --with-tls=gnu2 --with-arch_32=i686 --build=x86_64-redhat-linux --with-build-config=bootstrap-lto --enable-link-serialization=1 --disable-libssp
+        Thread model: posix
+        Supported LTO compression algorithms: zlib zstd
+        gcc version 16.2.1 20260819 (Red Hat 16.2.1-2) (GCC) 
+        COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_a6562.dir/CMakeCXXCompilerABI.cpp.o' '-c' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-mtls-dialect=gnu2' '-dumpdir' 'CMakeFiles/cmTC_a6562.dir/'
+         /usr/libexec/gcc/x86_64-redhat-linux/16/cc1plus -quiet -v -D_GNU_SOURCE /usr/share/cmake/Modules/CMakeCXXCompilerABI.cpp -quiet -dumpdir CMakeFiles/cmTC_a6562.dir/ -dumpbase CMakeCXXCompilerABI.cpp.cpp -dumpbase-ext .cpp -mtune=generic -march=x86-64 -mtls-dialect=gnu2 -version -o /tmp/ccYse69X.s
+        GNU C++20 (GCC) version 16.2.1 20260819 (Red Hat 16.2.1-2) (x86_64-redhat-linux)
+        	compiled by GNU C version 16.2.1 20260819 (Red Hat 16.2.1-2), GMP version 6.3.0, MPFR version 4.2.2, MPC version 1.4.1, isl version isl-0.24-GMP
+        
+        GGC heuristics: --param ggc-min-expand=100 --param ggc-min-heapsize=131072
+        ignoring nonexistent directory "/usr/lib/gcc/x86_64-redhat-linux/16/include-fixed"
+        ignoring nonexistent directory "/usr/lib/gcc/x86_64-redhat-linux/16/../../../../x86_64-redhat-linux/include"
+        #include "..." search starts here:
+        #include <...> search starts here:
+         /usr/lib/gcc/x86_64-redhat-linux/16/../../../../include/c++/16
+         /usr/lib/gcc/x86_64-redhat-linux/16/../../../../include/c++/16/x86_64-redhat-linux
+         /usr/lib/gcc/x86_64-redhat-linux/16/../../../../include/c++/16/backward
+         /usr/lib/gcc/x86_64-redhat-linux/16/include
+         /usr/local/include
+         /usr/include
+        End of search list.
+        Compiler executable checksum: 65ab9aa42e0ee60985a3e473fe6610c4
+        COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_a6562.dir/CMakeCXXCompilerABI.cpp.o' '-c' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-mtls-dialect=gnu2' '-dumpdir' 'CMakeFiles/cmTC_a6562.dir/'
+         as -v --64 -o CMakeFiles/cmTC_a6562.dir/CMakeCXXCompilerABI.cpp.o /tmp/ccYse69X.s
+        GNU assembler version 2.46.1 (x86_64-redhat-linux) using BFD version version 2.46.1-1.fc44
+        COMPILER_PATH=/usr/libexec/gcc/x86_64-redhat-linux/16/:/usr/libexec/gcc/x86_64-redhat-linux/16/:/usr/libexec/gcc/x86_64-redhat-linux/:/usr/lib/gcc/x86_64-redhat-linux/16/:/usr/lib/gcc/x86_64-redhat-linux/
+        LIBRARY_PATH=/usr/lib/gcc/x86_64-redhat-linux/16/:/usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/:/lib/../lib64/:/usr/lib/../lib64/:/usr/lib/gcc/x86_64-redhat-linux/16/../../../:/lib/:/usr/lib/
+        COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_a6562.dir/CMakeCXXCompilerABI.cpp.o' '-c' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-mtls-dialect=gnu2' '-dumpdir' 'CMakeFiles/cmTC_a6562.dir/CMakeCXXCompilerABI.cpp.'
+        Linking CXX executable cmTC_a6562
+        /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_a6562.dir/link.txt --verbose=1
+        Using built-in specs.
+        COLLECT_GCC=/usr/bin/c++
+        COLLECT_LTO_WRAPPER=/usr/libexec/gcc/x86_64-redhat-linux/16/lto-wrapper
+        OFFLOAD_TARGET_NAMES=nvptx-none:amdgcn-amdhsa
+        OFFLOAD_TARGET_DEFAULT=1
+        Target: x86_64-redhat-linux
+        Configured with: ../configure --enable-bootstrap --enable-languages=c,c++,fortran,objc,obj-c++,ada,go,d,m2,cobol,algol68,lto --prefix=/usr --mandir=/usr/share/man --infodir=/usr/share/info --with-bugurl=https://bugzilla.redhat.com/ --enable-shared --enable-threads=posix --enable-checking=release --enable-multilib --with-system-zlib --enable-__cxa_atexit --disable-libunwind-exceptions --enable-gnu-unique-object --enable-linker-build-id --with-gcc-major-version-only --enable-libstdcxx-backtrace --with-libstdcxx-zoneinfo=/usr/share/zoneinfo --with-linker-hash-style=gnu --enable-plugin --enable-initfini-array --with-isl=/builddir/build/BUILD/gcc-16.2.1-build/gcc-16.2.1-20260819/obj-x86_64-redhat-linux/isl-install --enable-offload-targets=nvptx-none,amdgcn-amdhsa --enable-offload-defaulted --without-cuda-driver --enable-gnu-indirect-function --enable-cet --with-tune=generic --with-tls=gnu2 --with-arch_32=i686 --build=x86_64-redhat-linux --with-build-config=bootstrap-lto --enable-link-serialization=1 --disable-libssp
+        Thread model: posix
+        Supported LTO compression algorithms: zlib zstd
+        gcc version 16.2.1 20260819 (Red Hat 16.2.1-2) (GCC) 
+        COMPILER_PATH=/usr/libexec/gcc/x86_64-redhat-linux/16/:/usr/libexec/gcc/x86_64-redhat-linux/16/:/usr/libexec/gcc/x86_64-redhat-linux/:/usr/lib/gcc/x86_64-redhat-linux/16/:/usr/lib/gcc/x86_64-redhat-linux/
+        LIBRARY_PATH=/usr/lib/gcc/x86_64-redhat-linux/16/:/usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/:/lib/../lib64/:/usr/lib/../lib64/:/usr/lib/gcc/x86_64-redhat-linux/16/../../../:/lib/:/usr/lib/
+        COLLECT_GCC_OPTIONS='-v' '-o' 'cmTC_a6562' '-foffload-options=-l_GCC_stdc++' '-foffload-options=-l_GCC_m' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-mtls-dialect=gnu2' '-dumpdir' 'cmTC_a6562.'
+         /usr/libexec/gcc/x86_64-redhat-linux/16/collect2 -plugin /usr/libexec/gcc/x86_64-redhat-linux/16/liblto_plugin.so -plugin-opt=/usr/libexec/gcc/x86_64-redhat-linux/16/lto-wrapper -plugin-opt=-fresolution=/tmp/ccO8sD73.res -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-latomic_asneeded -plugin-opt=-pass-through=-lc -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc --build-id --no-add-needed --eh-frame-hdr --hash-style=gnu -m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 -o cmTC_a6562 /usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crt1.o /usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crti.o /usr/lib/gcc/x86_64-redhat-linux/16/crtbegin.o -L/usr/lib/gcc/x86_64-redhat-linux/16 -L/usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64 -L/lib/../lib64 -L/usr/lib/../lib64 -L/usr/lib/gcc/x86_64-redhat-linux/16/../../.. -L/lib -L/usr/lib -v CMakeFiles/cmTC_a6562.dir/CMakeCXXCompilerABI.cpp.o -lstdc++ -lm -lgcc_s -lgcc -latomic_asneeded -lc -lgcc_s -lgcc /usr/lib/gcc/x86_64-redhat-linux/16/crtend.o /usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crtn.o
+        collect2 version 16.2.1 20260819 (Red Hat 16.2.1-2)
+        /usr/bin/ld -plugin /usr/libexec/gcc/x86_64-redhat-linux/16/liblto_plugin.so -plugin-opt=/usr/libexec/gcc/x86_64-redhat-linux/16/lto-wrapper -plugin-opt=-fresolution=/tmp/ccO8sD73.res -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-latomic_asneeded -plugin-opt=-pass-through=-lc -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc --build-id --no-add-needed --eh-frame-hdr --hash-style=gnu -m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 -o cmTC_a6562 /usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crt1.o /usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crti.o /usr/lib/gcc/x86_64-redhat-linux/16/crtbegin.o -L/usr/lib/gcc/x86_64-redhat-linux/16 -L/usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64 -L/lib/../lib64 -L/usr/lib/../lib64 -L/usr/lib/gcc/x86_64-redhat-linux/16/../../.. -L/lib -L/usr/lib -v CMakeFiles/cmTC_a6562.dir/CMakeCXXCompilerABI.cpp.o -lstdc++ -lm -lgcc_s -lgcc -latomic_asneeded -lc -lgcc_s -lgcc /usr/lib/gcc/x86_64-redhat-linux/16/crtend.o /usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crtn.o
+        GNU ld version 2.46.1-1.fc44
+        COLLECT_GCC_OPTIONS='-v' '-o' 'cmTC_a6562' '-foffload-options=-l_GCC_stdc++' '-foffload-options=-l_GCC_m' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-mtls-dialect=gnu2' '-dumpdir' 'cmTC_a6562.'
+        /usr/bin/c++  -v -Wl,-v CMakeFiles/cmTC_a6562.dir/CMakeCXXCompilerABI.cpp.o -o cmTC_a6562
+        gmake[1]: Leaving directory '/home/servandoc/Documents/DEV/GlorpDrums/build_test/CMakeFiles/CMakeScratch/TryCompile-nMpHtw'
+        
+      exitCode: 0
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/CMakeDetermineCompilerABI.cmake:217 (message)"
+      - "/usr/share/cmake/Modules/CMakeTestCXXCompiler.cmake:26 (CMAKE_DETERMINE_COMPILER_ABI)"
+      - "CMakeLists.txt:3 (project)"
+    message: |
+      Parsed CXX implicit include dir info: rv=done
+        found start of include info
+        found start of implicit include info
+          add: [/usr/lib/gcc/x86_64-redhat-linux/16/../../../../include/c++/16]
+          add: [/usr/lib/gcc/x86_64-redhat-linux/16/../../../../include/c++/16/x86_64-redhat-linux]
+          add: [/usr/lib/gcc/x86_64-redhat-linux/16/../../../../include/c++/16/backward]
+          add: [/usr/lib/gcc/x86_64-redhat-linux/16/include]
+          add: [/usr/local/include]
+          add: [/usr/include]
+        end of search list found
+        collapse include dir [/usr/lib/gcc/x86_64-redhat-linux/16/../../../../include/c++/16] ==> [/usr/include/c++/16]
+        collapse include dir [/usr/lib/gcc/x86_64-redhat-linux/16/../../../../include/c++/16/x86_64-redhat-linux] ==> [/usr/include/c++/16/x86_64-redhat-linux]
+        collapse include dir [/usr/lib/gcc/x86_64-redhat-linux/16/../../../../include/c++/16/backward] ==> [/usr/include/c++/16/backward]
+        collapse include dir [/usr/lib/gcc/x86_64-redhat-linux/16/include] ==> [/usr/lib/gcc/x86_64-redhat-linux/16/include]
+        collapse include dir [/usr/local/include] ==> [/usr/local/include]
+        collapse include dir [/usr/include] ==> [/usr/include]
+        implicit include dirs: [/usr/include/c++/16;/usr/include/c++/16/x86_64-redhat-linux;/usr/include/c++/16/backward;/usr/lib/gcc/x86_64-redhat-linux/16/include;/usr/local/include;/usr/include]
+      
+      
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/CMakeDetermineCompilerABI.cmake:253 (message)"
+      - "/usr/share/cmake/Modules/CMakeTestCXXCompiler.cmake:26 (CMAKE_DETERMINE_COMPILER_ABI)"
+      - "CMakeLists.txt:3 (project)"
+    message: |
+      Parsed CXX implicit link information:
+        link line regex: [^( *|.*[/\\])(ld[0-9]*(|\\.[a-rt-z][a-z]*|\\.s[a-np-z][a-z]*|\\.so[a-z]+)|CMAKE_LINK_STARTFILE-NOTFOUND|([^/\\]+-)?ld|collect2)[^/\\]*( |$)]
+        linker tool regex: [^[ 	]*(->|"|[0-9]+>[ 	-]*Build:[ 	0-9]+ ms[ 	]*)?[ 	]*(([^"]*[/\\])?(ld[0-9]*(|\\.[a-rt-z][a-z]*|\\.s[a-np-z][a-z]*|\\.so[a-z]+)))("|,| |$)]
+        ignore line: [Change Dir: '/home/servandoc/Documents/DEV/GlorpDrums/build_test/CMakeFiles/CMakeScratch/TryCompile-nMpHtw']
+        ignore line: []
+        ignore line: [Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/gmake -f Makefile cmTC_a6562/fast]
+        ignore line: [/usr/bin/gmake  -f CMakeFiles/cmTC_a6562.dir/build.make CMakeFiles/cmTC_a6562.dir/build]
+        ignore line: [gmake[1]: Entering directory '/home/servandoc/Documents/DEV/GlorpDrums/build_test/CMakeFiles/CMakeScratch/TryCompile-nMpHtw']
+        ignore line: [Building CXX object CMakeFiles/cmTC_a6562.dir/CMakeCXXCompilerABI.cpp.o]
+        ignore line: [/usr/bin/c++   -v -o CMakeFiles/cmTC_a6562.dir/CMakeCXXCompilerABI.cpp.o -c /usr/share/cmake/Modules/CMakeCXXCompilerABI.cpp]
+        ignore line: [Using built-in specs.]
+        ignore line: [COLLECT_GCC=/usr/bin/c++]
+        ignore line: [OFFLOAD_TARGET_NAMES=nvptx-none:amdgcn-amdhsa]
+        ignore line: [OFFLOAD_TARGET_DEFAULT=1]
+        ignore line: [Target: x86_64-redhat-linux]
+        ignore line: [Configured with: ../configure --enable-bootstrap --enable-languages=c c++ fortran objc obj-c++ ada go d m2 cobol algol68 lto --prefix=/usr --mandir=/usr/share/man --infodir=/usr/share/info --with-bugurl=https://bugzilla.redhat.com/ --enable-shared --enable-threads=posix --enable-checking=release --enable-multilib --with-system-zlib --enable-__cxa_atexit --disable-libunwind-exceptions --enable-gnu-unique-object --enable-linker-build-id --with-gcc-major-version-only --enable-libstdcxx-backtrace --with-libstdcxx-zoneinfo=/usr/share/zoneinfo --with-linker-hash-style=gnu --enable-plugin --enable-initfini-array --with-isl=/builddir/build/BUILD/gcc-16.2.1-build/gcc-16.2.1-20260819/obj-x86_64-redhat-linux/isl-install --enable-offload-targets=nvptx-none amdgcn-amdhsa --enable-offload-defaulted --without-cuda-driver --enable-gnu-indirect-function --enable-cet --with-tune=generic --with-tls=gnu2 --with-arch_32=i686 --build=x86_64-redhat-linux --with-build-config=bootstrap-lto --enable-link-serialization=1 --disable-libssp]
+        ignore line: [Thread model: posix]
+        ignore line: [Supported LTO compression algorithms: zlib zstd]
+        ignore line: [gcc version 16.2.1 20260819 (Red Hat 16.2.1-2) (GCC) ]
+        ignore line: [COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_a6562.dir/CMakeCXXCompilerABI.cpp.o' '-c' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-mtls-dialect=gnu2' '-dumpdir' 'CMakeFiles/cmTC_a6562.dir/']
+        ignore line: [ /usr/libexec/gcc/x86_64-redhat-linux/16/cc1plus -quiet -v -D_GNU_SOURCE /usr/share/cmake/Modules/CMakeCXXCompilerABI.cpp -quiet -dumpdir CMakeFiles/cmTC_a6562.dir/ -dumpbase CMakeCXXCompilerABI.cpp.cpp -dumpbase-ext .cpp -mtune=generic -march=x86-64 -mtls-dialect=gnu2 -version -o /tmp/ccYse69X.s]
+        ignore line: [GNU C++20 (GCC) version 16.2.1 20260819 (Red Hat 16.2.1-2) (x86_64-redhat-linux)]
+        ignore line: [	compiled by GNU C version 16.2.1 20260819 (Red Hat 16.2.1-2)  GMP version 6.3.0  MPFR version 4.2.2  MPC version 1.4.1  isl version isl-0.24-GMP]
+        ignore line: []
+        ignore line: [GGC heuristics: --param ggc-min-expand=100 --param ggc-min-heapsize=131072]
+        ignore line: [ignoring nonexistent directory "/usr/lib/gcc/x86_64-redhat-linux/16/include-fixed"]
+        ignore line: [ignoring nonexistent directory "/usr/lib/gcc/x86_64-redhat-linux/16/../../../../x86_64-redhat-linux/include"]
+        ignore line: [#include "..." search starts here:]
+        ignore line: [#include <...> search starts here:]
+        ignore line: [ /usr/lib/gcc/x86_64-redhat-linux/16/../../../../include/c++/16]
+        ignore line: [ /usr/lib/gcc/x86_64-redhat-linux/16/../../../../include/c++/16/x86_64-redhat-linux]
+        ignore line: [ /usr/lib/gcc/x86_64-redhat-linux/16/../../../../include/c++/16/backward]
+        ignore line: [ /usr/lib/gcc/x86_64-redhat-linux/16/include]
+        ignore line: [ /usr/local/include]
+        ignore line: [ /usr/include]
+        ignore line: [End of search list.]
+        ignore line: [Compiler executable checksum: 65ab9aa42e0ee60985a3e473fe6610c4]
+        ignore line: [COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_a6562.dir/CMakeCXXCompilerABI.cpp.o' '-c' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-mtls-dialect=gnu2' '-dumpdir' 'CMakeFiles/cmTC_a6562.dir/']
+        ignore line: [ as -v --64 -o CMakeFiles/cmTC_a6562.dir/CMakeCXXCompilerABI.cpp.o /tmp/ccYse69X.s]
+        ignore line: [GNU assembler version 2.46.1 (x86_64-redhat-linux) using BFD version version 2.46.1-1.fc44]
+        ignore line: [COMPILER_PATH=/usr/libexec/gcc/x86_64-redhat-linux/16/:/usr/libexec/gcc/x86_64-redhat-linux/16/:/usr/libexec/gcc/x86_64-redhat-linux/:/usr/lib/gcc/x86_64-redhat-linux/16/:/usr/lib/gcc/x86_64-redhat-linux/]
+        ignore line: [LIBRARY_PATH=/usr/lib/gcc/x86_64-redhat-linux/16/:/usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/:/lib/../lib64/:/usr/lib/../lib64/:/usr/lib/gcc/x86_64-redhat-linux/16/../../../:/lib/:/usr/lib/]
+        ignore line: [COLLECT_GCC_OPTIONS='-v' '-o' 'CMakeFiles/cmTC_a6562.dir/CMakeCXXCompilerABI.cpp.o' '-c' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-mtls-dialect=gnu2' '-dumpdir' 'CMakeFiles/cmTC_a6562.dir/CMakeCXXCompilerABI.cpp.']
+        ignore line: [Linking CXX executable cmTC_a6562]
+        ignore line: [/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_a6562.dir/link.txt --verbose=1]
+        ignore line: [Using built-in specs.]
+        ignore line: [COLLECT_GCC=/usr/bin/c++]
+        ignore line: [COLLECT_LTO_WRAPPER=/usr/libexec/gcc/x86_64-redhat-linux/16/lto-wrapper]
+        ignore line: [OFFLOAD_TARGET_NAMES=nvptx-none:amdgcn-amdhsa]
+        ignore line: [OFFLOAD_TARGET_DEFAULT=1]
+        ignore line: [Target: x86_64-redhat-linux]
+        ignore line: [Configured with: ../configure --enable-bootstrap --enable-languages=c c++ fortran objc obj-c++ ada go d m2 cobol algol68 lto --prefix=/usr --mandir=/usr/share/man --infodir=/usr/share/info --with-bugurl=https://bugzilla.redhat.com/ --enable-shared --enable-threads=posix --enable-checking=release --enable-multilib --with-system-zlib --enable-__cxa_atexit --disable-libunwind-exceptions --enable-gnu-unique-object --enable-linker-build-id --with-gcc-major-version-only --enable-libstdcxx-backtrace --with-libstdcxx-zoneinfo=/usr/share/zoneinfo --with-linker-hash-style=gnu --enable-plugin --enable-initfini-array --with-isl=/builddir/build/BUILD/gcc-16.2.1-build/gcc-16.2.1-20260819/obj-x86_64-redhat-linux/isl-install --enable-offload-targets=nvptx-none amdgcn-amdhsa --enable-offload-defaulted --without-cuda-driver --enable-gnu-indirect-function --enable-cet --with-tune=generic --with-tls=gnu2 --with-arch_32=i686 --build=x86_64-redhat-linux --with-build-config=bootstrap-lto --enable-link-serialization=1 --disable-libssp]
+        ignore line: [Thread model: posix]
+        ignore line: [Supported LTO compression algorithms: zlib zstd]
+        ignore line: [gcc version 16.2.1 20260819 (Red Hat 16.2.1-2) (GCC) ]
+        ignore line: [COMPILER_PATH=/usr/libexec/gcc/x86_64-redhat-linux/16/:/usr/libexec/gcc/x86_64-redhat-linux/16/:/usr/libexec/gcc/x86_64-redhat-linux/:/usr/lib/gcc/x86_64-redhat-linux/16/:/usr/lib/gcc/x86_64-redhat-linux/]
+        ignore line: [LIBRARY_PATH=/usr/lib/gcc/x86_64-redhat-linux/16/:/usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/:/lib/../lib64/:/usr/lib/../lib64/:/usr/lib/gcc/x86_64-redhat-linux/16/../../../:/lib/:/usr/lib/]
+        ignore line: [COLLECT_GCC_OPTIONS='-v' '-o' 'cmTC_a6562' '-foffload-options=-l_GCC_stdc++' '-foffload-options=-l_GCC_m' '-shared-libgcc' '-mtune=generic' '-march=x86-64' '-mtls-dialect=gnu2' '-dumpdir' 'cmTC_a6562.']
+        link line: [ /usr/libexec/gcc/x86_64-redhat-linux/16/collect2 -plugin /usr/libexec/gcc/x86_64-redhat-linux/16/liblto_plugin.so -plugin-opt=/usr/libexec/gcc/x86_64-redhat-linux/16/lto-wrapper -plugin-opt=-fresolution=/tmp/ccO8sD73.res -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-latomic_asneeded -plugin-opt=-pass-through=-lc -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc --build-id --no-add-needed --eh-frame-hdr --hash-style=gnu -m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 -o cmTC_a6562 /usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crt1.o /usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crti.o /usr/lib/gcc/x86_64-redhat-linux/16/crtbegin.o -L/usr/lib/gcc/x86_64-redhat-linux/16 -L/usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64 -L/lib/../lib64 -L/usr/lib/../lib64 -L/usr/lib/gcc/x86_64-redhat-linux/16/../../.. -L/lib -L/usr/lib -v CMakeFiles/cmTC_a6562.dir/CMakeCXXCompilerABI.cpp.o -lstdc++ -lm -lgcc_s -lgcc -latomic_asneeded -lc -lgcc_s -lgcc /usr/lib/gcc/x86_64-redhat-linux/16/crtend.o /usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crtn.o]
+          arg [/usr/libexec/gcc/x86_64-redhat-linux/16/collect2] ==> ignore
+          arg [-plugin] ==> ignore
+          arg [/usr/libexec/gcc/x86_64-redhat-linux/16/liblto_plugin.so] ==> ignore
+          arg [-plugin-opt=/usr/libexec/gcc/x86_64-redhat-linux/16/lto-wrapper] ==> ignore
+          arg [-plugin-opt=-fresolution=/tmp/ccO8sD73.res] ==> ignore
+          arg [-plugin-opt=-pass-through=-lgcc_s] ==> ignore
+          arg [-plugin-opt=-pass-through=-lgcc] ==> ignore
+          arg [-plugin-opt=-pass-through=-latomic_asneeded] ==> ignore
+          arg [-plugin-opt=-pass-through=-lc] ==> ignore
+          arg [-plugin-opt=-pass-through=-lgcc_s] ==> ignore
+          arg [-plugin-opt=-pass-through=-lgcc] ==> ignore
+          arg [--build-id] ==> ignore
+          arg [--no-add-needed] ==> ignore
+          arg [--eh-frame-hdr] ==> ignore
+          arg [--hash-style=gnu] ==> ignore
+          arg [-m] ==> ignore
+          arg [elf_x86_64] ==> ignore
+          arg [-dynamic-linker] ==> ignore
+          arg [/lib64/ld-linux-x86-64.so.2] ==> ignore
+          arg [-o] ==> ignore
+          arg [cmTC_a6562] ==> ignore
+          arg [/usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crt1.o] ==> obj [/usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crt1.o]
+          arg [/usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crti.o] ==> obj [/usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crti.o]
+          arg [/usr/lib/gcc/x86_64-redhat-linux/16/crtbegin.o] ==> obj [/usr/lib/gcc/x86_64-redhat-linux/16/crtbegin.o]
+          arg [-L/usr/lib/gcc/x86_64-redhat-linux/16] ==> dir [/usr/lib/gcc/x86_64-redhat-linux/16]
+          arg [-L/usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64] ==> dir [/usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64]
+          arg [-L/lib/../lib64] ==> dir [/lib/../lib64]
+          arg [-L/usr/lib/../lib64] ==> dir [/usr/lib/../lib64]
+          arg [-L/usr/lib/gcc/x86_64-redhat-linux/16/../../..] ==> dir [/usr/lib/gcc/x86_64-redhat-linux/16/../../..]
+          arg [-L/lib] ==> dir [/lib]
+          arg [-L/usr/lib] ==> dir [/usr/lib]
+          arg [-v] ==> ignore
+          arg [CMakeFiles/cmTC_a6562.dir/CMakeCXXCompilerABI.cpp.o] ==> ignore
+          arg [-lstdc++] ==> lib [stdc++]
+          arg [-lm] ==> lib [m]
+          arg [-lgcc_s] ==> lib [gcc_s]
+          arg [-lgcc] ==> lib [gcc]
+          arg [-latomic_asneeded] ==> lib [atomic_asneeded]
+          arg [-lc] ==> lib [c]
+          arg [-lgcc_s] ==> lib [gcc_s]
+          arg [-lgcc] ==> lib [gcc]
+          arg [/usr/lib/gcc/x86_64-redhat-linux/16/crtend.o] ==> obj [/usr/lib/gcc/x86_64-redhat-linux/16/crtend.o]
+          arg [/usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crtn.o] ==> obj [/usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crtn.o]
+        ignore line: [collect2 version 16.2.1 20260819 (Red Hat 16.2.1-2)]
+        ignore line: [/usr/bin/ld -plugin /usr/libexec/gcc/x86_64-redhat-linux/16/liblto_plugin.so -plugin-opt=/usr/libexec/gcc/x86_64-redhat-linux/16/lto-wrapper -plugin-opt=-fresolution=/tmp/ccO8sD73.res -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc -plugin-opt=-pass-through=-latomic_asneeded -plugin-opt=-pass-through=-lc -plugin-opt=-pass-through=-lgcc_s -plugin-opt=-pass-through=-lgcc --build-id --no-add-needed --eh-frame-hdr --hash-style=gnu -m elf_x86_64 -dynamic-linker /lib64/ld-linux-x86-64.so.2 -o cmTC_a6562 /usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crt1.o /usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crti.o /usr/lib/gcc/x86_64-redhat-linux/16/crtbegin.o -L/usr/lib/gcc/x86_64-redhat-linux/16 -L/usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64 -L/lib/../lib64 -L/usr/lib/../lib64 -L/usr/lib/gcc/x86_64-redhat-linux/16/../../.. -L/lib -L/usr/lib -v CMakeFiles/cmTC_a6562.dir/CMakeCXXCompilerABI.cpp.o -lstdc++ -lm -lgcc_s -lgcc -latomic_asneeded -lc -lgcc_s -lgcc /usr/lib/gcc/x86_64-redhat-linux/16/crtend.o /usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crtn.o]
+        linker tool for 'CXX': /usr/bin/ld
+        collapse obj [/usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crt1.o] ==> [/usr/lib64/crt1.o]
+        collapse obj [/usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crti.o] ==> [/usr/lib64/crti.o]
+        collapse obj [/usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64/crtn.o] ==> [/usr/lib64/crtn.o]
+        collapse library dir [/usr/lib/gcc/x86_64-redhat-linux/16] ==> [/usr/lib/gcc/x86_64-redhat-linux/16]
+        collapse library dir [/usr/lib/gcc/x86_64-redhat-linux/16/../../../../lib64] ==> [/usr/lib64]
+        collapse library dir [/lib/../lib64] ==> [/lib64]
+        collapse library dir [/usr/lib/../lib64] ==> [/usr/lib64]
+        collapse library dir [/usr/lib/gcc/x86_64-redhat-linux/16/../../..] ==> [/usr/lib]
+        collapse library dir [/lib] ==> [/lib]
+        collapse library dir [/usr/lib] ==> [/usr/lib]
+        implicit libs: [stdc++;m;gcc_s;gcc;atomic_asneeded;c;gcc_s;gcc]
+        implicit objs: [/usr/lib64/crt1.o;/usr/lib64/crti.o;/usr/lib/gcc/x86_64-redhat-linux/16/crtbegin.o;/usr/lib/gcc/x86_64-redhat-linux/16/crtend.o;/usr/lib64/crtn.o]
+        implicit dirs: [/usr/lib/gcc/x86_64-redhat-linux/16;/usr/lib64;/lib64;/usr/lib;/lib]
+        implicit fwks: []
+      
+      
+  -
+    kind: "message-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/Internal/CMakeDetermineLinkerId.cmake:38 (message)"
+      - "/usr/share/cmake/Modules/CMakeDetermineCompilerABI.cmake:299 (cmake_determine_linker_id)"
+      - "/usr/share/cmake/Modules/CMakeTestCXXCompiler.cmake:26 (CMAKE_DETERMINE_COMPILER_ABI)"
+      - "CMakeLists.txt:3 (project)"
+    message: |
+      Running the CXX compiler's linker: "/usr/bin/ld" "-v"
+      GNU ld version 2.46.1-1.fc44
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "libs/JUCE/extras/Build/CMake/JUCECheckAtomic.cmake:73 (try_compile)"
+      - "libs/JUCE/extras/Build/CMake/JUCECheckAtomic.cmake:128 (_juce_create_atomic_target)"
+      - "libs/JUCE/extras/Build/CMake/JUCEModuleSupport.cmake:57 (include)"
+      - "libs/JUCE/CMakeLists.txt:50 (include)"
+    directories:
+      source: "/home/servandoc/Documents/DEV/GlorpDrums/build_test/libs/JUCE/check_atomic_dir_kJZNln5dzxtmZUU5/CMakeFiles/CMakeTmp"
+      binary: "/home/servandoc/Documents/DEV/GlorpDrums/build_test/libs/JUCE/check_atomic_dir_kJZNln5dzxtmZUU5/CMakeFiles/CMakeTmp"
+    cmakeVariables:
+      CMAKE_CXX_FLAGS: ""
+      CMAKE_CXX_FLAGS_DEBUG: "-g"
+      CMAKE_CXX_STDLIB_MODULES_JSON: ""
+      CMAKE_EXE_LINKER_FLAGS: ""
+      CMAKE_POSITION_INDEPENDENT_CODE: "ON"
+    buildResult:
+      variable: "compile_result"
+      cached: true
+      stdout: |
+        Change Dir: '/home/servandoc/Documents/DEV/GlorpDrums/build_test/libs/JUCE/check_atomic_dir_kJZNln5dzxtmZUU5/CMakeFiles/CMakeTmp'
+        
+        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/gmake -f Makefile cmTC_c4e3a/fast
+        /usr/bin/gmake  -f CMakeFiles/cmTC_c4e3a.dir/build.make CMakeFiles/cmTC_c4e3a.dir/build
+        gmake[1]: Entering directory '/home/servandoc/Documents/DEV/GlorpDrums/build_test/libs/JUCE/check_atomic_dir_kJZNln5dzxtmZUU5/CMakeFiles/CMakeTmp'
+        Building CXX object CMakeFiles/cmTC_c4e3a.dir/check_atomic_sUAchfmSxxm7csJL.cpp.o
+        /usr/bin/c++   -std=c++17 -fPIE -o CMakeFiles/cmTC_c4e3a.dir/check_atomic_sUAchfmSxxm7csJL.cpp.o -c /home/servandoc/Documents/DEV/GlorpDrums/build_test/libs/JUCE/check_atomic_sUAchfmSxxm7csJL.cpp
+        Linking CXX executable cmTC_c4e3a
+        /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_c4e3a.dir/link.txt --verbose=1
+        /usr/bin/c++ CMakeFiles/cmTC_c4e3a.dir/check_atomic_sUAchfmSxxm7csJL.cpp.o -o cmTC_c4e3a
+        gmake[1]: Leaving directory '/home/servandoc/Documents/DEV/GlorpDrums/build_test/libs/JUCE/check_atomic_dir_kJZNln5dzxtmZUU5/CMakeFiles/CMakeTmp'
+        
+      exitCode: 0
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "libs/JUCE/extras/Build/CMake/JUCEModuleSupport.cmake:63 (try_compile)"
+      - "libs/JUCE/extras/Build/CMake/JUCEModuleSupport.cmake:75 (_juce_find_target_architecture)"
+      - "libs/JUCE/CMakeLists.txt:50 (include)"
+    directories:
+      source: "/home/servandoc/Documents/DEV/GlorpDrums/build_test/libs/JUCE/CMakeFiles/CMakeTmp"
+      binary: "/home/servandoc/Documents/DEV/GlorpDrums/build_test/libs/JUCE/CMakeFiles/CMakeTmp"
+    cmakeVariables:
+      CMAKE_CXX_FLAGS: ""
+      CMAKE_CXX_FLAGS_DEBUG: "-g"
+      CMAKE_CXX_STDLIB_MODULES_JSON: ""
+      CMAKE_EXE_LINKER_FLAGS: ""
+      CMAKE_POSITION_INDEPENDENT_CODE: "ON"
+    buildResult:
+      variable: "compile_result"
+      cached: true
+      stdout: |
+        Change Dir: '/home/servandoc/Documents/DEV/GlorpDrums/build_test/libs/JUCE/CMakeFiles/CMakeTmp'
+        
+        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/gmake -f Makefile cmTC_d99ce/fast
+        /usr/bin/gmake  -f CMakeFiles/cmTC_d99ce.dir/build.make CMakeFiles/cmTC_d99ce.dir/build
+        gmake[1]: Entering directory '/home/servandoc/Documents/DEV/GlorpDrums/build_test/libs/JUCE/CMakeFiles/CMakeTmp'
+        Building CXX object CMakeFiles/cmTC_d99ce.dir/juce_runtime_arch_detection.cpp.o
+        /usr/bin/c++   -std=gnu++20 -fPIE -o CMakeFiles/cmTC_d99ce.dir/juce_runtime_arch_detection.cpp.o -c /home/servandoc/Documents/DEV/GlorpDrums/libs/JUCE/extras/Build/CMake/juce_runtime_arch_detection.cpp
+        /home/servandoc/Documents/DEV/GlorpDrums/libs/JUCE/extras/Build/CMake/juce_runtime_arch_detection.cpp:56:4: error: #error JUCE_ARCH x86_64
+           56 |   #error JUCE_ARCH x86_64
+              |    ^~~~~
+        gmake[1]: *** [CMakeFiles/cmTC_d99ce.dir/build.make:81: CMakeFiles/cmTC_d99ce.dir/juce_runtime_arch_detection.cpp.o] Error 1
+        gmake[1]: Leaving directory '/home/servandoc/Documents/DEV/GlorpDrums/build_test/libs/JUCE/CMakeFiles/CMakeTmp'
+        gmake: *** [Makefile:134: cmTC_d99ce/fast] Error 2
+        
+      exitCode: 2
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/FindPkgConfig.cmake:517 (find_program)"
+      - "libs/JUCE/extras/Build/CMake/JUCEModuleSupport.cmake:391 (find_package)"
+      - "libs/JUCE/extras/Build/CMake/JUCEModuleSupport.cmake:643 (_juce_create_pkgconfig_target)"
+      - "libs/JUCE/extras/Build/CMake/JUCEModuleSupport.cmake:686 (juce_add_module)"
+      - "libs/JUCE/modules/CMakeLists.txt:33 (juce_add_modules)"
+    mode: "program"
+    variable: "PKG_CONFIG_EXECUTABLE"
+    description: "pkg-config executable"
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "pkg-config"
+      - "pkgconf"
+    candidate_directories:
+      - "/home/servandoc/.grok/bin/"
+      - "/home/servandoc/.opencode/bin/"
+      - "/home/servandoc/.local/bin/"
+      - "/home/servandoc/bin/"
+      - "/home/servandoc/.cargo/bin/"
+      - "/home/servandoc/.nix-profile/bin/"
+      - "/usr/share/Modules/bin/"
+      - "/usr/local/bin/"
+      - "/usr/bin/"
+      - "/bin/"
+      - "/var/lib/snapd/snap/bin/"
+      - "/usr/local/bin/"
+      - "/usr/local/sbin/"
+      - "/usr/local/"
+      - "/usr/bin/"
+      - "/usr/sbin/"
+      - "/usr/"
+      - "/bin/"
+      - "/sbin/"
+      - "/usr/X11R6/bin/"
+      - "/usr/X11R6/sbin/"
+      - "/usr/X11R6/"
+      - "/usr/pkg/bin/"
+      - "/usr/pkg/sbin/"
+      - "/usr/pkg/"
+      - "/opt/bin/"
+      - "/opt/sbin/"
+      - "/opt/"
+    searched_directories:
+      - "/home/servandoc/.grok/bin/pkg-config"
+      - "/home/servandoc/.grok/bin/pkgconf"
+      - "/home/servandoc/.opencode/bin/pkg-config"
+      - "/home/servandoc/.opencode/bin/pkgconf"
+      - "/home/servandoc/.local/bin/pkg-config"
+      - "/home/servandoc/.local/bin/pkgconf"
+      - "/home/servandoc/bin/pkg-config"
+      - "/home/servandoc/bin/pkgconf"
+      - "/home/servandoc/.cargo/bin/pkg-config"
+      - "/home/servandoc/.cargo/bin/pkgconf"
+      - "/home/servandoc/.nix-profile/bin/pkg-config"
+      - "/home/servandoc/.nix-profile/bin/pkgconf"
+      - "/usr/share/Modules/bin/pkg-config"
+      - "/usr/share/Modules/bin/pkgconf"
+      - "/usr/local/bin/pkg-config"
+      - "/usr/local/bin/pkgconf"
+    found: "/usr/bin/pkg-config"
+    search_context:
+      ENV{PATH}:
+        - "/home/servandoc/.grok/bin"
+        - "/home/servandoc/.opencode/bin"
+        - "/home/servandoc/.local/bin"
+        - "/home/servandoc/bin"
+        - "/home/servandoc/.cargo/bin"
+        - "/home/servandoc/.nix-profile/bin"
+        - "/usr/share/Modules/bin"
+        - "/usr/local/bin"
+        - "/usr/bin"
+        - "/bin"
+        - "/var/lib/snapd/snap/bin"
+      CMAKE_INSTALL_PREFIX: "/usr/local"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/usr/local"
+        - "/usr"
+        - "/"
+        - "/usr"
+        - "/usr/local"
+        - "/usr/X11R6"
+        - "/usr/pkg"
+        - "/opt"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/FindPkgConfig.cmake:761 (find_library)"
+      - "/usr/share/cmake/Modules/FindPkgConfig.cmake:811 (_pkg_find_libs)"
+      - "/usr/share/cmake/Modules/FindPkgConfig.cmake:1149 (_pkg_recalculate)"
+      - "/usr/share/cmake/Modules/FindPkgConfig.cmake:1166 (_pkg_check_modules_internal)"
+      - "libs/JUCE/extras/Build/CMake/JUCEModuleSupport.cmake:392 (pkg_check_modules)"
+      - "libs/JUCE/extras/Build/CMake/JUCEModuleSupport.cmake:643 (_juce_create_pkgconfig_target)"
+      - "libs/JUCE/extras/Build/CMake/JUCEModuleSupport.cmake:686 (juce_add_module)"
+      - "libs/JUCE/modules/CMakeLists.txt:33 (juce_add_modules)"
+    mode: "library"
+    variable: "pkgcfg_lib_juce_audio_devices_LINUX_DEPS_asound"
+    description: "Path to a library."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "asound"
+    candidate_directories:
+      - "/usr/lib64/"
+    found: "/usr/lib64/libasound.so"
+    search_context:
+      ENV{PATH}:
+        - "/home/servandoc/.grok/bin"
+        - "/home/servandoc/.opencode/bin"
+        - "/home/servandoc/.local/bin"
+        - "/home/servandoc/bin"
+        - "/home/servandoc/.cargo/bin"
+        - "/home/servandoc/.nix-profile/bin"
+        - "/usr/share/Modules/bin"
+        - "/usr/local/bin"
+        - "/usr/bin"
+        - "/bin"
+        - "/var/lib/snapd/snap/bin"
+      CMAKE_INSTALL_PREFIX: "/usr/local"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/usr/local"
+        - "/usr"
+        - "/"
+        - "/usr"
+        - "/usr/local"
+        - "/usr/X11R6"
+        - "/usr/pkg"
+        - "/opt"
+      CMAKE_SYSTEM_LIBRARY_PATH:
+        - "/usr/lib/X11"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/FindPkgConfig.cmake:761 (find_library)"
+      - "/usr/share/cmake/Modules/FindPkgConfig.cmake:811 (_pkg_find_libs)"
+      - "/usr/share/cmake/Modules/FindPkgConfig.cmake:1149 (_pkg_recalculate)"
+      - "/usr/share/cmake/Modules/FindPkgConfig.cmake:1166 (_pkg_check_modules_internal)"
+      - "libs/JUCE/extras/Build/CMake/JUCEModuleSupport.cmake:392 (pkg_check_modules)"
+      - "libs/JUCE/extras/Build/CMake/JUCEModuleSupport.cmake:643 (_juce_create_pkgconfig_target)"
+      - "libs/JUCE/extras/Build/CMake/JUCEModuleSupport.cmake:686 (juce_add_module)"
+      - "libs/JUCE/modules/CMakeLists.txt:33 (juce_add_modules)"
+    mode: "library"
+    variable: "pkgcfg_lib_juce_graphics_LINUX_DEPS_fontconfig"
+    description: "Path to a library."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "fontconfig"
+    candidate_directories:
+      - "/usr/lib64/"
+    found: "/usr/lib64/libfontconfig.so"
+    search_context:
+      ENV{PATH}:
+        - "/home/servandoc/.grok/bin"
+        - "/home/servandoc/.opencode/bin"
+        - "/home/servandoc/.local/bin"
+        - "/home/servandoc/bin"
+        - "/home/servandoc/.cargo/bin"
+        - "/home/servandoc/.nix-profile/bin"
+        - "/usr/share/Modules/bin"
+        - "/usr/local/bin"
+        - "/usr/bin"
+        - "/bin"
+        - "/var/lib/snapd/snap/bin"
+      CMAKE_INSTALL_PREFIX: "/usr/local"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/usr/local"
+        - "/usr"
+        - "/"
+        - "/usr"
+        - "/usr/local"
+        - "/usr/X11R6"
+        - "/usr/pkg"
+        - "/opt"
+      CMAKE_SYSTEM_LIBRARY_PATH:
+        - "/usr/lib/X11"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/FindPkgConfig.cmake:761 (find_library)"
+      - "/usr/share/cmake/Modules/FindPkgConfig.cmake:811 (_pkg_find_libs)"
+      - "/usr/share/cmake/Modules/FindPkgConfig.cmake:1149 (_pkg_recalculate)"
+      - "/usr/share/cmake/Modules/FindPkgConfig.cmake:1166 (_pkg_check_modules_internal)"
+      - "libs/JUCE/extras/Build/CMake/JUCEModuleSupport.cmake:392 (pkg_check_modules)"
+      - "libs/JUCE/extras/Build/CMake/JUCEModuleSupport.cmake:643 (_juce_create_pkgconfig_target)"
+      - "libs/JUCE/extras/Build/CMake/JUCEModuleSupport.cmake:686 (juce_add_module)"
+      - "libs/JUCE/modules/CMakeLists.txt:33 (juce_add_modules)"
+    mode: "library"
+    variable: "pkgcfg_lib_juce_graphics_LINUX_DEPS_freetype"
+    description: "Path to a library."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "freetype"
+    candidate_directories:
+      - "/usr/lib64/"
+    found: "/usr/lib64/libfreetype.so"
+    search_context:
+      ENV{PATH}:
+        - "/home/servandoc/.grok/bin"
+        - "/home/servandoc/.opencode/bin"
+        - "/home/servandoc/.local/bin"
+        - "/home/servandoc/bin"
+        - "/home/servandoc/.cargo/bin"
+        - "/home/servandoc/.nix-profile/bin"
+        - "/usr/share/Modules/bin"
+        - "/usr/local/bin"
+        - "/usr/bin"
+        - "/bin"
+        - "/var/lib/snapd/snap/bin"
+      CMAKE_INSTALL_PREFIX: "/usr/local"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/usr/local"
+        - "/usr"
+        - "/"
+        - "/usr"
+        - "/usr/local"
+        - "/usr/X11R6"
+        - "/usr/pkg"
+        - "/opt"
+      CMAKE_SYSTEM_LIBRARY_PATH:
+        - "/usr/lib/X11"
+  -
+    kind: "find-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/FindPkgConfig.cmake:761 (find_library)"
+      - "/usr/share/cmake/Modules/FindPkgConfig.cmake:811 (_pkg_find_libs)"
+      - "/usr/share/cmake/Modules/FindPkgConfig.cmake:1149 (_pkg_recalculate)"
+      - "/usr/share/cmake/Modules/FindPkgConfig.cmake:1166 (_pkg_check_modules_internal)"
+      - "libs/JUCE/extras/Build/CMake/JUCEModuleSupport.cmake:392 (pkg_check_modules)"
+      - "libs/JUCE/extras/Build/CMake/JUCEModuleSupport.cmake:643 (_juce_create_pkgconfig_target)"
+      - "libs/JUCE/extras/Build/CMake/JUCEModuleSupport.cmake:686 (juce_add_module)"
+      - "libs/JUCE/modules/CMakeLists.txt:33 (juce_add_modules)"
+    mode: "library"
+    variable: "pkgcfg_lib_juce_opengl_LINUX_DEPS_GL"
+    description: "Path to a library."
+    settings:
+      SearchFramework: "NEVER"
+      SearchAppBundle: "NEVER"
+      CMAKE_FIND_USE_CMAKE_PATH: true
+      CMAKE_FIND_USE_CMAKE_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_SYSTEM_ENVIRONMENT_PATH: true
+      CMAKE_FIND_USE_CMAKE_SYSTEM_PATH: true
+      CMAKE_FIND_USE_INSTALL_PREFIX: true
+    names:
+      - "GL"
+    candidate_directories:
+      - "/usr/lib64/"
+    found: "/usr/lib64/libGL.so"
+    search_context:
+      ENV{PATH}:
+        - "/home/servandoc/.grok/bin"
+        - "/home/servandoc/.opencode/bin"
+        - "/home/servandoc/.local/bin"
+        - "/home/servandoc/bin"
+        - "/home/servandoc/.cargo/bin"
+        - "/home/servandoc/.nix-profile/bin"
+        - "/usr/share/Modules/bin"
+        - "/usr/local/bin"
+        - "/usr/bin"
+        - "/bin"
+        - "/var/lib/snapd/snap/bin"
+      CMAKE_INSTALL_PREFIX: "/usr/local"
+      CMAKE_SYSTEM_PREFIX_PATH:
+        - "/usr/local"
+        - "/usr"
+        - "/"
+        - "/usr"
+        - "/usr/local"
+        - "/usr/X11R6"
+        - "/usr/pkg"
+        - "/opt"
+      CMAKE_SYSTEM_LIBRARY_PATH:
+        - "/usr/lib/X11"
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "/usr/share/cmake/Modules/Internal/CheckSourceCompiles.cmake:104 (try_compile)"
+      - "/usr/share/cmake/Modules/CheckCSourceCompiles.cmake:103 (cmake_check_source_compiles)"
+      - "/usr/share/cmake/Modules/FindThreads.cmake:160 (check_c_source_compiles)"
+      - "/usr/share/cmake/Modules/FindThreads.cmake:226 (_threads_check_libc)"
+      - "libs/JUCE/extras/Build/CMake/JUCEUtils.cmake:1057 (find_package)"
+      - "libs/JUCE/extras/Build/CMake/JUCEUtils.cmake:1098 (_juce_add_vst3_manifest_helper_target)"
+      - "libs/JUCE/extras/Build/CMake/JUCEUtils.cmake:1234 (juce_enable_vst3_manifest_step)"
+      - "libs/JUCE/extras/Build/CMake/JUCEUtils.cmake:1452 (_juce_set_plugin_target_properties)"
+      - "libs/JUCE/extras/Build/CMake/JUCEUtils.cmake:1589 (_juce_link_plugin_wrapper)"
+      - "libs/JUCE/extras/Build/CMake/JUCEUtils.cmake:2182 (_juce_configure_plugin_targets)"
+      - "CMakeLists.txt:133 (juce_add_plugin)"
+    checks:
+      - "Performing Test CMAKE_HAVE_LIBC_PTHREAD"
+    directories:
+      source: "/home/servandoc/Documents/DEV/GlorpDrums/build_test/CMakeFiles/CMakeScratch/TryCompile-OnHa15"
+      binary: "/home/servandoc/Documents/DEV/GlorpDrums/build_test/CMakeFiles/CMakeScratch/TryCompile-OnHa15"
+    cmakeVariables:
+      CMAKE_CXX_STDLIB_MODULES_JSON: ""
+      CMAKE_C_FLAGS: ""
+      CMAKE_C_FLAGS_DEBUG: "-g"
+      CMAKE_EXE_LINKER_FLAGS: ""
+      CMAKE_POSITION_INDEPENDENT_CODE: "ON"
+    buildResult:
+      variable: "CMAKE_HAVE_LIBC_PTHREAD"
+      cached: true
+      stdout: |
+        Change Dir: '/home/servandoc/Documents/DEV/GlorpDrums/build_test/CMakeFiles/CMakeScratch/TryCompile-OnHa15'
+        
+        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/gmake -f Makefile cmTC_fce25/fast
+        /usr/bin/gmake  -f CMakeFiles/cmTC_fce25.dir/build.make CMakeFiles/cmTC_fce25.dir/build
+        gmake[1]: Entering directory '/home/servandoc/Documents/DEV/GlorpDrums/build_test/CMakeFiles/CMakeScratch/TryCompile-OnHa15'
+        Building C object CMakeFiles/cmTC_fce25.dir/src.c.o
+        /usr/bin/cc -DCMAKE_HAVE_LIBC_PTHREAD  -fPIE -o CMakeFiles/cmTC_fce25.dir/src.c.o -c /home/servandoc/Documents/DEV/GlorpDrums/build_test/CMakeFiles/CMakeScratch/TryCompile-OnHa15/src.c
+        Linking C executable cmTC_fce25
+        /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_fce25.dir/link.txt --verbose=1
+        /usr/bin/cc CMakeFiles/cmTC_fce25.dir/src.c.o -o cmTC_fce25
+        gmake[1]: Leaving directory '/home/servandoc/Documents/DEV/GlorpDrums/build_test/CMakeFiles/CMakeScratch/TryCompile-OnHa15'
+        
+      exitCode: 0
+...
+
+---
+events:
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "libs/JUCE/extras/Build/CMake/JUCECheckAtomic.cmake:73 (try_compile)"
+      - "libs/JUCE/extras/Build/CMake/JUCECheckAtomic.cmake:128 (_juce_create_atomic_target)"
+      - "libs/JUCE/extras/Build/CMake/JUCEModuleSupport.cmake:57 (include)"
+      - "libs/JUCE/CMakeLists.txt:50 (include)"
+    directories:
+      source: "/home/servandoc/Documents/DEV/GlorpDrums/build_test/libs/JUCE/check_atomic_dir_Rd8obOHuCOebKQeB/CMakeFiles/CMakeTmp"
+      binary: "/home/servandoc/Documents/DEV/GlorpDrums/build_test/libs/JUCE/check_atomic_dir_Rd8obOHuCOebKQeB/CMakeFiles/CMakeTmp"
+    cmakeVariables:
+      CMAKE_CXX_FLAGS: ""
+      CMAKE_CXX_FLAGS_DEBUG: "-g"
+      CMAKE_CXX_STDLIB_MODULES_JSON: ""
+      CMAKE_EXE_LINKER_FLAGS: ""
+      CMAKE_POSITION_INDEPENDENT_CODE: "ON"
+    buildResult:
+      variable: "compile_result"
+      cached: true
+      stdout: |
+        Change Dir: '/home/servandoc/Documents/DEV/GlorpDrums/build_test/libs/JUCE/check_atomic_dir_Rd8obOHuCOebKQeB/CMakeFiles/CMakeTmp'
+        
+        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/gmake -f Makefile cmTC_34af8/fast
+        /usr/bin/gmake  -f CMakeFiles/cmTC_34af8.dir/build.make CMakeFiles/cmTC_34af8.dir/build
+        gmake[1]: Entering directory '/home/servandoc/Documents/DEV/GlorpDrums/build_test/libs/JUCE/check_atomic_dir_Rd8obOHuCOebKQeB/CMakeFiles/CMakeTmp'
+        Building CXX object CMakeFiles/cmTC_34af8.dir/check_atomic_ylVXt5j3RT6WSs1B.cpp.o
+        /usr/bin/c++   -std=c++17 -fPIE -o CMakeFiles/cmTC_34af8.dir/check_atomic_ylVXt5j3RT6WSs1B.cpp.o -c /home/servandoc/Documents/DEV/GlorpDrums/build_test/libs/JUCE/check_atomic_ylVXt5j3RT6WSs1B.cpp
+        Linking CXX executable cmTC_34af8
+        /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_34af8.dir/link.txt --verbose=1
+        /usr/bin/c++ CMakeFiles/cmTC_34af8.dir/check_atomic_ylVXt5j3RT6WSs1B.cpp.o -o cmTC_34af8
+        gmake[1]: Leaving directory '/home/servandoc/Documents/DEV/GlorpDrums/build_test/libs/JUCE/check_atomic_dir_Rd8obOHuCOebKQeB/CMakeFiles/CMakeTmp'
+        
+      exitCode: 0
+...

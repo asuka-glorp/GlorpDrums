@@ -12,14 +12,36 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-22.04, ubuntu-24.04]
+        os: [ubuntu-22.04, ubuntu-24.04, windows-latest]
+        include:
+          - os: ubuntu-22.04
+            cmake_args: -DGLORP_BUILD_VST3=ON -DGLORP_BUILD_LV2=ON -DGLORP_BUILD_STANDALONE=ON
+            artifact_paths: |
+              build/GlorpDrums_artefacts/Release/VST3/GlorpDrums.vst3
+              build/GlorpDrums_artefacts/Release/LV2/GlorpDrums.lv2
+              build/GlorpDrums_artefacts/Release/Standalone/GlorpDrums
+              build/GlorpKitEditor_artefacts/Release/GlorpKitEditor
+          - os: ubuntu-24.04
+            cmake_args: -DGLORP_BUILD_VST3=ON -DGLORP_BUILD_LV2=ON -DGLORP_BUILD_STANDALONE=ON
+            artifact_paths: |
+              build/GlorpDrums_artefacts/Release/VST3/GlorpDrums.vst3
+              build/GlorpDrums_artefacts/Release/LV2/GlorpDrums.lv2
+              build/GlorpDrums_artefacts/Release/Standalone/GlorpDrums
+              build/GlorpKitEditor_artefacts/Release/GlorpKitEditor
+          - os: windows-latest
+            cmake_args: -DGLORP_BUILD_VST3=ON -DGLORP_BUILD_STANDALONE=ON -DGLORP_BUILD_KIT_EDITOR=ON
+            artifact_paths: |
+              build/GlorpDrums_artefacts/Release/VST3/GlorpDrums.vst3
+              build/GlorpDrums_artefacts/Release/Standalone/GlorpDrums.exe
+              build/GlorpKitEditor_artefacts/Release/GlorpKitEditor.exe
 
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
 
-      - name: Install dependencies
+      - name: Install dependencies (Linux)
+        if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y \
@@ -51,35 +73,39 @@ jobs:
       - name: Fetch JUCE
         run: |
           if [ ! -d "libs/JUCE" ]; then
-            git clone --depth 1 --branch 8.0.6 https://github.com/juce-framework/JUCE.git libs/JUCE
+            git clone --depth 1 --branch 8.3.2 https://github.com/juce-framework/JUCE.git libs/JUCE
           fi
+        shell: bash
 
       - name: Configure
-        run: cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache ${{ matrix.cmake_args }}
+        shell: bash
 
       - name: Check clang-format
+        if: runner.os == 'Linux'
         run: |
           clang-format-18 --version
           clang-format-18 --dry-run --Werror src/
+        shell: bash
 
       - name: Check clang-tidy
+        if: runner.os == 'Linux'
         run: |
           clang-tidy-18 --version
           clang-tidy-18 -p build src/**/*.cpp --quiet
+        shell: bash
 
       - name: Build
         run: cmake --build build -j$(nproc)
+        shell: bash
 
       - name: Test
         run: ctest --test-dir build --output-on-failure
+        shell: bash
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: GlorpDrums-${{ matrix.os }}
-          path: |
-            build/GlorpDrums_artefacts/Release/VST3/GlorpDrums.vst3
-            build/GlorpDrums_artefacts/Release/LV2/GlorpDrums.lv2
-            build/GlorpDrums_artefacts/Release/Standalone/GlorpDrums
-            build/GlorpKitEditor_artefacts/Release/GlorpKitEditor
+          path: ${{ matrix.artifact_paths }}
           if-no-files-found: warn

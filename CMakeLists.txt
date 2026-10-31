@@ -7,10 +7,20 @@ project(GlorpDrums VERSION 0.2.0 LANGUAGES C CXX)
 #==================================================================================
 
 option(GLORP_BUILD_VST3        "Build the VST3 target"        ON)
-option(GLORP_BUILD_LV2         "Build the LV2 target"         ON)
+option(GLORP_BUILD_CLAP        "Build the CLAP target (experimental)" OFF)
+option(GLORP_BUILD_LV2         "Build the LV2 target (Linux only)" ON)
 option(GLORP_BUILD_STANDALONE  "Build the standalone app"    ON)
 option(GLORP_BUILD_KIT_EDITOR  "Build standalone GlorpKit editor application" ON)
 option(GLORP_BUILD_TESTS       "Build the headless test suite" ON)
+
+# Platform detection
+if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
+    set(GLORP_IS_WINDOWS 1)
+    message(STATUS "Platform: Windows")
+else()
+    set(GLORP_IS_WINDOWS 0)
+    message(STATUS "Platform: ${CMAKE_SYSTEM_NAME}")
+endif()
 
 # Number of stereo output buses reserved for instruments.
 #
@@ -52,7 +62,7 @@ else()
     FetchContent_Declare(
         JUCE
         GIT_REPOSITORY https://github.com/juce-framework/JUCE.git
-        GIT_TAG        8.0.6
+        GIT_TAG        8.3.2
         GIT_SHALLOW    TRUE
     )
     FetchContent_MakeAvailable(JUCE)
@@ -68,8 +78,15 @@ if(GLORP_BUILD_VST3)
     list(APPEND GLORP_PLUGIN_FORMATS VST3)
 endif()
 
-if(GLORP_BUILD_LV2)
+if(GLORP_BUILD_CLAP)
+    list(APPEND GLORP_PLUGIN_FORMATS CLAP)
+endif()
+
+# LV2 is Linux-only; disable on Windows
+if(GLORP_BUILD_LV2 AND NOT GLORP_IS_WINDOWS)
     list(APPEND GLORP_PLUGIN_FORMATS LV2)
+elseif(GLORP_BUILD_LV2 AND GLORP_IS_WINDOWS)
+    message(WARNING "LV2 is not supported on Windows; disabling GLORP_BUILD_LV2")
 endif()
 
 if(GLORP_BUILD_STANDALONE)
@@ -77,7 +94,7 @@ if(GLORP_BUILD_STANDALONE)
 endif()
 
 if(NOT GLORP_PLUGIN_FORMATS)
-    message(FATAL_ERROR "At least one of GLORP_BUILD_VST3 / GLORP_BUILD_LV2 / GLORP_BUILD_STANDALONE must be ON")
+    message(FATAL_ERROR "At least one of GLORP_BUILD_VST3 / GLORP_BUILD_CLAP / GLORP_BUILD_LV2 / GLORP_BUILD_STANDALONE must be ON")
 endif()
 
 #==================================================================================
@@ -202,9 +219,14 @@ target_link_libraries(GlorpDrums
 )
 
 if(GLORP_BUILD_STANDALONE)
-    # ALSA + JACK so the standalone app works with real drum pads and pro audio setups.
-    # JACK is enabled for live performance and low-latency monitoring.
-    target_compile_definitions(GlorpDrums PRIVATE JUCE_ALSA=1 JUCE_JACK=1)
+    if(GLORP_IS_WINDOWS)
+        # WASAPI for Windows standalone audio
+        target_compile_definitions(GlorpDrums PRIVATE JUCE_WASAPI=1)
+    else()
+        # ALSA + JACK for Linux standalone audio
+        # JACK is enabled for live performance and low-latency monitoring.
+        target_compile_definitions(GlorpDrums PRIVATE JUCE_ALSA=1 JUCE_JACK=1)
+    endif()
     target_link_libraries(GlorpDrums PRIVATE juce::juce_audio_devices)
 endif()
 
@@ -247,11 +269,15 @@ if(GLORP_BUILD_KIT_EDITOR)
     target_compile_definitions(GlorpKitEditor PRIVATE
         JUCE_USE_CURL=0
         JUCE_WEB_BROWSER=0
-        JUCE_ALSA=1
-        JUCE_JACK=1
         GLORP_BUILD_DATE="${GLORP_BUILD_DATE}"
         GLORP_MAX_INSTRUMENT_BUSES=${GLORP_MAX_INSTRUMENT_BUSES}
     )
+
+    if(GLORP_IS_WINDOWS)
+        target_compile_definitions(GlorpKitEditor PRIVATE JUCE_WASAPI=1)
+    else()
+        target_compile_definitions(GlorpKitEditor PRIVATE JUCE_ALSA=1 JUCE_JACK=1)
+    endif()
 
     target_link_libraries(GlorpKitEditor PRIVATE
         GlorpDrumsAssets

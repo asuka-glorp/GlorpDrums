@@ -232,9 +232,13 @@ GlorpDrums is actively developed following an ambitious multi-phase roadmap:
   * **C++20 Standard**: Updated from C++17 to C++20 across the project.
   * **Centralized Constants**: New `src/core/Config.h` with single source of truth for all compile-time constants (bus counts, voice limits, ring buffer sizes, etc.).
   * **Build System Cleanup**: Deduplicated CMake configuration, removed stale standalone definitions.
-* [ ] **Phase 8 — Cross-Platform Port (Windows & macOS)**:
-  * Port standalone applications and plugin formats (VST3 and CLAP) to **Windows 10/11** with low-latency ASIO and WASAPI audio driver support.
-  * Port standalone applications and plugin formats (VST3, CLAP, and **AU / Audio Unit**) to **macOS** with CoreAudio and CoreMIDI support.
+* [x] **Phase 8 — Cross-Platform Port (Windows)**:
+  * Windows 10/11 support: **VST3 + Standalone** (GlorpDrums + GlorpKitEditor) with WASAPI audio backend.
+  * Linux: **VST3 + LV2 + Standalone** (GlorpDrums + GlorpKitEditor) with ALSA/JACK backend (unchanged).
+  * CLAP support deferred — JUCE 8.x experimental implementation not yet stable.
+  * NSIS installer for Windows distribution (VST3 system path registration, Start Menu shortcuts).
+* [ ] **Phase 8 — macOS Port** (future):
+  * Port standalone applications and plugin formats (VST3, CLAP, **AU / Audio Unit**) to **macOS** with CoreAudio and CoreMIDI support.
   * Universal binary support for macOS (native Apple Silicon ARM64 and Intel x86_64).
   * Automated cross-platform packaging, installer generation, and code signing.
 * [ ] **Phase 9 — Internationalization (i18n) & Multi-Language Support**:
@@ -260,22 +264,65 @@ GlorpDrums is actively developed following an ambitious multi-phase roadmap:
 
 GlorpDrums supports **ALSA**, **JACK**, and **PipeWire** (via PipeWire-JACK or PipeWire-ALSA). For live e-drum performance, JACK / PipeWire-JACK is recommended for minimum latency.
 
-### Building
+### Prerequisites (Windows)
+* CMake 3.22 or higher
+* Visual Studio 2022 (MSVC) with "Desktop development with C++" workload
+* JUCE 8.x (fetched automatically via CMake FetchContent if `libs/JUCE` not present)
+* NSIS 3.x (optional, for building the installer): `choco install nsis`
+
+GlorpDrums on Windows uses **WASAPI** (shared mode) for audio. ASIO is supported via JUCE if an ASIO driver is present.
+
+### Building (Linux)
 
 1. Configure the build with CMake:
    ```bash
-   cmake -B build -DCMAKE_BUILD_TYPE=Release
+   cmake -B build -DCMAKE_BUILD_TYPE=Release \
+         -DGLORP_BUILD_VST3=ON \
+         -DGLORP_BUILD_LV2=ON \
+         -DGLORP_BUILD_STANDALONE=ON \
+         -DGLORP_BUILD_KIT_EDITOR=ON
    ```
 2. Compile binaries:
    ```bash
    cmake --build build --config Release -j$(nproc)
    ```
 
-Outputs in `build/`:
+Outputs in `build/` (Linux):
 * `GlorpDrums_artefacts/Release/Standalone/GlorpDrums` — Main standalone drum plugin & host application
 * `GlorpDrums_artefacts/Release/VST3/GlorpDrums.vst3` — VST3 plugin bundle
 * `GlorpDrums_artefacts/Release/LV2/GlorpDrums.lv2` — LV2 plugin bundle
 * `GlorpKitEditor_artefacts/Release/GlorpKitEditor` — Standalone GlorpKit Studio graphical kit editor application
+
+### Building (Windows)
+
+1. Open **Developer Command Prompt for VS 2022** (or use `cmd` with `vcvarsall.bat` sourced).
+2. Configure the build with CMake:
+   ```bat
+   cmake -B build -DCMAKE_BUILD_TYPE=Release ^
+         -DGLORP_BUILD_VST3=ON ^
+         -DGLORP_BUILD_STANDALONE=ON ^
+         -DGLORP_BUILD_KIT_EDITOR=ON
+   ```
+3. Compile binaries:
+   ```bat
+   cmake --build build --config Release
+   ```
+
+Outputs in `build/` (Windows):
+* `GlorpDrums_artefacts/Release/Standalone/GlorpDrums.exe` — Main standalone application
+* `GlorpDrums_artefacts/Release/VST3/GlorpDrums.vst3` — VST3 plugin bundle (folder)
+* `GlorpKitEditor_artefacts/Release/GlorpKitEditor.exe` — Standalone GlorpKit Studio graphical kit editor application
+
+### Windows Installer (NSIS)
+
+To build the NSIS installer (requires NSIS 3.x installed):
+```bat
+makensis tools/install_windows.nsi
+```
+Produces `GlorpDrums-Installer.exe` which installs:
+* VST3 plugin to `C:\Program Files\GlorpDrums\VST3\` and registers system VST3 path
+* Standalone apps to `C:\Program Files\GlorpDrums\bin\`
+* Start Menu shortcuts for GlorpDrums and GlorpKit Studio
 
 ### Installation
 

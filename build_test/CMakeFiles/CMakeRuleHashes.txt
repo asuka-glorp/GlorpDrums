@@ -1,0 +1,3 @@
+# Hashes of file build rules.
+62e1730dac8243b13c1d73b36c96c5dc GlorpDrums_artefacts/JuceLibraryCode/JuceHeader.h
+c13744a67dbce50ba59ca7a4d70545b7 juce_binarydata_GlorpDrumsAssets/JuceLibraryCode/BinaryData1.cpp

@@ -5,6 +5,9 @@
 
 #if defined(__linux__) || defined(__unix__)
 #include <sys/mman.h>
+#elif defined(_WIN32)
+#include <windows.h>
+#include <memoryapi.h>
 #endif
 
 namespace glorp
@@ -204,10 +207,19 @@ namespace
         }
 
         // Advise kernel to preload pages and pre-touch to eliminate audio thread page faults
-       #if defined(__linux__) || defined(__unix__)
+#if defined(__linux__) || defined(__unix__)
         if (mapping != nullptr)
             madvise (const_cast<void*> (mapping->getData()), mapping->getSize(), MADV_WILLNEED);
-       #endif
+#elif defined(_WIN32)
+        if (mapping != nullptr)
+        {
+            // Windows: PrefetchVirtualMemory to pre-load mapped pages
+            WIN32_MEMORY_RANGE_ENTRY range;
+            range.VirtualAddress = const_cast<void*> (mapping->getData());
+            range.NumberOfBytes = mapping->getSize();
+            PrefetchVirtualMemory (GetCurrentProcess(), 1, &range, 0);
+        }
+#endif
 
         volatile std::uint8_t touchSink = 0;
         for (std::size_t p = 0; p < size; p += 4096)

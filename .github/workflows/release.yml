@@ -20,14 +20,90 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-22.04, ubuntu-24.04]
+        os: [ubuntu-22.04, ubuntu-24.04, windows-latest]
+        include:
+          - os: ubuntu-22.04
+            cmake_args: -DGLORP_BUILD_VST3=ON -DGLORP_BUILD_LV2=ON -DGLORP_BUILD_STANDALONE=ON
+            staging_dirs: |
+              mkdir -p "${RELEASE_STAGING}/kits"
+              mkdir -p "${RELEASE_STAGING}/VST3"
+              mkdir -p "${RELEASE_STAGING}/LV2"
+              mkdir -p "${RELEASE_STAGING}/Standalone"
+              mkdir -p "${RELEASE_STAGING}/GlorpKit Studio"
+            copy_plugins: |
+              cp -r build/GlorpDrums_artefacts/Release/VST3/GlorpDrums.vst3 "${RELEASE_STAGING}/VST3/"
+              cp -r build/GlorpDrums_artefacts/Release/LV2/GlorpDrums.lv2 "${RELEASE_STAGING}/LV2/"
+              cp build/GlorpDrums_artefacts/Release/Standalone/GlorpDrums "${RELEASE_STAGING}/Standalone/"
+            copy_editor: |
+              cp build/GlorpKitEditor_artefacts/Release/GlorpKitEditor "${RELEASE_STAGING}/GlorpKit Studio/"
+              chmod +x "${RELEASE_STAGING}/GlorpKit Studio/GlorpKitEditor"
+            package_name: "GlorpDrums-${{ matrix.os }}.tar.gz"
+            package_contents: |
+              tar czf build/dist/GlorpDrums-${{ matrix.os }}.tar.gz -C "${RELEASE_STAGING}" \
+                kits \
+                LV2 \
+                VST3 \
+                Standalone \
+                "GlorpKit Studio"
+            upload_files: |
+              build/dist/GlorpDrums-${{ matrix.os }}.tar.gz
+              build/dist/GlorpDemoKit.tar.gz
+          - os: ubuntu-24.04
+            cmake_args: -DGLORP_BUILD_VST3=ON -DGLORP_BUILD_LV2=ON -DGLORP_BUILD_STANDALONE=ON
+            staging_dirs: |
+              mkdir -p "${RELEASE_STAGING}/kits"
+              mkdir -p "${RELEASE_STAGING}/VST3"
+              mkdir -p "${RELEASE_STAGING}/LV2"
+              mkdir -p "${RELEASE_STAGING}/Standalone"
+              mkdir -p "${RELEASE_STAGING}/GlorpKit Studio"
+            copy_plugins: |
+              cp -r build/GlorpDrums_artefacts/Release/VST3/GlorpDrums.vst3 "${RELEASE_STAGING}/VST3/"
+              cp -r build/GlorpDrums_artefacts/Release/LV2/GlorpDrums.lv2 "${RELEASE_STAGING}/LV2/"
+              cp build/GlorpDrums_artefacts/Release/Standalone/GlorpDrums "${RELEASE_STAGING}/Standalone/"
+            copy_editor: |
+              cp build/GlorpKitEditor_artefacts/Release/GlorpKitEditor "${RELEASE_STAGING}/GlorpKit Studio/"
+              chmod +x "${RELEASE_STAGING}/GlorpKit Studio/GlorpKitEditor"
+            package_name: "GlorpDrums-${{ matrix.os }}.tar.gz"
+            package_contents: |
+              tar czf build/dist/GlorpDrums-${{ matrix.os }}.tar.gz -C "${RELEASE_STAGING}" \
+                kits \
+                LV2 \
+                VST3 \
+                Standalone \
+                "GlorpKit Studio"
+            upload_files: |
+              build/dist/GlorpDrums-${{ matrix.os }}.tar.gz
+              build/dist/GlorpDemoKit.tar.gz
+          - os: windows-latest
+            cmake_args: -DGLORP_BUILD_VST3=ON -DGLORP_BUILD_STANDALONE=ON -DGLORP_BUILD_KIT_EDITOR=ON
+            staging_dirs: |
+              mkdir -p "${RELEASE_STAGING}/kits"
+              mkdir -p "${RELEASE_STAGING}/VST3"
+              mkdir -p "${RELEASE_STAGING}/Standalone"
+              mkdir -p "${RELEASE_STAGING}/GlorpKit Studio"
+            copy_plugins: |
+              cp -r build/GlorpDrums_artefacts/Release/VST3/GlorpDrums.vst3 "${RELEASE_STAGING}/VST3/"
+              cp build/GlorpDrums_artefacts/Release/Standalone/GlorpDrums.exe "${RELEASE_STAGING}/Standalone/"
+            copy_editor: |
+              cp build/GlorpKitEditor_artefacts/Release/GlorpKitEditor.exe "${RELEASE_STAGING}/GlorpKit Studio/"
+            package_name: "GlorpDrums-${{ matrix.os }}.zip"
+            package_contents: |
+              cd "${RELEASE_STAGING}" && 7z a -tzip "../dist/GlorpDrums-${{ matrix.os }}.zip" \
+                kits \
+                VST3 \
+                Standalone \
+                "GlorpKit Studio"
+            upload_files: |
+              build/dist/GlorpDrums-${{ matrix.os }}.zip
+              build/dist/GlorpDemoKit.tar.gz
 
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
 
-      - name: Install dependencies
+      - name: Install dependencies (Linux)
+        if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y \
@@ -49,6 +125,11 @@ jobs:
             libcurl4-openssl-dev \
             libjack-jackd2-dev
 
+      - name: Install 7zip (Windows)
+        if: runner.os == 'Windows'
+        run: choco install 7zip --no-progress
+        shell: bash
+
       - name: Setup ccache
         uses: hendrikmuhs/ccache-action@v1.2
         with:
@@ -59,22 +140,21 @@ jobs:
           if [ ! -d "libs/JUCE" ]; then
             git clone --depth 1 --branch 8.0.6 https://github.com/juce-framework/JUCE.git libs/JUCE
           fi
+        shell: bash
 
       - name: Configure
-        run: cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache ${{ matrix.cmake_args }}
+        shell: bash
 
       - name: Build
         run: cmake --build build -j$(nproc)
+        shell: bash
 
       - name: Package
         run: |
           RELEASE_STAGING="build/release_staging"
           rm -rf "${RELEASE_STAGING}"
-          mkdir -p "${RELEASE_STAGING}/kits"
-          mkdir -p "${RELEASE_STAGING}/VST3"
-          mkdir -p "${RELEASE_STAGING}/LV2"
-          mkdir -p "${RELEASE_STAGING}/Standalone"
-          mkdir -p "${RELEASE_STAGING}/GlorpKit Studio"
+          ${{ matrix.staging_dirs }}
 
           # 1. Copy default demo kit (.glorpkit)
           if [ -f "test/kits/GlorpDemoKit.glorpkit" ]; then
@@ -85,13 +165,10 @@ jobs:
           fi
 
           # 2. Copy compiled plugins and standalone binaries
-          cp -r build/GlorpDrums_artefacts/Release/VST3/GlorpDrums.vst3 "${RELEASE_STAGING}/VST3/"
-          cp -r build/GlorpDrums_artefacts/Release/LV2/GlorpDrums.lv2 "${RELEASE_STAGING}/LV2/"
-          cp build/GlorpDrums_artefacts/Release/Standalone/GlorpDrums "${RELEASE_STAGING}/Standalone/"
+          ${{ matrix.copy_plugins }}
 
           # 3. Copy GlorpKit Editor binary into "GlorpKit Studio"
-          cp build/GlorpKitEditor_artefacts/Release/GlorpKitEditor "${RELEASE_STAGING}/GlorpKit Studio/"
-          chmod +x "${RELEASE_STAGING}/GlorpKit Studio/GlorpKitEditor"
+          ${{ matrix.copy_editor }}
 
           # 4. Package standalone demo kit archive
           mkdir -p build/dist
@@ -102,20 +179,13 @@ jobs:
           fi
 
           # 5. Package main release bundle
-          tar czf build/dist/GlorpDrums-${{ matrix.os }}.tar.gz -C "${RELEASE_STAGING}" \
-            kits \
-            LV2 \
-            VST3 \
-            Standalone \
-            "GlorpKit Studio"
+          ${{ matrix.package_contents }}
 
       - name: Upload release asset
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ inputs.tag_name || github.ref_name }}
-          files: |
-            build/dist/GlorpDrums-${{ matrix.os }}.tar.gz
-            build/dist/GlorpDemoKit.tar.gz
+          files: ${{ matrix.upload_files }}
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
