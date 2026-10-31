@@ -84,23 +84,33 @@ jobs:
       - name: Check clang-format
         if: runner.os == 'Linux'
         run: |
-          clang-format-18 --version
-          clang-format-18 --dry-run --Werror src/
+          clang-format-14 --version
+          find src -name "*.cpp" -o -name "*.h" | xargs clang-format-14 --dry-run --Werror
         shell: bash
 
       - name: Check clang-tidy
         if: runner.os == 'Linux'
         run: |
-          clang-tidy-18 --version
-          clang-tidy-18 -p build src/**/*.cpp --quiet
+          clang-tidy-14 --version
+          find src -name "*.cpp" | xargs clang-tidy-14 -p build --quiet
         shell: bash
 
       - name: Build
-        run: cmake --build build -j$(nproc)
+        run: |
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            cmake --build build --config Release -j$(nproc)
+          else
+            cmake --build build -j$(nproc)
+          fi
         shell: bash
 
       - name: Test
-        run: ctest --test-dir build --output-on-failure
+        run: |
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            ctest --test-dir build --output-on-failure -C Release
+          else
+            ctest --test-dir build --output-on-failure
+          fi
         shell: bash
 
       - name: Upload artifacts

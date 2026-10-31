@@ -147,7 +147,12 @@ jobs:
         shell: bash
 
       - name: Build
-        run: cmake --build build -j$(nproc)
+        run: |
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            cmake --build build --config Release -j$(nproc)
+          else
+            cmake --build build -j$(nproc)
+          fi
         shell: bash
 
       - name: Package
