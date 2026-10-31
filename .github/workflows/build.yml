@@ -49,8 +49,8 @@ jobs:
             cmake \
             pkg-config \
             ccache \
-            clang-format-18 \
-            clang-tidy-18 \
+            clang-format-14 \
+            clang-tidy-14 \
             libasound2-dev \
             libfreetype-dev \
             libfontconfig1-dev \
@@ -73,7 +73,7 @@ jobs:
       - name: Fetch JUCE
         run: |
           if [ ! -d "libs/JUCE" ]; then
-            git clone --depth 1 --branch 8.3.2 https://github.com/juce-framework/JUCE.git libs/JUCE
+            git clone --depth 1 --branch 8.0.6 https://github.com/juce-framework/JUCE.git libs/JUCE
           fi
         shell: bash
 
