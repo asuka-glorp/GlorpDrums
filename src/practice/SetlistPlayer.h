@@ -16,7 +16,7 @@ namespace glorp
 
 class SetlistPlayer
 {
-public:
+  public:
     enum class State
     {
         idle = 0,
@@ -26,27 +26,27 @@ public:
         completed = 4
     };
 
-    SetlistPlayer (SongDatabase& db, BackingTrackPlayer& trackPlayer, Metronome& metro);
+    SetlistPlayer(SongDatabase &db, BackingTrackPlayer &trackPlayer, Metronome &metro);
     ~SetlistPlayer();
 
-    State getState() const noexcept { return state.load (std::memory_order_relaxed); }
-    int getCurrentSongIndex() const noexcept { return currentSongIndex.load (std::memory_order_relaxed); }
-    bool isTransitionCountIn() const noexcept { return transitionCountIn.load (std::memory_order_relaxed); }
+    State getState() const noexcept { return state.load(std::memory_order_relaxed); }
+    int getCurrentSongIndex() const noexcept { return currentSongIndex.load(std::memory_order_relaxed); }
+    bool isTransitionCountIn() const noexcept { return transitionCountIn.load(std::memory_order_relaxed); }
 
-    void setAutoNextEnabled (bool enabled) noexcept { autoNextEnabled.store (enabled, std::memory_order_relaxed); }
-    bool isAutoNextEnabled() const noexcept { return autoNextEnabled.load (std::memory_order_relaxed); }
+    void setAutoNextEnabled(bool enabled) noexcept { autoNextEnabled.store(enabled, std::memory_order_relaxed); }
+    bool isAutoNextEnabled() const noexcept { return autoNextEnabled.load(std::memory_order_relaxed); }
 
     /// Selects and loads a song from the active setlist without starting playback.
-    bool selectSong (int index);
+    bool selectSong(int index);
 
     /// Starts playing the active setlist from startIndex (or currentSongIndex if startIndex < 0).
-    bool startSetlistPlayback (int startIndex = -1, bool isBetweenSongTransition = false);
+    bool startSetlistPlayback(int startIndex = -1, bool isBetweenSongTransition = false);
 
     /// Advances to the next song in the active setlist (with count-in if currently playing).
-    bool nextSong (bool autoPlay = true);
+    bool nextSong(bool autoPlay = true);
 
     /// Steps back to the previous song in the active setlist.
-    bool previousSong (bool autoPlay = true);
+    bool previousSong(bool autoPlay = true);
 
     /// Pauses setlist playback.
     void pause();
@@ -60,21 +60,21 @@ public:
     bool checkAndAdvanceOnEOF();
 
     /// Fired on the message thread (or synchronously in tests) whenever the active song index or state changes.
-    std::function<void (int newSongIndex, const SongEntry& song, double effectiveBpm)> onSongLoaded;
+    std::function<void(int newSongIndex, const SongEntry &song, double effectiveBpm)> onSongLoaded;
 
-private:
-    void preloadUpcomingSong (int nextIndex);
+  private:
+    void preloadUpcomingSong(int nextIndex);
 
-    SongDatabase& database;
-    BackingTrackPlayer& backingPlayer;
-    Metronome& metronome;
+    SongDatabase &database;
+    BackingTrackPlayer &backingPlayer;
+    Metronome &metronome;
 
-    std::atomic<State> state { State::idle };
-    std::atomic<int> currentSongIndex { 0 };
-    std::atomic<bool> transitionCountIn { false };
-    std::atomic<bool> autoNextEnabled { true };
+    std::atomic<State> state {State::idle};
+    std::atomic<int> currentSongIndex {0};
+    std::atomic<bool> transitionCountIn {false};
+    std::atomic<bool> autoNextEnabled {true};
 
-    juce::ThreadPool preloadPool { 1 };
+    juce::ThreadPool preloadPool {1};
 };
 
 } // namespace glorp

@@ -120,43 +120,43 @@ struct GlorpKitManifest
 
 class GlorpKitReader
 {
-public:
+  public:
     GlorpKitReader() = default;
     ~GlorpKitReader() = default;
 
     /// Checks if a file path has a .glorpkit or .zip extension or zip magic header.
-    static bool isGlorpKitFile (const std::string& path);
+    static bool isGlorpKitFile(const std::string &path);
 
     /// Fast extraction of kit title, instrument count and metadata without extracting audio.
-    static bool quickReadManifest (const std::string& archivePath, GlorpKitManifest& manifest);
+    static bool quickReadManifest(const std::string &archivePath, GlorpKitManifest &manifest);
 
     /// Opens the .glorpkit archive and parses its central directory table.
-    bool open (const std::string& archivePath);
+    bool open(const std::string &archivePath);
 
     bool isOpen() const noexcept { return opened_; }
-    const std::string& getArchivePath() const noexcept { return archivePath_; }
+    const std::string &getArchivePath() const noexcept { return archivePath_; }
 
     /// Look up an entry by relative path inside the archive.
-    const GlorpKitEntry* getEntry (const std::string& relativePath) const;
-    bool hasEntry (const std::string& relativePath) const;
+    const GlorpKitEntry *getEntry(const std::string &relativePath) const;
+    bool hasEntry(const std::string &relativePath) const;
 
     /// Reads an XML or text entry into a std::string.
-    std::string readEntryString (const std::string& relativePath) const;
+    std::string readEntryString(const std::string &relativePath) const;
 
     /// Reads binary bytes of an entry (e.g. embedded PNG asset or audio slice).
-    bool readEntryBytes (const std::string& relativePath, std::vector<uint8_t>& outBytes) const;
+    bool readEntryBytes(const std::string &relativePath, std::vector<uint8_t> &outBytes) const;
 
     /// Returns true if the archive has a native GlorpKit kit.xml (<glorpkit> root).
     bool isNativeGlorpKit() const;
 
     /// Reads native kit.xml metadata, mics, and graphics.
-    bool readNativeKitManifest (GlorpKitManifest& manifest, std::vector<GlorpGraphic>& graphics) const;
+    bool readNativeKitManifest(GlorpKitManifest &manifest, std::vector<GlorpGraphic> &graphics) const;
 
     /// Reads all instruments in instruments/*/instrument.xml and their zones.
-    bool readNativeInstruments (std::vector<GlorpInstrumentSpec>& instruments) const;
+    bool readNativeInstruments(std::vector<GlorpInstrumentSpec> &instruments) const;
 
     /// Reads presets/factory-mixer.xml if present.
-    bool readFactoryMixer (GlorpMixerSetting& mixer) const;
+    bool readFactoryMixer(GlorpMixerSetting &mixer) const;
 
     /// Locates the root manifest (e.g. kit.xml, drumkit.xml, or any *kit*.xml).
     std::string findManifestPath() const;
@@ -168,18 +168,18 @@ public:
     std::vector<std::string> listEntries() const;
 
     /// Extracts all entries to targetDirectory (used when archive is compressed).
-    bool extractToDirectory (const std::string& targetDirectory) const;
+    bool extractToDirectory(const std::string &targetDirectory) const;
 
     /// Returns cache directory path for extracted archives: ~/.cache/GlorpDrums/kits/<name>
-    static std::string getCacheDirectoryFor (const std::string& archivePath);
+    static std::string getCacheDirectoryFor(const std::string &archivePath);
 
-private:
+  private:
     std::string archivePath_;
     bool opened_ = false;
     std::map<std::string, GlorpKitEntry> entries_;
     std::vector<std::string> entryList_;
 
-    bool parseZipHeaders (std::ifstream& stream);
+    bool parseZipHeaders(std::ifstream &stream);
 };
 
 } // namespace glorp

@@ -5,12 +5,12 @@
 
 #pragma once
 
-#include "GlorpKitProject.h"
-#include "OpenRasterReader.h"
-#include "OpenRasterImportDialog.h"
-#include "../core/Sampler.h"
 #include "../core/SampleCache.h"
+#include "../core/Sampler.h"
 #include "../ui/Theme.h"
+#include "GlorpKitProject.h"
+#include "OpenRasterImportDialog.h"
+#include "OpenRasterReader.h"
 
 #include <juce_audio_basics/juce_audio_basics.h>
 #include <juce_audio_devices/juce_audio_devices.h>
@@ -26,56 +26,65 @@
 namespace glorp
 {
 
-class GlorpKitEditorComponent : public juce::Component,
-                                public juce::FileDragAndDropTarget,
-                                public juce::AudioIODeviceCallback,
-                                public juce::MidiInputCallback,
-                                private juce::Timer
+class GlorpKitEditorComponent
+    : public juce::Component
+    , public juce::FileDragAndDropTarget
+    , public juce::AudioIODeviceCallback
+    , public juce::MidiInputCallback
+    , private juce::Timer
 {
-public:
-    GlorpKitEditorComponent (bool enableAudioDevice = true);
+  public:
+    GlorpKitEditorComponent(bool enableAudioDevice = true);
     ~GlorpKitEditorComponent() override;
 
     // -- Project & State Accessors (also used by automated verification tests) --
-    GlorpKitProject& getProject() noexcept { return project; }
-    const GlorpKitProject& getProject() const noexcept { return project; }
+    GlorpKitProject &getProject() noexcept { return project; }
+    const GlorpKitProject &getProject() const noexcept { return project; }
 
     void reloadProjectIntoEngine();
-    bool openKitFile (const juce::File& file);
-    bool saveGlorpKitFile (const juce::File& targetFile);
+    bool openKitFile(const juce::File &file);
+    bool saveGlorpKitFile(const juce::File &targetFile);
 
-    void setDarkTheme (bool dark);
+    void setDarkTheme(bool dark);
     bool isDarkTheme() const noexcept { return theme.isDark; }
 
-    void setHitGlowColourHex (const std::string& hexColor);
+    void setHitGlowColourHex(const std::string &hexColor);
     juce::Colour getHitGlowColour() const noexcept { return hitGlowColour; }
 
-    void setTutorialVisible (bool visible, int step = 0);
+    void setTutorialVisible(bool visible, int step = 0);
     bool isTutorialVisible() const noexcept { return tutorialActive; }
-    int  getTutorialStep() const noexcept { return tutorialStep; }
+    int getTutorialStep() const noexcept { return tutorialStep; }
     void nextTutorialStep();
     void prevTutorialStep();
 
-    void selectPiece (int pieceIndex, bool audition = false);
-    void selectZone (int zoneIndex, bool audition = false);
-    void selectHit (int hitIndex, bool audition = false);
+    void selectPiece(int pieceIndex, bool audition = false);
+    void selectZone(int zoneIndex, bool audition = false);
+    void selectHit(int hitIndex, bool audition = false);
 
-    void setPreviewMode (bool preview) { previewKitMode = preview; repaint(); }
+    void setPreviewMode(bool preview)
+    {
+        previewKitMode = preview;
+        repaint();
+    }
     bool isPreviewMode() const noexcept { return previewKitMode; }
 
     bool isOraOverlayActive() const noexcept { return oraOverlay != nullptr; }
-    OpenRasterModalOverlay* getOraOverlay() noexcept { return oraOverlay.get(); }
-    void dismissOraOverlay() { oraOverlay.reset(); repaint(); }
-    void importOpenRasterFile (const juce::File& file);
+    OpenRasterModalOverlay *getOraOverlay() noexcept { return oraOverlay.get(); }
+    void dismissOraOverlay()
+    {
+        oraOverlay.reset();
+        repaint();
+    }
+    void importOpenRasterFile(const juce::File &file);
 
     // -- Undo / Redo History -------------------------------------------------
-    void pushUndoState (const juce::String& actionDescription);
+    void pushUndoState(const juce::String &actionDescription);
     void undo();
     void redo();
-    bool canUndo() const noexcept { return ! undoStack.empty(); }
-    bool canRedo() const noexcept { return ! redoStack.empty(); }
+    bool canUndo() const noexcept { return !undoStack.empty(); }
+    bool canRedo() const noexcept { return !redoStack.empty(); }
 
-    juce::Rectangle<float> getPieceSpriteBounds (int idx) const
+    juce::Rectangle<float> getPieceSpriteBounds(int idx) const
     {
         if (idx >= 0 && idx < (int) pieceSprites.size())
             return pieceSprites[(size_t) idx].canvasBounds;
@@ -88,57 +97,57 @@ public:
 
     // -- Asset Importing -----------------------------------------------------
     void promptImportAssetsFolder();
-    void importAssetsFromDirectory (const juce::File& dir);
-    void importPngAssets (const juce::Array<juce::File>& pngFiles);
+    void importAssetsFromDirectory(const juce::File &dir);
+    void importPngAssets(const juce::Array<juce::File> &pngFiles);
     void updateInspectorEditors();
 
     struct StageGuide
     {
-        const char* id;
-        const char* label;
+        const char *id;
+        const char *label;
         float normX;
         float normY;
         float normW;
         float normH;
         int zOrder;
     };
-    static const std::vector<StageGuide>& getIdealStageGuides();
-    static int findMatchingStageGuide (const std::string& name, const std::string& graphicId);
+    static const std::vector<StageGuide> &getIdealStageGuides();
+    static int findMatchingStageGuide(const std::string &name, const std::string &graphicId);
 
     struct MatrixCellHit
     {
         int hitIndex = -1;
         int velLayer = 0;
-        int rrIndex  = 0;
+        int rrIndex = 0;
         juce::Rectangle<float> bounds;
     };
 
     // -- juce::Component -----------------------------------------------------
-    void paint (juce::Graphics& g) override;
+    void paint(juce::Graphics &g) override;
     void resized() override;
-    void mouseDown (const juce::MouseEvent& e) override;
-    void mouseDrag (const juce::MouseEvent& e) override;
-    void mouseUp (const juce::MouseEvent& e) override;
-    void mouseMove (const juce::MouseEvent& e) override;
-    void mouseWheelMove (const juce::MouseEvent& e, const juce::MouseWheelDetails& wheel) override;
-    bool keyPressed (const juce::KeyPress& key) override;
+    void mouseDown(const juce::MouseEvent &e) override;
+    void mouseDrag(const juce::MouseEvent &e) override;
+    void mouseUp(const juce::MouseEvent &e) override;
+    void mouseMove(const juce::MouseEvent &e) override;
+    void mouseWheelMove(const juce::MouseEvent &e, const juce::MouseWheelDetails &wheel) override;
+    bool keyPressed(const juce::KeyPress &key) override;
 
     // -- juce::FileDragAndDropTarget -----------------------------------------
-    bool isInterestedInFileDrag (const juce::StringArray& files) override;
-    void filesDropped (const juce::StringArray& files, int x, int y) override;
+    bool isInterestedInFileDrag(const juce::StringArray &files) override;
+    void filesDropped(const juce::StringArray &files, int x, int y) override;
 
     // -- juce::AudioIODeviceCallback & MidiInputCallback ---------------------
-    void audioDeviceIOCallbackWithContext (const float* const* inputChannelData,
-                                           int numInputChannels,
-                                           float* const* outputChannelData,
-                                           int numOutputChannels,
-                                           int numSamples,
-                                           const juce::AudioIODeviceCallbackContext& context) override;
-    void audioDeviceAboutToStart (juce::AudioIODevice* device) override;
+    void audioDeviceIOCallbackWithContext(const float *const *inputChannelData,
+                                          int numInputChannels,
+                                          float *const *outputChannelData,
+                                          int numOutputChannels,
+                                          int numSamples,
+                                          const juce::AudioIODeviceCallbackContext &context) override;
+    void audioDeviceAboutToStart(juce::AudioIODevice *device) override;
     void audioDeviceStopped() override;
-    void handleIncomingMidiMessage (juce::MidiInput* source, const juce::MidiMessage& message) override;
+    void handleIncomingMidiMessage(juce::MidiInput *source, const juce::MidiMessage &message) override;
 
-private:
+  private:
     void timerCallback() override;
 
     // -- Core Model & Audio Audition Engine ----------------------------------
@@ -148,13 +157,13 @@ private:
     bool audioDeviceActive = false;
 
     Theme theme = Theme::sketch();
-    juce::Colour hitGlowColour { 0xffff8200 };
+    juce::Colour hitGlowColour {0xffff8200};
 
     // -- Selection State -----------------------------------------------------
     int selectedPieceIdx = 4; // Default to Snare
-    int selectedZoneIdx  = 0;
-    int selectedHitIdx   = 0;
-    bool midiLearnArmed  = false;
+    int selectedZoneIdx = 0;
+    int selectedHitIdx = 0;
+    bool midiLearnArmed = false;
 
     // -- Canvas & Sprite Cache -----------------------------------------------
     struct CachedSprite
@@ -175,7 +184,7 @@ private:
     bool isDraggingCanvasPiece = false;
     bool isResizingCanvasPiece = false;
     bool isDraggingLayerRow = false;
-    int  dragLayerPieceIndex = -1;
+    int dragLayerPieceIndex = -1;
     float dragLayerStartMouseY = 0.0f;
     juce::Point<float> dragStartPos;
     float dragStartX = 0.0f;
@@ -187,7 +196,7 @@ private:
 
     // -- Guided First-Time Tutorial State ------------------------------------
     bool tutorialActive = false;
-    int  tutorialStep   = 0; // 0..4 (5 steps)
+    int tutorialStep = 0; // 0..4 (5 steps)
     juce::Rectangle<float> tutorialCardBounds;
     juce::Rectangle<float> tutorialPrevBtnBounds;
     juce::Rectangle<float> tutorialNextBtnBounds;
@@ -225,7 +234,8 @@ private:
     // Center-Top Panel (2D Stage Canvas)
     juce::Rectangle<float> canvasPanelBounds;
     juce::Rectangle<float> canvasViewportBounds;
-    juce::Rectangle<float> btnSnapGrid, btnSafeZone, btnStageGuides, btnPreviewKit, btnBringFront, btnSendBack, btnResetLayout;
+    juce::Rectangle<float> btnSnapGrid, btnSafeZone, btnStageGuides, btnPreviewKit, btnBringFront, btnSendBack,
+        btnResetLayout;
     juce::Rectangle<float> btnBlankAddPiece, btnBlankImportFolder, btnBlankImportOra;
 
     // -- Undo / Redo History Stack -------------------------------------------
@@ -233,7 +243,7 @@ private:
     {
         GlorpKitProject project;
         int selectedPieceIdx = -1;
-        int selectedZoneIdx  = -1;
+        int selectedZoneIdx = -1;
         juce::String actionDescription;
     };
     std::vector<HistorySnapshot> undoStack;
@@ -303,40 +313,40 @@ private:
         float noiseMix = 0.0f;
         float filterState = 0.0f;
     } synthVoice;
-    void startAuditionSynth (int pieceIdx, float velocity);
+    void startAuditionSynth(int pieceIdx, float velocity);
     void showAudioSettingsDialog();
-    void promptRenameMic (int micIndex);
-    void promptDeleteMic (int micIndex);
-    void promptRenamePiece (int pieceIndex);
-    void promptRenameZone (int pieceIndex, int zoneIndex);
+    void promptRenameMic(int micIndex);
+    void promptDeleteMic(int micIndex);
+    void promptRenamePiece(int pieceIndex);
+    void promptRenameZone(int pieceIndex, int zoneIndex);
     void promptSelectTargetMic();
-    void promptRoutePieceMic (int pieceIndex);
-    void promptRouteZoneMic (int pieceIndex, int zoneIndex);
-    void promptReassignMicForSample (int micSampleIdx);
+    void promptRoutePieceMic(int pieceIndex);
+    void promptRouteZoneMic(int pieceIndex, int zoneIndex);
+    void promptReassignMicForSample(int micSampleIdx);
     void promptAddMicLayerToSelectedHit();
-    void deleteMicLayerFromSelectedHit (int micSampleIdx);
+    void deleteMicLayerFromSelectedHit(int micSampleIdx);
 
     // -- Internal Helpers ----------------------------------------------------
     void loadBuiltinSprites();
     void rebuildPieceSprites();
     void computeCanvasPieceBounds();
     void rebuildSelectedHitWaveform();
-    int  canvasPieceAt (juce::Point<float> pt) const;
-    void triggerAuditionForPiece (int pieceIdx);
-    void triggerAuditionForZone (int pieceIdx, int zoneIdx);
-    void showStatusToast (const juce::String& text);
+    int canvasPieceAt(juce::Point<float> pt) const;
+    void triggerAuditionForPiece(int pieceIdx);
+    void triggerAuditionForZone(int pieceIdx, int zoneIdx);
+    void showStatusToast(const juce::String &text);
     void loadFirstTimeTutorialPreference();
-    void saveFirstTimeTutorialPreference (bool completed);
+    void saveFirstTimeTutorialPreference(bool completed);
 
     void promptOpenKit();
     void promptImportDrumGizmo();
     void promptImportOpenRaster();
-    void applyOpenRasterImport (const juce::File& file, const OraDocument& doc, const OraImportResult& res);
+    void applyOpenRasterImport(const juce::File &file, const OraDocument &doc, const OraImportResult &res);
     void promptSaveGlorpKit();
     void promptLoadCustomPng();
-    void promptImportWavsForCurrentZone (const std::string& targetMic = "close");
-    void promptImportWavForSpecificCell (int velLayer, int roundRobin);
-    void showMatrixCellContextMenu (const MatrixCellHit& cell);
+    void promptImportWavsForCurrentZone(const std::string &targetMic = "close");
+    void promptImportWavForSpecificCell(int velLayer, int roundRobin);
+    void showMatrixCellContextMenu(const MatrixCellHit &cell);
     void showCustomGlowColorPicker();
     void showHitGlowColorMenu();
     void showBuiltinAssetMenu();
@@ -349,14 +359,14 @@ private:
 
     std::unique_ptr<OpenRasterModalOverlay> oraOverlay;
 
-    void paintHeader (juce::Graphics& g);
-    void paintLeftPanel (juce::Graphics& g);
-    void paintCanvasPanel (juce::Graphics& g);
-    void paintMatrixPanel (juce::Graphics& g);
-    void paintRightInspector (juce::Graphics& g);
-    void paintGuidedTutorialOverlay (juce::Graphics& g);
+    void paintHeader(juce::Graphics &g);
+    void paintLeftPanel(juce::Graphics &g);
+    void paintCanvasPanel(juce::Graphics &g);
+    void paintMatrixPanel(juce::Graphics &g);
+    void paintRightInspector(juce::Graphics &g);
+    void paintGuidedTutorialOverlay(juce::Graphics &g);
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (GlorpKitEditorComponent)
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(GlorpKitEditorComponent)
 };
 
 } // namespace glorp

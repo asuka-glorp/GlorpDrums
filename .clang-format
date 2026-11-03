@@ -30,7 +30,6 @@ SpacesInSquareBrackets: false
 SpaceAfterCStyleCast: true
 SpaceAfterLogicalNot: false
 SpaceBeforeAssignmentOperators: true
-SpaceBeforeParens: ControlStatements
 SpaceBeforeRangeBasedForLoopColon: true
 SpaceAroundPointerQualifiers: Default
 
@@ -101,7 +100,6 @@ PointerBindsToType: false
 ReflowComments: true
 SortUsingDeclarations: true
 SpaceBeforeInheritanceColon: true
-SpaceBeforeCpp11BracedList: true
 SpacesBeforeTrailingComments: 1
 Standard: c++20
 

@@ -8,12 +8,12 @@
 
 #pragma once
 
-#include "Config.h"
-#include "Sampler.h"
-#include "BackingTrackPlayer.h"
-#include "Metronome.h"
 #include "AudioRecorder.h"
+#include "BackingTrackPlayer.h"
+#include "Config.h"
+#include "Metronome.h"
 #include "MidiRecorder.h"
+#include "Sampler.h"
 
 #include <juce_audio_processors/juce_audio_processors.h>
 
@@ -28,20 +28,20 @@ class MidiRouter;
 
 class AudioEngine
 {
-public:
+  public:
     AudioEngine();
     ~AudioEngine() = default;
 
-    AudioEngine (const AudioEngine&) = delete;
-    AudioEngine& operator= (const AudioEngine&) = delete;
+    AudioEngine(const AudioEngine &) = delete;
+    AudioEngine &operator=(const AudioEngine &) = delete;
 
     // -- Lifecycle ------------------------------------------------------------
 
-    void prepareToPlay (double sampleRate, int samplesPerBlock);
+    void prepareToPlay(double sampleRate, int samplesPerBlock);
     void releaseResources();
 
-    void sampleRateChanged (double newRate);
-    void blockSizeChanged (int);
+    void sampleRateChanged(double newRate);
+    void blockSizeChanged(int);
 
     // -- Audio rendering ------------------------------------------------------
 
@@ -50,13 +50,13 @@ public:
 
     // -- Sub-component access -------------------------------------------------
 
-    Sampler& getSampler() noexcept { return sampler; }
-    const Sampler& getSampler() const noexcept { return sampler; }
+    Sampler &getSampler() noexcept { return sampler; }
+    const Sampler &getSampler() const noexcept { return sampler; }
 
-    BackingTrackPlayer& getBackingTrackPlayer() noexcept { return backingTrackPlayer; }
-    Metronome& getMetronome() noexcept { return metronome; }
-    AudioRecorder& getAudioRecorder() noexcept { return audioRecorder; }
-    MidiRecorder& getMidiRecorder() noexcept { return midiRecorder; }
+    BackingTrackPlayer &getBackingTrackPlayer() noexcept { return backingTrackPlayer; }
+    Metronome &getMetronome() noexcept { return metronome; }
+    AudioRecorder &getAudioRecorder() noexcept { return audioRecorder; }
+    MidiRecorder &getMidiRecorder() noexcept { return midiRecorder; }
 
     // -- Engine state ---------------------------------------------------------
 
@@ -70,16 +70,21 @@ public:
 
     /// Processes audio with parameters, MIDI, and renders to bus outputs.
     /// Call from PluginProcessor::processBlock after setting up bus outputs.
-    void render (float* const* busOutputs, int numBusOutputs, int numSamples, juce::MidiBuffer& midi,
-                 ParameterManager& parameterManager, MidiRouter& midiRouter,
-                 std::atomic<float>& lastHiHatCC4, std::atomic<float>& lastSnareCC16);
+    void render(float *const *busOutputs,
+                int numBusOutputs,
+                int numSamples,
+                juce::MidiBuffer &midi,
+                ParameterManager &parameterManager,
+                MidiRouter &midiRouter,
+                std::atomic<float> &lastHiHatCC4,
+                std::atomic<float> &lastSnareCC16);
 
     // -- Configuration --------------------------------------------------------
 
-    void setMultiOutMode (bool enabled) { sampler.setMultiOutMode (enabled); }
+    void setMultiOutMode(bool enabled) { sampler.setMultiOutMode(enabled); }
     bool isMultiOutMode() const noexcept { return sampler.isMultiOutMode(); }
 
-private:
+  private:
     // -- Sub-components -------------------------------------------------------
     Sampler sampler;
     BackingTrackPlayer backingTrackPlayer;
@@ -92,7 +97,7 @@ private:
     int currentBlockSize = 512;
 
     // -- Rendering helpers ----------------------------------------------------
-    std::array<float*, config::MAX_OUTPUT_BUSES * 2> busOutputs {};
+    std::array<float *, config::MAX_OUTPUT_BUSES * 2> busOutputs {};
 };
 
 } // namespace glorp

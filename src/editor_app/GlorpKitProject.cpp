@@ -21,89 +21,105 @@ namespace glorp
 
 namespace
 {
-    std::string escapeXml (const std::string& s)
+std::string escapeXml(const std::string &s)
+{
+    std::string out;
+    out.reserve(s.size() + 8);
+    for (char c : s)
     {
-        std::string out;
-        out.reserve (s.size() + 8);
-        for (char c : s)
+        switch (c)
         {
-            switch (c)
-            {
-                case '&':  out += "&amp;";  break;
-                case '<':  out += "&lt;";   break;
-                case '>':  out += "&gt;";   break;
-                case '"':  out += "&quot;"; break;
-                case '\'': out += "&apos;"; break;
-                default:   out += c;        break;
-            }
+            case '&':
+                out += "&amp;";
+                break;
+            case '<':
+                out += "&lt;";
+                break;
+            case '>':
+                out += "&gt;";
+                break;
+            case '"':
+                out += "&quot;";
+                break;
+            case '\'':
+                out += "&apos;";
+                break;
+            default:
+                out += c;
+                break;
         }
-        return out;
     }
+    return out;
+}
 
-    constexpr DefaultPieceLayout kDefaultPieces[] = {
-        { "kick",   "Kick 22\" Maple",     "kick",   0, "none",   -155.2f, -329.7f, 345.0f, 1, 36 },
-        { "ftom",   "Floor Tom 16\"",      "ftom",   3, "none",    107.2f, -272.1f, 195.0f, 2, 43 },
-        { "tom2",   "Mid Tom 12\"",        "tom2",   3, "none",     15.9f, -408.0f, 155.0f, 3, 47 },
-        { "tom1",   "High Tom 10\"",       "tom1",   3, "none",   -122.6f, -420.7f, 138.0f, 4, 48 },
-        { "snare",  "Snare 14x6.5 Brass",  "snare",  1, "none",   -212.7f, -259.5f, 180.0f, 5, 38 },
-        { "hihat",  "Hi-Hat 14\" Custom",  "hihat",  2, "hihat",  -299.6f, -404.7f, 160.0f, 6, 42 },
-        { "ride",   "Ride Cymbal 20\"",    "ride",   5, "none",     77.7f, -507.0f, 210.0f, 7, 51 },
-        { "crash2", "Crash 2 (Right)",     "crash2", 4, "crash2",  187.3f, -420.8f, 205.0f, 8, 57 },
-        { "crash1", "Crash 1 (Left)",      "crash1", 4, "crash1", -235.0f, -502.9f, 190.0f, 9, 49 },
-    };
+constexpr DefaultPieceLayout kDefaultPieces[] = {
+    {"kick", "Kick 22\" Maple", "kick", 0, "none", -155.2f, -329.7f, 345.0f, 1, 36},
+    {"ftom", "Floor Tom 16\"", "ftom", 3, "none", 107.2f, -272.1f, 195.0f, 2, 43},
+    {"tom2", "Mid Tom 12\"", "tom2", 3, "none", 15.9f, -408.0f, 155.0f, 3, 47},
+    {"tom1", "High Tom 10\"", "tom1", 3, "none", -122.6f, -420.7f, 138.0f, 4, 48},
+    {"snare", "Snare 14x6.5 Brass", "snare", 1, "none", -212.7f, -259.5f, 180.0f, 5, 38},
+    {"hihat", "Hi-Hat 14\" Custom", "hihat", 2, "hihat", -299.6f, -404.7f, 160.0f, 6, 42},
+    {"ride", "Ride Cymbal 20\"", "ride", 5, "none", 77.7f, -507.0f, 210.0f, 7, 51},
+    {"crash2", "Crash 2 (Right)", "crash2", 4, "crash2", 187.3f, -420.8f, 205.0f, 8, 57},
+    {"crash1", "Crash 1 (Left)", "crash1", 4, "crash1", -235.0f, -502.9f, 190.0f, 9, 49},
+};
 } // namespace
 
-std::string sanitizeId (const std::string& raw)
+std::string sanitizeId(const std::string &raw)
 {
     std::string out;
     for (char ch : raw)
     {
-        unsigned char c = static_cast<unsigned char> (ch);
-        if (std::isalnum (c))
-            out += static_cast<char> (std::tolower (c));
+        unsigned char c = static_cast<unsigned char>(ch);
+        if (std::isalnum(c))
+            out += static_cast<char>(std::tolower(c));
         else if (c == '-' || c == '_')
-            out += static_cast<char> (c);
+            out += static_cast<char>(c);
     }
     return out.empty() ? "piece" : out;
 }
 
-const DefaultPieceLayout* findDefaultPieceLayout (const std::string& idOrName)
+const DefaultPieceLayout *findDefaultPieceLayout(const std::string &idOrName)
 {
-    std::string low = sanitizeId (idOrName);
-    for (const auto& d : kDefaultPieces)
-        if (low.find (d.id) != std::string::npos || std::string (d.id).find (low) != std::string::npos)
+    std::string low = sanitizeId(idOrName);
+    for (const auto &d : kDefaultPieces)
+        if (low.find(d.id) != std::string::npos || std::string(d.id).find(low) != std::string::npos)
             return &d;
 
-    if (low.find ("floor") != std::string::npos || low.find ("tom3") != std::string::npos || low.find ("tom16") != std::string::npos)
+    if (low.find("floor") != std::string::npos || low.find("tom3") != std::string::npos
+        || low.find("tom16") != std::string::npos)
         return &kDefaultPieces[1];
     return nullptr;
 }
 
 //==============================================================================
-ParsedSampleInfo parseSampleFilename (const std::string& filenameOrPath)
+ParsedSampleInfo parseSampleFilename(const std::string &filenameOrPath)
 {
     ParsedSampleInfo info;
     info.rawPath = filenameOrPath;
-    fs::path p (filenameOrPath);
+    fs::path p(filenameOrPath);
     info.fileName = p.filename().string();
     std::string stem = p.stem().string();
 
     auto trim = [](std::string s) -> std::string
     {
-        while (! s.empty() && std::isspace (static_cast<unsigned char> (s.front()))) s.erase (s.begin());
-        while (! s.empty() && std::isspace (static_cast<unsigned char> (s.back())))  s.pop_back();
+        while (!s.empty() && std::isspace(static_cast<unsigned char>(s.front())))
+            s.erase(s.begin());
+        while (!s.empty() && std::isspace(static_cast<unsigned char>(s.back())))
+            s.pop_back();
         return s;
     };
 
-    stem = trim (stem);
+    stem = trim(stem);
 
     // 1. Detect trailing or embedded velocity numbers: e.g. "ctr A 13", "A 01", "v12", "vel3", "_13"
     int velEnd = -1, velStart = -1;
-    for (int i = static_cast<int> (stem.size()) - 1; i >= 0; --i)
+    for (int i = static_cast<int>(stem.size()) - 1; i >= 0; --i)
     {
-        if (std::isdigit (static_cast<unsigned char> (stem[static_cast<size_t> (i)])))
+        if (std::isdigit(static_cast<unsigned char>(stem[static_cast<size_t>(i)])))
         {
-            if (velEnd == -1) velEnd = i + 1;
+            if (velEnd == -1)
+                velEnd = i + 1;
             velStart = i;
         }
         else if (velEnd != -1)
@@ -115,113 +131,133 @@ ParsedSampleInfo parseSampleFilename (const std::string& filenameOrPath)
     if (velStart >= 0 && velEnd > velStart)
     {
         int pfxStart = velStart;
-        if (pfxStart >= 3 && (stem.substr (static_cast<size_t> (pfxStart - 3), 3) == "vel" || stem.substr (static_cast<size_t> (pfxStart - 3), 3) == "Vel"))
+        if (pfxStart >= 3
+            && (stem.substr(static_cast<size_t>(pfxStart - 3), 3) == "vel"
+                || stem.substr(static_cast<size_t>(pfxStart - 3), 3) == "Vel"))
             pfxStart -= 3;
-        else if (pfxStart >= 1 && (stem[static_cast<size_t> (pfxStart - 1)] == 'v' || stem[static_cast<size_t> (pfxStart - 1)] == 'V'))
+        else if (pfxStart >= 1
+                 && (stem[static_cast<size_t>(pfxStart - 1)] == 'v' || stem[static_cast<size_t>(pfxStart - 1)] == 'V'))
             pfxStart -= 1;
 
-        if (pfxStart == 0 || stem[static_cast<size_t> (pfxStart - 1)] == ' ' || stem[static_cast<size_t> (pfxStart - 1)] == '_' || stem[static_cast<size_t> (pfxStart - 1)] == '-')
+        if (pfxStart == 0 || stem[static_cast<size_t>(pfxStart - 1)] == ' '
+            || stem[static_cast<size_t>(pfxStart - 1)] == '_' || stem[static_cast<size_t>(pfxStart - 1)] == '-')
         {
             try
             {
-                info.velocityLevel = std::stoi (stem.substr (static_cast<size_t> (velStart), static_cast<size_t> (velEnd - velStart)));
+                info.velocityLevel =
+                    std::stoi(stem.substr(static_cast<size_t>(velStart), static_cast<size_t>(velEnd - velStart)));
                 info.hasExplicitVelocity = true;
-                stem = trim (stem.substr (0, static_cast<size_t> (pfxStart)));
+                stem = trim(stem.substr(0, static_cast<size_t>(pfxStart)));
             }
-            catch (...) {}
+            catch (...)
+            {
+            }
         }
     }
 
     // 2. Detect Round Robin token at end of remaining stem: e.g. "A".."H", "rr1".."rr8", "r1".."r8"
-    if (! stem.empty())
+    if (!stem.empty())
     {
         bool rrFound = false;
-        if (stem.size() >= 2 && (stem[stem.size() - 2] == ' ' || stem[stem.size() - 2] == '_' || stem[stem.size() - 2] == '-'))
+        if (stem.size() >= 2
+            && (stem[stem.size() - 2] == ' ' || stem[stem.size() - 2] == '_' || stem[stem.size() - 2] == '-'))
         {
             char c = stem.back();
             if ((c >= 'A' && c <= 'H') || (c >= 'a' && c <= 'h'))
             {
-                info.roundRobin = std::toupper (static_cast<unsigned char> (c)) - 'A';
+                info.roundRobin = std::toupper(static_cast<unsigned char>(c)) - 'A';
                 info.hasExplicitRoundRobin = true;
-                stem = trim (stem.substr (0, stem.size() - 2));
+                stem = trim(stem.substr(0, stem.size() - 2));
                 rrFound = true;
             }
         }
         else if (stem.size() == 1 && ((stem[0] >= 'A' && stem[0] <= 'H') || (stem[0] >= 'a' && stem[0] <= 'h')))
         {
-            info.roundRobin = std::toupper (static_cast<unsigned char> (stem[0])) - 'A';
+            info.roundRobin = std::toupper(static_cast<unsigned char>(stem[0])) - 'A';
             info.hasExplicitRoundRobin = true;
             stem.clear();
             rrFound = true;
         }
 
-        if (! rrFound)
+        if (!rrFound)
         {
             std::string stemLower = stem;
-            for (auto& ch : stemLower) ch = static_cast<char> (std::tolower (static_cast<unsigned char> (ch)));
-            const auto lastSpace = stemLower.find_last_of (" _-");
-            std::string lastToken = (lastSpace != std::string::npos) ? stemLower.substr (lastSpace + 1) : stemLower;
-            if (lastToken.rfind ("rr", 0) == 0 && lastToken.size() > 2)
+            for (auto &ch : stemLower)
+                ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+            const auto lastSpace = stemLower.find_last_of(" _-");
+            std::string lastToken = (lastSpace != std::string::npos) ? stemLower.substr(lastSpace + 1) : stemLower;
+            if (lastToken.rfind("rr", 0) == 0 && lastToken.size() > 2)
             {
                 try
                 {
-                    info.roundRobin = std::stoi (lastToken.substr (2)) - 1;
+                    info.roundRobin = std::stoi(lastToken.substr(2)) - 1;
                     info.hasExplicitRoundRobin = true;
-                    stem = trim (stem.substr (0, lastSpace != std::string::npos ? lastSpace : 0));
+                    stem = trim(stem.substr(0, lastSpace != std::string::npos ? lastSpace : 0));
                 }
-                catch (...) {}
+                catch (...)
+                {
+                }
             }
         }
     }
 
     // 3. Detect known articulation zones:
-    struct ZoneEntry { const char* pattern; const char* canonical; };
+    struct ZoneEntry
+    {
+        const char *pattern;
+        const char *canonical;
+    };
     const ZoneEntry knownZones[] = {
-        { "side stick",  "sidestick" },
-        { "cross stick", "sidestick" },
-        { "sidestick",   "sidestick" },
-        { "cross",       "sidestick" },
-        { "rimshot",     "rimshot"   },
-        { "rim shot",    "rimshot"   },
-        { "rim",         "rim"       },
-        { "ctr",         "ctr"       },
-        { "center",      "ctr"       },
-        { "centre",      "ctr"       },
-        { "edge",        "edge"      },
-        { "edg",         "edge"      },
-        { "head",        "head"      },
-        { "bow",         "bow"       },
-        { "bell",        "bell"      },
-        { "cup",         "bell"      },
-        { "choke",       "edge"      },
-        { "pedal",       "pedal"     },
-        { "splash",      "splash"    },
-        { "full op",     "open"      },
-        { "open",        "open"      },
-        { "closed",      "closed"    },
-        { "tight",       "closed"    },
-        { "clo",         "closed"    },
-        { "half",        "half"      },
+        {"side stick", "sidestick"},
+        {"cross stick", "sidestick"},
+        {"sidestick", "sidestick"},
+        {"cross", "sidestick"},
+        {"rimshot", "rimshot"},
+        {"rim shot", "rimshot"},
+        {"rim", "rim"},
+        {"ctr", "ctr"},
+        {"center", "ctr"},
+        {"centre", "ctr"},
+        {"edge", "edge"},
+        {"edg", "edge"},
+        {"head", "head"},
+        {"bow", "bow"},
+        {"bell", "bell"},
+        {"cup", "bell"},
+        {"choke", "edge"},
+        {"pedal", "pedal"},
+        {"splash", "splash"},
+        {"full op", "open"},
+        {"open", "open"},
+        {"closed", "closed"},
+        {"tight", "closed"},
+        {"clo", "closed"},
+        {"half", "half"},
     };
 
     std::string stemLower = stem;
-    for (auto& ch : stemLower) ch = static_cast<char> (std::tolower (static_cast<unsigned char> (ch)));
+    for (auto &ch : stemLower)
+        ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
 
-    for (const auto& ze : knownZones)
+    for (const auto &ze : knownZones)
     {
         const std::string pat = ze.pattern;
-        auto pos = stemLower.rfind (pat);
+        auto pos = stemLower.rfind(pat);
         if (pos != std::string::npos)
         {
             const bool atEnd = (pos + pat.size() == stemLower.size());
-            const bool afterSep = (pos > 0 && (stemLower[pos - 1] == ' ' || stemLower[pos - 1] == '_' || stemLower[pos - 1] == '-'));
-            const bool beforeSep = atEnd || (pos + pat.size() < stemLower.size() && (stemLower[pos + pat.size()] == ' ' || stemLower[pos + pat.size()] == '_' || stemLower[pos + pat.size()] == '-'));
+            const bool afterSep =
+                (pos > 0 && (stemLower[pos - 1] == ' ' || stemLower[pos - 1] == '_' || stemLower[pos - 1] == '-'));
+            const bool beforeSep = atEnd
+                                   || (pos + pat.size() < stemLower.size()
+                                       && (stemLower[pos + pat.size()] == ' ' || stemLower[pos + pat.size()] == '_'
+                                           || stemLower[pos + pat.size()] == '-'));
             if ((pos == 0 || afterSep) && beforeSep)
             {
                 info.zone = ze.canonical;
                 info.hasExplicitZone = true;
-                std::string rem = stem.substr (0, pos) + stem.substr (pos + pat.size());
-                stem = trim (rem);
+                std::string rem = stem.substr(0, pos) + stem.substr(pos + pat.size());
+                stem = trim(rem);
                 break;
             }
         }
@@ -230,7 +266,7 @@ ParsedSampleInfo parseSampleFilename (const std::string& filenameOrPath)
     if (info.zone.empty())
         info.zone = "head";
 
-    info.instrument = trim (stem);
+    info.instrument = trim(stem);
     if (info.instrument.empty())
         info.instrument = "Piece";
 
@@ -255,28 +291,28 @@ void GlorpKitProject::createNewBlankKit()
     loadedFilePath.clear();
 
     mics = {
-        { "close",    "Close Mic (Direct)", 1.0f },
-        { "oh-left",  "Overhead Left",      0.8f },
-        { "oh-right", "Overhead Right",     0.8f },
-        { "room",     "Room Stereo",        0.6f },
-        { "amb-left", "Ambience Far",       0.5f },
+        {"close", "Close Mic (Direct)", 1.0f},
+        {"oh-left", "Overhead Left", 0.8f},
+        {"oh-right", "Overhead Right", 0.8f},
+        {"room", "Room Stereo", 0.6f},
+        {"amb-left", "Ambience Far", 0.5f},
     };
 
     pieces.clear();
 }
 
-int GlorpKitProject::addPieceWithAutoLayout (const std::string& nameOrStem,
-                                            const std::string& graphic,
-                                            const std::vector<uint8_t>& pngBytes)
+int GlorpKitProject::addPieceWithAutoLayout(const std::string &nameOrStem,
+                                            const std::string &graphic,
+                                            const std::vector<uint8_t> &pngBytes)
 {
-    const auto* d = findDefaultPieceLayout (nameOrStem);
+    const auto *d = findDefaultPieceLayout(nameOrStem);
 
     EditablePiece p;
     if (d != nullptr)
     {
         p.id = d->id;
         p.name = d->name;
-        p.graphicId = ! graphic.empty() ? graphic : d->graphic;
+        p.graphicId = !graphic.empty() ? graphic : d->graphic;
         p.outputBus = d->bus;
         p.chokeGroup = d->chokeGroup;
         p.normX = d->x;
@@ -286,9 +322,9 @@ int GlorpKitProject::addPieceWithAutoLayout (const std::string& nameOrStem,
     }
     else
     {
-        p.id = sanitizeId (nameOrStem);
+        p.id = sanitizeId(nameOrStem);
         p.name = nameOrStem;
-        p.graphicId = ! graphic.empty() ? graphic : "snare";
+        p.graphicId = !graphic.empty() ? graphic : "snare";
         p.outputBus = 1;
         p.chokeGroup = "none";
         p.normX = -90.0f;
@@ -297,7 +333,7 @@ int GlorpKitProject::addPieceWithAutoLayout (const std::string& nameOrStem,
         p.zOrder = (int) pieces.size() + 1;
     }
 
-    if (! pngBytes.empty())
+    if (!pngBytes.empty())
     {
         p.customPngBytes = pngBytes;
         p.hasCustomLayout = true;
@@ -311,7 +347,7 @@ int GlorpKitProject::addPieceWithAutoLayout (const std::string& nameOrStem,
             z.name = "closed";
         else if (p.id == "ride")
             z.name = "bow";
-        else if (p.id.find ("crash") != std::string::npos)
+        else if (p.id.find("crash") != std::string::npos)
             z.name = "edge";
         else
             z.name = "head";
@@ -322,8 +358,8 @@ int GlorpKitProject::addPieceWithAutoLayout (const std::string& nameOrStem,
         z.name = "head";
     }
 
-    p.zones.push_back (std::move (z));
-    pieces.push_back (std::move (p));
+    p.zones.push_back(std::move(z));
+    pieces.push_back(std::move(p));
     normalizeZOrders();
     return (int) pieces.size() - 1;
 }
@@ -340,16 +376,16 @@ void GlorpKitProject::createNewDefaultKit()
     loadedFilePath.clear();
 
     mics = {
-        { "close",    "Close Mic (Direct)", 1.0f },
-        { "oh-left",  "Overhead Left",      0.8f },
-        { "oh-right", "Overhead Right",     0.8f },
-        { "room",     "Room Stereo",        0.6f },
-        { "amb-left", "Ambience Far",       0.5f },
+        {"close", "Close Mic (Direct)", 1.0f},
+        {"oh-left", "Overhead Left", 0.8f},
+        {"oh-right", "Overhead Right", 0.8f},
+        {"room", "Room Stereo", 0.6f},
+        {"amb-left", "Ambience Far", 0.5f},
     };
 
     pieces.clear();
 
-    for (const auto& d : kDefaultPieces)
+    for (const auto &d : kDefaultPieces)
     {
         EditablePiece p;
         p.id = d.id;
@@ -363,91 +399,91 @@ void GlorpKitProject::createNewDefaultKit()
         p.zOrder = d.z;
         p.visible = true;
 
-        auto addZone = [&](const char* zName, int midiNote)
+        auto addZone = [&](const char *zName, int midiNote)
         {
             EditableZone z;
             z.name = zName;
             z.graphicId = p.graphicId;
             z.note = midiNote;
 
-            const float powers[5] = { 1.00f, 0.80f, 0.60f, 0.40f, 0.20f };
+            const float powers[5] = {1.00f, 0.80f, 0.60f, 0.40f, 0.20f};
             for (int vl = 0; vl < 5; ++vl)
             {
                 for (int rr = 0; rr < 3; ++rr)
                 {
                     EditableHit h;
-                    h.name = p.id + "_" + zName + "_v" + std::to_string (5 - vl) + "_rr" + std::to_string (rr + 1);
+                    h.name = p.id + "_" + zName + "_v" + std::to_string(5 - vl) + "_rr" + std::to_string(rr + 1);
                     h.power = powers[vl] - (float) rr * 0.02f;
                     h.velocityLayerIndex = 4 - vl;
                     h.roundRobinIndex = rr;
 
-                    const char* defaultMics[3] = { "close", "oh-left", "room" };
-                    for (const char* mc : defaultMics)
+                    const char *defaultMics[3] = {"close", "oh-left", "room"};
+                    for (const char *mc : defaultMics)
                     {
                         EditableMicSample ms;
                         ms.mic = mc;
                         ms.fileName = h.name + "_" + mc + ".wav";
-                        h.micSamples.push_back (std::move (ms));
+                        h.micSamples.push_back(std::move(ms));
                     }
-                    z.hits.push_back (std::move (h));
+                    z.hits.push_back(std::move(h));
                 }
             }
 
-            p.zones.push_back (std::move (z));
+            p.zones.push_back(std::move(z));
         };
 
         if (p.id == "kick")
         {
-            addZone ("head", 36);
+            addZone("head", 36);
         }
         else if (p.id == "snare")
         {
-            addZone ("head", 38);
-            addZone ("rimshot", 40);
-            addZone ("rimclick", 37);
+            addZone("head", 38);
+            addZone("rimshot", 40);
+            addZone("rimclick", 37);
         }
         else if (p.id == "hihat")
         {
-            addZone ("closed", 42);
-            addZone ("open", 46);
-            addZone ("pedal", 44);
-            addZone ("splash", 63);
+            addZone("closed", 42);
+            addZone("open", 46);
+            addZone("pedal", 44);
+            addZone("splash", 63);
         }
         else if (p.id == "tom1")
         {
-            addZone ("head", 48);
-            addZone ("rim", 50);
+            addZone("head", 48);
+            addZone("rim", 50);
         }
         else if (p.id == "tom2")
         {
-            addZone ("head", 47);
-            addZone ("rim", 60);
+            addZone("head", 47);
+            addZone("rim", 60);
         }
         else if (p.id == "ftom")
         {
-            addZone ("head", 43);
-            addZone ("rim", 58);
+            addZone("head", 43);
+            addZone("rim", 58);
         }
         else if (p.id == "ride")
         {
-            addZone ("bow", 51);
-            addZone ("bell", 53);
-            addZone ("edge", 59);
+            addZone("bow", 51);
+            addZone("bell", 53);
+            addZone("edge", 59);
         }
         else if (p.id == "crash1")
         {
-            addZone ("bow", 49);
-            addZone ("edge", 55);
-            addZone ("choke", 54);
+            addZone("bow", 49);
+            addZone("edge", 55);
+            addZone("choke", 54);
         }
         else if (p.id == "crash2")
         {
-            addZone ("bow", 57);
-            addZone ("edge", 52);
-            addZone ("choke", 58);
+            addZone("bow", 57);
+            addZone("edge", 52);
+            addZone("choke", 58);
         }
 
-        pieces.push_back (std::move (p));
+        pieces.push_back(std::move(p));
     }
 
     normalizeZOrders();
@@ -456,33 +492,31 @@ void GlorpKitProject::createNewDefaultKit()
 //==============================================================================
 void GlorpKitProject::normalizeZOrders()
 {
-    std::vector<size_t> order (pieces.size());
+    std::vector<size_t> order(pieces.size());
     for (size_t i = 0; i < pieces.size(); ++i)
         order[i] = i;
 
-    std::stable_sort (order.begin(), order.end(), [&](size_t a, size_t b)
-    {
-        return pieces[a].zOrder < pieces[b].zOrder;
-    });
+    std::stable_sort(
+        order.begin(), order.end(), [&](size_t a, size_t b) { return pieces[a].zOrder < pieces[b].zOrder; });
 
     for (size_t rank = 0; rank < order.size(); ++rank)
-        pieces[order[rank]].zOrder = static_cast<int> (rank) + 1;
+        pieces[order[rank]].zOrder = static_cast<int>(rank) + 1;
 }
 
-bool GlorpKitProject::movePieceZOrder (int pieceIndex, int deltaZ)
+bool GlorpKitProject::movePieceZOrder(int pieceIndex, int deltaZ)
 {
-    if (pieceIndex < 0 || pieceIndex >= static_cast<int> (pieces.size()) || deltaZ == 0)
+    if (pieceIndex < 0 || pieceIndex >= static_cast<int>(pieces.size()) || deltaZ == 0)
         return false;
 
     normalizeZOrders();
-    const int curZ = pieces[static_cast<size_t> (pieceIndex)].zOrder;
-    const int targetZ = std::clamp (curZ + deltaZ, 1, static_cast<int> (pieces.size()));
+    const int curZ = pieces[static_cast<size_t>(pieceIndex)].zOrder;
+    const int targetZ = std::clamp(curZ + deltaZ, 1, static_cast<int>(pieces.size()));
     if (targetZ == curZ)
         return false;
 
     for (size_t i = 0; i < pieces.size(); ++i)
     {
-        if (static_cast<int> (i) == pieceIndex)
+        if (static_cast<int>(i) == pieceIndex)
             continue;
         if (pieces[i].zOrder == targetZ)
         {
@@ -490,148 +524,157 @@ bool GlorpKitProject::movePieceZOrder (int pieceIndex, int deltaZ)
             break;
         }
     }
-    pieces[static_cast<size_t> (pieceIndex)].zOrder = targetZ;
+    pieces[static_cast<size_t>(pieceIndex)].zOrder = targetZ;
     normalizeZOrders();
     return true;
 }
 
-bool GlorpKitProject::bringPieceToFront (int pieceIndex)
+bool GlorpKitProject::bringPieceToFront(int pieceIndex)
 {
-    if (pieceIndex < 0 || pieceIndex >= static_cast<int> (pieces.size()))
+    if (pieceIndex < 0 || pieceIndex >= static_cast<int>(pieces.size()))
         return false;
 
-    pieces[static_cast<size_t> (pieceIndex)].zOrder = static_cast<int> (pieces.size()) + 10;
+    pieces[static_cast<size_t>(pieceIndex)].zOrder = static_cast<int>(pieces.size()) + 10;
     normalizeZOrders();
     return true;
 }
 
-bool GlorpKitProject::sendPieceToBack (int pieceIndex)
+bool GlorpKitProject::sendPieceToBack(int pieceIndex)
 {
-    if (pieceIndex < 0 || pieceIndex >= static_cast<int> (pieces.size()))
+    if (pieceIndex < 0 || pieceIndex >= static_cast<int>(pieces.size()))
         return false;
 
-    pieces[static_cast<size_t> (pieceIndex)].zOrder = -10;
+    pieces[static_cast<size_t>(pieceIndex)].zOrder = -10;
     normalizeZOrders();
     return true;
 }
 
 //==============================================================================
-void GlorpKitProject::rebuildZoneLayerGrid (EditableZone& zone, int maxRoundRobins)
+void GlorpKitProject::rebuildZoneLayerGrid(EditableZone &zone, int maxRoundRobins)
 {
     if (zone.hits.empty())
         return;
 
-    maxRoundRobins = std::clamp (maxRoundRobins, 1, 8);
+    maxRoundRobins = std::clamp(maxRoundRobins, 1, 8);
 
     bool anyExplicit = false;
     int maxV = 0, maxR = 0;
-    for (const auto& h : zone.hits)
+    for (const auto &h : zone.hits)
     {
         if (h.velocityLayerIndex >= 0 || h.roundRobinIndex >= 0)
         {
             anyExplicit = true;
-            maxV = std::max (maxV, h.velocityLayerIndex + 1);
-            maxR = std::max (maxR, h.roundRobinIndex + 1);
+            maxV = std::max(maxV, h.velocityLayerIndex + 1);
+            maxR = std::max(maxR, h.roundRobinIndex + 1);
         }
     }
 
     if (anyExplicit && maxV > 0 && maxR > 0)
     {
-        zone.numVelocityLayers = std::clamp (std::max (zone.numVelocityLayers, maxV), 1, 24);
-        zone.numRoundRobins    = std::clamp (std::max (maxRoundRobins, maxR), 1, 8);
-        for (auto& h : zone.hits)
+        zone.numVelocityLayers = std::clamp(std::max(zone.numVelocityLayers, maxV), 1, 24);
+        zone.numRoundRobins = std::clamp(std::max(maxRoundRobins, maxR), 1, 8);
+        for (auto &h : zone.hits)
         {
-            if (h.velocityLayerIndex < 0) h.velocityLayerIndex = 0;
-            if (h.roundRobinIndex < 0)    h.roundRobinIndex = 0;
+            if (h.velocityLayerIndex < 0)
+                h.velocityLayerIndex = 0;
+            if (h.roundRobinIndex < 0)
+                h.roundRobinIndex = 0;
         }
         return;
     }
 
     // Sort hits ascending by power: softest (PP) to loudest (FF)
-    std::stable_sort (zone.hits.begin(), zone.hits.end(), [](const EditableHit& a, const EditableHit& b)
-    {
-        return a.power < b.power;
-    });
+    std::stable_sort(zone.hits.begin(),
+                     zone.hits.end(),
+                     [](const EditableHit &a, const EditableHit &b) { return a.power < b.power; });
 
-    const int totalHits = static_cast<int> (zone.hits.size());
-    const int neededLayers = std::max (zone.numVelocityLayers, static_cast<int> (std::ceil (static_cast<float> (totalHits) / static_cast<float> (maxRoundRobins))));
-    zone.numVelocityLayers = std::clamp (neededLayers, 1, 24);
-    zone.numRoundRobins    = maxRoundRobins;
+    const int totalHits = static_cast<int>(zone.hits.size());
+    const int neededLayers =
+        std::max(zone.numVelocityLayers,
+                 static_cast<int>(std::ceil(static_cast<float>(totalHits) / static_cast<float>(maxRoundRobins))));
+    zone.numVelocityLayers = std::clamp(neededLayers, 1, 24);
+    zone.numRoundRobins = maxRoundRobins;
 
     for (size_t i = 0; i < zone.hits.size(); ++i)
     {
-        zone.hits[i].velocityLayerIndex = std::clamp (static_cast<int> (i) / maxRoundRobins, 0, zone.numVelocityLayers - 1);
-        zone.hits[i].roundRobinIndex    = std::clamp (static_cast<int> (i) % maxRoundRobins, 0, zone.numRoundRobins - 1);
+        zone.hits[i].velocityLayerIndex =
+            std::clamp(static_cast<int>(i) / maxRoundRobins, 0, zone.numVelocityLayers - 1);
+        zone.hits[i].roundRobinIndex = std::clamp(static_cast<int>(i) % maxRoundRobins, 0, zone.numRoundRobins - 1);
     }
 }
 
-void GlorpKitProject::autoComputeZonePowers (int pieceIndex, int zoneIndex)
+void GlorpKitProject::autoComputeZonePowers(int pieceIndex, int zoneIndex)
 {
-    if (pieceIndex < 0 || pieceIndex >= static_cast<int> (pieces.size()))
+    if (pieceIndex < 0 || pieceIndex >= static_cast<int>(pieces.size()))
         return;
-    auto& piece = pieces[static_cast<size_t> (pieceIndex)];
-    if (zoneIndex < 0 || zoneIndex >= static_cast<int> (piece.zones.size()))
+    auto &piece = pieces[static_cast<size_t>(pieceIndex)];
+    if (zoneIndex < 0 || zoneIndex >= static_cast<int>(piece.zones.size()))
         return;
-    auto& zone = piece.zones[static_cast<size_t> (zoneIndex)];
+    auto &zone = piece.zones[static_cast<size_t>(zoneIndex)];
     if (zone.hits.empty())
         return;
 
     SampleCache cache;
-    std::vector<float> energies (zone.hits.size(), 0.0f);
+    std::vector<float> energies(zone.hits.size(), 0.0f);
     float maxEnergy = 0.0f;
 
     for (size_t h = 0; h < zone.hits.size(); ++h)
     {
-        const auto& hit = zone.hits[h];
+        const auto &hit = zone.hits[h];
         if (hit.micSamples.empty())
             continue;
 
-        const EditableMicSample* chosen = &hit.micSamples.front();
-        for (const auto& ms : hit.micSamples)
-            if (ms.mic == "close") { chosen = &ms; break; }
+        const EditableMicSample *chosen = &hit.micSamples.front();
+        for (const auto &ms : hit.micSamples)
+            if (ms.mic == "close")
+            {
+                chosen = &ms;
+                break;
+            }
 
         std::string sampleUri;
-        if (! chosen->sourceDiskPath.empty())
+        if (!chosen->sourceDiskPath.empty())
             sampleUri = chosen->sourceDiskPath;
-        else if (! chosen->sourceArchivePath.empty() && chosen->archiveOffset >= 0)
-            sampleUri = "glorpkit://" + chosen->sourceArchivePath + "#"
-                      + std::to_string (chosen->archiveOffset) + ":" + std::to_string (chosen->archiveLength);
+        else if (!chosen->sourceArchivePath.empty() && chosen->archiveOffset >= 0)
+            sampleUri = "glorpkit://" + chosen->sourceArchivePath + "#" + std::to_string(chosen->archiveOffset) + ":"
+                        + std::to_string(chosen->archiveLength);
 
-        if (! sampleUri.empty())
+        if (!sampleUri.empty())
         {
-            auto handle = cache.open (sampleUri);
+            auto handle = cache.open(sampleUri);
             if (handle.valid && handle.numFrames > 0)
             {
-                const int64_t framesToCheck = std::min<int64_t> (handle.numFrames, 24000);
-                std::vector<float> buf (static_cast<size_t> (framesToCheck), 0.0f);
-                handle.read (0, framesToCheck, chosen->fileChannel, buf.data());
+                const int64_t framesToCheck = std::min<int64_t>(handle.numFrames, 24000);
+                std::vector<float> buf(static_cast<size_t>(framesToCheck), 0.0f);
+                handle.read(0, framesToCheck, chosen->fileChannel, buf.data());
 
                 double sumSq = 0.0;
                 float peak = 0.0f;
                 for (float s : buf)
                 {
-                    sumSq += static_cast<double> (s * s);
-                    peak = std::max (peak, std::abs (s));
+                    sumSq += static_cast<double>(s * s);
+                    peak = std::max(peak, std::abs(s));
                 }
-                const float rms = static_cast<float> (std::sqrt (sumSq / static_cast<double> (framesToCheck)));
+                const float rms = static_cast<float>(std::sqrt(sumSq / static_cast<double>(framesToCheck)));
                 energies[h] = 0.65f * peak + 0.35f * rms;
-                maxEnergy = std::max (maxEnergy, energies[h]);
+                maxEnergy = std::max(maxEnergy, energies[h]);
             }
         }
     }
 
     std::set<int> distinctVelLayers;
-    for (const auto& h : zone.hits)
-        distinctVelLayers.insert (h.velocityLayerIndex);
+    for (const auto &h : zone.hits)
+        distinctVelLayers.insert(h.velocityLayerIndex);
 
     if (distinctVelLayers.size() > 1)
     {
         // Hits already have assigned velocity tiers (from filename parsing or manual matrix layout).
         // Recalibrate power proportionally to their velocity layer to preserve user layout:
-        const int numVL = std::max (1, zone.numVelocityLayers);
-        for (auto& h : zone.hits)
+        const int numVL = std::max(1, zone.numVelocityLayers);
+        for (auto &h : zone.hits)
         {
-            const float t = (numVL > 1) ? static_cast<float> (h.velocityLayerIndex) / static_cast<float> (numVL - 1) : 1.0f;
+            const float t =
+                (numVL > 1) ? static_cast<float>(h.velocityLayerIndex) / static_cast<float>(numVL - 1) : 1.0f;
             h.power = 0.12f + 0.88f * t;
         }
     }
@@ -643,7 +686,7 @@ void GlorpKitProject::autoComputeZonePowers (int pieceIndex, int zoneIndex)
             for (size_t h = 0; h < zone.hits.size(); ++h)
             {
                 if (energies[h] > 0.0f)
-                    zone.hits[h].power = std::clamp (energies[h] / maxEnergy, 0.08f, 1.0f);
+                    zone.hits[h].power = std::clamp(energies[h] / maxEnergy, 0.08f, 1.0f);
             }
         }
         else
@@ -651,45 +694,46 @@ void GlorpKitProject::autoComputeZonePowers (int pieceIndex, int zoneIndex)
             const size_t N = zone.hits.size();
             for (size_t h = 0; h < N; ++h)
             {
-                const float t = (N > 1) ? static_cast<float> (h) / static_cast<float> (N - 1) : 0.0f;
+                const float t = (N > 1) ? static_cast<float>(h) / static_cast<float>(N - 1) : 0.0f;
                 zone.hits[h].power = 0.12f + t * 0.88f;
             }
         }
 
-        rebuildZoneLayerGrid (zone, zone.numRoundRobins);
+        rebuildZoneLayerGrid(zone, zone.numRoundRobins);
     }
 }
 
-int GlorpKitProject::importAudioFilesIntoZone (int pieceIndex, int zoneIndex,
-                                               const std::vector<std::string>& filePaths,
-                                               const std::string& targetMic)
+int GlorpKitProject::importAudioFilesIntoZone(int pieceIndex,
+                                              int zoneIndex,
+                                              const std::vector<std::string> &filePaths,
+                                              const std::string &targetMic)
 {
-    if (pieceIndex < 0 || pieceIndex >= static_cast<int> (pieces.size()))
+    if (pieceIndex < 0 || pieceIndex >= static_cast<int>(pieces.size()))
         return 0;
-    auto& piece = pieces[static_cast<size_t> (pieceIndex)];
-    if (zoneIndex < 0 || zoneIndex >= static_cast<int> (piece.zones.size()))
+    auto &piece = pieces[static_cast<size_t>(pieceIndex)];
+    if (zoneIndex < 0 || zoneIndex >= static_cast<int>(piece.zones.size()))
         return 0;
-    auto& zone = piece.zones[static_cast<size_t> (zoneIndex)];
+    auto &zone = piece.zones[static_cast<size_t>(zoneIndex)];
 
     std::vector<ParsedSampleInfo> parsedList;
     int maxVel = 1;
     int maxRr = 0;
     bool anyExplicitVel = false;
 
-    for (const auto& p : filePaths)
+    for (const auto &p : filePaths)
     {
         std::error_code ec;
-        if (! fs::is_regular_file (p, ec))
+        if (!fs::is_regular_file(p, ec))
             continue;
-        auto info = parseSampleFilename (p);
+        auto info = parseSampleFilename(p);
         if (info.hasExplicitVelocity)
         {
             anyExplicitVel = true;
-            maxVel = std::max (maxVel, info.velocityLevel);
+            maxVel = std::max(maxVel, info.velocityLevel);
         }
         if (info.hasExplicitRoundRobin)
-            maxRr = std::max (maxRr, info.roundRobin);
-        parsedList.push_back (std::move (info));
+            maxRr = std::max(maxRr, info.roundRobin);
+        parsedList.push_back(std::move(info));
     }
 
     if (parsedList.empty())
@@ -698,11 +742,11 @@ int GlorpKitProject::importAudioFilesIntoZone (int pieceIndex, int zoneIndex,
     // If the zone contains placeholder dummy hits with no actual audio file on disk/archive,
     // clear them out so imported files cleanly take over!
     bool onlyPlaceholders = true;
-    for (const auto& h : zone.hits)
+    for (const auto &h : zone.hits)
     {
-        for (const auto& ms : h.micSamples)
+        for (const auto &ms : h.micSamples)
         {
-            if (! ms.sourceDiskPath.empty() || (! ms.sourceArchivePath.empty() && ms.archiveOffset >= 0))
+            if (!ms.sourceDiskPath.empty() || (!ms.sourceArchivePath.empty() && ms.archiveOffset >= 0))
             {
                 onlyPlaceholders = false;
                 break;
@@ -715,27 +759,29 @@ int GlorpKitProject::importAudioFilesIntoZone (int pieceIndex, int zoneIndex,
     // Dynamically expand grid dimensions to fit incoming sample set
     if (anyExplicitVel)
     {
-        zone.numVelocityLayers = std::clamp (std::max (zone.numVelocityLayers, maxVel), 1, 24);
-        zone.numRoundRobins    = std::clamp (std::max (zone.numRoundRobins, maxRr + 1), 1, 8);
+        zone.numVelocityLayers = std::clamp(std::max(zone.numVelocityLayers, maxVel), 1, 24);
+        zone.numRoundRobins = std::clamp(std::max(zone.numRoundRobins, maxRr + 1), 1, 8);
     }
     else
     {
-        const int neededRows = static_cast<int> (std::ceil (static_cast<float> (zone.hits.size() + parsedList.size()) / static_cast<float> (std::max (1, zone.numRoundRobins))));
+        const int neededRows = static_cast<int>(std::ceil(static_cast<float>(zone.hits.size() + parsedList.size())
+                                                          / static_cast<float>(std::max(1, zone.numRoundRobins))));
         if (neededRows > zone.numVelocityLayers)
-            zone.numVelocityLayers = std::clamp (neededRows, 1, 24);
+            zone.numVelocityLayers = std::clamp(neededRows, 1, 24);
     }
 
     int added = 0;
-    for (const auto& info : parsedList)
+    for (const auto &info : parsedList)
     {
         EditableHit hit;
-        hit.name = fs::path (info.rawPath).stem().string();
+        hit.name = fs::path(info.rawPath).stem().string();
 
         if (anyExplicitVel && info.hasExplicitVelocity)
         {
-            hit.velocityLayerIndex = std::clamp (info.velocityLevel - 1, 0, zone.numVelocityLayers - 1);
-            hit.roundRobinIndex    = std::clamp (info.roundRobin, 0, zone.numRoundRobins - 1);
-            const float t = (maxVel > 1) ? static_cast<float> (info.velocityLevel - 1) / static_cast<float> (maxVel - 1) : 1.0f;
+            hit.velocityLayerIndex = std::clamp(info.velocityLevel - 1, 0, zone.numVelocityLayers - 1);
+            hit.roundRobinIndex = std::clamp(info.roundRobin, 0, zone.numRoundRobins - 1);
+            const float t =
+                (maxVel > 1) ? static_cast<float>(info.velocityLevel - 1) / static_cast<float>(maxVel - 1) : 1.0f;
             hit.power = 0.12f + 0.88f * t;
         }
         else
@@ -747,110 +793,119 @@ int GlorpKitProject::importAudioFilesIntoZone (int pieceIndex, int zoneIndex,
 
         EditableMicSample ms;
         ms.mic = targetMic.empty() ? "close" : targetMic;
-        ms.fileName = fs::path (info.rawPath).filename().string();
+        ms.fileName = fs::path(info.rawPath).filename().string();
         ms.sourceDiskPath = info.rawPath;
         ms.fileChannel = 0;
 
-        hit.micSamples.push_back (std::move (ms));
-        zone.hits.push_back (std::move (hit));
+        hit.micSamples.push_back(std::move(ms));
+        zone.hits.push_back(std::move(hit));
         ++added;
     }
 
-    if (! anyExplicitVel)
+    if (!anyExplicitVel)
     {
-        autoComputeZonePowers (pieceIndex, zoneIndex);
+        autoComputeZonePowers(pieceIndex, zoneIndex);
     }
 
     return added;
 }
 
-bool GlorpKitProject::moveSampleToCell (int pieceIndex, int zoneIndex, int hitIndex, int newVelocityLayer, int newRoundRobin)
+bool GlorpKitProject::moveSampleToCell(
+    int pieceIndex, int zoneIndex, int hitIndex, int newVelocityLayer, int newRoundRobin)
 {
-    if (pieceIndex < 0 || pieceIndex >= static_cast<int> (pieces.size())) return false;
-    auto& piece = pieces[static_cast<size_t> (pieceIndex)];
-    if (zoneIndex < 0 || zoneIndex >= static_cast<int> (piece.zones.size())) return false;
-    auto& zone = piece.zones[static_cast<size_t> (zoneIndex)];
-    if (hitIndex < 0 || hitIndex >= static_cast<int> (zone.hits.size())) return false;
+    if (pieceIndex < 0 || pieceIndex >= static_cast<int>(pieces.size()))
+        return false;
+    auto &piece = pieces[static_cast<size_t>(pieceIndex)];
+    if (zoneIndex < 0 || zoneIndex >= static_cast<int>(piece.zones.size()))
+        return false;
+    auto &zone = piece.zones[static_cast<size_t>(zoneIndex)];
+    if (hitIndex < 0 || hitIndex >= static_cast<int>(zone.hits.size()))
+        return false;
 
-    newVelocityLayer = std::clamp (newVelocityLayer, 0, std::max (0, zone.numVelocityLayers - 1));
-    newRoundRobin    = std::clamp (newRoundRobin, 0, std::max (0, zone.numRoundRobins - 1));
+    newVelocityLayer = std::clamp(newVelocityLayer, 0, std::max(0, zone.numVelocityLayers - 1));
+    newRoundRobin = std::clamp(newRoundRobin, 0, std::max(0, zone.numRoundRobins - 1));
 
-    zone.hits[static_cast<size_t> (hitIndex)].velocityLayerIndex = newVelocityLayer;
-    zone.hits[static_cast<size_t> (hitIndex)].roundRobinIndex    = newRoundRobin;
+    zone.hits[static_cast<size_t>(hitIndex)].velocityLayerIndex = newVelocityLayer;
+    zone.hits[static_cast<size_t>(hitIndex)].roundRobinIndex = newRoundRobin;
 
-    const int numVL = std::max (1, zone.numVelocityLayers);
-    const float t = (numVL > 1) ? static_cast<float> (newVelocityLayer) / static_cast<float> (numVL - 1) : 1.0f;
-    zone.hits[static_cast<size_t> (hitIndex)].power = 0.12f + 0.88f * t;
+    const int numVL = std::max(1, zone.numVelocityLayers);
+    const float t = (numVL > 1) ? static_cast<float>(newVelocityLayer) / static_cast<float>(numVL - 1) : 1.0f;
+    zone.hits[static_cast<size_t>(hitIndex)].power = 0.12f + 0.88f * t;
     return true;
 }
 
-bool GlorpKitProject::swapSampleCells (int pieceIndex, int zoneIndex, int hitAIndex, int hitBIndex)
+bool GlorpKitProject::swapSampleCells(int pieceIndex, int zoneIndex, int hitAIndex, int hitBIndex)
 {
-    if (pieceIndex < 0 || pieceIndex >= static_cast<int> (pieces.size())) return false;
-    auto& piece = pieces[static_cast<size_t> (pieceIndex)];
-    if (zoneIndex < 0 || zoneIndex >= static_cast<int> (piece.zones.size())) return false;
-    auto& zone = piece.zones[static_cast<size_t> (zoneIndex)];
-    if (hitAIndex < 0 || hitAIndex >= static_cast<int> (zone.hits.size())) return false;
-    if (hitBIndex < 0 || hitBIndex >= static_cast<int> (zone.hits.size())) return false;
+    if (pieceIndex < 0 || pieceIndex >= static_cast<int>(pieces.size()))
+        return false;
+    auto &piece = pieces[static_cast<size_t>(pieceIndex)];
+    if (zoneIndex < 0 || zoneIndex >= static_cast<int>(piece.zones.size()))
+        return false;
+    auto &zone = piece.zones[static_cast<size_t>(zoneIndex)];
+    if (hitAIndex < 0 || hitAIndex >= static_cast<int>(zone.hits.size()))
+        return false;
+    if (hitBIndex < 0 || hitBIndex >= static_cast<int>(zone.hits.size()))
+        return false;
 
-    std::swap (zone.hits[static_cast<size_t> (hitAIndex)].velocityLayerIndex,
-               zone.hits[static_cast<size_t> (hitBIndex)].velocityLayerIndex);
-    std::swap (zone.hits[static_cast<size_t> (hitAIndex)].roundRobinIndex,
-               zone.hits[static_cast<size_t> (hitBIndex)].roundRobinIndex);
-    std::swap (zone.hits[static_cast<size_t> (hitAIndex)].power,
-               zone.hits[static_cast<size_t> (hitBIndex)].power);
+    std::swap(zone.hits[static_cast<size_t>(hitAIndex)].velocityLayerIndex,
+              zone.hits[static_cast<size_t>(hitBIndex)].velocityLayerIndex);
+    std::swap(zone.hits[static_cast<size_t>(hitAIndex)].roundRobinIndex,
+              zone.hits[static_cast<size_t>(hitBIndex)].roundRobinIndex);
+    std::swap(zone.hits[static_cast<size_t>(hitAIndex)].power, zone.hits[static_cast<size_t>(hitBIndex)].power);
     return true;
 }
 
-void GlorpKitProject::setZoneGridDimensions (int pieceIndex, int zoneIndex, int numVelLayers, int numRoundRobins)
+void GlorpKitProject::setZoneGridDimensions(int pieceIndex, int zoneIndex, int numVelLayers, int numRoundRobins)
 {
-    if (pieceIndex < 0 || pieceIndex >= static_cast<int> (pieces.size())) return;
-    auto& piece = pieces[static_cast<size_t> (pieceIndex)];
-    if (zoneIndex < 0 || zoneIndex >= static_cast<int> (piece.zones.size())) return;
-    auto& zone = piece.zones[static_cast<size_t> (zoneIndex)];
+    if (pieceIndex < 0 || pieceIndex >= static_cast<int>(pieces.size()))
+        return;
+    auto &piece = pieces[static_cast<size_t>(pieceIndex)];
+    if (zoneIndex < 0 || zoneIndex >= static_cast<int>(piece.zones.size()))
+        return;
+    auto &zone = piece.zones[static_cast<size_t>(zoneIndex)];
 
-    zone.numVelocityLayers = std::clamp (numVelLayers, 1, 24);
-    zone.numRoundRobins    = std::clamp (numRoundRobins, 1, 8);
+    zone.numVelocityLayers = std::clamp(numVelLayers, 1, 24);
+    zone.numRoundRobins = std::clamp(numRoundRobins, 1, 8);
 
-    for (auto& h : zone.hits)
+    for (auto &h : zone.hits)
     {
-        h.velocityLayerIndex = std::clamp (h.velocityLayerIndex, 0, zone.numVelocityLayers - 1);
-        h.roundRobinIndex    = std::clamp (h.roundRobinIndex, 0, zone.numRoundRobins - 1);
+        h.velocityLayerIndex = std::clamp(h.velocityLayerIndex, 0, zone.numVelocityLayers - 1);
+        h.roundRobinIndex = std::clamp(h.roundRobinIndex, 0, zone.numRoundRobins - 1);
     }
 }
 
 //==============================================================================
-bool GlorpKitProject::openGlorpKitArchive (const std::string& archivePath, std::string& outError)
+bool GlorpKitProject::openGlorpKitArchive(const std::string &archivePath, std::string &outError)
 {
     GlorpKitReader reader;
-    if (! reader.open (archivePath))
+    if (!reader.open(archivePath))
     {
         outError = "Could not open .glorpkit archive: " + archivePath;
         return false;
     }
 
-    if (! reader.isNativeGlorpKit())
+    if (!reader.isNativeGlorpKit())
     {
         // Legacy DrumGizmo-in-ZIP archive: load via DrumKit::load and convert
-        return importDrumGizmoXml (archivePath, outError);
+        return importDrumGizmoXml(archivePath, outError);
     }
 
     GlorpKitManifest manifest;
     std::vector<GlorpGraphic> graphics;
-    if (! reader.readNativeKitManifest (manifest, graphics))
+    if (!reader.readNativeKitManifest(manifest, graphics))
     {
         outError = "Failed to parse kit.xml in " + archivePath;
         return false;
     }
 
     std::vector<GlorpInstrumentSpec> instSpecs;
-    if (! reader.readNativeInstruments (instSpecs))
+    if (!reader.readNativeInstruments(instSpecs))
     {
         outError = "No valid instruments found in " + archivePath;
         return false;
     }
 
-    title = manifest.title.empty() ? fs::path (archivePath).stem().string() : manifest.title;
+    title = manifest.title.empty() ? fs::path(archivePath).stem().string() : manifest.title;
     author = manifest.author.empty() ? "Unknown" : manifest.author;
     version = manifest.version.empty() ? "2.0" : manifest.version;
     license = manifest.license.empty() ? "Custom" : manifest.license;
@@ -861,16 +916,16 @@ bool GlorpKitProject::openGlorpKitArchive (const std::string& archivePath, std::
 
     mics = manifest.mics;
     if (mics.empty())
-        mics.push_back ({ "close", "Close Mic (Direct)", 1.0f });
+        mics.push_back({"close", "Close Mic (Direct)", 1.0f});
 
     std::map<std::string, std::string> graphicSrcMap;
-    for (const auto& g : graphics)
+    for (const auto &g : graphics)
         graphicSrcMap[g.name] = g.src;
 
     pieces.clear();
     int fallbackZ = 1;
 
-    for (const auto& spec : instSpecs)
+    for (const auto &spec : instSpecs)
     {
         EditablePiece p;
         p.name = spec.name;
@@ -886,7 +941,7 @@ bool GlorpKitProject::openGlorpKitArchive (const std::string& archivePath, std::
             p.normW = spec.normW;
             p.zOrder = spec.zOrder > 0 ? spec.zOrder : fallbackZ++;
         }
-        else if (const auto* def = findDefaultPieceLayout (spec.id.empty() ? spec.name : spec.id))
+        else if (const auto *def = findDefaultPieceLayout(spec.id.empty() ? spec.name : spec.id))
         {
             p.normX = def->x;
             p.normY = def->y;
@@ -895,7 +950,7 @@ bool GlorpKitProject::openGlorpKitArchive (const std::string& archivePath, std::
         }
         else
         {
-            p.normX = -100.0f + static_cast<float> (fallbackZ * 30);
+            p.normX = -100.0f + static_cast<float>(fallbackZ * 30);
             p.normY = -350.0f;
             p.normW = 160.0f;
             p.zOrder = fallbackZ++;
@@ -903,19 +958,19 @@ bool GlorpKitProject::openGlorpKitArchive (const std::string& archivePath, std::
 
         // Load custom PNG bytes if embedded in the archive
         std::string pngArcPath;
-        auto git = graphicSrcMap.find (p.graphicId);
-        if (git != graphicSrcMap.end() && git->second.rfind ("builtin:", 0) != 0)
+        auto git = graphicSrcMap.find(p.graphicId);
+        if (git != graphicSrcMap.end() && git->second.rfind("builtin:", 0) != 0)
             pngArcPath = git->second;
-        else if (! p.graphicId.empty() && p.graphicId.rfind ("builtin:", 0) != 0)
+        else if (!p.graphicId.empty() && p.graphicId.rfind("builtin:", 0) != 0)
             pngArcPath = "assets/" + p.graphicId + ".png";
 
-        if (! pngArcPath.empty() && reader.hasEntry (pngArcPath))
+        if (!pngArcPath.empty() && reader.hasEntry(pngArcPath))
         {
-            if (reader.readEntryBytes (pngArcPath, p.customPngBytes))
-                p.customPngFileName = fs::path (pngArcPath).filename().string();
+            if (reader.readEntryBytes(pngArcPath, p.customPngBytes))
+                p.customPngFileName = fs::path(pngArcPath).filename().string();
         }
 
-        for (const auto& zspec : spec.zones)
+        for (const auto &zspec : spec.zones)
         {
             EditableZone z;
             z.name = zspec.name;
@@ -926,10 +981,10 @@ bool GlorpKitProject::openGlorpKitArchive (const std::string& archivePath, std::
 
             // Group GlorpSampleRef entries into EditableHit by hit name
             std::map<std::string, size_t> hitIdxMap;
-            for (const auto& sref : zspec.samples)
+            for (const auto &sref : zspec.samples)
             {
-                const std::string hitKey = ! sref.name.empty() ? sref.name : fs::path (sref.file).stem().string();
-                auto it = hitIdxMap.find (hitKey);
+                const std::string hitKey = !sref.name.empty() ? sref.name : fs::path(sref.file).stem().string();
+                auto it = hitIdxMap.find(hitKey);
                 if (it == hitIdxMap.end())
                 {
                     hitIdxMap[hitKey] = z.hits.size();
@@ -943,25 +998,25 @@ bool GlorpKitProject::openGlorpKitArchive (const std::string& archivePath, std::
 
                     EditableMicSample ms;
                     ms.mic = sref.mic;
-                    ms.fileName = fs::path (sref.file).filename().string();
+                    ms.fileName = fs::path(sref.file).filename().string();
                     ms.sourceArchivePath = archivePath;
                     ms.archiveOffset = sref.archiveOffset;
                     ms.archiveLength = sref.archiveLength;
                     ms.fileChannel = sref.fileChannel;
 
-                    hit.micSamples.push_back (std::move (ms));
-                    z.hits.push_back (std::move (hit));
+                    hit.micSamples.push_back(std::move(ms));
+                    z.hits.push_back(std::move(hit));
                 }
                 else
                 {
                     EditableMicSample ms;
                     ms.mic = sref.mic;
-                    ms.fileName = fs::path (sref.file).filename().string();
+                    ms.fileName = fs::path(sref.file).filename().string();
                     ms.sourceArchivePath = archivePath;
                     ms.archiveOffset = sref.archiveOffset;
                     ms.archiveLength = sref.archiveLength;
                     ms.fileChannel = sref.fileChannel;
-                    z.hits[it->second].micSamples.push_back (std::move (ms));
+                    z.hits[it->second].micSamples.push_back(std::move(ms));
                 }
             }
 
@@ -970,11 +1025,11 @@ bool GlorpKitProject::openGlorpKitArchive (const std::string& archivePath, std::
             int maxDetectedRr = 0;
             bool anyExplicitVelOrRr = false;
 
-            for (auto& h : z.hits)
+            for (auto &h : z.hits)
             {
                 if (h.velocityLayerIndex < 0 || h.roundRobinIndex < 0)
                 {
-                    auto parsed = parseSampleFilename (h.name);
+                    auto parsed = parseSampleFilename(h.name);
                     if (parsed.hasExplicitVelocity && parsed.velocityLevel >= 1 && h.velocityLayerIndex < 0)
                         h.velocityLayerIndex = parsed.velocityLevel - 1;
                     if (parsed.hasExplicitRoundRobin && parsed.roundRobin >= 0 && h.roundRobinIndex < 0)
@@ -982,22 +1037,22 @@ bool GlorpKitProject::openGlorpKitArchive (const std::string& archivePath, std::
                 }
                 if (h.velocityLayerIndex >= 0)
                 {
-                    maxDetectedVel = std::max (maxDetectedVel, h.velocityLayerIndex + 1);
+                    maxDetectedVel = std::max(maxDetectedVel, h.velocityLayerIndex + 1);
                     anyExplicitVelOrRr = true;
                 }
                 if (h.roundRobinIndex >= 0)
                 {
-                    maxDetectedRr = std::max (maxDetectedRr, h.roundRobinIndex + 1);
+                    maxDetectedRr = std::max(maxDetectedRr, h.roundRobinIndex + 1);
                     anyExplicitVelOrRr = true;
                 }
             }
 
             if (anyExplicitVelOrRr)
             {
-                z.numVelocityLayers = std::clamp (std::max ({ zspec.velocityLayers, maxDetectedVel, 1 }), 1, 24);
-                z.numRoundRobins    = std::clamp (std::max ({ zspec.roundRobin, maxDetectedRr, 1 }), 1, 8);
+                z.numVelocityLayers = std::clamp(std::max({zspec.velocityLayers, maxDetectedVel, 1}), 1, 24);
+                z.numRoundRobins = std::clamp(std::max({zspec.roundRobin, maxDetectedRr, 1}), 1, 8);
 
-                for (auto& h : z.hits)
+                for (auto &h : z.hits)
                 {
                     if (h.velocityLayerIndex < 0)
                         h.velocityLayerIndex = 0;
@@ -1007,13 +1062,13 @@ bool GlorpKitProject::openGlorpKitArchive (const std::string& archivePath, std::
             }
             else
             {
-                rebuildZoneLayerGrid (z, std::max (1, zspec.roundRobin));
+                rebuildZoneLayerGrid(z, std::max(1, zspec.roundRobin));
             }
 
-            p.zones.push_back (std::move (z));
+            p.zones.push_back(std::move(z));
         }
 
-        pieces.push_back (std::move (p));
+        pieces.push_back(std::move(p));
     }
 
     normalizeZOrders();
@@ -1021,10 +1076,10 @@ bool GlorpKitProject::openGlorpKitArchive (const std::string& archivePath, std::
 }
 
 //==============================================================================
-bool GlorpKitProject::importDrumGizmoXml (const std::string& drumkitXmlPath, std::string& outError)
+bool GlorpKitProject::importDrumGizmoXml(const std::string &drumkitXmlPath, std::string &outError)
 {
-    DrumKit dk = DrumKit::load (drumkitXmlPath);
-    if (! dk.error.empty() || dk.instruments.empty())
+    DrumKit dk = DrumKit::load(drumkitXmlPath);
+    if (!dk.error.empty() || dk.instruments.empty())
     {
         outError = dk.error.empty() ? "No valid instruments in DrumGizmo kit" : dk.error;
         return false;
@@ -1040,21 +1095,21 @@ bool GlorpKitProject::importDrumGizmoXml (const std::string& drumkitXmlPath, std
     loadedFilePath = drumkitXmlPath;
 
     mics.clear();
-    for (const auto& ch : dk.channels)
-        mics.push_back ({ ch.name, ch.title.empty() ? ch.name : ch.title, 1.0f });
+    for (const auto &ch : dk.channels)
+        mics.push_back({ch.name, ch.title.empty() ? ch.name : ch.title, 1.0f});
     if (mics.empty())
-        mics.push_back ({ "close", "Close Mic", 1.0f });
+        mics.push_back({"close", "Close Mic", 1.0f});
 
     pieces.clear();
     std::map<std::string, size_t> pieceMap;
 
-    for (const auto& inst : dk.instruments)
+    for (const auto &inst : dk.instruments)
     {
         const std::string pName = inst.logicalName.empty() ? inst.displayName : inst.logicalName;
-        const std::string pId = sanitizeId (pName);
+        const std::string pId = sanitizeId(pName);
 
         size_t pIdx = 0;
-        auto it = pieceMap.find (pId);
+        auto it = pieceMap.find(pId);
         if (it == pieceMap.end())
         {
             pIdx = pieces.size();
@@ -1067,7 +1122,7 @@ bool GlorpKitProject::importDrumGizmoXml (const std::string& drumkitXmlPath, std
             ep.outputBus = inst.outputBus;
             ep.chokeGroup = inst.group.empty() ? "none" : inst.group;
 
-            if (const auto* def = findDefaultPieceLayout (pId))
+            if (const auto *def = findDefaultPieceLayout(pId))
             {
                 ep.graphicId = def->graphic;
                 ep.normX = def->x;
@@ -1077,12 +1132,12 @@ bool GlorpKitProject::importDrumGizmoXml (const std::string& drumkitXmlPath, std
             }
             else
             {
-                ep.normX = -150.0f + static_cast<float> (pIdx * 35);
+                ep.normX = -150.0f + static_cast<float>(pIdx * 35);
                 ep.normY = -340.0f;
                 ep.normW = 165.0f;
-                ep.zOrder = static_cast<int> (pIdx) + 1;
+                ep.zOrder = static_cast<int>(pIdx) + 1;
             }
-            pieces.push_back (std::move (ep));
+            pieces.push_back(std::move(ep));
         }
         else
         {
@@ -1093,7 +1148,7 @@ bool GlorpKitProject::importDrumGizmoXml (const std::string& drumkitXmlPath, std
         ez.name = inst.zoneName.empty() ? "head" : inst.zoneName;
         ez.graphicId = pieces[pIdx].graphicId;
         ez.note = 36;
-        for (const auto& [noteNum, mappedName] : dk.suggestedMap)
+        for (const auto &[noteNum, mappedName] : dk.suggestedMap)
         {
             if (mappedName == inst.name || mappedName == inst.displayName)
             {
@@ -1102,19 +1157,19 @@ bool GlorpKitProject::importDrumGizmoXml (const std::string& drumkitXmlPath, std
             }
         }
 
-        for (const auto& sh : inst.samples)
+        for (const auto &sh : inst.samples)
         {
             EditableHit eh;
             eh.name = sh.name;
             eh.power = sh.power;
 
-            for (const auto& af : sh.audioFiles)
+            for (const auto &af : sh.audioFiles)
             {
                 EditableMicSample ms;
                 ms.mic = af.channel;
-                ms.fileName = fs::path (af.file).filename().string();
+                ms.fileName = fs::path(af.file).filename().string();
                 ms.fileChannel = af.fileChannel;
-                if (af.archiveOffset >= 0 && ! inst.archivePath.empty())
+                if (af.archiveOffset >= 0 && !inst.archivePath.empty())
                 {
                     ms.sourceArchivePath = inst.archivePath;
                     ms.archiveOffset = af.archiveOffset;
@@ -1122,16 +1177,16 @@ bool GlorpKitProject::importDrumGizmoXml (const std::string& drumkitXmlPath, std
                 }
                 else
                 {
-                    ms.sourceDiskPath = inst.samplePath (af);
+                    ms.sourceDiskPath = inst.samplePath(af);
                 }
-                eh.micSamples.push_back (std::move (ms));
+                eh.micSamples.push_back(std::move(ms));
             }
-            if (! eh.micSamples.empty())
-                ez.hits.push_back (std::move (eh));
+            if (!eh.micSamples.empty())
+                ez.hits.push_back(std::move(eh));
         }
 
-        rebuildZoneLayerGrid (ez, 3);
-        pieces[pIdx].zones.push_back (std::move (ez));
+        rebuildZoneLayerGrid(ez, 3);
+        pieces[pIdx].zones.push_back(std::move(ez));
     }
 
     normalizeZOrders();
@@ -1139,15 +1194,15 @@ bool GlorpKitProject::importDrumGizmoXml (const std::string& drumkitXmlPath, std
 }
 
 //==============================================================================
-bool GlorpKitProject::exportToGlorpKit (const std::string& outputArchivePath, std::string& outError) const
+bool GlorpKitProject::exportToGlorpKit(const std::string &outputArchivePath, std::string &outError) const
 {
     // If exporting over the same archive file that is currently open as a slice source,
     // write to a temporary sibling file first and atomically rename on completion.
-    const fs::path targetPath = fs::absolute (outputArchivePath);
-    const fs::path tempPath   = targetPath.parent_path() / (targetPath.filename().string() + ".tmp_build");
+    const fs::path targetPath = fs::absolute(outputArchivePath);
+    const fs::path tempPath = targetPath.parent_path() / (targetPath.filename().string() + ".tmp_build");
 
     GlorpKitWriter writer;
-    if (! writer.open (tempPath.string()))
+    if (!writer.open(tempPath.string()))
     {
         outError = "Could not open output file for writing: " + tempPath.string();
         return false;
@@ -1159,60 +1214,59 @@ bool GlorpKitProject::exportToGlorpKit (const std::string& outputArchivePath, st
         if (effectiveTitle.empty() || effectiveTitle == "Untitled Kit")
         {
             const auto stem = targetPath.stem().string();
-            if (! stem.empty() && stem != "Untitled Kit" && stem != "Untitled_Kit")
+            if (!stem.empty() && stem != "Untitled Kit" && stem != "Untitled_Kit")
                 effectiveTitle = stem;
         }
 
         std::ostringstream ss;
         ss << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
-        ss << "<glorpkit version=\"2.0\" name=\"" << escapeXml (effectiveTitle) << "\" "
-           << "author=\"" << escapeXml (author) << "\" "
-           << "license=\"" << escapeXml (license) << "\" "
+        ss << "<glorpkit version=\"2.0\" name=\"" << escapeXml(effectiveTitle) << "\" "
+           << "author=\"" << escapeXml(author) << "\" "
+           << "license=\"" << escapeXml(license) << "\" "
            << "samplerate=\"" << sampleRate << "\" "
-           << "hit-glow-color=\"" << escapeXml (hitGlowColor) << "\">\n";
+           << "hit-glow-color=\"" << escapeXml(hitGlowColor) << "\">\n";
 
-        if (! description.empty())
-            ss << "  <description>" << escapeXml (description) << "</description>\n";
+        if (!description.empty())
+            ss << "  <description>" << escapeXml(description) << "</description>\n";
 
         ss << "  <mics>\n";
-        for (const auto& m : mics)
+        for (const auto &m : mics)
         {
-            ss << "    <mic name=\"" << escapeXml (m.name) << "\" "
-               << "title=\"" << escapeXml (m.title) << "\" "
-               << "default=\"" << std::fixed << std::setprecision (2) << m.defaultLevel << "\"/>\n";
+            ss << "    <mic name=\"" << escapeXml(m.name) << "\" "
+               << "title=\"" << escapeXml(m.title) << "\" "
+               << "default=\"" << std::fixed << std::setprecision(2) << m.defaultLevel << "\"/>\n";
         }
         ss << "  </mics>\n";
 
-        auto getExportPieceGraphicName = [] (const EditablePiece& p, size_t idx) -> std::string
+        auto getExportPieceGraphicName = [](const EditablePiece &p, size_t idx) -> std::string
         {
-            if (! p.customPngBytes.empty())
+            if (!p.customPngBytes.empty())
             {
-                std::string pId = sanitizeId (p.id.empty() ? p.name : p.id);
+                std::string pId = sanitizeId(p.id.empty() ? p.name : p.id);
                 if (pId.empty() || pId == "piece")
-                    pId = "piece_" + std::to_string (idx + 1);
+                    pId = "piece_" + std::to_string(idx + 1);
                 return pId;
             }
-            return ! p.graphicId.empty() ? p.graphicId : "snare";
+            return !p.graphicId.empty() ? p.graphicId : "snare";
         };
 
         ss << "  <graphics>\n";
         std::set<std::string> writtenGraphics;
         for (size_t i = 0; i < pieces.size(); ++i)
         {
-            const auto& p = pieces[i];
-            const std::string gName = getExportPieceGraphicName (p, i);
-            if (writtenGraphics.insert (gName).second)
+            const auto &p = pieces[i];
+            const std::string gName = getExportPieceGraphicName(p, i);
+            if (writtenGraphics.insert(gName).second)
             {
-                const std::string srcAttr = ! p.customPngBytes.empty()
-                    ? ("assets/" + gName + ".png")
-                    : ("builtin:" + gName);
-                ss << "    <graphic name=\"" << escapeXml (gName) << "\" src=\"" << escapeXml (srcAttr) << "\"/>\n";
+                const std::string srcAttr =
+                    !p.customPngBytes.empty() ? ("assets/" + gName + ".png") : ("builtin:" + gName);
+                ss << "    <graphic name=\"" << escapeXml(gName) << "\" src=\"" << escapeXml(srcAttr) << "\"/>\n";
             }
         }
         ss << "  </graphics>\n";
         ss << "</glorpkit>\n";
 
-        if (! writer.addMemoryString ("kit.xml", ss.str()))
+        if (!writer.addMemoryString("kit.xml", ss.str()))
         {
             outError = "Failed to write kit.xml";
             return false;
@@ -1221,29 +1275,29 @@ bool GlorpKitProject::exportToGlorpKit (const std::string& outputArchivePath, st
 
     // 2. Write embedded custom PNG graphics (assets/*.png)
     {
-        auto getExportPieceGraphicName = [] (const EditablePiece& p, size_t idx) -> std::string
+        auto getExportPieceGraphicName = [](const EditablePiece &p, size_t idx) -> std::string
         {
-            if (! p.customPngBytes.empty())
+            if (!p.customPngBytes.empty())
             {
-                std::string pId = sanitizeId (p.id.empty() ? p.name : p.id);
+                std::string pId = sanitizeId(p.id.empty() ? p.name : p.id);
                 if (pId.empty() || pId == "piece")
-                    pId = "piece_" + std::to_string (idx + 1);
+                    pId = "piece_" + std::to_string(idx + 1);
                 return pId;
             }
-            return ! p.graphicId.empty() ? p.graphicId : "snare";
+            return !p.graphicId.empty() ? p.graphicId : "snare";
         };
 
         std::set<std::string> writtenPngs;
         for (size_t i = 0; i < pieces.size(); ++i)
         {
-            const auto& p = pieces[i];
-            if (! p.customPngBytes.empty())
+            const auto &p = pieces[i];
+            if (!p.customPngBytes.empty())
             {
-                const std::string gName = getExportPieceGraphicName (p, i);
+                const std::string gName = getExportPieceGraphicName(p, i);
                 const std::string arcPng = "assets/" + gName + ".png";
-                if (writtenPngs.insert (arcPng).second)
+                if (writtenPngs.insert(arcPng).second)
                 {
-                    if (! writer.addMemoryBytes (arcPng, p.customPngBytes.data(), p.customPngBytes.size()))
+                    if (!writer.addMemoryBytes(arcPng, p.customPngBytes.data(), p.customPngBytes.size()))
                     {
                         outError = "Failed to embed custom PNG asset: " + arcPng;
                         return false;
@@ -1257,61 +1311,60 @@ bool GlorpKitProject::exportToGlorpKit (const std::string& outputArchivePath, st
     {
         std::ostringstream ms;
         ms << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<glorp-mixer>\n";
-        for (const auto& m : mics)
-            ms << "  <mic name=\"" << escapeXml (m.name) << "\" level=\""
-               << std::fixed << std::setprecision (2) << m.defaultLevel << "\"/>\n";
+        for (const auto &m : mics)
+            ms << "  <mic name=\"" << escapeXml(m.name) << "\" level=\"" << std::fixed << std::setprecision(2)
+               << m.defaultLevel << "\"/>\n";
 
-        for (const auto& p : pieces)
-            for (const auto& z : p.zones)
-                ms << "  <instrument name=\"" << escapeXml (p.name) << "\" zone=\""
-                   << escapeXml (z.name) << "\" level=\"1.0\" pan=\"0.0\"/>\n";
+        for (const auto &p : pieces)
+            for (const auto &z : p.zones)
+                ms << "  <instrument name=\"" << escapeXml(p.name) << "\" zone=\"" << escapeXml(z.name)
+                   << "\" level=\"1.0\" pan=\"0.0\"/>\n";
 
         ms << "</glorp-mixer>\n";
-        writer.addMemoryString ("presets/factory-mixer.xml", ms.str());
+        writer.addMemoryString("presets/factory-mixer.xml", ms.str());
     }
 
     // 4. Write instruments/<id>/instrument.xml, <zone>/zone.xml, and samples/*.wav
-    auto getExportPieceGraphicName = [] (const EditablePiece& p, size_t idx) -> std::string
+    auto getExportPieceGraphicName = [](const EditablePiece &p, size_t idx) -> std::string
     {
-        if (! p.customPngBytes.empty())
+        if (!p.customPngBytes.empty())
         {
-            std::string pId = sanitizeId (p.id.empty() ? p.name : p.id);
+            std::string pId = sanitizeId(p.id.empty() ? p.name : p.id);
             if (pId.empty() || pId == "piece")
-                pId = "piece_" + std::to_string (idx + 1);
+                pId = "piece_" + std::to_string(idx + 1);
             return pId;
         }
-        return ! p.graphicId.empty() ? p.graphicId : "snare";
+        return !p.graphicId.empty() ? p.graphicId : "snare";
     };
 
     std::set<std::string> usedInstDirs;
     for (size_t i = 0; i < pieces.size(); ++i)
     {
-        const auto& p = pieces[i];
-        std::string pId = sanitizeId (p.id.empty() ? p.name : p.id);
+        const auto &p = pieces[i];
+        std::string pId = sanitizeId(p.id.empty() ? p.name : p.id);
         if (pId.empty() || pId == "piece")
-            pId = "piece_" + std::to_string (i + 1);
-        if (usedInstDirs.count (pId) > 0)
-            pId += "_" + std::to_string (i + 1);
-        usedInstDirs.insert (pId);
+            pId = "piece_" + std::to_string(i + 1);
+        if (usedInstDirs.count(pId) > 0)
+            pId += "_" + std::to_string(i + 1);
+        usedInstDirs.insert(pId);
 
-        const std::string gName = getExportPieceGraphicName (p, i);
+        const std::string gName = getExportPieceGraphicName(p, i);
 
         std::ostringstream is;
         is << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
-        is << "<glorp-instrument name=\"" << escapeXml (p.name) << "\" "
-           << "graphic=\"" << escapeXml (gName) << "\" "
+        is << "<glorp-instrument name=\"" << escapeXml(p.name) << "\" "
+           << "graphic=\"" << escapeXml(gName) << "\" "
            << "output-bus=\"" << p.outputBus << "\" "
-           << "choke-group=\"" << escapeXml (p.chokeGroup) << "\" "
-           << std::fixed << std::setprecision (4)
-           << "norm-x=\"" << p.normX << "\" "
+           << "choke-group=\"" << escapeXml(p.chokeGroup) << "\" " << std::fixed << std::setprecision(4) << "norm-x=\""
+           << p.normX << "\" "
            << "norm-y=\"" << p.normY << "\" "
            << "norm-w=\"" << p.normW << "\" "
            << "z-order=\"" << p.zOrder << "\">\n";
 
-        for (const auto& z : p.zones)
+        for (const auto &z : p.zones)
         {
-            is << "  <zone name=\"" << escapeXml (z.name) << "\" "
-               << "graphic=\"" << escapeXml (z.graphicId.empty() ? gName : z.graphicId) << "\"";
+            is << "  <zone name=\"" << escapeXml(z.name) << "\" "
+               << "graphic=\"" << escapeXml(z.graphicId.empty() ? gName : z.graphicId) << "\"";
             if (z.note >= 0)
                 is << " note=\"" << z.note << "\"";
             if (z.altNote >= 0)
@@ -1321,78 +1374,79 @@ bool GlorpKitProject::exportToGlorpKit (const std::string& outputArchivePath, st
         is << "</glorp-instrument>\n";
 
         const std::string instDir = "instruments/" + pId;
-        if (! writer.addMemoryString (instDir + "/instrument.xml", is.str()))
+        if (!writer.addMemoryString(instDir + "/instrument.xml", is.str()))
         {
             outError = "Failed to write " + instDir + "/instrument.xml";
             return false;
         }
 
-        for (const auto& z : p.zones)
+        for (const auto &z : p.zones)
         {
             const std::string zoneDir = instDir + "/" + z.name;
             std::ostringstream zs;
             zs << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
-            zs << "<glorp-zone name=\"" << escapeXml (z.name) << "\" power=\"1.0\" "
+            zs << "<glorp-zone name=\"" << escapeXml(z.name) << "\" power=\"1.0\" "
                << "round-robin=\"" << z.numRoundRobins << "\" "
                << "velocity-layers=\"" << z.numVelocityLayers << "\">\n";
 
             std::set<std::string> writtenWavsInZone;
 
-            for (const auto& hit : z.hits)
+            for (const auto &hit : z.hits)
             {
-                for (const auto& ms : hit.micSamples)
+                for (const auto &ms : hit.micSamples)
                 {
                     const std::string wavName = ms.fileName.empty() ? (hit.name + ".wav") : ms.fileName;
                     const std::string relWav = "samples/" + wavName;
                     const std::string fullArcWav = zoneDir + "/" + relWav;
 
-                    zs << "  <sample name=\"" << escapeXml (hit.name) << "\" "
-                       << "file=\"" << escapeXml (relWav) << "\" "
-                       << "mic=\"" << escapeXml (ms.mic) << "\" "
-                       << "power=\"" << std::fixed << std::setprecision (4) << hit.power << "\" "
+                    zs << "  <sample name=\"" << escapeXml(hit.name) << "\" "
+                       << "file=\"" << escapeXml(relWav) << "\" "
+                       << "mic=\"" << escapeXml(ms.mic) << "\" "
+                       << "power=\"" << std::fixed << std::setprecision(4) << hit.power << "\" "
                        << "velocity=\"" << (hit.velocityLayerIndex + 1) << "\" "
                        << "round-robin=\"" << (hit.roundRobinIndex + 1) << "\"";
                     if (ms.fileChannel > 0)
                         zs << " channel=\"" << (ms.fileChannel + 1) << "\"";
                     zs << "/>\n";
 
-                    if (writtenWavsInZone.insert (wavName).second)
+                    if (writtenWavsInZone.insert(wavName).second)
                     {
-                        if (! ms.sourceDiskPath.empty() && fs::exists (ms.sourceDiskPath))
+                        if (!ms.sourceDiskPath.empty() && fs::exists(ms.sourceDiskPath))
                         {
-                            writer.addFileFromDisk (fullArcWav, ms.sourceDiskPath);
+                            writer.addFileFromDisk(fullArcWav, ms.sourceDiskPath);
                         }
-                        else if (! ms.sourceArchivePath.empty() && ms.archiveOffset >= 0 && ms.archiveLength > 0)
+                        else if (!ms.sourceArchivePath.empty() && ms.archiveOffset >= 0 && ms.archiveLength > 0)
                         {
-                            writer.addSliceFromArchive (fullArcWav, ms.sourceArchivePath, ms.archiveOffset, ms.archiveLength);
+                            writer.addSliceFromArchive(
+                                fullArcWav, ms.sourceArchivePath, ms.archiveOffset, ms.archiveLength);
                         }
                     }
                 }
             }
 
-            for (const auto& c : z.chokes)
+            for (const auto &c : z.chokes)
             {
-                zs << "  <choke target=\"" << escapeXml (c.instrument) << "\" "
-                   << "time=\"" << static_cast<int> (c.chokeTimeMs) << "\"/>\n";
+                zs << "  <choke target=\"" << escapeXml(c.instrument) << "\" "
+                   << "time=\"" << static_cast<int>(c.chokeTimeMs) << "\"/>\n";
             }
 
             zs << "</glorp-zone>\n";
-            writer.addMemoryString (zoneDir + "/zone.xml", zs.str());
+            writer.addMemoryString(zoneDir + "/zone.xml", zs.str());
         }
     }
 
-    if (! writer.finalize())
+    if (!writer.finalize())
     {
         outError = "Failed to finalize .glorpkit ZIP_STORED central directory";
         return false;
     }
 
     std::error_code ec;
-    fs::rename (tempPath, targetPath, ec);
+    fs::rename(tempPath, targetPath, ec);
     if (ec)
     {
-        fs::copy_file (tempPath, targetPath, fs::copy_options::overwrite_existing, ec);
-        fs::remove (tempPath, ec);
+        fs::copy_file(tempPath, targetPath, fs::copy_options::overwrite_existing, ec);
+        fs::remove(tempPath, ec);
     }
 
     return true;
@@ -1411,19 +1465,19 @@ DrumKit GlorpKitProject::buildRuntimeDrumKit() const
     kit.hitGlowColor = hitGlowColor;
     kit.declaredSampleRate = sampleRate;
 
-    for (const auto& m : mics)
+    for (const auto &m : mics)
     {
         KitChannel kc;
         kc.name = m.name;
         kc.title = m.title;
         kc.source = m.name;
-        kit.channels.push_back (std::move (kc));
+        kit.channels.push_back(std::move(kc));
     }
 
     if (kit.channels.empty())
-        kit.channels.push_back ({ "close", "Close Mic", "close" });
+        kit.channels.push_back({"close", "Close Mic", "close"});
 
-    for (const auto& p : pieces)
+    for (const auto &p : pieces)
     {
         DrumKit::LogicalPiece lp;
         lp.name = p.name;
@@ -1438,60 +1492,60 @@ DrumKit GlorpKitProject::buildRuntimeDrumKit() const
         lp.hasCustomLayout = true;
         lp.customPngBytes = p.customPngBytes;
 
-        for (const auto& z : p.zones)
+        for (const auto &z : p.zones)
         {
             Instrument inst;
             inst.name = p.name + "." + z.name;
             inst.displayName = p.name + " " + z.name;
             inst.logicalName = p.name;
             inst.zoneName = z.name;
-            inst.bleedPiece = pieceForInstrumentName (p.name);
+            inst.bleedPiece = pieceForInstrumentName(p.name);
             inst.group = p.chokeGroup;
             inst.outputBus = p.outputBus;
-            inst.index = static_cast<int> (kit.instruments.size());
+            inst.index = static_cast<int>(kit.instruments.size());
 
-            for (const auto& hit : z.hits)
+            for (const auto &hit : z.hits)
             {
                 SampleHit sh;
                 sh.name = hit.name;
                 sh.power = hit.power;
 
-                for (const auto& ms : hit.micSamples)
+                for (const auto &ms : hit.micSamples)
                 {
                     AudioFileRef ref;
                     ref.channel = ms.mic;
                     ref.fileChannel = ms.fileChannel;
-                    if (! ms.sourceDiskPath.empty())
+                    if (!ms.sourceDiskPath.empty())
                     {
                         ref.file = ms.sourceDiskPath;
                     }
-                    else if (! ms.sourceArchivePath.empty() && ms.archiveOffset >= 0)
+                    else if (!ms.sourceArchivePath.empty() && ms.archiveOffset >= 0)
                     {
                         inst.archivePath = ms.sourceArchivePath;
                         ref.file = ms.fileName;
                         ref.archiveOffset = ms.archiveOffset;
                         ref.archiveLength = ms.archiveLength;
                     }
-                    sh.audioFiles.push_back (std::move (ref));
+                    sh.audioFiles.push_back(std::move(ref));
                 }
 
-                if (! sh.audioFiles.empty())
-                    inst.samples.push_back (std::move (sh));
+                if (!sh.audioFiles.empty())
+                    inst.samples.push_back(std::move(sh));
             }
 
             // Build resolvedChannels directly
-            inst.resolvedChannels.assign (inst.samples.size(), {});
+            inst.resolvedChannels.assign(inst.samples.size(), {});
             for (size_t s = 0; s < inst.samples.size(); ++s)
             {
                 for (size_t a = 0; a < inst.samples[s].audioFiles.size(); ++a)
                 {
-                    const auto& af = inst.samples[s].audioFiles[a];
+                    const auto &af = inst.samples[s].audioFiles[a];
                     Instrument::ChannelSource cs;
-                    cs.kitChannel = (kit.indexOfKitChannel (af.channel) >= 0) ? af.channel : kit.channels.front().name;
-                    cs.audioFileIndex = static_cast<int> (a);
-                    cs.main = (cs.kitChannel == "close" || cs.kitChannel.find ("oh") != std::string::npos);
+                    cs.kitChannel = (kit.indexOfKitChannel(af.channel) >= 0) ? af.channel : kit.channels.front().name;
+                    cs.audioFileIndex = static_cast<int>(a);
+                    cs.main = (cs.kitChannel == "close" || cs.kitChannel.find("oh") != std::string::npos);
                     cs.bleed = 1.0f;
-                    inst.resolvedChannels[s].push_back (std::move (cs));
+                    inst.resolvedChannels[s].push_back(std::move(cs));
                 }
             }
 
@@ -1506,19 +1560,19 @@ DrumKit GlorpKitProject::buildRuntimeDrumKit() const
             zi.note = z.note;
             zi.altNote = z.altNote;
             zi.graphic = z.graphicId;
-            lp.zones.push_back (std::move (zi));
+            lp.zones.push_back(std::move(zi));
 
-            kit.instruments.push_back (std::move (inst));
+            kit.instruments.push_back(std::move(inst));
         }
 
-        kit.logicalPieces.push_back (std::move (lp));
+        kit.logicalPieces.push_back(std::move(lp));
     }
 
     return kit;
 }
 
 //==============================================================================
-int GlorpKitProject::getSamplerIndexForZone (int pieceIndex, int zoneIndex) const
+int GlorpKitProject::getSamplerIndexForZone(int pieceIndex, int zoneIndex) const
 {
     int count = 0;
     for (size_t p = 0; p < pieces.size(); ++p)
@@ -1533,7 +1587,7 @@ int GlorpKitProject::getSamplerIndexForZone (int pieceIndex, int zoneIndex) cons
     return -1;
 }
 
-bool GlorpKitProject::renamePiece (int pieceIndex, const std::string& newName, const std::string& newId)
+bool GlorpKitProject::renamePiece(int pieceIndex, const std::string &newName, const std::string &newId)
 {
     if (pieceIndex < 0 || pieceIndex >= (int) pieces.size())
         return false;
@@ -1542,20 +1596,20 @@ bool GlorpKitProject::renamePiece (int pieceIndex, const std::string& newName, c
 
     const std::string oldName = pieces[(size_t) pieceIndex].name;
     pieces[(size_t) pieceIndex].name = newName;
-    if (! newId.empty())
+    if (!newId.empty())
         pieces[(size_t) pieceIndex].id = newId;
 
     // Update choke targets referencing the old piece name
-    for (auto& p : pieces)
-        for (auto& z : p.zones)
-            for (auto& c : z.chokes)
+    for (auto &p : pieces)
+        for (auto &z : p.zones)
+            for (auto &c : z.chokes)
                 if (c.instrument == oldName)
                     c.instrument = newName;
 
     return true;
 }
 
-bool GlorpKitProject::renameMic (int micIndex, const std::string& newName)
+bool GlorpKitProject::renameMic(int micIndex, const std::string &newName)
 {
     if (micIndex < 0 || micIndex >= (int) mics.size())
         return false;
@@ -1567,21 +1621,21 @@ bool GlorpKitProject::renameMic (int micIndex, const std::string& newName)
     mics[(size_t) micIndex].title = newName;
 
     // Propagate mic rename to all sample layers across all pieces and zones
-    for (auto& p : pieces)
-        for (auto& z : p.zones)
-            for (auto& h : z.hits)
-                for (auto& ms : h.micSamples)
+    for (auto &p : pieces)
+        for (auto &z : p.zones)
+            for (auto &h : z.hits)
+                for (auto &ms : h.micSamples)
                     if (ms.mic == oldMic)
                         ms.mic = newName;
 
     return true;
 }
 
-bool GlorpKitProject::renameZone (int pieceIndex, int zoneIndex, const std::string& newName)
+bool GlorpKitProject::renameZone(int pieceIndex, int zoneIndex, const std::string &newName)
 {
     if (pieceIndex < 0 || pieceIndex >= (int) pieces.size())
         return false;
-    auto& p = pieces[(size_t) pieceIndex];
+    auto &p = pieces[(size_t) pieceIndex];
     if (zoneIndex < 0 || zoneIndex >= (int) p.zones.size())
         return false;
     if (newName.empty())
@@ -1591,23 +1645,23 @@ bool GlorpKitProject::renameZone (int pieceIndex, int zoneIndex, const std::stri
     p.zones[(size_t) zoneIndex].name = newName;
 
     // Update choke targets referencing old zone on this piece
-    for (auto& otherP : pieces)
-        for (auto& otherZ : otherP.zones)
-            for (auto& c : otherZ.chokes)
+    for (auto &otherP : pieces)
+        for (auto &otherZ : otherP.zones)
+            for (auto &c : otherZ.chokes)
                 if (c.instrument == p.name && c.zone == oldZone)
                     c.zone = newName;
 
     return true;
 }
 
-bool GlorpKitProject::deleteZone (int pieceIndex, int zoneIndex, std::string& outError)
+bool GlorpKitProject::deleteZone(int pieceIndex, int zoneIndex, std::string &outError)
 {
     if (pieceIndex < 0 || pieceIndex >= (int) pieces.size())
     {
         outError = "Invalid piece index";
         return false;
     }
-    auto& p = pieces[(size_t) pieceIndex];
+    auto &p = pieces[(size_t) pieceIndex];
     if (p.zones.size() <= 1)
     {
         outError = "Cannot delete the only articulation zone of a kit piece";
@@ -1619,11 +1673,11 @@ bool GlorpKitProject::deleteZone (int pieceIndex, int zoneIndex, std::string& ou
         return false;
     }
 
-    p.zones.erase (p.zones.begin() + zoneIndex);
+    p.zones.erase(p.zones.begin() + zoneIndex);
     return true;
 }
 
-bool GlorpKitProject::deleteMic (int micIndex, std::string& outError)
+bool GlorpKitProject::deleteMic(int micIndex, std::string &outError)
 {
     if (micIndex < 0 || micIndex >= (int) mics.size())
     {
@@ -1639,13 +1693,13 @@ bool GlorpKitProject::deleteMic (int micIndex, std::string& outError)
     const std::string deletedMic = mics[(size_t) micIndex].name;
     const std::string fallbackMic = mics[micIndex == 0 ? 1 : 0].name;
 
-    for (auto& p : pieces)
+    for (auto &p : pieces)
     {
-        for (auto& z : p.zones)
+        for (auto &z : p.zones)
         {
-            for (auto& h : z.hits)
+            for (auto &h : z.hits)
             {
-                for (auto& ms : h.micSamples)
+                for (auto &ms : h.micSamples)
                 {
                     if (ms.mic == deletedMic)
                         ms.mic = fallbackMic;
@@ -1654,38 +1708,39 @@ bool GlorpKitProject::deleteMic (int micIndex, std::string& outError)
         }
     }
 
-    mics.erase (mics.begin() + micIndex);
+    mics.erase(mics.begin() + micIndex);
     return true;
 }
 
-bool GlorpKitProject::relinkSamplesFromDirectory (const std::string& directoryPath)
+bool GlorpKitProject::relinkSamplesFromDirectory(const std::string &directoryPath)
 {
     if (directoryPath.empty())
         return false;
 
     std::error_code ec;
-    if (! fs::exists (directoryPath, ec) || ! fs::is_directory (directoryPath, ec))
+    if (!fs::exists(directoryPath, ec) || !fs::is_directory(directoryPath, ec))
         return false;
 
     std::map<std::string, std::string> foundFiles;
-    for (const auto& entry : fs::recursive_directory_iterator (directoryPath, fs::directory_options::skip_permission_denied, ec))
+    for (const auto &entry :
+         fs::recursive_directory_iterator(directoryPath, fs::directory_options::skip_permission_denied, ec))
     {
-        if (entry.is_regular_file (ec))
+        if (entry.is_regular_file(ec))
             foundFiles[entry.path().filename().string()] = entry.path().string();
     }
 
     bool anyRelinked = false;
-    for (auto& p : pieces)
+    for (auto &p : pieces)
     {
-        for (auto& z : p.zones)
+        for (auto &z : p.zones)
         {
-            for (auto& h : z.hits)
+            for (auto &h : z.hits)
             {
-                for (auto& ms : h.micSamples)
+                for (auto &ms : h.micSamples)
                 {
-                    if (! fs::exists (ms.sourceDiskPath, ec))
+                    if (!fs::exists(ms.sourceDiskPath, ec))
                     {
-                        auto it = foundFiles.find (ms.fileName);
+                        auto it = foundFiles.find(ms.fileName);
                         if (it != foundFiles.end())
                         {
                             ms.sourceDiskPath = it->second;
@@ -1699,13 +1754,13 @@ bool GlorpKitProject::relinkSamplesFromDirectory (const std::string& directoryPa
     return anyRelinked;
 }
 
-bool GlorpKitProject::setPieceMicrophone (int pieceIndex, const std::string& micName, const std::string& oldMicToReplace)
+bool GlorpKitProject::setPieceMicrophone(int pieceIndex, const std::string &micName, const std::string &oldMicToReplace)
 {
     if (pieceIndex < 0 || pieceIndex >= (int) pieces.size() || micName.empty())
         return false;
 
     bool micExists = false;
-    for (const auto& m : mics)
+    for (const auto &m : mics)
     {
         if (m.name == micName)
         {
@@ -1713,15 +1768,15 @@ bool GlorpKitProject::setPieceMicrophone (int pieceIndex, const std::string& mic
             break;
         }
     }
-    if (! micExists)
-        addChannel (micName);
+    if (!micExists)
+        addChannel(micName);
 
-    auto& p = pieces[(size_t) pieceIndex];
-    for (auto& z : p.zones)
+    auto &p = pieces[(size_t) pieceIndex];
+    for (auto &z : p.zones)
     {
-        for (auto& h : z.hits)
+        for (auto &h : z.hits)
         {
-            for (auto& ms : h.micSamples)
+            for (auto &ms : h.micSamples)
             {
                 if (oldMicToReplace.empty() || ms.mic == oldMicToReplace)
                     ms.mic = micName;
@@ -1731,16 +1786,19 @@ bool GlorpKitProject::setPieceMicrophone (int pieceIndex, const std::string& mic
     return true;
 }
 
-bool GlorpKitProject::setZoneMicrophone (int pieceIndex, int zoneIndex, const std::string& micName, const std::string& oldMicToReplace)
+bool GlorpKitProject::setZoneMicrophone(int pieceIndex,
+                                        int zoneIndex,
+                                        const std::string &micName,
+                                        const std::string &oldMicToReplace)
 {
     if (pieceIndex < 0 || pieceIndex >= (int) pieces.size() || micName.empty())
         return false;
-    auto& p = pieces[(size_t) pieceIndex];
+    auto &p = pieces[(size_t) pieceIndex];
     if (zoneIndex < 0 || zoneIndex >= (int) p.zones.size())
         return false;
 
     bool micExists = false;
-    for (const auto& m : mics)
+    for (const auto &m : mics)
     {
         if (m.name == micName)
         {
@@ -1748,13 +1806,13 @@ bool GlorpKitProject::setZoneMicrophone (int pieceIndex, int zoneIndex, const st
             break;
         }
     }
-    if (! micExists)
-        addChannel (micName);
+    if (!micExists)
+        addChannel(micName);
 
-    auto& z = p.zones[(size_t) zoneIndex];
-    for (auto& h : z.hits)
+    auto &z = p.zones[(size_t) zoneIndex];
+    for (auto &h : z.hits)
     {
-        for (auto& ms : h.micSamples)
+        for (auto &ms : h.micSamples)
         {
             if (oldMicToReplace.empty() || ms.mic == oldMicToReplace)
                 ms.mic = micName;
@@ -1763,20 +1821,20 @@ bool GlorpKitProject::setZoneMicrophone (int pieceIndex, int zoneIndex, const st
     return true;
 }
 
-std::string GlorpKitProject::getPieceDominantMicrophone (int pieceIndex) const
+std::string GlorpKitProject::getPieceDominantMicrophone(int pieceIndex) const
 {
     if (pieceIndex < 0 || pieceIndex >= (int) pieces.size())
         return mics.empty() ? "close" : mics.front().name;
 
     std::map<std::string, int> counts;
-    const auto& p = pieces[(size_t) pieceIndex];
-    for (const auto& z : p.zones)
+    const auto &p = pieces[(size_t) pieceIndex];
+    for (const auto &z : p.zones)
     {
-        for (const auto& h : z.hits)
+        for (const auto &h : z.hits)
         {
-            for (const auto& ms : h.micSamples)
+            for (const auto &ms : h.micSamples)
             {
-                if (! ms.mic.empty())
+                if (!ms.mic.empty())
                     counts[ms.mic]++;
             }
         }
@@ -1784,7 +1842,7 @@ std::string GlorpKitProject::getPieceDominantMicrophone (int pieceIndex) const
 
     std::string bestMic;
     int maxCount = -1;
-    for (const auto& pair : counts)
+    for (const auto &pair : counts)
     {
         if (pair.second > maxCount)
         {
@@ -1799,29 +1857,29 @@ std::string GlorpKitProject::getPieceDominantMicrophone (int pieceIndex) const
     return bestMic;
 }
 
-std::string GlorpKitProject::getZoneDominantMicrophone (int pieceIndex, int zoneIndex) const
+std::string GlorpKitProject::getZoneDominantMicrophone(int pieceIndex, int zoneIndex) const
 {
     if (pieceIndex < 0 || pieceIndex >= (int) pieces.size())
         return mics.empty() ? "close" : mics.front().name;
 
-    const auto& p = pieces[(size_t) pieceIndex];
+    const auto &p = pieces[(size_t) pieceIndex];
     if (zoneIndex < 0 || zoneIndex >= (int) p.zones.size())
         return mics.empty() ? "close" : mics.front().name;
 
     std::map<std::string, int> counts;
-    const auto& z = p.zones[(size_t) zoneIndex];
-    for (const auto& h : z.hits)
+    const auto &z = p.zones[(size_t) zoneIndex];
+    for (const auto &h : z.hits)
     {
-        for (const auto& ms : h.micSamples)
+        for (const auto &ms : h.micSamples)
         {
-            if (! ms.mic.empty())
+            if (!ms.mic.empty())
                 counts[ms.mic]++;
         }
     }
 
     std::string bestMic;
     int maxCount = -1;
-    for (const auto& pair : counts)
+    for (const auto &pair : counts)
     {
         if (pair.second > maxCount)
         {

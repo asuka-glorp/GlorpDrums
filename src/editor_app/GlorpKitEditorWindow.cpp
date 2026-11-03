@@ -18,91 +18,118 @@ namespace
 
 namespace Fonts
 {
-    inline juce::Font title (float h) { return displayFont (h); }
-    inline juce::Font body  (float h) { return uiFont (h); }
+inline juce::Font title(float h)
+{
+    return displayFont(h);
 }
+inline juce::Font body(float h)
+{
+    return uiFont(h);
+}
+} // namespace Fonts
 
 namespace Sketch
 {
-    inline void paperGrain (juce::Graphics& g, juce::Rectangle<float> area, juce::Colour ink)
-    {
-        g.setColour (ink.withAlpha (0.018f));
-        for (float y = area.getY() + 6.0f; y < area.getBottom(); y += 18.0f)
-            g.drawHorizontalLine ((int) y, area.getX(), area.getRight());
-    }
-
-    inline void box (juce::Graphics& g, juce::Rectangle<float> r,
-                     juce::Colour fillCol, juce::Colour strokeCol,
-                     float corner = 5.0f, float strokeW = 1.8f, int passes = 1, int seed = 1)
-    {
-        g.setColour (fillCol);
-        g.fillRoundedRectangle (r, corner);
-        drawSketchRect (g, r, strokeCol, strokeW, (unsigned) seed);
-        if (passes > 1)
-            drawSketchRect (g, r.reduced (0.8f), strokeCol.withAlpha (0.45f), strokeW * 0.65f, (unsigned) (seed + 77));
-    }
-
-    inline void button (juce::Graphics& g, juce::Rectangle<float> r, const juce::String& text,
-                        juce::Colour bg, juce::Colour inkCol, bool active, int seed, const juce::Font& f)
-    {
-        g.setColour (inkCol.withAlpha (active ? 0.12f : 0.22f));
-        g.fillRoundedRectangle (r.translated (1.5f, 2.0f), 5.0f);
-
-        box (g, r, bg, inkCol, 5.0f, active ? 2.2f : 1.7f, 1, seed);
-        g.setColour (inkCol);
-        g.setFont (f);
-        g.drawText (text, r.reduced (4.0f, 1.0f), juce::Justification::centred, true);
-    }
+inline void paperGrain(juce::Graphics &g, juce::Rectangle<float> area, juce::Colour ink)
+{
+    g.setColour(ink.withAlpha(0.018f));
+    for (float y = area.getY() + 6.0f; y < area.getBottom(); y += 18.0f)
+        g.drawHorizontalLine((int) y, area.getX(), area.getRight());
 }
 
-juce::Colour parseHexColourSafe (const std::string& hex, juce::Colour fallback = juce::Colour (0xffff8200))
+inline void box(juce::Graphics &g,
+                juce::Rectangle<float> r,
+                juce::Colour fillCol,
+                juce::Colour strokeCol,
+                float corner = 5.0f,
+                float strokeW = 1.8f,
+                int passes = 1,
+                int seed = 1)
+{
+    g.setColour(fillCol);
+    g.fillRoundedRectangle(r, corner);
+    drawSketchRect(g, r, strokeCol, strokeW, (unsigned) seed);
+    if (passes > 1)
+        drawSketchRect(g, r.reduced(0.8f), strokeCol.withAlpha(0.45f), strokeW * 0.65f, (unsigned) (seed + 77));
+}
+
+inline void button(juce::Graphics &g,
+                   juce::Rectangle<float> r,
+                   const juce::String &text,
+                   juce::Colour bg,
+                   juce::Colour inkCol,
+                   bool active,
+                   int seed,
+                   const juce::Font &f)
+{
+    g.setColour(inkCol.withAlpha(active ? 0.12f : 0.22f));
+    g.fillRoundedRectangle(r.translated(1.5f, 2.0f), 5.0f);
+
+    box(g, r, bg, inkCol, 5.0f, active ? 2.2f : 1.7f, 1, seed);
+    g.setColour(inkCol);
+    g.setFont(f);
+    g.drawText(text, r.reduced(4.0f, 1.0f), juce::Justification::centred, true);
+}
+} // namespace Sketch
+
+juce::Colour parseHexColourSafe(const std::string &hex, juce::Colour fallback = juce::Colour(0xffff8200))
 {
     if (hex.empty())
         return fallback;
-    juce::String s = juce::String::fromUTF8 (hex.c_str()).trim();
-    if (s.startsWithChar ('#'))
-        s = s.substring (1);
+    juce::String s = juce::String::fromUTF8(hex.c_str()).trim();
+    if (s.startsWithChar('#'))
+        s = s.substring(1);
     if (s.length() == 6)
-        return juce::Colour ((juce::uint32) (0xff000000u | (juce::uint32) s.getHexValue32()));
+        return juce::Colour((juce::uint32) (0xff000000u | (juce::uint32) s.getHexValue32()));
     if (s.length() == 8)
-        return juce::Colour ((juce::uint32) s.getHexValue32());
+        return juce::Colour((juce::uint32) s.getHexValue32());
     return fallback;
 }
 
-std::string toHexColourString (juce::Colour c)
+std::string toHexColourString(juce::Colour c)
 {
     char buf[16];
-    std::snprintf (buf, sizeof (buf), "#%02x%02x%02x",
-                   (unsigned) c.getRed(), (unsigned) c.getGreen(), (unsigned) c.getBlue());
+    std::snprintf(
+        buf, sizeof(buf), "#%02x%02x%02x", (unsigned) c.getRed(), (unsigned) c.getGreen(), (unsigned) c.getBlue());
     return buf;
 }
 
-std::string normalizeSpriteKey (const std::string& g)
+std::string normalizeSpriteKey(const std::string &g)
 {
-    juce::String s = juce::String::fromUTF8 (g.c_str()).toLowerCase().trim();
-    if (s.endsWith (".png"))
-        s = s.dropLastCharacters (4);
-    if (s.contains ("kick"))  return "kick";
-    if (s.contains ("snare")) return "snare";
-    if (s.contains ("hihat") || s.contains ("hat")) return "hihat";
-    if (s.contains ("tom_1") || s.contains ("tom1")) return "tom_1";
-    if (s.contains ("tom_2") || s.contains ("tom2")) return "tom_2";
-    if (s.contains ("f_tom") || s.contains ("floor") || s.contains ("ftom")) return "f_tom";
-    if (s.contains ("crash_1") || s.contains ("crash1")) return "crash_1";
-    if (s.contains ("crash_2") || s.contains ("crash2")) return "crash_2";
-    if (s.contains ("ride")) return "ride";
+    juce::String s = juce::String::fromUTF8(g.c_str()).toLowerCase().trim();
+    if (s.endsWith(".png"))
+        s = s.dropLastCharacters(4);
+    if (s.contains("kick"))
+        return "kick";
+    if (s.contains("snare"))
+        return "snare";
+    if (s.contains("hihat") || s.contains("hat"))
+        return "hihat";
+    if (s.contains("tom_1") || s.contains("tom1"))
+        return "tom_1";
+    if (s.contains("tom_2") || s.contains("tom2"))
+        return "tom_2";
+    if (s.contains("f_tom") || s.contains("floor") || s.contains("ftom"))
+        return "f_tom";
+    if (s.contains("crash_1") || s.contains("crash1"))
+        return "crash_1";
+    if (s.contains("crash_2") || s.contains("crash2"))
+        return "crash_2";
+    if (s.contains("ride"))
+        return "ride";
     return s.toStdString();
 }
 
-juce::Image makeGlowSprite (const juce::Image& src, juce::Colour glowCol)
+juce::Image makeGlowSprite(const juce::Image &src, juce::Colour glowCol)
 {
-    if (! src.isValid()) return {};
+    if (!src.isValid())
+        return {};
     const int w = src.getWidth();
     const int h = src.getHeight();
-    juce::Image mask (juce::Image::ARGB, w, h, true);
+    juce::Image mask(juce::Image::ARGB, w, h, true);
     {
-        juce::Image::BitmapData sData (src, juce::Image::BitmapData::readOnly);
-        juce::Image::BitmapData mData (mask, juce::Image::BitmapData::writeOnly);
+        juce::Image::BitmapData sData(src, juce::Image::BitmapData::readOnly);
+        juce::Image::BitmapData mData(mask, juce::Image::BitmapData::writeOnly);
         const juce::uint8 r = glowCol.getRed();
         const juce::uint8 g = glowCol.getGreen();
         const juce::uint8 b = glowCol.getBlue();
@@ -110,64 +137,66 @@ juce::Image makeGlowSprite (const juce::Image& src, juce::Colour glowCol)
         {
             for (int x = 0; x < w; ++x)
             {
-                const auto a = sData.getPixelColour (x, y).getAlpha();
+                const auto a = sData.getPixelColour(x, y).getAlpha();
                 if (a > 12)
-                    mData.setPixelColour (x, y, juce::Colour::fromRGBA (r, g, b, a));
+                    mData.setPixelColour(x, y, juce::Colour::fromRGBA(r, g, b, a));
             }
         }
     }
-    juce::Image glow (juce::Image::ARGB, w, h, true);
-    juce::Graphics gg (glow);
-    const int offsets[8][2] = { {-8,0},{8,0},{0,-8},{0,8},{-6,-6},{6,-6},{-6,6},{6,6} };
-    gg.setOpacity (0.28f);
-    for (auto& o : offsets)
-        gg.drawImageAt (mask, o[0], o[1]);
-    gg.setOpacity (0.85f);
-    gg.drawImageAt (mask, 0, 0);
+    juce::Image glow(juce::Image::ARGB, w, h, true);
+    juce::Graphics gg(glow);
+    const int offsets[8][2] = {{-8, 0}, {8, 0}, {0, -8}, {0, 8}, {-6, -6}, {6, -6}, {-6, 6}, {6, 6}};
+    gg.setOpacity(0.28f);
+    for (auto &o : offsets)
+        gg.drawImageAt(mask, o[0], o[1]);
+    gg.setOpacity(0.85f);
+    gg.drawImageAt(mask, 0, 0);
     return glow;
 }
 
-const char* midiNoteName (int note)
+const char *midiNoteName(int note)
 {
-    static const char* names[12] = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
+    static const char *names[12] = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};
     static thread_local char buf[16];
-    if (note < 0 || note > 127) return "---";
+    if (note < 0 || note > 127)
+        return "---";
     const int octave = (note / 12) - 1;
-    std::snprintf (buf, sizeof (buf), "%s%d (%d)", names[note % 12], octave, note);
+    std::snprintf(buf, sizeof(buf), "%s%d (%d)", names[note % 12], octave, note);
     return buf;
 }
 
 } // namespace
 
 //==============================================================================
-GlorpKitEditorComponent::GlorpKitEditorComponent (bool enableAudioDevice)
+GlorpKitEditorComponent::GlorpKitEditorComponent(bool enableAudioDevice)
 {
-    setSize (1280, 820);
-    setWantsKeyboardFocus (true);
+    setSize(1280, 820);
+    setWantsKeyboardFocus(true);
 
-    sampler.setSampleRateAndBlock (48000.0, 512);
-    sampler.setMultiOutMode (false);
+    sampler.setSampleRateAndBlock(48000.0, 512);
+    sampler.setMultiOutMode(false);
 
     loadBuiltinSprites();
     project.createNewBlankKit();
-    hitGlowColour = parseHexColourSafe (project.hitGlowColor);
+    hitGlowColour = parseHexColourSafe(project.hitGlowColor);
 
-    auto setupEditor = [this] (juce::TextEditor& ed)
+    auto setupEditor = [this](juce::TextEditor &ed)
     {
-        ed.setFont (Fonts::body (14.5f));
-        ed.setColour (juce::TextEditor::backgroundColourId, juce::Colours::transparentBlack);
-        ed.setColour (juce::TextEditor::outlineColourId, juce::Colours::transparentBlack);
-        ed.setColour (juce::TextEditor::focusedOutlineColourId, theme.accent);
-        ed.setJustification (juce::Justification::centredLeft);
-        addAndMakeVisible (ed);
+        ed.setFont(Fonts::body(14.5f));
+        ed.setColour(juce::TextEditor::backgroundColourId, juce::Colours::transparentBlack);
+        ed.setColour(juce::TextEditor::outlineColourId, juce::Colours::transparentBlack);
+        ed.setColour(juce::TextEditor::focusedOutlineColourId, theme.accent);
+        ed.setJustification(juce::Justification::centredLeft);
+        addAndMakeVisible(ed);
     };
-    setupEditor (pieceNameEditor);
-    setupEditor (pieceIdEditor);
-    setupEditor (zoneNameEditor);
+    setupEditor(pieceNameEditor);
+    setupEditor(pieceIdEditor);
+    setupEditor(zoneNameEditor);
 
     pieceNameEditor.onTextChange = [this]()
     {
-        if (suppressEditorCallbacks) return;
+        if (suppressEditorCallbacks)
+            return;
         if (selectedPieceIdx >= 0 && selectedPieceIdx < (int) project.pieces.size())
         {
             project.pieces[(size_t) selectedPieceIdx].name = pieceNameEditor.getText().toStdString();
@@ -176,7 +205,8 @@ GlorpKitEditorComponent::GlorpKitEditorComponent (bool enableAudioDevice)
     };
     pieceIdEditor.onTextChange = [this]()
     {
-        if (suppressEditorCallbacks) return;
+        if (suppressEditorCallbacks)
+            return;
         if (selectedPieceIdx >= 0 && selectedPieceIdx < (int) project.pieces.size())
         {
             project.pieces[(size_t) selectedPieceIdx].id = pieceIdEditor.getText().toStdString();
@@ -185,10 +215,11 @@ GlorpKitEditorComponent::GlorpKitEditorComponent (bool enableAudioDevice)
     };
     zoneNameEditor.onTextChange = [this]()
     {
-        if (suppressEditorCallbacks) return;
+        if (suppressEditorCallbacks)
+            return;
         if (selectedPieceIdx >= 0 && selectedPieceIdx < (int) project.pieces.size())
         {
-            auto& p = project.pieces[(size_t) selectedPieceIdx];
+            auto &p = project.pieces[(size_t) selectedPieceIdx];
             if (selectedZoneIdx >= 0 && selectedZoneIdx < (int) p.zones.size())
             {
                 p.zones[(size_t) selectedZoneIdx].name = zoneNameEditor.getText().toStdString();
@@ -199,34 +230,34 @@ GlorpKitEditorComponent::GlorpKitEditorComponent (bool enableAudioDevice)
     };
 
     reloadProjectIntoEngine();
-    selectPiece (project.pieces.empty() ? -1 : 0, false);
+    selectPiece(project.pieces.empty() ? -1 : 0, false);
 
     if (enableAudioDevice)
     {
-        auto err = deviceManager.initialiseWithDefaultDevices (0, 2);
-        if (! err.isEmpty())
-            deviceManager.initialise (0, 2, nullptr, true);
-        deviceManager.addAudioCallback (this);
-        if (auto* dev = deviceManager.getCurrentAudioDevice())
-            sampler.setSampleRateAndBlock (dev->getCurrentSampleRate(), dev->getCurrentBufferSizeSamples());
+        auto err = deviceManager.initialiseWithDefaultDevices(0, 2);
+        if (!err.isEmpty())
+            deviceManager.initialise(0, 2, nullptr, true);
+        deviceManager.addAudioCallback(this);
+        if (auto *dev = deviceManager.getCurrentAudioDevice())
+            sampler.setSampleRateAndBlock(dev->getCurrentSampleRate(), dev->getCurrentBufferSizeSamples());
         else
-            sampler.setSampleRateAndBlock (44100.0, 512);
+            sampler.setSampleRateAndBlock(44100.0, 512);
 
         auto midiInputs = juce::MidiInput::getAvailableDevices();
-        for (const auto& m : midiInputs)
+        for (const auto &m : midiInputs)
         {
-            deviceManager.setMidiInputDeviceEnabled (m.identifier, true);
-            deviceManager.addMidiInputDeviceCallback (m.identifier, this);
+            deviceManager.setMidiInputDeviceEnabled(m.identifier, true);
+            deviceManager.addMidiInputDeviceCallback(m.identifier, this);
         }
         audioDeviceActive = true;
     }
     else
     {
-        sampler.setSampleRateAndBlock (44100.0, 512);
+        sampler.setSampleRateAndBlock(44100.0, 512);
     }
 
     loadFirstTimeTutorialPreference();
-    startTimerHz (30);
+    startTimerHz(30);
 }
 
 GlorpKitEditorComponent::~GlorpKitEditorComponent()
@@ -234,174 +265,180 @@ GlorpKitEditorComponent::~GlorpKitEditorComponent()
     stopTimer();
     if (audioDeviceActive)
     {
-        deviceManager.removeAudioCallback (this);
+        deviceManager.removeAudioCallback(this);
         auto midiInputs = juce::MidiInput::getAvailableDevices();
-        for (const auto& m : midiInputs)
-            deviceManager.removeMidiInputDeviceCallback (m.identifier, this);
+        for (const auto &m : midiInputs)
+            deviceManager.removeMidiInputDeviceCallback(m.identifier, this);
     }
 }
 
 void GlorpKitEditorComponent::loadBuiltinSprites()
 {
-    struct Entry { const char* key; const char* data; int size; };
-    const Entry entries[] = {
-        { "kick",    GlorpAssets::kick_png,    GlorpAssets::kick_pngSize },
-        { "snare",   GlorpAssets::snare_png,   GlorpAssets::snare_pngSize },
-        { "hihat",   GlorpAssets::hihat_png,   GlorpAssets::hihat_pngSize },
-        { "tom_1",   GlorpAssets::tom_1_png,   GlorpAssets::tom_1_pngSize },
-        { "tom_2",   GlorpAssets::tom_2_png,   GlorpAssets::tom_2_pngSize },
-        { "f_tom",   GlorpAssets::f_tom_png,   GlorpAssets::f_tom_pngSize },
-        { "crash_1", GlorpAssets::crash_1_png, GlorpAssets::crash_1_pngSize },
-        { "crash_2", GlorpAssets::crash_2_png, GlorpAssets::crash_2_pngSize },
-        { "ride",    GlorpAssets::ride_png,    GlorpAssets::ride_pngSize },
-    };
-    for (const auto& e : entries)
+    struct Entry
     {
-        auto img = juce::ImageFileFormat::loadFrom (e.data, (size_t) e.size);
+        const char *key;
+        const char *data;
+        int size;
+    };
+    const Entry entries[] = {
+        {"kick", GlorpAssets::kick_png, GlorpAssets::kick_pngSize},
+        {"snare", GlorpAssets::snare_png, GlorpAssets::snare_pngSize},
+        {"hihat", GlorpAssets::hihat_png, GlorpAssets::hihat_pngSize},
+        {"tom_1", GlorpAssets::tom_1_png, GlorpAssets::tom_1_pngSize},
+        {"tom_2", GlorpAssets::tom_2_png, GlorpAssets::tom_2_pngSize},
+        {"f_tom", GlorpAssets::f_tom_png, GlorpAssets::f_tom_pngSize},
+        {"crash_1", GlorpAssets::crash_1_png, GlorpAssets::crash_1_pngSize},
+        {"crash_2", GlorpAssets::crash_2_png, GlorpAssets::crash_2_pngSize},
+        {"ride", GlorpAssets::ride_png, GlorpAssets::ride_pngSize},
+    };
+    for (const auto &e : entries)
+    {
+        auto img = juce::ImageFileFormat::loadFrom(e.data, (size_t) e.size);
         builtinImages[e.key] = img;
-        builtinImages[std::string (e.key) + ".png"] = img;
+        builtinImages[std::string(e.key) + ".png"] = img;
     }
 }
 
 void GlorpKitEditorComponent::rebuildPieceSprites()
 {
-    const auto& pieces = project.pieces;
-    pieceSprites.resize (pieces.size());
-    hitGlowColour = parseHexColourSafe (project.hitGlowColor, hitGlowColour);
+    const auto &pieces = project.pieces;
+    pieceSprites.resize(pieces.size());
+    hitGlowColour = parseHexColourSafe(project.hitGlowColor, hitGlowColour);
 
     for (size_t i = 0; i < pieces.size(); ++i)
     {
-        const auto& p = pieces[i];
+        const auto &p = pieces[i];
         juce::Image img;
-        if (! p.customPngBytes.empty())
-            img = juce::ImageFileFormat::loadFrom (p.customPngBytes.data(), p.customPngBytes.size());
+        if (!p.customPngBytes.empty())
+            img = juce::ImageFileFormat::loadFrom(p.customPngBytes.data(), p.customPngBytes.size());
 
-        if (! img.isValid())
+        if (!img.isValid())
         {
-            const std::string key = normalizeSpriteKey (p.graphicId.empty() ? p.name : p.graphicId);
-            auto it = builtinImages.find (key);
+            const std::string key = normalizeSpriteKey(p.graphicId.empty() ? p.name : p.graphicId);
+            auto it = builtinImages.find(key);
             if (it != builtinImages.end())
                 img = it->second;
-            else if (! builtinImages.empty())
+            else if (!builtinImages.empty())
                 img = builtinImages["snare"];
         }
 
-        pieceSprites[i].rawImage  = img;
-        pieceSprites[i].glowImage = makeGlowSprite (img, hitGlowColour);
+        pieceSprites[i].rawImage = img;
+        pieceSprites[i].glowImage = makeGlowSprite(img, hitGlowColour);
     }
     computeCanvasPieceBounds();
 }
 
 void GlorpKitEditorComponent::computeCanvasPieceBounds()
 {
-    if (canvasViewportBounds.isEmpty()) return;
-    const auto& pieces = project.pieces;
+    if (canvasViewportBounds.isEmpty())
+        return;
+    const auto &pieces = project.pieces;
     if (pieceSprites.size() != pieces.size())
-        pieceSprites.resize (pieces.size());
+        pieceSprites.resize(pieces.size());
 
     const float W = canvasViewportBounds.getWidth();
     const float H = canvasViewportBounds.getHeight();
-    const float scale = std::min (W / 880.0f, H / 620.0f);
+    const float scale = std::min(W / 880.0f, H / 620.0f);
     const float cx = canvasViewportBounds.getX() + W * 0.50f;
     const float gy = canvasViewportBounds.getY() + H * 0.94f;
 
     for (size_t i = 0; i < pieces.size(); ++i)
     {
-        const auto& p = pieces[i];
-        auto& sp = pieceSprites[i];
+        const auto &p = pieces[i];
+        auto &sp = pieceSprites[i];
         float aspect = 1.0f;
         if (sp.rawImage.isValid() && sp.rawImage.getWidth() > 0)
             aspect = (float) sp.rawImage.getHeight() / (float) sp.rawImage.getWidth();
 
-        const float drawW = std::max (36.0f, p.normW * scale);
+        const float drawW = std::max(36.0f, p.normW * scale);
         const float drawH = drawW * aspect;
         const float x = cx + p.normX * scale;
         const float y = gy + p.normY * scale;
-        sp.canvasBounds = { x, y, drawW, drawH };
+        sp.canvasBounds = {x, y, drawW, drawH};
     }
 }
 
 void GlorpKitEditorComponent::reloadProjectIntoEngine()
 {
-    hitGlowColour = parseHexColourSafe (project.hitGlowColor, hitGlowColour);
+    hitGlowColour = parseHexColourSafe(project.hitGlowColor, hitGlowColour);
     rebuildPieceSprites();
     auto runtimeKit = project.buildRuntimeDrumKit();
     juce::String loadErr;
-    sampler.loadKit (std::move (runtimeKit), loadErr);
+    sampler.loadKit(std::move(runtimeKit), loadErr);
     rebuildSelectedHitWaveform();
     repaint();
 }
 
-bool GlorpKitEditorComponent::openKitFile (const juce::File& file)
+bool GlorpKitEditorComponent::openKitFile(const juce::File &file)
 {
     std::string err;
     bool ok = false;
-    if (file.hasFileExtension (".glorpkit"))
-        ok = project.openGlorpKitArchive (file.getFullPathName().toStdString(), err);
-    else if (file.hasFileExtension (".xml"))
-        ok = project.importDrumGizmoXml (file.getFullPathName().toStdString(), err);
+    if (file.hasFileExtension(".glorpkit"))
+        ok = project.openGlorpKitArchive(file.getFullPathName().toStdString(), err);
+    else if (file.hasFileExtension(".xml"))
+        ok = project.importDrumGizmoXml(file.getFullPathName().toStdString(), err);
 
-    if (! ok)
+    if (!ok)
     {
-        showStatusToast ("Failed to open kit: " + juce::String (err));
+        showStatusToast("Failed to open kit: " + juce::String(err));
         return false;
     }
 
     selectedPieceIdx = project.pieces.empty() ? -1 : 0;
-    selectedZoneIdx  = 0;
-    selectedHitIdx   = 0;
+    selectedZoneIdx = 0;
+    selectedHitIdx = 0;
     reloadProjectIntoEngine();
-    selectPiece (selectedPieceIdx, false);
-    showStatusToast ("Loaded kit: " + juce::String (project.title) + " (" + file.getFileName() + ")");
+    selectPiece(selectedPieceIdx, false);
+    showStatusToast("Loaded kit: " + juce::String(project.title) + " (" + file.getFileName() + ")");
     return true;
 }
 
-bool GlorpKitEditorComponent::saveGlorpKitFile (const juce::File& targetFile)
+bool GlorpKitEditorComponent::saveGlorpKitFile(const juce::File &targetFile)
 {
     if (project.title == "Untitled Kit" || project.title.empty())
-        project.title = targetFile.getFileNameWithoutExtension().replaceCharacter ('_', ' ').toStdString();
+        project.title = targetFile.getFileNameWithoutExtension().replaceCharacter('_', ' ').toStdString();
 
     std::string err;
-    if (! project.exportToGlorpKit (targetFile.getFullPathName().toStdString(), err))
+    if (!project.exportToGlorpKit(targetFile.getFullPathName().toStdString(), err))
     {
-        showStatusToast ("Export failed: " + juce::String (err));
+        showStatusToast("Export failed: " + juce::String(err));
         return false;
     }
-    showStatusToast ("Saved v2.0 .glorpkit archive: " + targetFile.getFileName());
+    showStatusToast("Saved v2.0 .glorpkit archive: " + targetFile.getFileName());
     return true;
 }
 
-void GlorpKitEditorComponent::setDarkTheme (bool dark)
+void GlorpKitEditorComponent::setDarkTheme(bool dark)
 {
     theme = dark ? Theme::dark() : Theme::sketch();
-    for (auto* ed : { &pieceNameEditor, &pieceIdEditor, &zoneNameEditor })
+    for (auto *ed : {&pieceNameEditor, &pieceIdEditor, &zoneNameEditor})
     {
-        ed->setColour (juce::TextEditor::textColourId, theme.ink);
-        ed->setColour (juce::TextEditor::backgroundColourId, theme.panel);
-        ed->setColour (juce::TextEditor::outlineColourId, theme.inkSoft.withAlpha (0.4f));
-        ed->setColour (juce::TextEditor::focusedOutlineColourId, theme.accent);
+        ed->setColour(juce::TextEditor::textColourId, theme.ink);
+        ed->setColour(juce::TextEditor::backgroundColourId, theme.panel);
+        ed->setColour(juce::TextEditor::outlineColourId, theme.inkSoft.withAlpha(0.4f));
+        ed->setColour(juce::TextEditor::focusedOutlineColourId, theme.accent);
     }
-    pieceIdEditor.setColour (juce::TextEditor::textColourId, theme.inkSoft);
+    pieceIdEditor.setColour(juce::TextEditor::textColourId, theme.inkSoft);
     repaint();
 }
 
-void GlorpKitEditorComponent::setHitGlowColourHex (const std::string& hexColor)
+void GlorpKitEditorComponent::setHitGlowColourHex(const std::string &hexColor)
 {
     project.hitGlowColor = hexColor;
-    hitGlowColour = parseHexColourSafe (hexColor, hitGlowColour);
+    hitGlowColour = parseHexColourSafe(hexColor, hitGlowColour);
     rebuildPieceSprites();
     if (selectedPieceIdx >= 0 && selectedPieceIdx < (int) pieceSprites.size())
         pieceSprites[(size_t) selectedPieceIdx].flash = 1.0f;
-    showStatusToast ("Updated Kit Hit Glow Color to " + juce::String (hexColor).toUpperCase());
+    showStatusToast("Updated Kit Hit Glow Color to " + juce::String(hexColor).toUpperCase());
     repaint();
 }
 
-void GlorpKitEditorComponent::setTutorialVisible (bool visible, int step)
+void GlorpKitEditorComponent::setTutorialVisible(bool visible, int step)
 {
     tutorialActive = visible;
-    tutorialStep   = juce::jlimit (0, 4, step);
-    if (! visible)
-        saveFirstTimeTutorialPreference (true);
+    tutorialStep = juce::jlimit(0, 4, step);
+    if (!visible)
+        saveFirstTimeTutorialPreference(true);
     repaint();
 }
 
@@ -414,8 +451,8 @@ void GlorpKitEditorComponent::nextTutorialStep()
     }
     else
     {
-        setTutorialVisible (false, 0);
-        showStatusToast ("Tour completed! Click '? Tour' in the top header anytime to view it again.");
+        setTutorialVisible(false, 0);
+        showStatusToast("Tour completed! Click '? Tour' in the top header anytime to view it again.");
     }
 }
 
@@ -430,14 +467,13 @@ void GlorpKitEditorComponent::prevTutorialStep()
 
 void GlorpKitEditorComponent::loadFirstTimeTutorialPreference()
 {
-    auto dir = juce::File::getSpecialLocation (juce::File::userApplicationDataDirectory)
-                   .getChildFile ("GlorpDrums");
-    auto settingsFile = dir.getChildFile ("kit_editor_settings.xml");
+    auto dir = juce::File::getSpecialLocation(juce::File::userApplicationDataDirectory).getChildFile("GlorpDrums");
+    auto settingsFile = dir.getChildFile("kit_editor_settings.xml");
     if (settingsFile.existsAsFile())
     {
-        if (auto xml = juce::XmlDocument::parse (settingsFile))
+        if (auto xml = juce::XmlDocument::parse(settingsFile))
         {
-            if (xml->getBoolAttribute ("tutorialCompleted", false))
+            if (xml->getBoolAttribute("tutorialCompleted", false))
             {
                 tutorialActive = false;
                 return;
@@ -445,95 +481,100 @@ void GlorpKitEditorComponent::loadFirstTimeTutorialPreference()
         }
     }
     tutorialActive = true;
-    tutorialStep   = 0;
+    tutorialStep = 0;
 }
 
-void GlorpKitEditorComponent::saveFirstTimeTutorialPreference (bool completed)
+void GlorpKitEditorComponent::saveFirstTimeTutorialPreference(bool completed)
 {
-    auto dir = juce::File::getSpecialLocation (juce::File::userApplicationDataDirectory)
-                   .getChildFile ("GlorpDrums");
+    auto dir = juce::File::getSpecialLocation(juce::File::userApplicationDataDirectory).getChildFile("GlorpDrums");
     dir.createDirectory();
-    auto settingsFile = dir.getChildFile ("kit_editor_settings.xml");
-    juce::XmlElement root ("GlorpKitEditorSettings");
-    root.setAttribute ("tutorialCompleted", completed);
-    root.writeTo (settingsFile);
+    auto settingsFile = dir.getChildFile("kit_editor_settings.xml");
+    juce::XmlElement root("GlorpKitEditorSettings");
+    root.setAttribute("tutorialCompleted", completed);
+    root.writeTo(settingsFile);
 }
 
-void GlorpKitEditorComponent::selectPiece (int pieceIndex, bool audition)
+void GlorpKitEditorComponent::selectPiece(int pieceIndex, bool audition)
 {
-    const auto& pieces = project.pieces;
+    const auto &pieces = project.pieces;
     if (pieces.empty())
     {
         selectedPieceIdx = -1;
         return;
     }
-    selectedPieceIdx = juce::jlimit (0, (int) pieces.size() - 1, pieceIndex);
-    selectedZoneIdx  = 0;
-    selectedHitIdx   = 0;
+    selectedPieceIdx = juce::jlimit(0, (int) pieces.size() - 1, pieceIndex);
+    selectedZoneIdx = 0;
+    selectedHitIdx = 0;
 
     suppressEditorCallbacks = true;
-    const auto& p = pieces[(size_t) selectedPieceIdx];
-    pieceNameEditor.setText (p.name, juce::dontSendNotification);
-    pieceIdEditor.setText (p.id, juce::dontSendNotification);
-    if (! p.zones.empty())
-        zoneNameEditor.setText (p.zones.front().name, juce::dontSendNotification);
-    pieceNameEditor.setColour (juce::TextEditor::textColourId, theme.ink);
-    pieceIdEditor.setColour (juce::TextEditor::textColourId, theme.inkSoft);
-    zoneNameEditor.setColour (juce::TextEditor::textColourId, theme.ink);
+    const auto &p = pieces[(size_t) selectedPieceIdx];
+    pieceNameEditor.setText(p.name, juce::dontSendNotification);
+    pieceIdEditor.setText(p.id, juce::dontSendNotification);
+    if (!p.zones.empty())
+        zoneNameEditor.setText(p.zones.front().name, juce::dontSendNotification);
+    pieceNameEditor.setColour(juce::TextEditor::textColourId, theme.ink);
+    pieceIdEditor.setColour(juce::TextEditor::textColourId, theme.inkSoft);
+    zoneNameEditor.setColour(juce::TextEditor::textColourId, theme.ink);
     suppressEditorCallbacks = false;
 
     rebuildSelectedHitWaveform();
     if (audition)
-        triggerAuditionForPiece (selectedPieceIdx);
+        triggerAuditionForPiece(selectedPieceIdx);
     repaint();
 }
 
-void GlorpKitEditorComponent::selectZone (int zoneIndex, bool audition)
+void GlorpKitEditorComponent::selectZone(int zoneIndex, bool audition)
 {
-    const auto& pieces = project.pieces;
-    if (selectedPieceIdx < 0 || selectedPieceIdx >= (int) pieces.size()) return;
-    const auto& zones = pieces[(size_t) selectedPieceIdx].zones;
-    if (zones.empty()) return;
+    const auto &pieces = project.pieces;
+    if (selectedPieceIdx < 0 || selectedPieceIdx >= (int) pieces.size())
+        return;
+    const auto &zones = pieces[(size_t) selectedPieceIdx].zones;
+    if (zones.empty())
+        return;
 
-    selectedZoneIdx = juce::jlimit (0, (int) zones.size() - 1, zoneIndex);
-    selectedHitIdx  = 0;
+    selectedZoneIdx = juce::jlimit(0, (int) zones.size() - 1, zoneIndex);
+    selectedHitIdx = 0;
 
     if (maxZoneScrollX > 0.0f && zoneTabBarBounds.getWidth() > 10.0f)
     {
         float zx = 0.0f;
         for (int z = 0; z < selectedZoneIdx; ++z)
         {
-            juce::String label = juce::String (zones[(size_t) z].name) + " (N:" + juce::String (zones[(size_t) z].note) + ")";
-            zx += std::max (105.0f, (float) label.length() * 7.5f + 20.0f) + 6.0f;
+            juce::String label =
+                juce::String(zones[(size_t) z].name) + " (N:" + juce::String(zones[(size_t) z].note) + ")";
+            zx += std::max(105.0f, (float) label.length() * 7.5f + 20.0f) + 6.0f;
         }
-        juce::String curLabel = juce::String (zones[(size_t) selectedZoneIdx].name) + " (N:" + juce::String (zones[(size_t) selectedZoneIdx].note) + ")";
-        const float curTw = std::max (105.0f, (float) curLabel.length() * 7.5f + 20.0f);
+        juce::String curLabel = juce::String(zones[(size_t) selectedZoneIdx].name)
+                                + " (N:" + juce::String(zones[(size_t) selectedZoneIdx].note) + ")";
+        const float curTw = std::max(105.0f, (float) curLabel.length() * 7.5f + 20.0f);
 
         if (zx < zoneScrollX)
             zoneScrollX = zx;
         else if (zx + curTw > zoneScrollX + zoneTabBarBounds.getWidth())
             zoneScrollX = zx + curTw - zoneTabBarBounds.getWidth() + 8.0f;
-        zoneScrollX = juce::jlimit (0.0f, maxZoneScrollX, zoneScrollX);
+        zoneScrollX = juce::jlimit(0.0f, maxZoneScrollX, zoneScrollX);
     }
 
     suppressEditorCallbacks = true;
-    zoneNameEditor.setText (zones[(size_t) selectedZoneIdx].name, juce::dontSendNotification);
-    zoneNameEditor.setColour (juce::TextEditor::textColourId, theme.ink);
+    zoneNameEditor.setText(zones[(size_t) selectedZoneIdx].name, juce::dontSendNotification);
+    zoneNameEditor.setColour(juce::TextEditor::textColourId, theme.ink);
     suppressEditorCallbacks = false;
 
     rebuildSelectedHitWaveform();
     if (audition)
-        triggerAuditionForZone (selectedPieceIdx, selectedZoneIdx);
+        triggerAuditionForZone(selectedPieceIdx, selectedZoneIdx);
     repaint();
 }
 
-void GlorpKitEditorComponent::selectHit (int hitIndex, bool audition)
+void GlorpKitEditorComponent::selectHit(int hitIndex, bool audition)
 {
-    const auto& pieces = project.pieces;
-    if (selectedPieceIdx < 0 || selectedPieceIdx >= (int) pieces.size()) return;
-    const auto& zones = pieces[(size_t) selectedPieceIdx].zones;
-    if (selectedZoneIdx < 0 || selectedZoneIdx >= (int) zones.size()) return;
-    const auto& hits = zones[(size_t) selectedZoneIdx].hits;
+    const auto &pieces = project.pieces;
+    if (selectedPieceIdx < 0 || selectedPieceIdx >= (int) pieces.size())
+        return;
+    const auto &zones = pieces[(size_t) selectedPieceIdx].zones;
+    if (selectedZoneIdx < 0 || selectedZoneIdx >= (int) zones.size())
+        return;
+    const auto &hits = zones[(size_t) selectedZoneIdx].hits;
     if (hits.empty())
     {
         selectedHitIdx = -1;
@@ -541,51 +582,53 @@ void GlorpKitEditorComponent::selectHit (int hitIndex, bool audition)
         repaint();
         return;
     }
-    selectedHitIdx = juce::jlimit (0, (int) hits.size() - 1, hitIndex);
+    selectedHitIdx = juce::jlimit(0, (int) hits.size() - 1, hitIndex);
     rebuildSelectedHitWaveform();
     if (audition)
-        triggerAuditionForZone (selectedPieceIdx, selectedZoneIdx);
+        triggerAuditionForZone(selectedPieceIdx, selectedZoneIdx);
     repaint();
 }
 
 void GlorpKitEditorComponent::rebuildSelectedHitWaveform()
 {
-    selectedHitWaveform.assign (64, 0.0f);
-    const auto& pieces = project.pieces;
-    if (selectedPieceIdx < 0 || selectedPieceIdx >= (int) pieces.size()) return;
-    const auto& zones = pieces[(size_t) selectedPieceIdx].zones;
-    if (selectedZoneIdx < 0 || selectedZoneIdx >= (int) zones.size()) return;
-    const auto& hits = zones[(size_t) selectedZoneIdx].hits;
+    selectedHitWaveform.assign(64, 0.0f);
+    const auto &pieces = project.pieces;
+    if (selectedPieceIdx < 0 || selectedPieceIdx >= (int) pieces.size())
+        return;
+    const auto &zones = pieces[(size_t) selectedPieceIdx].zones;
+    if (selectedZoneIdx < 0 || selectedZoneIdx >= (int) zones.size())
+        return;
+    const auto &hits = zones[(size_t) selectedZoneIdx].hits;
 
     float power = 0.65f;
     std::string pathToRead;
     if (selectedHitIdx >= 0 && selectedHitIdx < (int) hits.size())
     {
-        const auto& h = hits[(size_t) selectedHitIdx];
-        power = juce::jlimit (0.15f, 1.0f, h.power);
-        if (! h.micSamples.empty())
+        const auto &h = hits[(size_t) selectedHitIdx];
+        power = juce::jlimit(0.15f, 1.0f, h.power);
+        if (!h.micSamples.empty())
             pathToRead = h.micSamples.front().sourceDiskPath;
     }
 
-    if (! pathToRead.empty() && juce::File (pathToRead).existsAsFile())
+    if (!pathToRead.empty() && juce::File(pathToRead).existsAsFile())
     {
         juce::AudioFormatManager fm;
         fm.registerBasicFormats();
-        if (std::unique_ptr<juce::AudioFormatReader> r { fm.createReaderFor (juce::File (pathToRead)) })
+        if (std::unique_ptr<juce::AudioFormatReader> r {fm.createReaderFor(juce::File(pathToRead))})
         {
-            const int total = (int) std::min<juce::int64> (r->lengthInSamples, 48000);
+            const int total = (int) std::min<juce::int64>(r->lengthInSamples, 48000);
             if (total > 64)
             {
-                juce::AudioBuffer<float> buf (1, total);
-                r->read (&buf, 0, total, 0, true, false);
-                const float* d = buf.getReadPointer (0);
-                const int step = std::max (1, total / 64);
+                juce::AudioBuffer<float> buf(1, total);
+                r->read(&buf, 0, total, 0, true, false);
+                const float *d = buf.getReadPointer(0);
+                const int step = std::max(1, total / 64);
                 for (int i = 0; i < 64; ++i)
                 {
                     float pk = 0.0f;
                     for (int j = 0; j < step && (i * step + j) < total; ++j)
-                        pk = std::max (pk, std::abs (d[i * step + j]));
-                    selectedHitWaveform[(size_t) i] = juce::jlimit (0.04f, 1.0f, pk);
+                        pk = std::max(pk, std::abs(d[i * step + j]));
+                    selectedHitWaveform[(size_t) i] = juce::jlimit(0.04f, 1.0f, pk);
                 }
                 return;
             }
@@ -595,91 +638,94 @@ void GlorpKitEditorComponent::rebuildSelectedHitWaveform()
     for (int i = 0; i < 64; ++i)
     {
         const float t = (float) i / 63.0f;
-        const float env = std::exp (-t * 4.8f) * power;
-        const float mod = 0.55f + 0.45f * std::abs (std::sin ((float) (i * 1.9 + selectedHitIdx * 0.7)));
-        selectedHitWaveform[(size_t) i] = juce::jlimit (0.04f, 1.0f, env * mod);
+        const float env = std::exp(-t * 4.8f) * power;
+        const float mod = 0.55f + 0.45f * std::abs(std::sin((float) (i * 1.9 + selectedHitIdx * 0.7)));
+        selectedHitWaveform[(size_t) i] = juce::jlimit(0.04f, 1.0f, env * mod);
     }
 }
 
-void GlorpKitEditorComponent::triggerAuditionForPiece (int pieceIdx)
+void GlorpKitEditorComponent::triggerAuditionForPiece(int pieceIdx)
 {
-    if (pieceIdx < 0 || pieceIdx >= (int) project.pieces.size()) return;
+    if (pieceIdx < 0 || pieceIdx >= (int) project.pieces.size())
+        return;
     if (pieceIdx < (int) pieceSprites.size())
         pieceSprites[(size_t) pieceIdx].flash = 1.0f;
-    triggerAuditionForZone (pieceIdx, 0);
+    triggerAuditionForZone(pieceIdx, 0);
 }
 
-void GlorpKitEditorComponent::triggerAuditionForZone (int pieceIdx, int zoneIdx)
+void GlorpKitEditorComponent::triggerAuditionForZone(int pieceIdx, int zoneIdx)
 {
-    if (pieceIdx < 0 || pieceIdx >= (int) project.pieces.size()) return;
+    if (pieceIdx < 0 || pieceIdx >= (int) project.pieces.size())
+        return;
     if (pieceIdx < (int) pieceSprites.size())
         pieceSprites[(size_t) pieceIdx].flash = 1.0f;
 
-    const auto& p = project.pieces[(size_t) pieceIdx];
+    const auto &p = project.pieces[(size_t) pieceIdx];
     bool hasPlayableSamples = false;
 
     if (zoneIdx >= 0 && zoneIdx < (int) p.zones.size())
     {
-        const auto& z = p.zones[(size_t) zoneIdx];
+        const auto &z = p.zones[(size_t) zoneIdx];
         float targetVel = 0.85f;
-        if (selectedPieceIdx == pieceIdx && selectedZoneIdx == zoneIdx
-            && selectedHitIdx >= 0 && selectedHitIdx < (int) z.hits.size())
+        if (selectedPieceIdx == pieceIdx && selectedZoneIdx == zoneIdx && selectedHitIdx >= 0
+            && selectedHitIdx < (int) z.hits.size())
         {
-            targetVel = std::clamp (z.hits[(size_t) selectedHitIdx].power, 0.08f, 1.0f);
+            targetVel = std::clamp(z.hits[(size_t) selectedHitIdx].power, 0.08f, 1.0f);
         }
 
-        for (const auto& h : z.hits)
+        for (const auto &h : z.hits)
         {
-            for (const auto& ms : h.micSamples)
+            for (const auto &ms : h.micSamples)
             {
-                if (! ms.sourceDiskPath.empty() || (! ms.sourceArchivePath.empty() && ms.archiveOffset >= 0))
+                if (!ms.sourceDiskPath.empty() || (!ms.sourceArchivePath.empty() && ms.archiveOffset >= 0))
                 {
                     hasPlayableSamples = true;
                     break;
                 }
             }
-            if (hasPlayableSamples) break;
+            if (hasPlayableSamples)
+                break;
         }
 
-        int samplerIdx = project.getSamplerIndexForZone (pieceIdx, zoneIdx);
+        int samplerIdx = project.getSamplerIndexForZone(pieceIdx, zoneIdx);
         if (samplerIdx >= 0 && samplerIdx < sampler.numInstruments())
         {
-            sampler.noteOn (samplerIdx, targetVel, sampler.currentSamplePosition());
+            sampler.noteOn(samplerIdx, targetVel, sampler.currentSamplePosition());
         }
         else
         {
-            const juce::String instIdDot = juce::String (p.name + "." + z.name);
-            const juce::String instIdUnderscore = juce::String (p.name + "_" + z.name);
-            const juce::String instIdSpace = juce::String (p.name + " " + z.name);
-            const juce::String pName = juce::String (p.name);
+            const juce::String instIdDot = juce::String(p.name + "." + z.name);
+            const juce::String instIdUnderscore = juce::String(p.name + "_" + z.name);
+            const juce::String instIdSpace = juce::String(p.name + " " + z.name);
+            const juce::String pName = juce::String(p.name);
             for (int i = 0; i < sampler.numInstruments(); ++i)
             {
-                if (sampler.instrumentName (i).equalsIgnoreCase (instIdDot)
-                    || sampler.instrumentName (i).equalsIgnoreCase (instIdUnderscore)
-                    || sampler.instrumentName (i).equalsIgnoreCase (instIdSpace)
-                    || sampler.instrumentName (i).equalsIgnoreCase (pName))
+                if (sampler.instrumentName(i).equalsIgnoreCase(instIdDot)
+                    || sampler.instrumentName(i).equalsIgnoreCase(instIdUnderscore)
+                    || sampler.instrumentName(i).equalsIgnoreCase(instIdSpace)
+                    || sampler.instrumentName(i).equalsIgnoreCase(pName))
                 {
-                    sampler.noteOn (i, targetVel, sampler.currentSamplePosition());
+                    sampler.noteOn(i, targetVel, sampler.currentSamplePosition());
                     break;
                 }
             }
         }
 
         // Only use synthetic audition fallback when this zone has NO real audio samples!
-        if (! hasPlayableSamples)
-            startAuditionSynth (pieceIdx, targetVel);
+        if (!hasPlayableSamples)
+            startAuditionSynth(pieceIdx, targetVel);
     }
     else
     {
-        startAuditionSynth (pieceIdx, 0.85f);
+        startAuditionSynth(pieceIdx, 0.85f);
     }
 
     repaint();
 }
 
-void GlorpKitEditorComponent::showStatusToast (const juce::String& text)
+void GlorpKitEditorComponent::showStatusToast(const juce::String &text)
 {
-    statusBannerText  = text;
+    statusBannerText = text;
     statusBannerAlpha = 1.0f;
     repaint();
 }
@@ -688,148 +734,176 @@ void GlorpKitEditorComponent::showStatusToast (const juce::String& text)
 void GlorpKitEditorComponent::resized()
 {
     auto full = getLocalBounds().toFloat();
-    headerBounds = full.removeFromTop (52.0f);
+    headerBounds = full.removeFromTop(52.0f);
 
-    auto body = full.reduced (10.0f, 8.0f);
-    leftPanelBounds  = body.removeFromLeft (236.0f);
-    body.removeFromLeft (10.0f);
-    rightPanelBounds = body.removeFromRight (302.0f);
-    body.removeFromRight (10.0f);
+    auto body = full.reduced(10.0f, 8.0f);
+    leftPanelBounds = body.removeFromLeft(236.0f);
+    body.removeFromLeft(10.0f);
+    rightPanelBounds = body.removeFromRight(302.0f);
+    body.removeFromRight(10.0f);
 
-    const float canvasH = std::round (body.getHeight() * 0.62f);
-    canvasPanelBounds = body.removeFromTop (canvasH);
-    body.removeFromTop (10.0f);
+    const float canvasH = std::round(body.getHeight() * 0.62f);
+    canvasPanelBounds = body.removeFromTop(canvasH);
+    body.removeFromTop(10.0f);
     matrixPanelBounds = body;
 
-    canvasViewportBounds = canvasPanelBounds.reduced (12.0f, 38.0f).withTrimmedBottom (6.0f);
+    canvasViewportBounds = canvasPanelBounds.reduced(12.0f, 38.0f).withTrimmedBottom(6.0f);
     computeCanvasPieceBounds();
 
-    cardPieceBounds  = { rightPanelBounds.getX() + 10.0f, rightPanelBounds.getY() + 36.0f, rightPanelBounds.getWidth() - 20.0f, 222.0f };
-    cardZoneBounds   = { rightPanelBounds.getX() + 10.0f, cardPieceBounds.getBottom() + 8.0f, rightPanelBounds.getWidth() - 20.0f, 178.0f };
-    cardSampleBounds = { rightPanelBounds.getX() + 10.0f, cardZoneBounds.getBottom() + 8.0f, rightPanelBounds.getWidth() - 20.0f,
-                         std::max (160.0f, rightPanelBounds.getBottom() - (cardZoneBounds.getBottom() + 18.0f)) };
+    cardPieceBounds = {
+        rightPanelBounds.getX() + 10.0f, rightPanelBounds.getY() + 36.0f, rightPanelBounds.getWidth() - 20.0f, 222.0f};
+    cardZoneBounds = {rightPanelBounds.getX() + 10.0f,
+                      cardPieceBounds.getBottom() + 8.0f,
+                      rightPanelBounds.getWidth() - 20.0f,
+                      178.0f};
+    cardSampleBounds = {rightPanelBounds.getX() + 10.0f,
+                        cardZoneBounds.getBottom() + 8.0f,
+                        rightPanelBounds.getWidth() - 20.0f,
+                        std::max(160.0f, rightPanelBounds.getBottom() - (cardZoneBounds.getBottom() + 18.0f))};
 
-    pieceNameEditor.setBounds (juce::Rectangle<float> (cardPieceBounds.getX() + 92.0f, cardPieceBounds.getY() + 30.0f,
-                                                       cardPieceBounds.getWidth() - 102.0f, 22.0f).toNearestInt());
-    pieceIdEditor.setBounds (juce::Rectangle<float> (cardPieceBounds.getX() + 92.0f, cardPieceBounds.getY() + 56.0f,
-                                                     cardPieceBounds.getWidth() - 102.0f, 22.0f).toNearestInt());
-    zoneNameEditor.setBounds (juce::Rectangle<float> (cardZoneBounds.getX() + 92.0f, cardZoneBounds.getY() + 26.0f,
-                                                      cardZoneBounds.getWidth() - 102.0f, 22.0f).toNearestInt());
+    pieceNameEditor.setBounds(
+        juce::Rectangle<float>(
+            cardPieceBounds.getX() + 92.0f, cardPieceBounds.getY() + 30.0f, cardPieceBounds.getWidth() - 102.0f, 22.0f)
+            .toNearestInt());
+    pieceIdEditor.setBounds(
+        juce::Rectangle<float>(
+            cardPieceBounds.getX() + 92.0f, cardPieceBounds.getY() + 56.0f, cardPieceBounds.getWidth() - 102.0f, 22.0f)
+            .toNearestInt());
+    zoneNameEditor.setBounds(
+        juce::Rectangle<float>(
+            cardZoneBounds.getX() + 92.0f, cardZoneBounds.getY() + 26.0f, cardZoneBounds.getWidth() - 102.0f, 22.0f)
+            .toNearestInt());
 }
 
 //==============================================================================
-void GlorpKitEditorComponent::paint (juce::Graphics& g)
+void GlorpKitEditorComponent::paint(juce::Graphics &g)
 {
-    g.fillAll (theme.background);
-    Sketch::paperGrain (g, getLocalBounds().toFloat(), theme.ink);
+    g.fillAll(theme.background);
+    Sketch::paperGrain(g, getLocalBounds().toFloat(), theme.ink);
 
-    paintHeader (g);
-    paintLeftPanel (g);
-    paintCanvasPanel (g);
-    paintMatrixPanel (g);
-    paintRightInspector (g);
+    paintHeader(g);
+    paintLeftPanel(g);
+    paintCanvasPanel(g);
+    paintMatrixPanel(g);
+    paintRightInspector(g);
 
     if (tutorialActive)
-        paintGuidedTutorialOverlay (g);
+        paintGuidedTutorialOverlay(g);
 }
 
-void GlorpKitEditorComponent::paintHeader (juce::Graphics& g)
+void GlorpKitEditorComponent::paintHeader(juce::Graphics &g)
 {
-    Sketch::box (g, headerBounds.reduced (2.0f, 1.0f), theme.panel, theme.ink, 4.0f, 2.2f, 2, 11);
+    Sketch::box(g, headerBounds.reduced(2.0f, 1.0f), theme.panel, theme.ink, 4.0f, 2.2f, 2, 11);
 
-    auto titleArea = headerBounds.withLeft (16.0f).withWidth (228.0f);
-    g.setColour (theme.ink);
-    g.setFont (Fonts::title (21.0f));
-    g.drawText ("GLORPKIT STUDIO", titleArea.withTop (6.0f).withHeight (24.0f), juce::Justification::centredLeft, false);
-    g.setColour (theme.accent);
-    g.setFont (Fonts::body (12.5f));
-    g.drawText ("v2.0 Standalone Kit Architect", titleArea.withTop (28.0f).withHeight (18.0f), juce::Justification::centredLeft, false);
+    auto titleArea = headerBounds.withLeft(16.0f).withWidth(228.0f);
+    g.setColour(theme.ink);
+    g.setFont(Fonts::title(21.0f));
+    g.drawText("GLORPKIT STUDIO", titleArea.withTop(6.0f).withHeight(24.0f), juce::Justification::centredLeft, false);
+    g.setColour(theme.accent);
+    g.setFont(Fonts::body(12.5f));
+    g.drawText("v2.0 Standalone Kit Architect",
+               titleArea.withTop(28.0f).withHeight(18.0f),
+               juce::Justification::centredLeft,
+               false);
 
     float x = 242.0f;
     const float btnY = 10.0f, btnH = 32.0f;
-    auto drawHeaderBtn = [&] (juce::Rectangle<float>& outRect, float w, const juce::String& label, juce::Colour bg, int seed)
+    auto drawHeaderBtn =
+        [&](juce::Rectangle<float> &outRect, float w, const juce::String &label, juce::Colour bg, int seed)
     {
-        outRect = { x, btnY, w, btnH };
-        Sketch::button (g, outRect, label, bg, theme.ink, false, seed, Fonts::title (13.0f));
+        outRect = {x, btnY, w, btnH};
+        Sketch::button(g, outRect, label, bg, theme.ink, false, seed, Fonts::title(13.0f));
         x += w + 7.0f;
     };
 
-    drawHeaderBtn (btnNewKit,    68.0f, "New Kit",         theme.trough, 21);
-    drawHeaderBtn (btnOpenKit,   86.0f, "Open Kit...",     theme.trough, 23);
-    drawHeaderBtn (btnImportDg,  108.0f, "Import XML...",  theme.trough, 25);
-    drawHeaderBtn (btnImportOra, 114.0f, "Import .ORA...", theme.trough, 26);
-    drawHeaderBtn (btnSaveKit,   124.0f, "Save .glorpkit", theme.accent, 27);
+    drawHeaderBtn(btnNewKit, 68.0f, "New Kit", theme.trough, 21);
+    drawHeaderBtn(btnOpenKit, 86.0f, "Open Kit...", theme.trough, 23);
+    drawHeaderBtn(btnImportDg, 108.0f, "Import XML...", theme.trough, 25);
+    drawHeaderBtn(btnImportOra, 114.0f, "Import .ORA...", theme.trough, 26);
+    drawHeaderBtn(btnSaveKit, 124.0f, "Save .glorpkit", theme.accent, 27);
 
     // Undo / Redo Buttons
-    const juce::Colour undoCol = canUndo() ? theme.trough : theme.trough.withAlpha (0.4f);
-    const juce::Colour redoCol = canRedo() ? theme.trough : theme.trough.withAlpha (0.4f);
-    drawHeaderBtn (btnUndo, 62.0f, "Undo", undoCol, 28);
-    drawHeaderBtn (btnRedo, 62.0f, "Redo", redoCol, 29);
+    const juce::Colour undoCol = canUndo() ? theme.trough : theme.trough.withAlpha(0.4f);
+    const juce::Colour redoCol = canRedo() ? theme.trough : theme.trough.withAlpha(0.4f);
+    drawHeaderBtn(btnUndo, 62.0f, "Undo", undoCol, 28);
+    drawHeaderBtn(btnRedo, 62.0f, "Redo", redoCol, 29);
 
     float rx = headerBounds.getRight() - 12.0f;
-    btnThemeToggle = { rx - 68.0f, btnY, 68.0f, btnH };
+    btnThemeToggle = {rx - 68.0f, btnY, 68.0f, btnH};
     rx = btnThemeToggle.getX() - 7.0f;
-    Sketch::button (g, btnThemeToggle, theme.isDark ? "Sketch" : "Dark", theme.trough, theme.ink, false, 31, Fonts::title (13.0f));
+    Sketch::button(
+        g, btnThemeToggle, theme.isDark ? "Sketch" : "Dark", theme.trough, theme.ink, false, 31, Fonts::title(13.0f));
 
-    btnTour = { rx - 68.0f, btnY, 68.0f, btnH };
+    btnTour = {rx - 68.0f, btnY, 68.0f, btnH};
     rx = btnTour.getX() - 7.0f;
-    Sketch::button (g, btnTour, "? Tour", tutorialActive ? theme.accent : theme.trough, theme.ink, tutorialActive, 33, Fonts::title (13.0f));
+    Sketch::button(g,
+                   btnTour,
+                   "? Tour",
+                   tutorialActive ? theme.accent : theme.trough,
+                   theme.ink,
+                   tutorialActive,
+                   33,
+                   Fonts::title(13.0f));
 
-    btnAudioSettings = { rx - 68.0f, btnY, 68.0f, btnH };
+    btnAudioSettings = {rx - 68.0f, btnY, 68.0f, btnH};
     rx = btnAudioSettings.getX() - 7.0f;
-    Sketch::button (g, btnAudioSettings, "Audio", theme.trough, theme.ink, false, 34, Fonts::title (13.0f));
+    Sketch::button(g, btnAudioSettings, "Audio", theme.trough, theme.ink, false, 34, Fonts::title(13.0f));
 
     // Kit-Wide Hit Glow Color Selector Button
-    btnGlowColor = { rx - 128.0f, btnY, 128.0f, btnH };
+    btnGlowColor = {rx - 128.0f, btnY, 128.0f, btnH};
     rx = btnGlowColor.getX() - 8.0f;
-    Sketch::box (g, btnGlowColor, theme.trough, theme.ink, 5.0f, 1.8f, 2, 35);
-    juce::Rectangle<float> swatch = { btnGlowColor.getX() + 8.0f, btnGlowColor.getY() + 7.0f, 18.0f, 18.0f };
-    g.setColour (hitGlowColour);
-    g.fillRoundedRectangle (swatch, 4.0f);
-    g.setColour (theme.ink);
-    g.drawRoundedRectangle (swatch, 4.0f, 1.5f);
-    g.setFont (Fonts::title (12.0f));
-    g.drawText ("Glow " + juce::String (toHexColourString (hitGlowColour)).toUpperCase(),
-                btnGlowColor.withLeft (swatch.getRight() + 5.0f), juce::Justification::centredLeft, false);
+    Sketch::box(g, btnGlowColor, theme.trough, theme.ink, 5.0f, 1.8f, 2, 35);
+    juce::Rectangle<float> swatch = {btnGlowColor.getX() + 8.0f, btnGlowColor.getY() + 7.0f, 18.0f, 18.0f};
+    g.setColour(hitGlowColour);
+    g.fillRoundedRectangle(swatch, 4.0f);
+    g.setColour(theme.ink);
+    g.drawRoundedRectangle(swatch, 4.0f, 1.5f);
+    g.setFont(Fonts::title(12.0f));
+    g.drawText("Glow " + juce::String(toHexColourString(hitGlowColour)).toUpperCase(),
+               btnGlowColor.withLeft(swatch.getRight() + 5.0f),
+               juce::Justification::centredLeft,
+               false);
 
     // Kit Metadata Pill
-    pillKitMeta = { x + 2.0f, btnY, std::max (120.0f, rx - (x + 4.0f)), btnH };
-    Sketch::box (g, pillKitMeta, theme.trough, theme.inkSoft, 5.0f, 1.5f, 1, 39);
-    g.setColour (theme.ink);
-    g.setFont (Fonts::body (13.5f));
-    juce::String metaStr = "Kit: " + juce::String (project.title)
-                         + "  |  " + juce::String (project.sampleRate) + " Hz";
-    g.drawText (metaStr, pillKitMeta.reduced (10.0f, 2.0f), juce::Justification::centredLeft, true);
+    pillKitMeta = {x + 2.0f, btnY, std::max(120.0f, rx - (x + 4.0f)), btnH};
+    Sketch::box(g, pillKitMeta, theme.trough, theme.inkSoft, 5.0f, 1.5f, 1, 39);
+    g.setColour(theme.ink);
+    g.setFont(Fonts::body(13.5f));
+    juce::String metaStr = "Kit: " + juce::String(project.title) + "  |  " + juce::String(project.sampleRate) + " Hz";
+    g.drawText(metaStr, pillKitMeta.reduced(10.0f, 2.0f), juce::Justification::centredLeft, true);
 }
 
-void GlorpKitEditorComponent::paintLeftPanel (juce::Graphics& g)
+void GlorpKitEditorComponent::paintLeftPanel(juce::Graphics &g)
 {
-    const juce::Colour goodCol (0xff2ecc71);
-    Sketch::box (g, leftPanelBounds, theme.panel, theme.ink, 6.0f, 2.2f, 2, 41);
+    const juce::Colour goodCol(0xff2ecc71);
+    Sketch::box(g, leftPanelBounds, theme.panel, theme.ink, 6.0f, 2.2f, 2, 41);
 
-    auto hdr = leftPanelBounds.withHeight (30.0f).reduced (12.0f, 4.0f);
-    g.setColour (theme.ink);
-    g.setFont (Fonts::title (14.0f));
-    g.drawText ("Z-LAYER STACK (TOP -> BACK)", hdr, juce::Justification::centredLeft, false);
+    auto hdr = leftPanelBounds.withHeight(30.0f).reduced(12.0f, 4.0f);
+    g.setColour(theme.ink);
+    g.setFont(Fonts::title(14.0f));
+    g.drawText("Z-LAYER STACK (TOP -> BACK)", hdr, juce::Justification::centredLeft, false);
 
     const float topBtnY = leftPanelBounds.getY() + 32.0f;
     const float bw = (leftPanelBounds.getWidth() - 32.0f) / 3.0f;
-    btnAddPiece = { leftPanelBounds.getX() + 10.0f, topBtnY, bw, 25.0f };
-    btnDupPiece = { btnAddPiece.getRight() + 6.0f,  topBtnY, bw, 25.0f };
-    btnDelPiece = { btnDupPiece.getRight() + 6.0f,  topBtnY, bw, 25.0f };
-    Sketch::button (g, btnAddPiece, "+ Piece", theme.accent, theme.ink, false, 43, Fonts::title (12.0f));
-    Sketch::button (g, btnDupPiece, "Dup",     theme.trough, theme.ink, false, 45, Fonts::title (12.0f));
-    Sketch::button (g, btnDelPiece, "Delete",  theme.trough, theme.ink, false, 47, Fonts::title (12.0f));
+    btnAddPiece = {leftPanelBounds.getX() + 10.0f, topBtnY, bw, 25.0f};
+    btnDupPiece = {btnAddPiece.getRight() + 6.0f, topBtnY, bw, 25.0f};
+    btnDelPiece = {btnDupPiece.getRight() + 6.0f, topBtnY, bw, 25.0f};
+    Sketch::button(g, btnAddPiece, "+ Piece", theme.accent, theme.ink, false, 43, Fonts::title(12.0f));
+    Sketch::button(g, btnDupPiece, "Dup", theme.trough, theme.ink, false, 45, Fonts::title(12.0f));
+    Sketch::button(g, btnDelPiece, "Delete", theme.trough, theme.ink, false, 47, Fonts::title(12.0f));
 
-    const auto& pieces = project.pieces;
-    std::vector<int> order (pieces.size());
-    for (size_t i = 0; i < pieces.size(); ++i) order[i] = (int) i;
-    std::sort (order.begin(), order.end(), [&] (int a, int b)
-    {
-        if (pieces[(size_t) a].zOrder != pieces[(size_t) b].zOrder)
-            return pieces[(size_t) a].zOrder > pieces[(size_t) b].zOrder;
-        return a < b;
-    });
+    const auto &pieces = project.pieces;
+    std::vector<int> order(pieces.size());
+    for (size_t i = 0; i < pieces.size(); ++i)
+        order[i] = (int) i;
+    std::sort(order.begin(),
+              order.end(),
+              [&](int a, int b)
+              {
+                  if (pieces[(size_t) a].zOrder != pieces[(size_t) b].zOrder)
+                      return pieces[(size_t) a].zOrder > pieces[(size_t) b].zOrder;
+                  return a < b;
+              });
 
     layerRowHits.clear();
     float ry = topBtnY + 32.0f;
@@ -838,189 +912,211 @@ void GlorpKitEditorComponent::paintLeftPanel (juce::Graphics& g)
 
     for (int idx : order)
     {
-        if (ry + rowH > maxRowsBottom) break;
-        const auto& p = pieces[(size_t) idx];
+        if (ry + rowH > maxRowsBottom)
+            break;
+        const auto &p = pieces[(size_t) idx];
         const bool isSel = (idx == selectedPieceIdx);
 
         LayerRowHit hit;
         hit.pieceIndex = idx;
-        hit.rowBounds  = { leftPanelBounds.getX() + 9.0f, ry, leftPanelBounds.getWidth() - 18.0f, rowH - 3.0f };
+        hit.rowBounds = {leftPanelBounds.getX() + 9.0f, ry, leftPanelBounds.getWidth() - 18.0f, rowH - 3.0f};
 
-        juce::Colour rowBg  = isSel ? theme.accent.withAlpha (0.24f) : theme.trough;
-        juce::Colour rowBrd = isSel ? theme.accent : theme.inkSoft.withAlpha (0.65f);
+        juce::Colour rowBg = isSel ? theme.accent.withAlpha(0.24f) : theme.trough;
+        juce::Colour rowBrd = isSel ? theme.accent : theme.inkSoft.withAlpha(0.65f);
         if (isDraggingLayerRow && hit.pieceIndex == dragLayerPieceIndex)
         {
-            rowBg = theme.accent.withAlpha (0.42f);
+            rowBg = theme.accent.withAlpha(0.42f);
             rowBrd = hitGlowColour;
         }
-        Sketch::box (g, hit.rowBounds, rowBg, rowBrd, 5.0f, isSel ? 2.1f : 1.4f, 1, 50 + idx);
+        Sketch::box(g, hit.rowBounds, rowBg, rowBrd, 5.0f, isSel ? 2.1f : 1.4f, 1, 50 + idx);
 
-        hit.visBounds = { hit.rowBounds.getX() + 5.0f, hit.rowBounds.getY() + 7.0f, 20.0f, 20.0f };
-        g.setColour (p.visible ? goodCol.withAlpha (0.32f) : theme.panel);
-        g.fillRoundedRectangle (hit.visBounds, 4.0f);
-        g.setColour (theme.ink);
-        g.drawRoundedRectangle (hit.visBounds, 4.0f, 1.2f);
-        g.setFont (Fonts::title (11.0f));
-        g.drawText (p.visible ? "V" : "-", hit.visBounds, juce::Justification::centred, false);
+        hit.visBounds = {hit.rowBounds.getX() + 5.0f, hit.rowBounds.getY() + 7.0f, 20.0f, 20.0f};
+        g.setColour(p.visible ? goodCol.withAlpha(0.32f) : theme.panel);
+        g.fillRoundedRectangle(hit.visBounds, 4.0f);
+        g.setColour(theme.ink);
+        g.drawRoundedRectangle(hit.visBounds, 4.0f, 1.2f);
+        g.setFont(Fonts::title(11.0f));
+        g.drawText(p.visible ? "V" : "-", hit.visBounds, juce::Justification::centred, false);
 
-        hit.hitBounds  = { hit.rowBounds.getRight() - 32.0f, hit.rowBounds.getY() + 6.0f, 27.0f, 22.0f };
-        hit.downBounds = { hit.hitBounds.getX() - 21.0f,     hit.rowBounds.getY() + 6.0f, 18.0f, 22.0f };
-        hit.upBounds   = { hit.downBounds.getX() - 20.0f,    hit.rowBounds.getY() + 6.0f, 18.0f, 22.0f };
+        hit.hitBounds = {hit.rowBounds.getRight() - 32.0f, hit.rowBounds.getY() + 6.0f, 27.0f, 22.0f};
+        hit.downBounds = {hit.hitBounds.getX() - 21.0f, hit.rowBounds.getY() + 6.0f, 18.0f, 22.0f};
+        hit.upBounds = {hit.downBounds.getX() - 20.0f, hit.rowBounds.getY() + 6.0f, 18.0f, 22.0f};
 
-        Sketch::button (g, hit.upBounds,   "^",   theme.panel,  theme.ink, false, 60 + idx, Fonts::title (11.0f));
-        Sketch::button (g, hit.downBounds, "v",   theme.panel,  theme.ink, false, 70 + idx, Fonts::title (11.0f));
-        Sketch::button (g, hit.hitBounds,  "Hit", theme.accent, theme.ink, false, 80 + idx, Fonts::title (10.5f));
+        Sketch::button(g, hit.upBounds, "^", theme.panel, theme.ink, false, 60 + idx, Fonts::title(11.0f));
+        Sketch::button(g, hit.downBounds, "v", theme.panel, theme.ink, false, 70 + idx, Fonts::title(11.0f));
+        Sketch::button(g, hit.hitBounds, "Hit", theme.accent, theme.ink, false, 80 + idx, Fonts::title(10.5f));
 
-        auto textArea = juce::Rectangle<float> (hit.visBounds.getRight() + 6.0f, hit.rowBounds.getY() + 2.0f,
-                                                hit.upBounds.getX() - (hit.visBounds.getRight() + 8.0f), 18.0f);
-        g.setColour (theme.ink);
-        g.setFont (Fonts::title (13.0f));
-        g.drawText (p.name, textArea, juce::Justification::centredLeft, true);
+        auto textArea = juce::Rectangle<float>(hit.visBounds.getRight() + 6.0f,
+                                               hit.rowBounds.getY() + 2.0f,
+                                               hit.upBounds.getX() - (hit.visBounds.getRight() + 8.0f),
+                                               18.0f);
+        g.setColour(theme.ink);
+        g.setFont(Fonts::title(13.0f));
+        g.drawText(p.name, textArea, juce::Justification::centredLeft, true);
 
-        g.setColour (theme.inkSoft);
-        g.setFont (Fonts::body (11.5f));
-        juce::String sub = "Z:" + juce::String (p.zOrder) + " | " + juce::String ((int) p.zones.size()) + "z"
-                         + (p.customPngBytes.empty() ? "" : " | PNG");
-        g.drawText (sub, textArea.withY (hit.rowBounds.getY() + 17.0f), juce::Justification::centredLeft, true);
+        g.setColour(theme.inkSoft);
+        g.setFont(Fonts::body(11.5f));
+        juce::String sub = "Z:" + juce::String(p.zOrder) + " | " + juce::String((int) p.zones.size()) + "z"
+                           + (p.customPngBytes.empty() ? "" : " | PNG");
+        g.drawText(sub, textArea.withY(hit.rowBounds.getY() + 17.0f), juce::Justification::centredLeft, true);
 
-        layerRowHits.push_back (hit);
+        layerRowHits.push_back(hit);
         ry += rowH;
     }
 
-    micBoxBounds = { leftPanelBounds.getX() + 9.0f, leftPanelBounds.getBottom() - 156.0f,
-                     leftPanelBounds.getWidth() - 18.0f, 147.0f };
-    Sketch::box (g, micBoxBounds, theme.trough, theme.ink, 5.0f, 1.8f, 2, 91);
+    micBoxBounds = {leftPanelBounds.getX() + 9.0f,
+                    leftPanelBounds.getBottom() - 156.0f,
+                    leftPanelBounds.getWidth() - 18.0f,
+                    147.0f};
+    Sketch::box(g, micBoxBounds, theme.trough, theme.ink, 5.0f, 1.8f, 2, 91);
 
-    g.setColour (theme.ink);
-    g.setFont (Fonts::title (12.5f));
-    g.drawText ("KIT MIC CHANNELS (" + juce::String ((int) project.mics.size()) + ")",
-                micBoxBounds.withHeight (24.0f).reduced (8.0f, 2.0f), juce::Justification::centredLeft, false);
+    g.setColour(theme.ink);
+    g.setFont(Fonts::title(12.5f));
+    g.drawText("KIT MIC CHANNELS (" + juce::String((int) project.mics.size()) + ")",
+               micBoxBounds.withHeight(24.0f).reduced(8.0f, 2.0f),
+               juce::Justification::centredLeft,
+               false);
 
-    btnAddMic = { micBoxBounds.getRight() - 56.0f, micBoxBounds.getY() + 4.0f, 50.0f, 19.0f };
-    Sketch::button (g, btnAddMic, "+ Mic", theme.accent, theme.ink, false, 93, Fonts::title (10.5f));
+    btnAddMic = {micBoxBounds.getRight() - 56.0f, micBoxBounds.getY() + 4.0f, 50.0f, 19.0f};
+    Sketch::button(g, btnAddMic, "+ Mic", theme.accent, theme.ink, false, 93, Fonts::title(10.5f));
 
     micPillHits.clear();
-    const auto& chans = project.mics;
+    const auto &chans = project.mics;
     const float pillW = (micBoxBounds.getWidth() - 22.0f) * 0.5f;
     const float pillH = 22.0f;
     for (size_t i = 0; i < chans.size() && i < 8; ++i)
     {
         const int col = (int) (i % 2);
         const int row = (int) (i / 2);
-        juce::Rectangle<float> r { micBoxBounds.getX() + 8.0f + col * (pillW + 6.0f),
-                                   micBoxBounds.getY() + 28.0f + row * (pillH + 5.0f),
-                                   pillW, pillH };
-        Sketch::box (g, r, theme.panel, theme.inkSoft, 4.0f, 1.2f, 1, 95 + (int) i);
+        juce::Rectangle<float> r {micBoxBounds.getX() + 8.0f + col * (pillW + 6.0f),
+                                  micBoxBounds.getY() + 28.0f + row * (pillH + 5.0f),
+                                  pillW,
+                                  pillH};
+        Sketch::box(g, r, theme.panel, theme.inkSoft, 4.0f, 1.2f, 1, 95 + (int) i);
 
         juce::Rectangle<float> delR;
-        juce::Rectangle<float> textR = r.reduced (5.0f, 1.0f);
+        juce::Rectangle<float> textR = r.reduced(5.0f, 1.0f);
         if (chans.size() > 1)
         {
-            delR = { r.getRight() - 17.0f, r.getY() + 3.0f, 14.0f, 16.0f };
-            textR = textR.withTrimmedRight (14.0f);
+            delR = {r.getRight() - 17.0f, r.getY() + 3.0f, 14.0f, 16.0f};
+            textR = textR.withTrimmedRight(14.0f);
 
             // Draw delete (x) button on mic pill
-            g.setColour (juce::Colour (0xffe74c3c).withAlpha (0.85f));
-            g.setFont (Fonts::title (10.0f));
-            g.drawText ("x", delR, juce::Justification::centred, false);
+            g.setColour(juce::Colour(0xffe74c3c).withAlpha(0.85f));
+            g.setFont(Fonts::title(10.0f));
+            g.drawText("x", delR, juce::Justification::centred, false);
         }
 
-        g.setColour (theme.ink);
-        g.setFont (Fonts::body (11.5f));
-        g.drawText (juce::String ((int) i + 1) + ": " + juce::String (chans[i].name),
-                    textR, juce::Justification::centredLeft, true);
-        micPillHits.push_back ({ (int) i, r, delR });
+        g.setColour(theme.ink);
+        g.setFont(Fonts::body(11.5f));
+        g.drawText(juce::String((int) i + 1) + ": " + juce::String(chans[i].name),
+                   textR,
+                   juce::Justification::centredLeft,
+                   true);
+        micPillHits.push_back({(int) i, r, delR});
     }
 }
 
-const std::vector<GlorpKitEditorComponent::StageGuide>& GlorpKitEditorComponent::getIdealStageGuides()
+const std::vector<GlorpKitEditorComponent::StageGuide> &GlorpKitEditorComponent::getIdealStageGuides()
 {
-    static const std::vector<StageGuide> s_guides = {
-        { "kick",    "Kick Drum",          -155.2f, -329.7f, 345.0f, 320.0f, 1 },
-        { "snare",   "Snare Drum",         -212.7f, -259.5f, 180.0f, 140.0f, 4 },
-        { "hihat",   "Hi-Hat",             -299.6f, -404.7f, 160.0f, 140.0f, 3 },
-        { "tom1",    "Tom 1 (High Rack)",  -122.6f, -420.7f, 138.0f, 125.0f, 5 },
-        { "tom2",    "Tom 2 (Mid Rack)",     15.9f, -408.0f, 155.0f, 135.0f, 6 },
-        { "tom3",    "Tom 3 (Low Rack)",     95.0f, -370.0f, 165.0f, 145.0f, 7 },
-        { "ftom1",   "Floor Tom 1",         107.2f, -272.1f, 195.0f, 175.0f, 9 },
-        { "ftom2",   "Floor Tom 2",         225.0f, -245.0f, 195.0f, 175.0f, 10 },
-        { "crash1",  "Crash 1 (Left)",     -235.0f, -502.9f, 190.0f, 150.0f, 2 },
-        { "ride",    "Ride Cymbal",          77.7f, -507.0f, 210.0f, 160.0f, 8 },
-        { "crash2",  "Crash 2 (Right)",     187.3f, -420.8f, 205.0f, 160.0f, 8 },
-        { "crash3",  "Crash 3 / China",     270.0f, -490.0f, 195.0f, 150.0f, 9 }
-    };
+    static const std::vector<StageGuide> s_guides = {{"kick", "Kick Drum", -155.2f, -329.7f, 345.0f, 320.0f, 1},
+                                                     {"snare", "Snare Drum", -212.7f, -259.5f, 180.0f, 140.0f, 4},
+                                                     {"hihat", "Hi-Hat", -299.6f, -404.7f, 160.0f, 140.0f, 3},
+                                                     {"tom1", "Tom 1 (High Rack)", -122.6f, -420.7f, 138.0f, 125.0f, 5},
+                                                     {"tom2", "Tom 2 (Mid Rack)", 15.9f, -408.0f, 155.0f, 135.0f, 6},
+                                                     {"tom3", "Tom 3 (Low Rack)", 95.0f, -370.0f, 165.0f, 145.0f, 7},
+                                                     {"ftom1", "Floor Tom 1", 107.2f, -272.1f, 195.0f, 175.0f, 9},
+                                                     {"ftom2", "Floor Tom 2", 225.0f, -245.0f, 195.0f, 175.0f, 10},
+                                                     {"crash1", "Crash 1 (Left)", -235.0f, -502.9f, 190.0f, 150.0f, 2},
+                                                     {"ride", "Ride Cymbal", 77.7f, -507.0f, 210.0f, 160.0f, 8},
+                                                     {"crash2", "Crash 2 (Right)", 187.3f, -420.8f, 205.0f, 160.0f, 8},
+                                                     {"crash3", "Crash 3 / China", 270.0f, -490.0f, 195.0f, 150.0f, 9}};
     return s_guides;
 }
 
-int GlorpKitEditorComponent::findMatchingStageGuide (const std::string& name, const std::string& graphicId)
+int GlorpKitEditorComponent::findMatchingStageGuide(const std::string &name, const std::string &graphicId)
 {
-    juce::String n = (juce::String (name) + " " + juce::String (graphicId)).toLowerCase().removeCharacters (" _-");
-    if (n.contains ("kick") || n.contains ("kdrum") || n.contains ("bd") || n.contains ("bassdrum")) return 0;
-    if (n.contains ("snare") || n.contains ("sd") || n.contains ("snr")) return 1;
-    if (n.contains ("hihat") || n.contains ("hh") || n.contains ("hat")) return 2;
-    if (n.contains ("floor2") || n.contains ("ftom2") || n.contains ("floortom2")) return 7;
-    if (n.contains ("floor") || n.contains ("ftom") || n.contains ("floortom")) return 6;
-    if (n.contains ("tom3") || n.contains ("rack3") || n.contains ("racktom3") || n.contains ("lowrack")) return 5;
-    if (n.contains ("tom2") || n.contains ("rack2") || n.contains ("racktom2") || n.contains ("midtom")) return 4;
-    if (n.contains ("crash3") || n.contains ("china") || n.contains ("splash")) return 11;
-    if (n.contains ("crash2")) return 10;
-    if (n.contains ("crash1") || n.contains ("crash") || n.contains ("cymbal")) return 8;
-    if (n.contains ("ride") || n.contains ("bell")) return 9;
-    if (n.contains ("tom1") || n.contains ("rack1") || n.contains ("racktom1") || n.contains ("hightom") || n.contains ("tom")) return 3;
+    juce::String n = (juce::String(name) + " " + juce::String(graphicId)).toLowerCase().removeCharacters(" _-");
+    if (n.contains("kick") || n.contains("kdrum") || n.contains("bd") || n.contains("bassdrum"))
+        return 0;
+    if (n.contains("snare") || n.contains("sd") || n.contains("snr"))
+        return 1;
+    if (n.contains("hihat") || n.contains("hh") || n.contains("hat"))
+        return 2;
+    if (n.contains("floor2") || n.contains("ftom2") || n.contains("floortom2"))
+        return 7;
+    if (n.contains("floor") || n.contains("ftom") || n.contains("floortom"))
+        return 6;
+    if (n.contains("tom3") || n.contains("rack3") || n.contains("racktom3") || n.contains("lowrack"))
+        return 5;
+    if (n.contains("tom2") || n.contains("rack2") || n.contains("racktom2") || n.contains("midtom"))
+        return 4;
+    if (n.contains("crash3") || n.contains("china") || n.contains("splash"))
+        return 11;
+    if (n.contains("crash2"))
+        return 10;
+    if (n.contains("crash1") || n.contains("crash") || n.contains("cymbal"))
+        return 8;
+    if (n.contains("ride") || n.contains("bell"))
+        return 9;
+    if (n.contains("tom1") || n.contains("rack1") || n.contains("racktom1") || n.contains("hightom")
+        || n.contains("tom"))
+        return 3;
     return -1;
 }
 
-void GlorpKitEditorComponent::paintCanvasPanel (juce::Graphics& g)
+void GlorpKitEditorComponent::paintCanvasPanel(juce::Graphics &g)
 {
-    Sketch::box (g, canvasPanelBounds, theme.panel, theme.ink, 6.0f, 2.2f, 2, 101);
+    Sketch::box(g, canvasPanelBounds, theme.panel, theme.ink, 6.0f, 2.2f, 2, 101);
 
-    g.setColour (theme.ink);
-    g.setFont (Fonts::title (14.0f));
-    g.drawText ("2D KIT STAGE CANVAS (DRAG TO POSITION, WHEEL/CORNER TO SCALE, CLICK TO AUDITION)",
-                canvasPanelBounds.withHeight (32.0f).withLeft (canvasPanelBounds.getX() + 14.0f),
-                juce::Justification::centredLeft, false);
+    g.setColour(theme.ink);
+    g.setFont(Fonts::title(14.0f));
+    g.drawText("2D KIT STAGE CANVAS (DRAG TO POSITION, WHEEL/CORNER TO SCALE, CLICK TO AUDITION)",
+               canvasPanelBounds.withHeight(32.0f).withLeft(canvasPanelBounds.getX() + 14.0f),
+               juce::Justification::centredLeft,
+               false);
 
     float tx = canvasPanelBounds.getRight() - 12.0f;
     const float ty = canvasPanelBounds.getY() + 6.0f, th = 24.0f;
-    auto makeToolBtn = [&] (juce::Rectangle<float>& r, float w, const juce::String& txt, bool active, int seed)
+    auto makeToolBtn = [&](juce::Rectangle<float> &r, float w, const juce::String &txt, bool active, int seed)
     {
-        r = { tx - w, ty, w, th };
+        r = {tx - w, ty, w, th};
         tx = r.getX() - 6.0f;
-        Sketch::button (g, r, txt, active ? theme.accent : theme.trough, theme.ink, active, seed, Fonts::title (11.5f));
+        Sketch::button(g, r, txt, active ? theme.accent : theme.trough, theme.ink, active, seed, Fonts::title(11.5f));
     };
-    makeToolBtn (btnResetLayout, 64.0f, "Reset",   false,          103);
-    makeToolBtn (btnSendBack,    58.0f, "Back",    false,          105);
-    makeToolBtn (btnBringFront,  62.0f, "Front",   false,          107);
-    makeToolBtn (btnPreviewKit,  76.0f, "Preview",   previewKitMode, 109);
-    makeToolBtn (btnSafeZone,    78.0f, "Safe Zone", showSafeZone,   110);
+    makeToolBtn(btnResetLayout, 64.0f, "Reset", false, 103);
+    makeToolBtn(btnSendBack, 58.0f, "Back", false, 105);
+    makeToolBtn(btnBringFront, 62.0f, "Front", false, 107);
+    makeToolBtn(btnPreviewKit, 76.0f, "Preview", previewKitMode, 109);
+    makeToolBtn(btnSafeZone, 78.0f, "Safe Zone", showSafeZone, 110);
     btnStageGuides = btnSafeZone;
-    makeToolBtn (btnSnapGrid,    62.0f, "Grid",      snapToGrid,     111);
+    makeToolBtn(btnSnapGrid, 62.0f, "Grid", snapToGrid, 111);
 
-    juce::Colour stageBg = theme.isDark ? juce::Colour (0xff12141a) : juce::Colour (0xffefe7d6);
-    Sketch::box (g, canvasViewportBounds, stageBg, theme.ink, 6.0f, 1.9f, 2, 113);
+    juce::Colour stageBg = theme.isDark ? juce::Colour(0xff12141a) : juce::Colour(0xffefe7d6);
+    Sketch::box(g, canvasViewportBounds, stageBg, theme.ink, 6.0f, 1.9f, 2, 113);
 
     {
-        juce::Graphics::ScopedSaveState clipGuard (g);
-        g.reduceClipRegion (canvasViewportBounds.reduced (2.0f).toNearestInt());
+        juce::Graphics::ScopedSaveState clipGuard(g);
+        g.reduceClipRegion(canvasViewportBounds.reduced(2.0f).toNearestInt());
 
         if (snapToGrid)
         {
-            g.setColour (theme.inkSoft.withAlpha (0.18f));
+            g.setColour(theme.inkSoft.withAlpha(0.18f));
             for (int gx = 1; gx < 10; ++gx)
             {
                 const float x = canvasViewportBounds.getX() + canvasViewportBounds.getWidth() * ((float) gx / 10.0f);
-                g.drawVerticalLine ((int) x, canvasViewportBounds.getY(), canvasViewportBounds.getBottom());
+                g.drawVerticalLine((int) x, canvasViewportBounds.getY(), canvasViewportBounds.getBottom());
             }
             for (int gy = 1; gy < 6; ++gy)
             {
                 const float y = canvasViewportBounds.getY() + canvasViewportBounds.getHeight() * ((float) gy / 6.0f);
-                g.drawHorizontalLine ((int) y, canvasViewportBounds.getX(), canvasViewportBounds.getRight());
+                g.drawHorizontalLine((int) y, canvasViewportBounds.getX(), canvasViewportBounds.getRight());
             }
         }
 
         const float W = canvasViewportBounds.getWidth();
         const float H = canvasViewportBounds.getHeight();
-        const float scale = std::min (W / 880.0f, H / 620.0f);
+        const float scale = std::min(W / 880.0f, H / 620.0f);
         const float cx = canvasViewportBounds.getX() + W * 0.50f;
         const float gy = canvasViewportBounds.getY() + H * 0.94f;
 
@@ -1030,272 +1126,357 @@ void GlorpKitEditorComponent::paintCanvasPanel (juce::Graphics& g)
             const float frameH = 620.0f * scale;
             const float frameX = cx - 440.0f * scale;
             const float frameY = gy - 582.8f * scale;
-            const juce::Rectangle<float> stageFrame { frameX, frameY, frameW, frameH };
-            const juce::Rectangle<float> actionSafe = stageFrame.reduced (22.0f * scale);
+            const juce::Rectangle<float> stageFrame {frameX, frameY, frameW, frameH};
+            const juce::Rectangle<float> actionSafe = stageFrame.reduced(22.0f * scale);
 
             // 1. Subtle shading for out-of-stage areas outside the 880x620 frame
-            g.setColour (theme.ink.withAlpha (theme.isDark ? 0.32f : 0.08f));
+            g.setColour(theme.ink.withAlpha(theme.isDark ? 0.32f : 0.08f));
             if (stageFrame.getX() > canvasViewportBounds.getX())
             {
-                g.fillRect (juce::Rectangle<float> (canvasViewportBounds.getX(), canvasViewportBounds.getY(),
-                                                    stageFrame.getX() - canvasViewportBounds.getX(), canvasViewportBounds.getHeight()));
-                g.fillRect (juce::Rectangle<float> (stageFrame.getRight(), canvasViewportBounds.getY(),
-                                                    canvasViewportBounds.getRight() - stageFrame.getRight(), canvasViewportBounds.getHeight()));
+                g.fillRect(juce::Rectangle<float>(canvasViewportBounds.getX(),
+                                                  canvasViewportBounds.getY(),
+                                                  stageFrame.getX() - canvasViewportBounds.getX(),
+                                                  canvasViewportBounds.getHeight()));
+                g.fillRect(juce::Rectangle<float>(stageFrame.getRight(),
+                                                  canvasViewportBounds.getY(),
+                                                  canvasViewportBounds.getRight() - stageFrame.getRight(),
+                                                  canvasViewportBounds.getHeight()));
             }
             if (stageFrame.getY() > canvasViewportBounds.getY())
             {
-                g.fillRect (juce::Rectangle<float> (stageFrame.getX(), canvasViewportBounds.getY(),
-                                                    stageFrame.getWidth(), stageFrame.getY() - canvasViewportBounds.getY()));
+                g.fillRect(juce::Rectangle<float>(stageFrame.getX(),
+                                                  canvasViewportBounds.getY(),
+                                                  stageFrame.getWidth(),
+                                                  stageFrame.getY() - canvasViewportBounds.getY()));
             }
             if (canvasViewportBounds.getBottom() > stageFrame.getBottom())
             {
-                g.fillRect (juce::Rectangle<float> (stageFrame.getX(), stageFrame.getBottom(),
-                                                    stageFrame.getWidth(), canvasViewportBounds.getBottom() - stageFrame.getBottom()));
+                g.fillRect(juce::Rectangle<float>(stageFrame.getX(),
+                                                  stageFrame.getBottom(),
+                                                  stageFrame.getWidth(),
+                                                  canvasViewportBounds.getBottom() - stageFrame.getBottom()));
             }
 
             // 2. Center vertical axis and stage floor baseline
-            const float dashPattern[2] = { 4.0f, 4.0f };
-            g.setColour (theme.inkSoft.withAlpha (0.22f));
-            g.drawDashedLine (juce::Line<float> (cx, stageFrame.getY() + 4.0f, cx, stageFrame.getBottom() - 4.0f),
-                              dashPattern, 2, 1.0f);
-            g.drawDashedLine (juce::Line<float> (stageFrame.getX() + 4.0f, gy, stageFrame.getRight() - 4.0f, gy),
-                              dashPattern, 2, 1.0f);
+            const float dashPattern[2] = {4.0f, 4.0f};
+            g.setColour(theme.inkSoft.withAlpha(0.22f));
+            g.drawDashedLine(juce::Line<float>(cx, stageFrame.getY() + 4.0f, cx, stageFrame.getBottom() - 4.0f),
+                             dashPattern,
+                             2,
+                             1.0f);
+            g.drawDashedLine(juce::Line<float>(stageFrame.getX() + 4.0f, gy, stageFrame.getRight() - 4.0f, gy),
+                             dashPattern,
+                             2,
+                             1.0f);
 
             // Floor baseline indicator
-            g.setFont (Fonts::title (9.5f));
-            g.setColour (theme.inkSoft.withAlpha (0.45f));
-            g.drawText ("STAGE FLOOR BASELINE (BASS DRUM REST)",
-                        juce::Rectangle<float> (stageFrame.getX() + 10.0f, gy + 3.0f, 240.0f, 14.0f),
-                        juce::Justification::centredLeft, false);
+            g.setFont(Fonts::title(9.5f));
+            g.setColour(theme.inkSoft.withAlpha(0.45f));
+            g.drawText("STAGE FLOOR BASELINE (BASS DRUM REST)",
+                       juce::Rectangle<float>(stageFrame.getX() + 10.0f, gy + 3.0f, 240.0f, 14.0f),
+                       juce::Justification::centredLeft,
+                       false);
 
             // 3. Outer Stage Frame Bounding Box with comic sketch stroke & corner viewfinder brackets
-            g.setColour (theme.accent.withAlpha (0.75f));
-            g.drawRect (stageFrame, 1.8f);
+            g.setColour(theme.accent.withAlpha(0.75f));
+            g.drawRect(stageFrame, 1.8f);
 
             const float bracketLen = 18.0f * scale;
             const float bThick = 2.8f;
-            g.setColour (theme.ink);
+            g.setColour(theme.ink);
 
             // Top-Left corner bracket
-            g.drawLine (stageFrame.getX(), stageFrame.getY(), stageFrame.getX() + bracketLen, stageFrame.getY(), bThick);
-            g.drawLine (stageFrame.getX(), stageFrame.getY(), stageFrame.getX(), stageFrame.getY() + bracketLen, bThick);
+            g.drawLine(stageFrame.getX(), stageFrame.getY(), stageFrame.getX() + bracketLen, stageFrame.getY(), bThick);
+            g.drawLine(stageFrame.getX(), stageFrame.getY(), stageFrame.getX(), stageFrame.getY() + bracketLen, bThick);
 
             // Top-Right corner bracket
-            g.drawLine (stageFrame.getRight() - bracketLen, stageFrame.getY(), stageFrame.getRight(), stageFrame.getY(), bThick);
-            g.drawLine (stageFrame.getRight(), stageFrame.getY(), stageFrame.getRight(), stageFrame.getY() + bracketLen, bThick);
+            g.drawLine(stageFrame.getRight() - bracketLen,
+                       stageFrame.getY(),
+                       stageFrame.getRight(),
+                       stageFrame.getY(),
+                       bThick);
+            g.drawLine(stageFrame.getRight(),
+                       stageFrame.getY(),
+                       stageFrame.getRight(),
+                       stageFrame.getY() + bracketLen,
+                       bThick);
 
             // Bottom-Left corner bracket
-            g.drawLine (stageFrame.getX(), stageFrame.getBottom() - bracketLen, stageFrame.getX(), stageFrame.getBottom(), bThick);
-            g.drawLine (stageFrame.getX(), stageFrame.getBottom(), stageFrame.getX() + bracketLen, stageFrame.getBottom(), bThick);
+            g.drawLine(stageFrame.getX(),
+                       stageFrame.getBottom() - bracketLen,
+                       stageFrame.getX(),
+                       stageFrame.getBottom(),
+                       bThick);
+            g.drawLine(stageFrame.getX(),
+                       stageFrame.getBottom(),
+                       stageFrame.getX() + bracketLen,
+                       stageFrame.getBottom(),
+                       bThick);
 
             // Bottom-Right corner bracket
-            g.drawLine (stageFrame.getRight() - bracketLen, stageFrame.getBottom(), stageFrame.getRight(), stageFrame.getBottom(), bThick);
-            g.drawLine (stageFrame.getRight(), stageFrame.getBottom() - bracketLen, stageFrame.getRight(), stageFrame.getBottom(), bThick);
+            g.drawLine(stageFrame.getRight() - bracketLen,
+                       stageFrame.getBottom(),
+                       stageFrame.getRight(),
+                       stageFrame.getBottom(),
+                       bThick);
+            g.drawLine(stageFrame.getRight(),
+                       stageFrame.getBottom() - bracketLen,
+                       stageFrame.getRight(),
+                       stageFrame.getBottom(),
+                       bThick);
 
             // 4. Inset Action-Safe border (dashed)
-            const float actionDash[2] = { 6.0f, 5.0f };
-            g.setColour (theme.accent.withAlpha (0.35f));
+            const float actionDash[2] = {6.0f, 5.0f};
+            g.setColour(theme.accent.withAlpha(0.35f));
             juce::Path actionPath;
-            actionPath.addRectangle (actionSafe);
+            actionPath.addRectangle(actionSafe);
             juce::Path dashedAction;
-            juce::PathStrokeType (1.0f).createDashedStroke (dashedAction, actionPath, actionDash, 2);
-            g.fillPath (dashedAction);
+            juce::PathStrokeType(1.0f).createDashedStroke(dashedAction, actionPath, actionDash, 2);
+            g.fillPath(dashedAction);
 
             // 5. Safe Zone Title Badge / Pill
-            juce::Rectangle<float> titlePill { stageFrame.getX() + 14.0f, stageFrame.getY() + 10.0f, 210.0f, 20.0f };
-            Sketch::box (g, titlePill, theme.panel.withAlpha (0.90f), theme.ink, 4.0f, 1.4f, 1, 991);
-            g.setColour (theme.accent);
-            g.fillEllipse (juce::Rectangle<float> (titlePill.getX() + 7.0f, titlePill.getY() + 6.0f, 8.0f, 8.0f));
-            g.setColour (theme.ink);
-            g.drawEllipse (juce::Rectangle<float> (titlePill.getX() + 7.0f, titlePill.getY() + 6.0f, 8.0f, 8.0f), 1.0f);
-            g.setFont (Fonts::title (10.5f));
-            g.drawText ("SAFE ZONE (880 x 620 STAGE)",
-                        juce::Rectangle<float> (titlePill.getX() + 20.0f, titlePill.getY(), titlePill.getWidth() - 24.0f, titlePill.getHeight()),
-                        juce::Justification::centredLeft, false);
+            juce::Rectangle<float> titlePill {stageFrame.getX() + 14.0f, stageFrame.getY() + 10.0f, 210.0f, 20.0f};
+            Sketch::box(g, titlePill, theme.panel.withAlpha(0.90f), theme.ink, 4.0f, 1.4f, 1, 991);
+            g.setColour(theme.accent);
+            g.fillEllipse(juce::Rectangle<float>(titlePill.getX() + 7.0f, titlePill.getY() + 6.0f, 8.0f, 8.0f));
+            g.setColour(theme.ink);
+            g.drawEllipse(juce::Rectangle<float>(titlePill.getX() + 7.0f, titlePill.getY() + 6.0f, 8.0f, 8.0f), 1.0f);
+            g.setFont(Fonts::title(10.5f));
+            g.drawText(
+                "SAFE ZONE (880 x 620 STAGE)",
+                juce::Rectangle<float>(
+                    titlePill.getX() + 20.0f, titlePill.getY(), titlePill.getWidth() - 24.0f, titlePill.getHeight()),
+                juce::Justification::centredLeft,
+                false);
         }
 
-        const auto& pieces = project.pieces;
+        const auto &pieces = project.pieces;
         if (pieces.empty())
         {
-            auto card = canvasViewportBounds.reduced (60.0f, 40.0f);
-            Sketch::box (g, card, theme.panel, theme.inkSoft, 8.0f, 1.8f, 2, 777);
+            auto card = canvasViewportBounds.reduced(60.0f, 40.0f);
+            Sketch::box(g, card, theme.panel, theme.inkSoft, 8.0f, 1.8f, 2, 777);
 
-            g.setColour (theme.ink);
-            g.setFont (Fonts::title (20.0f));
-            g.drawText ("Blank .glorpkit Project Initialized",
-                        card.withHeight (32.0f).withTop (card.getY() + 20.0f),
-                        juce::Justification::centred, false);
+            g.setColour(theme.ink);
+            g.setFont(Fonts::title(20.0f));
+            g.drawText("Blank .glorpkit Project Initialized",
+                       card.withHeight(32.0f).withTop(card.getY() + 20.0f),
+                       juce::Justification::centred,
+                       false);
 
-            g.setColour (theme.inkSoft);
-            g.setFont (Fonts::body (13.5f));
-            g.drawText ("Get started by adding individual kit pieces or importing an entire asset collection:",
-                        card.withHeight (24.0f).withTop (card.getY() + 54.0f),
-                        juce::Justification::centred, false);
+            g.setColour(theme.inkSoft);
+            g.setFont(Fonts::body(13.5f));
+            g.drawText("Get started by adding individual kit pieces or importing an entire asset collection:",
+                       card.withHeight(24.0f).withTop(card.getY() + 54.0f),
+                       juce::Justification::centred,
+                       false);
 
             const float btnW = (card.getWidth() - 60.0f) / 3.0f;
             const float by = card.getBottom() - 54.0f;
-            btnBlankAddPiece     = { card.getX() + 20.0f, by, btnW, 36.0f };
-            btnBlankImportFolder = { btnBlankAddPiece.getRight() + 10.0f, by, btnW, 36.0f };
-            btnBlankImportOra    = { btnBlankImportFolder.getRight() + 10.0f, by, btnW, 36.0f };
+            btnBlankAddPiece = {card.getX() + 20.0f, by, btnW, 36.0f};
+            btnBlankImportFolder = {btnBlankAddPiece.getRight() + 10.0f, by, btnW, 36.0f};
+            btnBlankImportOra = {btnBlankImportFolder.getRight() + 10.0f, by, btnW, 36.0f};
 
-            Sketch::button (g, btnBlankAddPiece,     "+ Add First Piece",       theme.accent, theme.ink, false, 778, Fonts::title (13.0f));
-            Sketch::button (g, btnBlankImportFolder, "Import Assets Folder...", theme.trough, theme.ink, false, 779, Fonts::title (13.0f));
-            Sketch::button (g, btnBlankImportOra,    "Import .ORA Image...",    theme.trough, theme.ink, false, 780, Fonts::title (13.0f));
+            Sketch::button(
+                g, btnBlankAddPiece, "+ Add First Piece", theme.accent, theme.ink, false, 778, Fonts::title(13.0f));
+            Sketch::button(g,
+                           btnBlankImportFolder,
+                           "Import Assets Folder...",
+                           theme.trough,
+                           theme.ink,
+                           false,
+                           779,
+                           Fonts::title(13.0f));
+            Sketch::button(
+                g, btnBlankImportOra, "Import .ORA Image...", theme.trough, theme.ink, false, 780, Fonts::title(13.0f));
         }
 
-        std::vector<int> zSorted (pieces.size());
-        for (size_t i = 0; i < pieces.size(); ++i) zSorted[i] = (int) i;
-        std::sort (zSorted.begin(), zSorted.end(), [&] (int a, int b)
-        {
-            if (pieces[(size_t) a].zOrder != pieces[(size_t) b].zOrder)
-                return pieces[(size_t) a].zOrder < pieces[(size_t) b].zOrder;
-            return a < b;
-        });
+        std::vector<int> zSorted(pieces.size());
+        for (size_t i = 0; i < pieces.size(); ++i)
+            zSorted[i] = (int) i;
+        std::sort(zSorted.begin(),
+                  zSorted.end(),
+                  [&](int a, int b)
+                  {
+                      if (pieces[(size_t) a].zOrder != pieces[(size_t) b].zOrder)
+                          return pieces[(size_t) a].zOrder < pieces[(size_t) b].zOrder;
+                      return a < b;
+                  });
 
         for (int idx : zSorted)
         {
-            const auto& p = pieces[(size_t) idx];
-            if (! p.visible || idx >= (int) pieceSprites.size()) continue;
-            const auto& sp = pieceSprites[(size_t) idx];
+            const auto &p = pieces[(size_t) idx];
+            if (!p.visible || idx >= (int) pieceSprites.size())
+                continue;
+            const auto &sp = pieceSprites[(size_t) idx];
             const bool isSel = (idx == selectedPieceIdx);
             const float baseAlpha = previewKitMode ? 1.0f : (isSel ? 1.0f : 0.30f);
 
-            const float glowAlpha = std::max (sp.flash, isSel ? 0.45f : 0.0f);
+            const float glowAlpha = std::max(sp.flash, isSel ? 0.45f : 0.0f);
             if (glowAlpha > 0.01f && sp.glowImage.isValid())
             {
-                g.setOpacity (juce::jlimit (0.0f, 1.0f, glowAlpha * (isSel || previewKitMode ? 1.0f : 0.5f)));
-                g.drawImage (sp.glowImage, sp.canvasBounds.expanded (10.0f));
-                g.setOpacity (1.0f);
+                g.setOpacity(juce::jlimit(0.0f, 1.0f, glowAlpha * (isSel || previewKitMode ? 1.0f : 0.5f)));
+                g.drawImage(sp.glowImage, sp.canvasBounds.expanded(10.0f));
+                g.setOpacity(1.0f);
             }
 
             if (sp.rawImage.isValid())
             {
-                g.setOpacity (baseAlpha);
+                g.setOpacity(baseAlpha);
                 const float pop = 1.0f + sp.flash * 0.05f;
-                auto drawRect = sp.canvasBounds.withSizeKeepingCentre (sp.canvasBounds.getWidth() * pop,
-                                                                       sp.canvasBounds.getHeight() * pop);
-                g.drawImage (sp.rawImage, drawRect);
-                g.setOpacity (1.0f);
+                auto drawRect = sp.canvasBounds.withSizeKeepingCentre(sp.canvasBounds.getWidth() * pop,
+                                                                      sp.canvasBounds.getHeight() * pop);
+                g.drawImage(sp.rawImage, drawRect);
+                g.setOpacity(1.0f);
             }
 
             if (isSel)
             {
-                g.setColour (theme.accent);
-                const float dashLengths[2] = { 6.0f, 4.0f };
-                g.drawDashedLine (juce::Line<float> (sp.canvasBounds.getTopLeft(), sp.canvasBounds.getTopRight()), dashLengths, 2, 2.0f);
-                g.drawDashedLine (juce::Line<float> (sp.canvasBounds.getTopRight(), sp.canvasBounds.getBottomRight()), dashLengths, 2, 2.0f);
-                g.drawDashedLine (juce::Line<float> (sp.canvasBounds.getBottomRight(), sp.canvasBounds.getBottomLeft()), dashLengths, 2, 2.0f);
-                g.drawDashedLine (juce::Line<float> (sp.canvasBounds.getBottomLeft(), sp.canvasBounds.getTopLeft()), dashLengths, 2, 2.0f);
+                g.setColour(theme.accent);
+                const float dashLengths[2] = {6.0f, 4.0f};
+                g.drawDashedLine(juce::Line<float>(sp.canvasBounds.getTopLeft(), sp.canvasBounds.getTopRight()),
+                                 dashLengths,
+                                 2,
+                                 2.0f);
+                g.drawDashedLine(juce::Line<float>(sp.canvasBounds.getTopRight(), sp.canvasBounds.getBottomRight()),
+                                 dashLengths,
+                                 2,
+                                 2.0f);
+                g.drawDashedLine(juce::Line<float>(sp.canvasBounds.getBottomRight(), sp.canvasBounds.getBottomLeft()),
+                                 dashLengths,
+                                 2,
+                                 2.0f);
+                g.drawDashedLine(juce::Line<float>(sp.canvasBounds.getBottomLeft(), sp.canvasBounds.getTopLeft()),
+                                 dashLengths,
+                                 2,
+                                 2.0f);
 
-                juce::Rectangle<float> handle { sp.canvasBounds.getRight() - 7.0f, sp.canvasBounds.getBottom() - 7.0f, 14.0f, 14.0f };
-                g.setColour (theme.accent);
-                g.fillRect (handle);
-                g.setColour (theme.ink);
-                g.drawRect (handle, 1.5f);
+                juce::Rectangle<float> handle {
+                    sp.canvasBounds.getRight() - 7.0f, sp.canvasBounds.getBottom() - 7.0f, 14.0f, 14.0f};
+                g.setColour(theme.accent);
+                g.fillRect(handle);
+                g.setColour(theme.ink);
+                g.drawRect(handle, 1.5f);
 
-                juce::Rectangle<float> tag { sp.canvasBounds.getCentreX() - 76.0f,
-                                             std::max (canvasViewportBounds.getY() + 4.0f, sp.canvasBounds.getY() - 24.0f),
-                                             152.0f, 20.0f };
-                Sketch::box (g, tag, theme.panel.withAlpha (0.94f), theme.accent, 4.0f, 1.5f, 1, 130 + idx);
-                g.setColour (theme.ink);
-                g.setFont (Fonts::title (11.5f));
+                juce::Rectangle<float> tag {
+                    sp.canvasBounds.getCentreX() - 76.0f,
+                    std::max(canvasViewportBounds.getY() + 4.0f, sp.canvasBounds.getY() - 24.0f),
+                    152.0f,
+                    20.0f};
+                Sketch::box(g, tag, theme.panel.withAlpha(0.94f), theme.accent, 4.0f, 1.5f, 1, 130 + idx);
+                g.setColour(theme.ink);
+                g.setFont(Fonts::title(11.5f));
                 char cbuf[64];
-                std::snprintf (cbuf, sizeof (cbuf), "%s (%.2f, %.2f) Z:%d",
-                               p.name.c_str(), p.normX, p.normY, p.zOrder);
-                g.drawText (cbuf, tag.reduced (4.0f, 1.0f), juce::Justification::centred, true);
+                std::snprintf(cbuf, sizeof(cbuf), "%s (%.2f, %.2f) Z:%d", p.name.c_str(), p.normX, p.normY, p.zOrder);
+                g.drawText(cbuf, tag.reduced(4.0f, 1.0f), juce::Justification::centred, true);
             }
         }
 
         if (statusBannerAlpha > 0.02f && statusBannerText.isNotEmpty())
         {
-            juce::Rectangle<float> toast { canvasViewportBounds.getX() + 14.0f,
-                                           canvasViewportBounds.getBottom() - 30.0f,
-                                           canvasViewportBounds.getWidth() - 28.0f, 24.0f };
-            g.setColour (theme.panel.withAlpha (0.92f));
-            g.fillRoundedRectangle (toast, 5.0f);
-            g.setColour (theme.accent);
-            g.drawRoundedRectangle (toast, 5.0f, 1.5f);
-            g.setColour (theme.ink);
-            g.setFont (Fonts::body (13.0f));
-            g.drawText (statusBannerText, toast.reduced (10.0f, 2.0f), juce::Justification::centredLeft, true);
+            juce::Rectangle<float> toast {canvasViewportBounds.getX() + 14.0f,
+                                          canvasViewportBounds.getBottom() - 30.0f,
+                                          canvasViewportBounds.getWidth() - 28.0f,
+                                          24.0f};
+            g.setColour(theme.panel.withAlpha(0.92f));
+            g.fillRoundedRectangle(toast, 5.0f);
+            g.setColour(theme.accent);
+            g.drawRoundedRectangle(toast, 5.0f, 1.5f);
+            g.setColour(theme.ink);
+            g.setFont(Fonts::body(13.0f));
+            g.drawText(statusBannerText, toast.reduced(10.0f, 2.0f), juce::Justification::centredLeft, true);
         }
     }
 }
 
-void GlorpKitEditorComponent::paintMatrixPanel (juce::Graphics& g)
+void GlorpKitEditorComponent::paintMatrixPanel(juce::Graphics &g)
 {
-    const juce::Colour goodCol (0xff2ecc71);
-    Sketch::box (g, matrixPanelBounds, theme.panel, theme.ink, 6.0f, 2.2f, 2, 151);
+    const juce::Colour goodCol(0xff2ecc71);
+    Sketch::box(g, matrixPanelBounds, theme.panel, theme.ink, 6.0f, 2.2f, 2, 151);
 
-    const auto& pieces = project.pieces;
-    if (selectedPieceIdx < 0 || selectedPieceIdx >= (int) pieces.size()) return;
-    const auto& piece = pieces[(size_t) selectedPieceIdx];
+    const auto &pieces = project.pieces;
+    if (selectedPieceIdx < 0 || selectedPieceIdx >= (int) pieces.size())
+        return;
+    const auto &piece = pieces[(size_t) selectedPieceIdx];
 
-    g.setColour (theme.ink);
-    g.setFont (Fonts::title (13.5f));
-    g.drawText ("ARTICULATION ZONES & VELOCITY / ROUND-ROBIN MATRIX",
-                matrixPanelBounds.withHeight (26.0f).withLeft (matrixPanelBounds.getX() + 12.0f),
-                juce::Justification::centredLeft, false);
+    g.setColour(theme.ink);
+    g.setFont(Fonts::title(13.5f));
+    g.drawText("ARTICULATION ZONES & VELOCITY / ROUND-ROBIN MATRIX",
+               matrixPanelBounds.withHeight(26.0f).withLeft(matrixPanelBounds.getX() + 12.0f),
+               juce::Justification::centredLeft,
+               false);
 
-    btnImportWavs = { matrixPanelBounds.getRight() - 116.0f, matrixPanelBounds.getY() + 6.0f, 106.0f, 24.0f };
-    btnAutoPower  = { btnImportWavs.getX() - 98.0f,         matrixPanelBounds.getY() + 6.0f, 92.0f,  24.0f };
-    btnTargetMic  = { btnAutoPower.getX() - 118.0f,         matrixPanelBounds.getY() + 6.0f, 110.0f, 24.0f };
-    Sketch::button (g, btnTargetMic,  "Mic: " + juce::String (targetImportMic) + " v", theme.panel, theme.ink, false, 151, Fonts::title (11.0f));
-    Sketch::button (g, btnAutoPower,  "Auto Power",    theme.trough, theme.ink, false, 153, Fonts::title (11.5f));
-    Sketch::button (g, btnImportWavs, "+ Import WAVs", theme.accent, theme.ink, false, 155, Fonts::title (11.5f));
+    btnImportWavs = {matrixPanelBounds.getRight() - 116.0f, matrixPanelBounds.getY() + 6.0f, 106.0f, 24.0f};
+    btnAutoPower = {btnImportWavs.getX() - 98.0f, matrixPanelBounds.getY() + 6.0f, 92.0f, 24.0f};
+    btnTargetMic = {btnAutoPower.getX() - 118.0f, matrixPanelBounds.getY() + 6.0f, 110.0f, 24.0f};
+    Sketch::button(g,
+                   btnTargetMic,
+                   "Mic: " + juce::String(targetImportMic) + " v",
+                   theme.panel,
+                   theme.ink,
+                   false,
+                   151,
+                   Fonts::title(11.0f));
+    Sketch::button(g, btnAutoPower, "Auto Power", theme.trough, theme.ink, false, 153, Fonts::title(11.5f));
+    Sketch::button(g, btnImportWavs, "+ Import WAVs", theme.accent, theme.ink, false, 155, Fonts::title(11.5f));
 
     // Dynamic grid dimension steppers: RR and Velocity
     const int curVL = (selectedZoneIdx >= 0 && selectedZoneIdx < (int) piece.zones.size())
-                          ? piece.zones[(size_t) selectedZoneIdx].numVelocityLayers : 5;
+                          ? piece.zones[(size_t) selectedZoneIdx].numVelocityLayers
+                          : 5;
     const int curRR = (selectedZoneIdx >= 0 && selectedZoneIdx < (int) piece.zones.size())
-                          ? piece.zones[(size_t) selectedZoneIdx].numRoundRobins : 4;
+                          ? piece.zones[(size_t) selectedZoneIdx].numRoundRobins
+                          : 4;
 
-    btnRrUp     = { btnTargetMic.getX() - 28.0f,  matrixPanelBounds.getY() + 6.0f, 22.0f, 24.0f };
-    pillRrCount = { btnRrUp.getX() - 56.0f,       matrixPanelBounds.getY() + 6.0f, 52.0f, 24.0f };
-    btnRrDown   = { pillRrCount.getX() - 26.0f,   matrixPanelBounds.getY() + 6.0f, 22.0f, 24.0f };
+    btnRrUp = {btnTargetMic.getX() - 28.0f, matrixPanelBounds.getY() + 6.0f, 22.0f, 24.0f};
+    pillRrCount = {btnRrUp.getX() - 56.0f, matrixPanelBounds.getY() + 6.0f, 52.0f, 24.0f};
+    btnRrDown = {pillRrCount.getX() - 26.0f, matrixPanelBounds.getY() + 6.0f, 22.0f, 24.0f};
 
-    btnVelUp     = { btnRrDown.getX() - 32.0f,    matrixPanelBounds.getY() + 6.0f, 22.0f, 24.0f };
-    pillVelCount = { btnVelUp.getX() - 60.0f,     matrixPanelBounds.getY() + 6.0f, 56.0f, 24.0f };
-    btnVelDown   = { pillVelCount.getX() - 26.0f, matrixPanelBounds.getY() + 6.0f, 22.0f, 24.0f };
+    btnVelUp = {btnRrDown.getX() - 32.0f, matrixPanelBounds.getY() + 6.0f, 22.0f, 24.0f};
+    pillVelCount = {btnVelUp.getX() - 60.0f, matrixPanelBounds.getY() + 6.0f, 56.0f, 24.0f};
+    btnVelDown = {pillVelCount.getX() - 26.0f, matrixPanelBounds.getY() + 6.0f, 22.0f, 24.0f};
 
-    Sketch::button (g, btnVelDown, "-", theme.trough, theme.ink, false, 181, Fonts::title (12.0f));
-    Sketch::box (g, pillVelCount, theme.panel, theme.inkSoft, 4.0f, 1.2f, 1, 182);
-    g.setColour (theme.ink);
-    g.setFont (Fonts::title (11.5f));
-    g.drawText ("Vel: " + juce::String (curVL), pillVelCount, juce::Justification::centred, false);
-    Sketch::button (g, btnVelUp, "+", theme.trough, theme.ink, false, 183, Fonts::title (12.0f));
+    Sketch::button(g, btnVelDown, "-", theme.trough, theme.ink, false, 181, Fonts::title(12.0f));
+    Sketch::box(g, pillVelCount, theme.panel, theme.inkSoft, 4.0f, 1.2f, 1, 182);
+    g.setColour(theme.ink);
+    g.setFont(Fonts::title(11.5f));
+    g.drawText("Vel: " + juce::String(curVL), pillVelCount, juce::Justification::centred, false);
+    Sketch::button(g, btnVelUp, "+", theme.trough, theme.ink, false, 183, Fonts::title(12.0f));
 
-    Sketch::button (g, btnRrDown, "-", theme.trough, theme.ink, false, 184, Fonts::title (12.0f));
-    Sketch::box (g, pillRrCount, theme.panel, theme.inkSoft, 4.0f, 1.2f, 1, 185);
-    g.setColour (theme.ink);
-    g.setFont (Fonts::title (11.5f));
-    g.drawText ("RR: " + juce::String (curRR), pillRrCount, juce::Justification::centred, false);
-    Sketch::button (g, btnRrUp, "+", theme.trough, theme.ink, false, 186, Fonts::title (12.0f));
+    Sketch::button(g, btnRrDown, "-", theme.trough, theme.ink, false, 184, Fonts::title(12.0f));
+    Sketch::box(g, pillRrCount, theme.panel, theme.inkSoft, 4.0f, 1.2f, 1, 185);
+    g.setColour(theme.ink);
+    g.setFont(Fonts::title(11.5f));
+    g.drawText("RR: " + juce::String(curRR), pillRrCount, juce::Justification::centred, false);
+    Sketch::button(g, btnRrUp, "+", theme.trough, theme.ink, false, 186, Fonts::title(12.0f));
 
     zoneTabHits.clear();
     const float zy = matrixPanelBounds.getY() + 31.0f;
 
-    btnDeleteZone = { matrixPanelBounds.getRight() - 100.0f, zy, 90.0f, 24.0f };
+    btnDeleteZone = {matrixPanelBounds.getRight() - 100.0f, zy, 90.0f, 24.0f};
     const bool canDeleteZone = (piece.zones.size() > 1);
-    const juce::Colour pastelCoral { 0xfffecaca };
-    Sketch::button (g, btnDeleteZone, "Delete Zone",
-                    canDeleteZone ? pastelCoral : theme.trough.withAlpha (0.4f),
-                    canDeleteZone ? juce::Colour (0xff7f1d1d) : theme.inkSoft,
-                    false, 177, Fonts::title (11.5f));
+    const juce::Colour pastelCoral {0xfffecaca};
+    Sketch::button(g,
+                   btnDeleteZone,
+                   "Delete Zone",
+                   canDeleteZone ? pastelCoral : theme.trough.withAlpha(0.4f),
+                   canDeleteZone ? juce::Colour(0xff7f1d1d) : theme.inkSoft,
+                   false,
+                   177,
+                   Fonts::title(11.5f));
 
-    juce::Rectangle<float> addZoneR { btnDeleteZone.getX() - 98.0f, zy, 92.0f, 24.0f };
-    const juce::Colour pastelGreen { 0xffa7f3d0 };
-    Sketch::button (g, addZoneR, "+ Add Zone", pastelGreen, juce::Colour (0xff064e3b), false, 175, Fonts::title (11.5f));
-    zoneTabHits.push_back ({ -1, addZoneR });
+    juce::Rectangle<float> addZoneR {btnDeleteZone.getX() - 98.0f, zy, 92.0f, 24.0f};
+    const juce::Colour pastelGreen {0xffa7f3d0};
+    Sketch::button(g, addZoneR, "+ Add Zone", pastelGreen, juce::Colour(0xff064e3b), false, 175, Fonts::title(11.5f));
+    zoneTabHits.push_back({-1, addZoneR});
 
     // Measure total tabs width
     float totalTabsW = 0.0f;
-    std::vector<float> tabWidths (piece.zones.size());
+    std::vector<float> tabWidths(piece.zones.size());
     for (size_t z = 0; z < piece.zones.size(); ++z)
     {
-        const auto& zn = piece.zones[z];
-        juce::String label = juce::String (zn.name) + " (N:" + juce::String (zn.note) + ")";
-        tabWidths[z] = std::max (105.0f, (float) label.length() * 7.5f + 20.0f);
+        const auto &zn = piece.zones[z];
+        juce::String label = juce::String(zn.name) + " (N:" + juce::String(zn.note) + ")";
+        tabWidths[z] = std::max(105.0f, (float) label.length() * 7.5f + 20.0f);
         totalTabsW += tabWidths[z] + 6.0f;
     }
 
@@ -1305,81 +1486,107 @@ void GlorpKitEditorComponent::paintMatrixPanel (juce::Graphics& g)
 
     if (needsZoneScroll)
     {
-        btnZoneScrollLeft  = { leftStart, zy, 20.0f, 24.0f };
-        btnZoneScrollRight = { addZoneR.getX() - 26.0f, zy, 20.0f, 24.0f };
-        zoneTabBarBounds   = { btnZoneScrollLeft.getRight() + 4.0f, zy, btnZoneScrollRight.getX() - (btnZoneScrollLeft.getRight() + 6.0f), 26.0f };
-        maxZoneScrollX     = std::max (0.0f, totalTabsW - zoneTabBarBounds.getWidth());
+        btnZoneScrollLeft = {leftStart, zy, 20.0f, 24.0f};
+        btnZoneScrollRight = {addZoneR.getX() - 26.0f, zy, 20.0f, 24.0f};
+        zoneTabBarBounds = {btnZoneScrollLeft.getRight() + 4.0f,
+                            zy,
+                            btnZoneScrollRight.getX() - (btnZoneScrollLeft.getRight() + 6.0f),
+                            26.0f};
+        maxZoneScrollX = std::max(0.0f, totalTabsW - zoneTabBarBounds.getWidth());
     }
     else
     {
-        btnZoneScrollLeft  = {};
+        btnZoneScrollLeft = {};
         btnZoneScrollRight = {};
-        zoneTabBarBounds   = { leftStart, zy, std::max (10.0f, availableW), 26.0f };
-        maxZoneScrollX     = 0.0f;
-        zoneScrollX        = 0.0f;
+        zoneTabBarBounds = {leftStart, zy, std::max(10.0f, availableW), 26.0f};
+        maxZoneScrollX = 0.0f;
+        zoneScrollX = 0.0f;
     }
-    zoneScrollX = juce::jlimit (0.0f, maxZoneScrollX, zoneScrollX);
+    zoneScrollX = juce::jlimit(0.0f, maxZoneScrollX, zoneScrollX);
 
     {
-        juce::Graphics::ScopedSaveState s (g);
-        g.reduceClipRegion (zoneTabBarBounds.toNearestInt());
+        juce::Graphics::ScopedSaveState s(g);
+        g.reduceClipRegion(zoneTabBarBounds.toNearestInt());
 
         float zx = zoneTabBarBounds.getX() - zoneScrollX;
         for (size_t z = 0; z < piece.zones.size(); ++z)
         {
-            const auto& zn = piece.zones[z];
+            const auto &zn = piece.zones[z];
             const bool isZSel = ((int) z == selectedZoneIdx);
-            juce::String label = juce::String (zn.name) + " (N:" + juce::String (zn.note) + ")";
+            juce::String label = juce::String(zn.name) + " (N:" + juce::String(zn.note) + ")";
             const float tw = tabWidths[z];
-            juce::Rectangle<float> tabR { zx, zy, tw, 24.0f };
-            Sketch::button (g, tabR, label, isZSel ? theme.accent : theme.trough, theme.ink, isZSel, 160 + (int) z, Fonts::title (11.5f));
-            zoneTabHits.push_back ({ (int) z, tabR });
+            juce::Rectangle<float> tabR {zx, zy, tw, 24.0f};
+            Sketch::button(g,
+                           tabR,
+                           label,
+                           isZSel ? theme.accent : theme.trough,
+                           theme.ink,
+                           isZSel,
+                           160 + (int) z,
+                           Fonts::title(11.5f));
+            zoneTabHits.push_back({(int) z, tabR});
             zx += tw + 6.0f;
         }
     }
 
     if (needsZoneScroll)
     {
-        Sketch::button (g, btnZoneScrollLeft,  "<", zoneScrollX > 1.0f ? theme.accent : theme.trough, theme.ink, false, 188, Fonts::title (11.0f));
-        Sketch::button (g, btnZoneScrollRight, ">", zoneScrollX < maxZoneScrollX - 1.0f ? theme.accent : theme.trough, theme.ink, false, 189, Fonts::title (11.0f));
+        Sketch::button(g,
+                       btnZoneScrollLeft,
+                       "<",
+                       zoneScrollX > 1.0f ? theme.accent : theme.trough,
+                       theme.ink,
+                       false,
+                       188,
+                       Fonts::title(11.0f));
+        Sketch::button(g,
+                       btnZoneScrollRight,
+                       ">",
+                       zoneScrollX < maxZoneScrollX - 1.0f ? theme.accent : theme.trough,
+                       theme.ink,
+                       false,
+                       189,
+                       Fonts::title(11.0f));
     }
 
     matrixCellHits.clear();
-    if (selectedZoneIdx < 0 || selectedZoneIdx >= (int) piece.zones.size()) return;
-    const auto& zone = piece.zones[(size_t) selectedZoneIdx];
+    if (selectedZoneIdx < 0 || selectedZoneIdx >= (int) piece.zones.size())
+        return;
+    const auto &zone = piece.zones[(size_t) selectedZoneIdx];
 
-    const int numVelRows = juce::jlimit (1, 24, curVL);
-    const int numRrCols  = juce::jlimit (1, 8,  curRR);
+    const int numVelRows = juce::jlimit(1, 24, curVL);
+    const int numRrCols = juce::jlimit(1, 8, curRR);
 
     const float labelColW = 86.0f;
     const float colHeaderH = 20.0f;
     const float scrollbarW = 10.0f;
 
-    auto gridArea = matrixPanelBounds.reduced (12.0f, 6.0f).withTop (zy + 28.0f);
+    auto gridArea = matrixPanelBounds.reduced(12.0f, 6.0f).withTop(zy + 28.0f);
     const float naturalCellH = 25.0f;
     const float totalContentH = colHeaderH + (float) numVelRows * naturalCellH;
     const bool needsScroll = (totalContentH > gridArea.getHeight());
     const float availW = gridArea.getWidth() - labelColW - (needsScroll ? scrollbarW : 2.0f);
     const float cellW = availW / (float) numRrCols;
-    const float cellH = needsScroll ? naturalCellH : std::max (22.0f, (gridArea.getHeight() - colHeaderH) / (float) numVelRows);
+    const float cellH =
+        needsScroll ? naturalCellH : std::max(22.0f, (gridArea.getHeight() - colHeaderH) / (float) numVelRows);
 
     if (needsScroll)
-        matrixScrollY = juce::jlimit (0.0f, totalContentH - gridArea.getHeight(), matrixScrollY);
+        matrixScrollY = juce::jlimit(0.0f, totalContentH - gridArea.getHeight(), matrixScrollY);
     else
         matrixScrollY = 0.0f;
 
     // RR Column headers
     for (int c = 0; c < numRrCols; ++c)
     {
-        juce::Rectangle<float> hdr { gridArea.getX() + labelColW + c * cellW, gridArea.getY(), cellW - 4.0f, colHeaderH };
-        g.setColour (theme.inkSoft);
-        g.setFont (Fonts::title (11.5f));
-        g.drawText ("Round Robin RR" + juce::String (c + 1), hdr, juce::Justification::centred, false);
+        juce::Rectangle<float> hdr {gridArea.getX() + labelColW + c * cellW, gridArea.getY(), cellW - 4.0f, colHeaderH};
+        g.setColour(theme.inkSoft);
+        g.setFont(Fonts::title(11.5f));
+        g.drawText("Round Robin RR" + juce::String(c + 1), hdr, juce::Justification::centred, false);
     }
 
     {
-        juce::Graphics::ScopedSaveState clipGuard (g);
-        g.reduceClipRegion (gridArea.withTrimmedTop (colHeaderH).toNearestInt());
+        juce::Graphics::ScopedSaveState clipGuard(g);
+        g.reduceClipRegion(gridArea.withTrimmedTop(colHeaderH).toNearestInt());
 
         for (int r = 0; r < numVelRows; ++r)
         {
@@ -1388,33 +1595,34 @@ void GlorpKitEditorComponent::paintMatrixPanel (juce::Graphics& g)
             if (cy + cellH < gridArea.getY() + colHeaderH || cy > gridArea.getBottom())
                 continue;
 
-            juce::Rectangle<float> rowLbl { gridArea.getX(), cy, labelColW - 6.0f, cellH - 3.0f };
-            g.setColour (theme.ink);
-            g.setFont (Fonts::title (11.0f));
+            juce::Rectangle<float> rowLbl {gridArea.getX(), cy, labelColW - 6.0f, cellH - 3.0f};
+            g.setColour(theme.ink);
+            g.setFont(Fonts::title(11.0f));
 
-            juce::String velLbl = "v" + juce::String (velLayer + 1);
+            juce::String velLbl = "v" + juce::String(velLayer + 1);
             if (numVelRows == 5)
             {
-                static const char* labels5[5] = { " (PP 0.2)", " (MP 0.4)", " (MF 0.6)", " (F 0.8)", " (FF 1.0)" };
+                static const char *labels5[5] = {" (PP 0.2)", " (MP 0.4)", " (MF 0.6)", " (F 0.8)", " (FF 1.0)"};
                 velLbl += labels5[velLayer];
             }
             else
             {
-                const float pwr = (numVelRows > 1) ? 0.12f + 0.88f * ((float) velLayer / (float) (numVelRows - 1)) : 1.0f;
+                const float pwr =
+                    (numVelRows > 1) ? 0.12f + 0.88f * ((float) velLayer / (float) (numVelRows - 1)) : 1.0f;
                 char pbuf[32];
-                std::snprintf (pbuf, sizeof (pbuf), " (%.2f)", pwr);
+                std::snprintf(pbuf, sizeof(pbuf), " (%.2f)", pwr);
                 velLbl += pbuf;
             }
-            g.drawText (velLbl, rowLbl, juce::Justification::centredLeft, false);
+            g.drawText(velLbl, rowLbl, juce::Justification::centredLeft, false);
 
             for (int c = 0; c < numRrCols; ++c)
             {
-                juce::Rectangle<float> cellR { gridArea.getX() + labelColW + c * cellW, cy, cellW - 5.0f, cellH - 3.0f };
+                juce::Rectangle<float> cellR {gridArea.getX() + labelColW + c * cellW, cy, cellW - 5.0f, cellH - 3.0f};
                 int foundHit = -1;
                 for (size_t hi = 0; hi < zone.hits.size(); ++hi)
                 {
-                    const int hVel = juce::jlimit (0, numVelRows - 1, zone.hits[hi].velocityLayerIndex);
-                    const int hRr  = juce::jlimit (0, numRrCols - 1,  zone.hits[hi].roundRobinIndex);
+                    const int hVel = juce::jlimit(0, numVelRows - 1, zone.hits[hi].velocityLayerIndex);
+                    const int hRr = juce::jlimit(0, numRrCols - 1, zone.hits[hi].roundRobinIndex);
                     if (hVel == velLayer && hRr == c)
                     {
                         foundHit = (int) hi;
@@ -1430,36 +1638,39 @@ void GlorpKitEditorComponent::paintMatrixPanel (juce::Graphics& g)
 
                 const bool isCellSel = (foundHit >= 0 && foundHit == selectedHitIdx);
                 const bool isDragSource = (isDraggingMatrixHit && foundHit >= 0 && foundHit == dragMatrixHitIdx);
-                const bool isDropTarget = (isDraggingMatrixHit && cellR.contains (dragMatrixMousePos));
+                const bool isDropTarget = (isDraggingMatrixHit && cellR.contains(dragMatrixMousePos));
 
-                juce::Colour cellBg = isDropTarget
-                                          ? theme.accent.withAlpha (0.45f)
-                                          : (foundHit >= 0
-                                                 ? (isCellSel ? theme.accent.withAlpha (0.32f) : goodCol.withAlpha (0.18f))
-                                                 : theme.trough.withAlpha (0.65f));
-                juce::Colour cellBrd = isDropTarget
-                                           ? theme.accent
-                                           : (isCellSel ? theme.accent : theme.inkSoft.withAlpha (0.65f));
+                juce::Colour cellBg =
+                    isDropTarget
+                        ? theme.accent.withAlpha(0.45f)
+                        : (foundHit >= 0 ? (isCellSel ? theme.accent.withAlpha(0.32f) : goodCol.withAlpha(0.18f))
+                                         : theme.trough.withAlpha(0.65f));
+                juce::Colour cellBrd =
+                    isDropTarget ? theme.accent : (isCellSel ? theme.accent : theme.inkSoft.withAlpha(0.65f));
 
-                Sketch::box (g, cellR, cellBg, cellBrd, 4.0f, (isCellSel || isDropTarget) ? 2.0f : 1.2f, 1, 200 + r * 10 + c);
+                Sketch::box(
+                    g, cellR, cellBg, cellBrd, 4.0f, (isCellSel || isDropTarget) ? 2.0f : 1.2f, 1, 200 + r * 10 + c);
 
                 if (foundHit >= 0)
                 {
-                    const auto& h = zone.hits[(size_t) foundHit];
-                    g.setColour (isDragSource ? theme.inkSoft.withAlpha (0.5f) : theme.ink);
-                    g.setFont (Fonts::body (11.0f));
+                    const auto &h = zone.hits[(size_t) foundHit];
+                    g.setColour(isDragSource ? theme.inkSoft.withAlpha(0.5f) : theme.ink);
+                    g.setFont(Fonts::body(11.0f));
                     char pbuf[64];
-                    std::snprintf (pbuf, sizeof (pbuf), "%s  [p:%.2f]", h.name.c_str(), h.power);
-                    g.drawText (isDragSource ? "[moving...]" : pbuf, cellR.reduced (6.0f, 1.0f), juce::Justification::centredLeft, true);
+                    std::snprintf(pbuf, sizeof(pbuf), "%s  [p:%.2f]", h.name.c_str(), h.power);
+                    g.drawText(isDragSource ? "[moving...]" : pbuf,
+                               cellR.reduced(6.0f, 1.0f),
+                               juce::Justification::centredLeft,
+                               true);
                 }
                 else
                 {
-                    g.setColour (theme.inkSoft.withAlpha (0.55f));
-                    g.setFont (Fonts::body (10.5f));
-                    g.drawText (isDropTarget ? "[drop here]" : "(drop WAV)", cellR, juce::Justification::centred, false);
+                    g.setColour(theme.inkSoft.withAlpha(0.55f));
+                    g.setFont(Fonts::body(10.5f));
+                    g.drawText(isDropTarget ? "[drop here]" : "(drop WAV)", cellR, juce::Justification::centred, false);
                 }
 
-                matrixCellHits.push_back ({ foundHit, velLayer, c, cellR });
+                matrixCellHits.push_back({foundHit, velLayer, c, cellR});
             }
         }
     }
@@ -1467,180 +1678,260 @@ void GlorpKitEditorComponent::paintMatrixPanel (juce::Graphics& g)
     // Scrollbar if needed
     if (needsScroll)
     {
-        juce::Rectangle<float> sbTrack { gridArea.getRight() - scrollbarW, gridArea.getY() + colHeaderH, scrollbarW, gridArea.getHeight() - colHeaderH };
-        g.setColour (theme.trough.withAlpha (0.6f));
-        g.fillRect (sbTrack);
+        juce::Rectangle<float> sbTrack {gridArea.getRight() - scrollbarW,
+                                        gridArea.getY() + colHeaderH,
+                                        scrollbarW,
+                                        gridArea.getHeight() - colHeaderH};
+        g.setColour(theme.trough.withAlpha(0.6f));
+        g.fillRect(sbTrack);
         const float visibleFrac = (gridArea.getHeight() - colHeaderH) / totalContentH;
-        const float thumbH = std::max (20.0f, sbTrack.getHeight() * visibleFrac);
+        const float thumbH = std::max(20.0f, sbTrack.getHeight() * visibleFrac);
         const float scrollRange = totalContentH - (gridArea.getHeight() - colHeaderH);
         const float thumbY = sbTrack.getY() + (matrixScrollY / scrollRange) * (sbTrack.getHeight() - thumbH);
-        g.setColour (theme.inkSoft.withAlpha (0.5f));
-        g.fillRoundedRectangle ({ sbTrack.getX() + 2.0f, thumbY, scrollbarW - 4.0f, thumbH }, 3.0f);
+        g.setColour(theme.inkSoft.withAlpha(0.5f));
+        g.fillRoundedRectangle({sbTrack.getX() + 2.0f, thumbY, scrollbarW - 4.0f, thumbH}, 3.0f);
     }
 
     // Floating dragged hit badge
     if (isDraggingMatrixHit && dragMatrixHitIdx >= 0 && dragMatrixHitIdx < (int) zone.hits.size())
     {
-        const auto& dh = zone.hits[(size_t) dragMatrixHitIdx];
-        juce::Rectangle<float> badge { dragMatrixMousePos.x - 70.0f, dragMatrixMousePos.y - 14.0f, 140.0f, 28.0f };
-        Sketch::box (g, badge, theme.accent, theme.ink, 5.0f, 2.0f, 2, 888);
-        g.setColour (theme.ink);
-        g.setFont (Fonts::title (11.5f));
-        g.drawText (dh.name, badge.reduced (4.0f, 2.0f), juce::Justification::centred, true);
+        const auto &dh = zone.hits[(size_t) dragMatrixHitIdx];
+        juce::Rectangle<float> badge {dragMatrixMousePos.x - 70.0f, dragMatrixMousePos.y - 14.0f, 140.0f, 28.0f};
+        Sketch::box(g, badge, theme.accent, theme.ink, 5.0f, 2.0f, 2, 888);
+        g.setColour(theme.ink);
+        g.setFont(Fonts::title(11.5f));
+        g.drawText(dh.name, badge.reduced(4.0f, 2.0f), juce::Justification::centred, true);
     }
 }
 
-void GlorpKitEditorComponent::paintRightInspector (juce::Graphics& g)
+void GlorpKitEditorComponent::paintRightInspector(juce::Graphics &g)
 {
-    const juce::Colour goodCol (0xff2ecc71);
-    Sketch::box (g, rightPanelBounds, theme.panel, theme.ink, 6.0f, 2.2f, 2, 261);
+    const juce::Colour goodCol(0xff2ecc71);
+    Sketch::box(g, rightPanelBounds, theme.panel, theme.ink, 6.0f, 2.2f, 2, 261);
 
-    g.setColour (theme.ink);
-    g.setFont (Fonts::title (14.0f));
-    g.drawText ("PIECE, ZONE & SAMPLE INSPECTOR",
-                rightPanelBounds.withHeight (32.0f).reduced (12.0f, 4.0f),
-                juce::Justification::centredLeft, false);
+    g.setColour(theme.ink);
+    g.setFont(Fonts::title(14.0f));
+    g.drawText("PIECE, ZONE & SAMPLE INSPECTOR",
+               rightPanelBounds.withHeight(32.0f).reduced(12.0f, 4.0f),
+               juce::Justification::centredLeft,
+               false);
 
-    const auto& pieces = project.pieces;
-    if (selectedPieceIdx < 0 || selectedPieceIdx >= (int) pieces.size()) return;
-    const auto& piece = pieces[(size_t) selectedPieceIdx];
+    const auto &pieces = project.pieces;
+    if (selectedPieceIdx < 0 || selectedPieceIdx >= (int) pieces.size())
+        return;
+    const auto &piece = pieces[(size_t) selectedPieceIdx];
 
     // 1. PIECE GRAPHICS & STAGE LAYOUT CARD
-    Sketch::box (g, cardPieceBounds, theme.trough, theme.ink, 5.0f, 1.8f, 2, 263);
-    g.setColour (theme.accent);
-    g.setFont (Fonts::title (12.5f));
-    g.drawText ("1. PIECE GRAPHICS & LAYOUT",
-                cardPieceBounds.withHeight (24.0f).reduced (10.0f, 2.0f), juce::Justification::centredLeft, false);
+    Sketch::box(g, cardPieceBounds, theme.trough, theme.ink, 5.0f, 1.8f, 2, 263);
+    g.setColour(theme.accent);
+    g.setFont(Fonts::title(12.5f));
+    g.drawText("1. PIECE GRAPHICS & LAYOUT",
+               cardPieceBounds.withHeight(24.0f).reduced(10.0f, 2.0f),
+               juce::Justification::centredLeft,
+               false);
 
-    auto drawFieldRow = [&] (float y, const juce::String& lbl)
+    auto drawFieldRow = [&](float y, const juce::String &lbl)
     {
-        g.setColour (theme.inkSoft);
-        g.setFont (Fonts::body (12.5f));
-        g.drawText (lbl, juce::Rectangle<float> (cardPieceBounds.getX() + 10.0f, y, 80.0f, 22.0f),
-                    juce::Justification::centredLeft, false);
-        Sketch::box (g, { cardPieceBounds.getX() + 88.0f, y, cardPieceBounds.getWidth() - 98.0f, 22.0f },
-                     theme.panel, theme.inkSoft, 4.0f, 1.2f, 1, (int) y);
+        g.setColour(theme.inkSoft);
+        g.setFont(Fonts::body(12.5f));
+        g.drawText(lbl,
+                   juce::Rectangle<float>(cardPieceBounds.getX() + 10.0f, y, 80.0f, 22.0f),
+                   juce::Justification::centredLeft,
+                   false);
+        Sketch::box(g,
+                    {cardPieceBounds.getX() + 88.0f, y, cardPieceBounds.getWidth() - 98.0f, 22.0f},
+                    theme.panel,
+                    theme.inkSoft,
+                    4.0f,
+                    1.2f,
+                    1,
+                    (int) y);
     };
-    drawFieldRow (cardPieceBounds.getY() + 30.0f, "Display Name:");
-    drawFieldRow (cardPieceBounds.getY() + 56.0f, "Piece ID:");
+    drawFieldRow(cardPieceBounds.getY() + 30.0f, "Display Name:");
+    drawFieldRow(cardPieceBounds.getY() + 56.0f, "Piece ID:");
 
     const float sprY = cardPieceBounds.getY() + 84.0f;
-    btnBuiltinAsset  = { cardPieceBounds.getX() + 10.0f, sprY, (cardPieceBounds.getWidth() - 26.0f) * 0.48f, 25.0f };
-    btnLoadCustomPng = { btnBuiltinAsset.getRight() + 6.0f, sprY, (cardPieceBounds.getWidth() - 26.0f) * 0.52f, 25.0f };
-    Sketch::button (g, btnBuiltinAsset,  "Sprite: " + juce::String (piece.graphicId), theme.panel, theme.ink, false, 271, Fonts::title (11.0f));
-    Sketch::button (g, btnLoadCustomPng, piece.customPngBytes.empty() ? "Load Custom PNG..." : "Custom PNG Active",
-                    piece.customPngBytes.empty() ? theme.accent : goodCol.withAlpha (0.4f), theme.ink, false, 273, Fonts::title (11.0f));
+    btnBuiltinAsset = {cardPieceBounds.getX() + 10.0f, sprY, (cardPieceBounds.getWidth() - 26.0f) * 0.48f, 25.0f};
+    btnLoadCustomPng = {btnBuiltinAsset.getRight() + 6.0f, sprY, (cardPieceBounds.getWidth() - 26.0f) * 0.52f, 25.0f};
+    Sketch::button(g,
+                   btnBuiltinAsset,
+                   "Sprite: " + juce::String(piece.graphicId),
+                   theme.panel,
+                   theme.ink,
+                   false,
+                   271,
+                   Fonts::title(11.0f));
+    Sketch::button(g,
+                   btnLoadCustomPng,
+                   piece.customPngBytes.empty() ? "Load Custom PNG..." : "Custom PNG Active",
+                   piece.customPngBytes.empty() ? theme.accent : goodCol.withAlpha(0.4f),
+                   theme.ink,
+                   false,
+                   273,
+                   Fonts::title(11.0f));
 
     const float normY = cardPieceBounds.getY() + 116.0f;
     const float pw = (cardPieceBounds.getWidth() - 32.0f) * 0.25f;
-    pillNormX  = { cardPieceBounds.getX() + 10.0f,          normY, pw, 36.0f };
-    pillNormY  = { pillNormX.getRight() + 4.0f,             normY, pw, 36.0f };
-    pillNormW  = { pillNormY.getRight() + 4.0f,             normY, pw, 36.0f };
-    pillZOrder = { pillNormW.getRight() + 4.0f,             normY, pw, 36.0f };
+    pillNormX = {cardPieceBounds.getX() + 10.0f, normY, pw, 36.0f};
+    pillNormY = {pillNormX.getRight() + 4.0f, normY, pw, 36.0f};
+    pillNormW = {pillNormY.getRight() + 4.0f, normY, pw, 36.0f};
+    pillZOrder = {pillNormW.getRight() + 4.0f, normY, pw, 36.0f};
 
-    auto drawMetricPill = [&] (const juce::Rectangle<float>& r, const char* title, const juce::String& val, int seed)
+    auto drawMetricPill = [&](const juce::Rectangle<float> &r, const char *title, const juce::String &val, int seed)
     {
-        Sketch::box (g, r, theme.panel, theme.inkSoft, 4.0f, 1.3f, 1, seed);
-        g.setColour (theme.inkSoft);
-        g.setFont (Fonts::body (10.5f));
-        g.drawText (title, r.withHeight (15.0f), juce::Justification::centred, false);
-        g.setColour (theme.ink);
-        g.setFont (Fonts::title (12.5f));
-        g.drawText (val, r.withTop (r.getY() + 15.0f), juce::Justification::centred, false);
+        Sketch::box(g, r, theme.panel, theme.inkSoft, 4.0f, 1.3f, 1, seed);
+        g.setColour(theme.inkSoft);
+        g.setFont(Fonts::body(10.5f));
+        g.drawText(title, r.withHeight(15.0f), juce::Justification::centred, false);
+        g.setColour(theme.ink);
+        g.setFont(Fonts::title(12.5f));
+        g.drawText(val, r.withTop(r.getY() + 15.0f), juce::Justification::centred, false);
     };
-    drawMetricPill (pillNormX,  "Pos X",  juce::String (piece.normX, 2),       275);
-    drawMetricPill (pillNormY,  "Pos Y",  juce::String (piece.normY, 2),       277);
-    drawMetricPill (pillNormW,  "Width",  juce::String ((int) piece.normW) + "px", 279);
-    drawMetricPill (pillZOrder, "Z-Ord",  juce::String (piece.zOrder),         281);
+    drawMetricPill(pillNormX, "Pos X", juce::String(piece.normX, 2), 275);
+    drawMetricPill(pillNormY, "Pos Y", juce::String(piece.normY, 2), 277);
+    drawMetricPill(pillNormW, "Width", juce::String((int) piece.normW) + "px", 279);
+    drawMetricPill(pillZOrder, "Z-Ord", juce::String(piece.zOrder), 281);
 
     const float busY = normY + 42.0f;
     btnAlignGuide = {};
     const float halfW = (cardPieceBounds.getWidth() - 26.0f) * 0.5f;
-    btnOutputBus  = { cardPieceBounds.getX() + 10.0f, busY, halfW, 25.0f };
-    btnChokeGroup = { btnOutputBus.getRight() + 6.0f, busY, halfW, 25.0f };
-    Sketch::button (g, btnOutputBus,  "Bus #" + juce::String (piece.outputBus + 1), theme.panel, theme.ink, false, 283, Fonts::title (11.5f));
+    btnOutputBus = {cardPieceBounds.getX() + 10.0f, busY, halfW, 25.0f};
+    btnChokeGroup = {btnOutputBus.getRight() + 6.0f, busY, halfW, 25.0f};
+    Sketch::button(g,
+                   btnOutputBus,
+                   "Bus #" + juce::String(piece.outputBus + 1),
+                   theme.panel,
+                   theme.ink,
+                   false,
+                   283,
+                   Fonts::title(11.5f));
     juce::String chokeLbl = (piece.chokeGroup.empty() || piece.chokeGroup == "none")
                                 ? "Choke: None"
-                                : ("Choke: " + juce::String (piece.chokeGroup));
-    Sketch::button (g, btnChokeGroup, chokeLbl, theme.panel, theme.ink, false, 285, Fonts::title (11.5f));
+                                : ("Choke: " + juce::String(piece.chokeGroup));
+    Sketch::button(g, btnChokeGroup, chokeLbl, theme.panel, theme.ink, false, 285, Fonts::title(11.5f));
 
     const float busY2 = busY + 28.0f;
-    btnPieceMic = { cardPieceBounds.getX() + 10.0f, busY2, cardPieceBounds.getWidth() - 20.0f, 25.0f };
-    const std::string domPieceMic = project.getPieceDominantMicrophone (selectedPieceIdx);
-    Sketch::button (g, btnPieceMic, "Piece Mic: " + juce::String (domPieceMic) + " (Route All) v",
-                    theme.panel, theme.ink, false, 287, Fonts::title (11.0f));
+    btnPieceMic = {cardPieceBounds.getX() + 10.0f, busY2, cardPieceBounds.getWidth() - 20.0f, 25.0f};
+    const std::string domPieceMic = project.getPieceDominantMicrophone(selectedPieceIdx);
+    Sketch::button(g,
+                   btnPieceMic,
+                   "Piece Mic: " + juce::String(domPieceMic) + " (Route All) v",
+                   theme.panel,
+                   theme.ink,
+                   false,
+                   287,
+                   Fonts::title(11.0f));
 
     // 2. ARTICULATION ZONE & MIDI MAPPING CARD
-    Sketch::box (g, cardZoneBounds, theme.trough, theme.ink, 5.0f, 1.8f, 2, 291);
-    g.setColour (theme.accent);
-    g.setFont (Fonts::title (12.5f));
-    g.drawText ("2. ZONE MIDI & ARTICULATION RULES",
-                cardZoneBounds.withHeight (24.0f).reduced (10.0f, 2.0f), juce::Justification::centredLeft, false);
+    Sketch::box(g, cardZoneBounds, theme.trough, theme.ink, 5.0f, 1.8f, 2, 291);
+    g.setColour(theme.accent);
+    g.setFont(Fonts::title(12.5f));
+    g.drawText("2. ZONE MIDI & ARTICULATION RULES",
+               cardZoneBounds.withHeight(24.0f).reduced(10.0f, 2.0f),
+               juce::Justification::centredLeft,
+               false);
 
     if (selectedZoneIdx >= 0 && selectedZoneIdx < (int) piece.zones.size())
     {
-        const auto& zn = piece.zones[(size_t) selectedZoneIdx];
-        g.setColour (theme.inkSoft);
-        g.setFont (Fonts::body (12.5f));
-        g.drawText ("Zone Name:", juce::Rectangle<float> (cardZoneBounds.getX() + 10.0f, cardZoneBounds.getY() + 26.0f, 80.0f, 22.0f),
-                    juce::Justification::centredLeft, false);
-        Sketch::box (g, { cardZoneBounds.getX() + 88.0f, cardZoneBounds.getY() + 26.0f, cardZoneBounds.getWidth() - 98.0f, 22.0f },
-                     theme.panel, theme.inkSoft, 4.0f, 1.2f, 1, 292);
+        const auto &zn = piece.zones[(size_t) selectedZoneIdx];
+        g.setColour(theme.inkSoft);
+        g.setFont(Fonts::body(12.5f));
+        g.drawText("Zone Name:",
+                   juce::Rectangle<float>(cardZoneBounds.getX() + 10.0f, cardZoneBounds.getY() + 26.0f, 80.0f, 22.0f),
+                   juce::Justification::centredLeft,
+                   false);
+        Sketch::box(
+            g,
+            {cardZoneBounds.getX() + 88.0f, cardZoneBounds.getY() + 26.0f, cardZoneBounds.getWidth() - 98.0f, 22.0f},
+            theme.panel,
+            theme.inkSoft,
+            4.0f,
+            1.2f,
+            1,
+            292);
 
         const float zy1 = cardZoneBounds.getY() + 52.0f;
-        btnMidiNote  = { cardZoneBounds.getX() + 10.0f, zy1, cardZoneBounds.getWidth() - 96.0f, 26.0f };
-        btnMidiLearn = { btnMidiNote.getRight() + 6.0f, zy1, 70.0f, 26.0f };
-        Sketch::button (g, btnMidiNote,  "Note: " + juce::String (midiNoteName (zn.note)), theme.panel, theme.ink, false, 293, Fonts::title (11.5f));
-        Sketch::button (g, btnMidiLearn, midiLearnArmed ? "Listening" : "Learn",
-                        midiLearnArmed ? theme.warning.withAlpha (0.55f) : theme.accent, theme.ink, midiLearnArmed, 295, Fonts::title (11.5f));
+        btnMidiNote = {cardZoneBounds.getX() + 10.0f, zy1, cardZoneBounds.getWidth() - 96.0f, 26.0f};
+        btnMidiLearn = {btnMidiNote.getRight() + 6.0f, zy1, 70.0f, 26.0f};
+        Sketch::button(g,
+                       btnMidiNote,
+                       "Note: " + juce::String(midiNoteName(zn.note)),
+                       theme.panel,
+                       theme.ink,
+                       false,
+                       293,
+                       Fonts::title(11.5f));
+        Sketch::button(g,
+                       btnMidiLearn,
+                       midiLearnArmed ? "Listening" : "Learn",
+                       midiLearnArmed ? theme.warning.withAlpha(0.55f) : theme.accent,
+                       theme.ink,
+                       midiLearnArmed,
+                       295,
+                       Fonts::title(11.5f));
 
-        btnAltNote = { cardZoneBounds.getX() + 10.0f, zy1 + 32.0f, cardZoneBounds.getWidth() - 20.0f, 25.0f };
-        Sketch::button (g, btnAltNote, "Alt Note: " + juce::String (zn.altNote >= 0 ? midiNoteName (zn.altNote) : "None"),
-                        theme.panel, theme.ink, false, 297, Fonts::title (11.5f));
+        btnAltNote = {cardZoneBounds.getX() + 10.0f, zy1 + 32.0f, cardZoneBounds.getWidth() - 20.0f, 25.0f};
+        Sketch::button(g,
+                       btnAltNote,
+                       "Alt Note: " + juce::String(zn.altNote >= 0 ? midiNoteName(zn.altNote) : "None"),
+                       theme.panel,
+                       theme.ink,
+                       false,
+                       297,
+                       Fonts::title(11.5f));
 
         const float halfZoneW = (cardZoneBounds.getWidth() - 26.0f) * 0.5f;
         const float zy2 = zy1 + 61.0f;
-        btnZoneMic     = { cardZoneBounds.getX() + 10.0f, zy2, halfZoneW, 25.0f };
-        btnChokeTarget = { btnZoneMic.getRight() + 6.0f, zy2, halfZoneW, 25.0f };
+        btnZoneMic = {cardZoneBounds.getX() + 10.0f, zy2, halfZoneW, 25.0f};
+        btnChokeTarget = {btnZoneMic.getRight() + 6.0f, zy2, halfZoneW, 25.0f};
 
-        const std::string domZoneMic = project.getZoneDominantMicrophone (selectedPieceIdx, selectedZoneIdx);
-        Sketch::button (g, btnZoneMic, "Zone Mic: " + juce::String (domZoneMic) + " v",
-                        theme.panel, theme.ink, false, 298, Fonts::title (11.0f));
+        const std::string domZoneMic = project.getZoneDominantMicrophone(selectedPieceIdx, selectedZoneIdx);
+        Sketch::button(g,
+                       btnZoneMic,
+                       "Zone Mic: " + juce::String(domZoneMic) + " v",
+                       theme.panel,
+                       theme.ink,
+                       false,
+                       298,
+                       Fonts::title(11.0f));
 
-        juce::String ctText = zn.chokes.empty() ? "Choke: None"
-                                                : ("Choke: " + juce::String (zn.chokes.front().zone));
-        Sketch::button (g, btnChokeTarget, ctText, theme.panel, theme.ink, false, 299, Fonts::title (11.0f));
+        juce::String ctText = zn.chokes.empty() ? "Choke: None" : ("Choke: " + juce::String(zn.chokes.front().zone));
+        Sketch::button(g, btnChokeTarget, ctText, theme.panel, theme.ink, false, 299, Fonts::title(11.0f));
 
-        g.setColour (theme.inkSoft);
-        g.setFont (Fonts::body (12.0f));
-        g.drawText ("Samples in Zone: " + juce::String ((int) zn.hits.size()) + " hits mapped across velocity layers",
-                    cardZoneBounds.withY (zy1 + 94.0f).withHeight (20.0f).reduced (10.0f, 0.0f),
-                    juce::Justification::centredLeft, false);
+        g.setColour(theme.inkSoft);
+        g.setFont(Fonts::body(12.0f));
+        g.drawText("Samples in Zone: " + juce::String((int) zn.hits.size()) + " hits mapped across velocity layers",
+                   cardZoneBounds.withY(zy1 + 94.0f).withHeight(20.0f).reduced(10.0f, 0.0f),
+                   juce::Justification::centredLeft,
+                   false);
     }
 
     // 3. SAMPLE WAVEFORM & MULTI-MIC ASSIGNMENT CARD
-    Sketch::box (g, cardSampleBounds, theme.trough, theme.ink, 5.0f, 1.8f, 2, 301);
-    g.setColour (theme.accent);
-    g.setFont (Fonts::title (12.5f));
-    g.drawText ("3. SAMPLE CELL & MULTI-MIC ROUTING",
-                cardSampleBounds.withHeight (24.0f).reduced (10.0f, 2.0f), juce::Justification::centredLeft, false);
+    Sketch::box(g, cardSampleBounds, theme.trough, theme.ink, 5.0f, 1.8f, 2, 301);
+    g.setColour(theme.accent);
+    g.setFont(Fonts::title(12.5f));
+    g.drawText("3. SAMPLE CELL & MULTI-MIC ROUTING",
+               cardSampleBounds.withHeight(24.0f).reduced(10.0f, 2.0f),
+               juce::Justification::centredLeft,
+               false);
 
-    btnPlaySample = { cardSampleBounds.getRight() - 68.0f, cardSampleBounds.getY() + 4.0f, 58.0f, 20.0f };
-    Sketch::button (g, btnPlaySample, "Audition", theme.accent, theme.ink, false, 303, Fonts::title (10.5f));
+    btnPlaySample = {cardSampleBounds.getRight() - 68.0f, cardSampleBounds.getY() + 4.0f, 58.0f, 20.0f};
+    Sketch::button(g, btnPlaySample, "Audition", theme.accent, theme.ink, false, 303, Fonts::title(10.5f));
 
-    waveformPreviewBounds = { cardSampleBounds.getX() + 10.0f, cardSampleBounds.getY() + 28.0f,
-                              cardSampleBounds.getWidth() - 20.0f, 54.0f };
-    Sketch::box (g, waveformPreviewBounds, theme.panel, theme.inkSoft, 4.0f, 1.3f, 1, 305);
+    waveformPreviewBounds = {
+        cardSampleBounds.getX() + 10.0f, cardSampleBounds.getY() + 28.0f, cardSampleBounds.getWidth() - 20.0f, 54.0f};
+    Sketch::box(g, waveformPreviewBounds, theme.panel, theme.inkSoft, 4.0f, 1.3f, 1, 305);
 
-    if (! selectedHitWaveform.empty())
+    if (!selectedHitWaveform.empty())
     {
         const float bw = (waveformPreviewBounds.getWidth() - 12.0f) / (float) selectedHitWaveform.size();
         const float midY = waveformPreviewBounds.getCentreY();
-        g.setColour (hitGlowColour.withAlpha (0.85f));
+        g.setColour(hitGlowColour.withAlpha(0.85f));
         for (size_t i = 0; i < selectedHitWaveform.size(); ++i)
         {
             const float h = selectedHitWaveform[i] * (waveformPreviewBounds.getHeight() - 10.0f);
-            g.fillRect (waveformPreviewBounds.getX() + 6.0f + (float) i * bw, midY - h * 0.5f, std::max (1.5f, bw - 1.0f), h);
+            g.fillRect(
+                waveformPreviewBounds.getX() + 6.0f + (float) i * bw, midY - h * 0.5f, std::max(1.5f, bw - 1.0f), h);
         }
     }
 
@@ -1648,185 +1939,237 @@ void GlorpKitEditorComponent::paintRightInspector (juce::Graphics& g)
     btnAddMicLayer = {};
     if (selectedZoneIdx >= 0 && selectedZoneIdx < (int) piece.zones.size())
     {
-        const auto& zn = piece.zones[(size_t) selectedZoneIdx];
+        const auto &zn = piece.zones[(size_t) selectedZoneIdx];
         if (selectedHitIdx >= 0 && selectedHitIdx < (int) zn.hits.size())
         {
-            const auto& hit = zn.hits[(size_t) selectedHitIdx];
+            const auto &hit = zn.hits[(size_t) selectedHitIdx];
             float my = waveformPreviewBounds.getBottom() + 6.0f;
             const float rowH = 22.0f;
             for (size_t mi = 0; mi < hit.micSamples.size(); ++mi)
             {
-                const auto& mf = hit.micSamples[mi];
-                if (my + rowH > cardSampleBounds.getBottom() - 28.0f) break;
-                juce::Rectangle<float> mr { cardSampleBounds.getX() + 10.0f, my, cardSampleBounds.getWidth() - 20.0f, rowH - 2.0f };
-                Sketch::box (g, mr, theme.panel, theme.inkSoft.withAlpha (0.6f), 3.0f, 1.1f, 1, 310 + (int) my);
+                const auto &mf = hit.micSamples[mi];
+                if (my + rowH > cardSampleBounds.getBottom() - 28.0f)
+                    break;
+                juce::Rectangle<float> mr {
+                    cardSampleBounds.getX() + 10.0f, my, cardSampleBounds.getWidth() - 20.0f, rowH - 2.0f};
+                Sketch::box(g, mr, theme.panel, theme.inkSoft.withAlpha(0.6f), 3.0f, 1.1f, 1, 310 + (int) my);
 
-                const float badgeW = std::max (60.0f, (float) mf.mic.length() * 7.5f + 18.0f);
-                juce::Rectangle<float> badgeR { mr.getX() + 4.0f, mr.getY() + 1.0f, badgeW, mr.getHeight() - 2.0f };
-                Sketch::box (g, badgeR, theme.trough, theme.accent, 3.0f, 1.1f, 1, 311 + (int) mi);
-                g.setColour (theme.ink);
-                g.setFont (Fonts::title (10.5f));
-                g.drawText (juce::String (mf.mic) + " v", badgeR, juce::Justification::centred, false);
+                const float badgeW = std::max(60.0f, (float) mf.mic.length() * 7.5f + 18.0f);
+                juce::Rectangle<float> badgeR {mr.getX() + 4.0f, mr.getY() + 1.0f, badgeW, mr.getHeight() - 2.0f};
+                Sketch::box(g, badgeR, theme.trough, theme.accent, 3.0f, 1.1f, 1, 311 + (int) mi);
+                g.setColour(theme.ink);
+                g.setFont(Fonts::title(10.5f));
+                g.drawText(juce::String(mf.mic) + " v", badgeR, juce::Justification::centred, false);
 
-                juce::Rectangle<float> delR { mr.getRight() - 18.0f, mr.getY() + 1.0f, 16.0f, mr.getHeight() - 2.0f };
-                g.setColour (juce::Colour (0xffe74c3c));
-                g.setFont (Fonts::title (11.0f));
-                g.drawText ("x", delR, juce::Justification::centred, false);
+                juce::Rectangle<float> delR {mr.getRight() - 18.0f, mr.getY() + 1.0f, 16.0f, mr.getHeight() - 2.0f};
+                g.setColour(juce::Colour(0xffe74c3c));
+                g.setFont(Fonts::title(11.0f));
+                g.drawText("x", delR, juce::Justification::centred, false);
 
-                juce::Rectangle<float> fileR { badgeR.getRight() + 6.0f, mr.getY(), delR.getX() - (badgeR.getRight() + 8.0f), mr.getHeight() };
-                g.setColour (theme.ink);
-                g.setFont (Fonts::body (11.0f));
-                g.drawText (mf.fileName, fileR, juce::Justification::centredLeft, true);
+                juce::Rectangle<float> fileR {
+                    badgeR.getRight() + 6.0f, mr.getY(), delR.getX() - (badgeR.getRight() + 8.0f), mr.getHeight()};
+                g.setColour(theme.ink);
+                g.setFont(Fonts::body(11.0f));
+                g.drawText(mf.fileName, fileR, juce::Justification::centredLeft, true);
 
-                micAssignHits.push_back ({ (int) mi, mf.mic, mr, badgeR, delR });
+                micAssignHits.push_back({(int) mi, mf.mic, mr, badgeR, delR});
                 my += rowH;
             }
 
-            btnAddMicLayer = { cardSampleBounds.getX() + 10.0f, std::min (my + 2.0f, cardSampleBounds.getBottom() - 24.0f),
-                               cardSampleBounds.getWidth() - 20.0f, 22.0f };
-            Sketch::button (g, btnAddMicLayer, "+ Add Mic Layer to Hit...", theme.trough, theme.ink, false, 320, Fonts::title (10.5f));
+            btnAddMicLayer = {cardSampleBounds.getX() + 10.0f,
+                              std::min(my + 2.0f, cardSampleBounds.getBottom() - 24.0f),
+                              cardSampleBounds.getWidth() - 20.0f,
+                              22.0f};
+            Sketch::button(g,
+                           btnAddMicLayer,
+                           "+ Add Mic Layer to Hit...",
+                           theme.trough,
+                           theme.ink,
+                           false,
+                           320,
+                           Fonts::title(10.5f));
         }
     }
 }
 
 //==============================================================================
-void GlorpKitEditorComponent::paintGuidedTutorialOverlay (juce::Graphics& g)
+void GlorpKitEditorComponent::paintGuidedTutorialOverlay(juce::Graphics &g)
 {
     struct StepSpec
     {
-        const char* title;
-        const char* body;
+        const char *title;
+        const char *body;
         juce::Rectangle<float> spotlight;
     };
 
     const StepSpec steps[5] = {
-        {
-            "Step 1 of 5: Welcome to GlorpKit Studio!",
-            "Design custom v2.0 .glorpkit drum instruments with custom PNG sprites, Z-layer ordering, multi-zone articulations, and zero-copy uncompressed audio. Use the top header to create a New Kit, open an existing .glorpkit, import DrumGizmo XMLs, or pick a Kit-Wide Hit Glow Color!",
-            headerBounds.reduced (4.0f, 2.0f)
-        },
-        {
-            "Step 2 of 5: Z-Layer Stack & Kit Mic Buses",
-            "The Left Panel controls visual depth order (front-to-back) and multi-mic studio buses (Close, OH L/R, Room, PZM). Click '^' or 'v' to move cymbals in front of toms, toggle canvas visibility, or click 'Hit' to audition any piece.",
-            leftPanelBounds
-        },
-        {
-            "Step 3 of 5: Interactive 2D Stage Canvas",
-            "Drag any drum or cymbal directly on the stage to position it! Drag the bottom-right corner handle (or scroll the mouse wheel) to scale its size. Clicking a piece triggers live audio audition and flashes your custom Hit Glow Color.",
-            canvasPanelBounds
-        },
-        {
-            "Step 4 of 5: Articulation Zones & Velocity/RR Matrix",
-            "Each kit piece can have multiple articulation zones (e.g. Snare Center, Rimshot, Sidestick; Ride Bow, Bell, Edge). Drag & drop WAV files into the 5x4 Velocity x Round-Robin grid, or click 'Auto Power' to sort layers by RMS/Peak loudness!",
-            matrixPanelBounds
-        },
-        {
-            "Step 5 of 5: Piece Graphics, Custom PNGs & Export",
-            "Use the Right Inspector to load custom transparent PNG artwork (embedded inside the .glorpkit under assets/), assign MIDI notes with 1-click MIDI Learn, inspect sample waveforms, and click 'Save .glorpkit' when ready to play in GlorpDrums!",
-            rightPanelBounds
-        }
-    };
+        {"Step 1 of 5: Welcome to GlorpKit Studio!",
+         "Design custom v2.0 .glorpkit drum instruments with custom PNG sprites, Z-layer ordering, multi-zone "
+         "articulations, and zero-copy uncompressed audio. Use the top header to create a New Kit, open an existing "
+         ".glorpkit, import DrumGizmo XMLs, or pick a Kit-Wide Hit Glow Color!",
+         headerBounds.reduced(4.0f, 2.0f)},
+        {"Step 2 of 5: Z-Layer Stack & Kit Mic Buses",
+         "The Left Panel controls visual depth order (front-to-back) and multi-mic studio buses (Close, OH L/R, Room, "
+         "PZM). Click '^' or 'v' to move cymbals in front of toms, toggle canvas visibility, or click 'Hit' to "
+         "audition any piece.",
+         leftPanelBounds},
+        {"Step 3 of 5: Interactive 2D Stage Canvas",
+         "Drag any drum or cymbal directly on the stage to position it! Drag the bottom-right corner handle (or scroll "
+         "the mouse wheel) to scale its size. Clicking a piece triggers live audio audition and flashes your custom "
+         "Hit Glow Color.",
+         canvasPanelBounds},
+        {"Step 4 of 5: Articulation Zones & Velocity/RR Matrix",
+         "Each kit piece can have multiple articulation zones (e.g. Snare Center, Rimshot, Sidestick; Ride Bow, Bell, "
+         "Edge). Drag & drop WAV files into the 5x4 Velocity x Round-Robin grid, or click 'Auto Power' to sort layers "
+         "by RMS/Peak loudness!",
+         matrixPanelBounds},
+        {"Step 5 of 5: Piece Graphics, Custom PNGs & Export",
+         "Use the Right Inspector to load custom transparent PNG artwork (embedded inside the .glorpkit under "
+         "assets/), assign MIDI notes with 1-click MIDI Learn, inspect sample waveforms, and click 'Save .glorpkit' "
+         "when ready to play in GlorpDrums!",
+         rightPanelBounds}};
 
-    const auto& cur = steps[juce::jlimit (0, 4, tutorialStep)];
+    const auto &cur = steps[juce::jlimit(0, 4, tutorialStep)];
 
     const auto full = getLocalBounds().toFloat();
-    const auto spot = cur.spotlight.expanded (3.0f);
-    g.setColour (juce::Colours::black.withAlpha (0.62f));
-    g.fillRect (juce::Rectangle<float> (full.getX(), full.getY(), full.getWidth(), std::max (0.0f, spot.getY() - full.getY())));
-    g.fillRect (juce::Rectangle<float> (full.getX(), spot.getBottom(), full.getWidth(), std::max (0.0f, full.getBottom() - spot.getBottom())));
-    g.fillRect (juce::Rectangle<float> (full.getX(), spot.getY(), std::max (0.0f, spot.getX() - full.getX()), spot.getHeight()));
-    g.fillRect (juce::Rectangle<float> (spot.getRight(), spot.getY(), std::max (0.0f, full.getRight() - spot.getRight()), spot.getHeight()));
+    const auto spot = cur.spotlight.expanded(3.0f);
+    g.setColour(juce::Colours::black.withAlpha(0.62f));
+    g.fillRect(
+        juce::Rectangle<float>(full.getX(), full.getY(), full.getWidth(), std::max(0.0f, spot.getY() - full.getY())));
+    g.fillRect(juce::Rectangle<float>(
+        full.getX(), spot.getBottom(), full.getWidth(), std::max(0.0f, full.getBottom() - spot.getBottom())));
+    g.fillRect(
+        juce::Rectangle<float>(full.getX(), spot.getY(), std::max(0.0f, spot.getX() - full.getX()), spot.getHeight()));
+    g.fillRect(juce::Rectangle<float>(
+        spot.getRight(), spot.getY(), std::max(0.0f, full.getRight() - spot.getRight()), spot.getHeight()));
 
-    g.setColour (theme.accent);
-    g.drawRoundedRectangle (spot, 8.0f, 3.5f);
-    g.setColour (hitGlowColour);
-    g.drawRoundedRectangle (spot.expanded (2.5f), 9.0f, 2.0f);
+    g.setColour(theme.accent);
+    g.drawRoundedRectangle(spot, 8.0f, 3.5f);
+    g.setColour(hitGlowColour);
+    g.drawRoundedRectangle(spot.expanded(2.5f), 9.0f, 2.0f);
 
     const float cardW = 470.0f;
     const float cardH = 198.0f;
     float cx = full.getCentreX() - cardW * 0.5f;
     float cy = full.getCentreY() - cardH * 0.5f;
-    if (tutorialStep == 0)      { cy = headerBounds.getBottom() + 18.0f; }
-    else if (tutorialStep == 1) { cx = leftPanelBounds.getRight() + 24.0f; cy = leftPanelBounds.getY() + 60.0f; }
-    else if (tutorialStep == 2) { cy = canvasPanelBounds.getBottom() + 12.0f; }
-    else if (tutorialStep == 3) { cy = matrixPanelBounds.getY() - cardH - 14.0f; }
-    else if (tutorialStep == 4) { cx = rightPanelBounds.getX() - cardW - 24.0f; cy = rightPanelBounds.getY() + 80.0f; }
+    if (tutorialStep == 0)
+    {
+        cy = headerBounds.getBottom() + 18.0f;
+    }
+    else if (tutorialStep == 1)
+    {
+        cx = leftPanelBounds.getRight() + 24.0f;
+        cy = leftPanelBounds.getY() + 60.0f;
+    }
+    else if (tutorialStep == 2)
+    {
+        cy = canvasPanelBounds.getBottom() + 12.0f;
+    }
+    else if (tutorialStep == 3)
+    {
+        cy = matrixPanelBounds.getY() - cardH - 14.0f;
+    }
+    else if (tutorialStep == 4)
+    {
+        cx = rightPanelBounds.getX() - cardW - 24.0f;
+        cy = rightPanelBounds.getY() + 80.0f;
+    }
 
-    tutorialCardBounds = { juce::jlimit (16.0f, full.getWidth() - cardW - 16.0f, cx),
-                           juce::jlimit (16.0f, full.getHeight() - cardH - 16.0f, cy),
-                           cardW, cardH };
+    tutorialCardBounds = {juce::jlimit(16.0f, full.getWidth() - cardW - 16.0f, cx),
+                          juce::jlimit(16.0f, full.getHeight() - cardH - 16.0f, cy),
+                          cardW,
+                          cardH};
 
-    Sketch::box (g, tutorialCardBounds, theme.panel, theme.ink, 9.0f, 2.8f, 3, 501);
+    Sketch::box(g, tutorialCardBounds, theme.panel, theme.ink, 9.0f, 2.8f, 3, 501);
 
-    juce::Rectangle<float> badge { tutorialCardBounds.getX() + 16.0f, tutorialCardBounds.getY() + 14.0f, 128.0f, 20.0f };
-    Sketch::box (g, badge, theme.accent, theme.ink, 4.0f, 1.4f, 1, 503);
-    g.setColour (theme.ink);
-    g.setFont (Fonts::title (11.5f));
-    g.drawText ("INTERACTIVE TOUR", badge, juce::Justification::centred, false);
+    juce::Rectangle<float> badge {tutorialCardBounds.getX() + 16.0f, tutorialCardBounds.getY() + 14.0f, 128.0f, 20.0f};
+    Sketch::box(g, badge, theme.accent, theme.ink, 4.0f, 1.4f, 1, 503);
+    g.setColour(theme.ink);
+    g.setFont(Fonts::title(11.5f));
+    g.drawText("INTERACTIVE TOUR", badge, juce::Justification::centred, false);
 
-    g.setColour (theme.ink);
-    g.setFont (Fonts::title (16.5f));
-    g.drawText (cur.title,
-                juce::Rectangle<float> (tutorialCardBounds.getX() + 16.0f, tutorialCardBounds.getY() + 38.0f,
-                                        tutorialCardBounds.getWidth() - 32.0f, 24.0f),
-                juce::Justification::centredLeft, false);
+    g.setColour(theme.ink);
+    g.setFont(Fonts::title(16.5f));
+    g.drawText(cur.title,
+               juce::Rectangle<float>(tutorialCardBounds.getX() + 16.0f,
+                                      tutorialCardBounds.getY() + 38.0f,
+                                      tutorialCardBounds.getWidth() - 32.0f,
+                                      24.0f),
+               juce::Justification::centredLeft,
+               false);
 
-    g.setColour (theme.ink);
-    g.setFont (Fonts::body (14.0f));
-    g.drawFittedText (cur.body,
-                      juce::Rectangle<float> (tutorialCardBounds.getX() + 16.0f, tutorialCardBounds.getY() + 66.0f,
-                                              tutorialCardBounds.getWidth() - 32.0f, 76.0f).toNearestInt(),
-                      juce::Justification::topLeft, 5);
+    g.setColour(theme.ink);
+    g.setFont(Fonts::body(14.0f));
+    g.drawFittedText(cur.body,
+                     juce::Rectangle<float>(tutorialCardBounds.getX() + 16.0f,
+                                            tutorialCardBounds.getY() + 66.0f,
+                                            tutorialCardBounds.getWidth() - 32.0f,
+                                            76.0f)
+                         .toNearestInt(),
+                     juce::Justification::topLeft,
+                     5);
 
     for (int i = 0; i < 5; ++i)
     {
-        juce::Rectangle<float> dot { tutorialCardBounds.getX() + 18.0f + i * 18.0f,
-                                     tutorialCardBounds.getBottom() - 32.0f, 10.0f, 10.0f };
-        g.setColour (i == tutorialStep ? theme.accent : theme.inkSoft.withAlpha (0.4f));
-        g.fillEllipse (dot);
-        g.setColour (theme.ink);
-        g.drawEllipse (dot, 1.2f);
+        juce::Rectangle<float> dot {
+            tutorialCardBounds.getX() + 18.0f + i * 18.0f, tutorialCardBounds.getBottom() - 32.0f, 10.0f, 10.0f};
+        g.setColour(i == tutorialStep ? theme.accent : theme.inkSoft.withAlpha(0.4f));
+        g.fillEllipse(dot);
+        g.setColour(theme.ink);
+        g.drawEllipse(dot, 1.2f);
     }
 
     const float by = tutorialCardBounds.getBottom() - 40.0f;
-    tutorialSkipBtnBounds = { tutorialCardBounds.getX() + 122.0f, by, 84.0f, 28.0f };
-    tutorialPrevBtnBounds = { tutorialCardBounds.getRight() - 208.0f, by, 82.0f, 28.0f };
-    tutorialNextBtnBounds = { tutorialCardBounds.getRight() - 118.0f, by, 102.0f, 28.0f };
+    tutorialSkipBtnBounds = {tutorialCardBounds.getX() + 122.0f, by, 84.0f, 28.0f};
+    tutorialPrevBtnBounds = {tutorialCardBounds.getRight() - 208.0f, by, 82.0f, 28.0f};
+    tutorialNextBtnBounds = {tutorialCardBounds.getRight() - 118.0f, by, 102.0f, 28.0f};
 
-    Sketch::button (g, tutorialSkipBtnBounds, "Skip Tour", theme.trough, theme.inkSoft, false, 505, Fonts::title (12.0f));
+    Sketch::button(g, tutorialSkipBtnBounds, "Skip Tour", theme.trough, theme.inkSoft, false, 505, Fonts::title(12.0f));
     if (tutorialStep > 0)
-        Sketch::button (g, tutorialPrevBtnBounds, "<- Prev", theme.trough, theme.ink, false, 507, Fonts::title (12.5f));
-    Sketch::button (g, tutorialNextBtnBounds, tutorialStep == 4 ? "Finish Tour!" : "Next ->",
-                    theme.accent, theme.ink, false, 509, Fonts::title (12.5f));
+        Sketch::button(g, tutorialPrevBtnBounds, "<- Prev", theme.trough, theme.ink, false, 507, Fonts::title(12.5f));
+    Sketch::button(g,
+                   tutorialNextBtnBounds,
+                   tutorialStep == 4 ? "Finish Tour!" : "Next ->",
+                   theme.accent,
+                   theme.ink,
+                   false,
+                   509,
+                   Fonts::title(12.5f));
 }
 
 //==============================================================================
-int GlorpKitEditorComponent::canvasPieceAt (juce::Point<float> pt) const
+int GlorpKitEditorComponent::canvasPieceAt(juce::Point<float> pt) const
 {
-    if (! canvasViewportBounds.contains (pt)) return -1;
-    const auto& pieces = project.pieces;
-    std::vector<int> zDesc (pieces.size());
-    for (size_t i = 0; i < pieces.size(); ++i) zDesc[i] = (int) i;
-    std::sort (zDesc.begin(), zDesc.end(), [&] (int a, int b)
-    {
-        if (pieces[(size_t) a].zOrder != pieces[(size_t) b].zOrder)
-            return pieces[(size_t) a].zOrder > pieces[(size_t) b].zOrder;
-        return a < b;
-    });
+    if (!canvasViewportBounds.contains(pt))
+        return -1;
+    const auto &pieces = project.pieces;
+    std::vector<int> zDesc(pieces.size());
+    for (size_t i = 0; i < pieces.size(); ++i)
+        zDesc[i] = (int) i;
+    std::sort(zDesc.begin(),
+              zDesc.end(),
+              [&](int a, int b)
+              {
+                  if (pieces[(size_t) a].zOrder != pieces[(size_t) b].zOrder)
+                      return pieces[(size_t) a].zOrder > pieces[(size_t) b].zOrder;
+                  return a < b;
+              });
 
     for (int idx : zDesc)
     {
-        if (! pieces[(size_t) idx].visible || idx >= (int) pieceSprites.size()) continue;
-        const auto& sp = pieceSprites[(size_t) idx];
-        if (! sp.canvasBounds.contains (pt)) continue;
+        if (!pieces[(size_t) idx].visible || idx >= (int) pieceSprites.size())
+            continue;
+        const auto &sp = pieceSprites[(size_t) idx];
+        if (!sp.canvasBounds.contains(pt))
+            continue;
 
         if (sp.rawImage.isValid())
         {
-            const float u = (pt.x - sp.canvasBounds.getX()) / std::max (1.0f, sp.canvasBounds.getWidth());
-            const float v = (pt.y - sp.canvasBounds.getY()) / std::max (1.0f, sp.canvasBounds.getHeight());
-            const int px = juce::jlimit (0, sp.rawImage.getWidth() - 1, (int) (u * (float) sp.rawImage.getWidth()));
-            const int py = juce::jlimit (0, sp.rawImage.getHeight() - 1, (int) (v * (float) sp.rawImage.getHeight()));
-            if (sp.rawImage.getPixelAt (px, py).getAlpha() > 20)
+            const float u = (pt.x - sp.canvasBounds.getX()) / std::max(1.0f, sp.canvasBounds.getWidth());
+            const float v = (pt.y - sp.canvasBounds.getY()) / std::max(1.0f, sp.canvasBounds.getHeight());
+            const int px = juce::jlimit(0, sp.rawImage.getWidth() - 1, (int) (u * (float) sp.rawImage.getWidth()));
+            const int py = juce::jlimit(0, sp.rawImage.getHeight() - 1, (int) (v * (float) sp.rawImage.getHeight()));
+            if (sp.rawImage.getPixelAt(px, py).getAlpha() > 20)
                 return idx;
         }
         else
@@ -1837,7 +2180,7 @@ int GlorpKitEditorComponent::canvasPieceAt (juce::Point<float> pt) const
     return -1;
 }
 
-void GlorpKitEditorComponent::mouseDown (const juce::MouseEvent& e)
+void GlorpKitEditorComponent::mouseDown(const juce::MouseEvent &e)
 {
     const auto pt = e.position;
     preInteractionProject = project;
@@ -1845,60 +2188,112 @@ void GlorpKitEditorComponent::mouseDown (const juce::MouseEvent& e)
 
     if (tutorialActive)
     {
-        if (tutorialNextBtnBounds.contains (pt)) { nextTutorialStep(); return; }
-        if (tutorialStep > 0 && tutorialPrevBtnBounds.contains (pt)) { prevTutorialStep(); return; }
-        if (tutorialSkipBtnBounds.contains (pt)) { setTutorialVisible (false, 0); return; }
-        if (! tutorialCardBounds.contains (pt) && btnTour.contains (pt))
+        if (tutorialNextBtnBounds.contains(pt))
         {
-            setTutorialVisible (false, 0);
+            nextTutorialStep();
+            return;
+        }
+        if (tutorialStep > 0 && tutorialPrevBtnBounds.contains(pt))
+        {
+            prevTutorialStep();
+            return;
+        }
+        if (tutorialSkipBtnBounds.contains(pt))
+        {
+            setTutorialVisible(false, 0);
+            return;
+        }
+        if (!tutorialCardBounds.contains(pt) && btnTour.contains(pt))
+        {
+            setTutorialVisible(false, 0);
             return;
         }
         return;
     }
 
-    if (btnNewKit.contains (pt))
+    if (btnNewKit.contains(pt))
     {
-        pushUndoState ("New Blank Kit");
+        pushUndoState("New Blank Kit");
         project.createNewBlankKit();
         reloadProjectIntoEngine();
-        selectPiece (-1, false);
-        showStatusToast ("Initialized blank .glorpkit project");
+        selectPiece(-1, false);
+        showStatusToast("Initialized blank .glorpkit project");
         return;
     }
-    if (btnOpenKit.contains (pt))      { promptOpenKit(); return; }
-    if (btnImportDg.contains (pt))     { promptImportDrumGizmo(); return; }
-    if (btnImportOra.contains (pt))    { promptImportOpenRaster(); return; }
-    if (btnSaveKit.contains (pt))      { promptSaveGlorpKit(); return; }
-    if (btnUndo.contains (pt))         { undo(); return; }
-    if (btnRedo.contains (pt))         { redo(); return; }
+    if (btnOpenKit.contains(pt))
+    {
+        promptOpenKit();
+        return;
+    }
+    if (btnImportDg.contains(pt))
+    {
+        promptImportDrumGizmo();
+        return;
+    }
+    if (btnImportOra.contains(pt))
+    {
+        promptImportOpenRaster();
+        return;
+    }
+    if (btnSaveKit.contains(pt))
+    {
+        promptSaveGlorpKit();
+        return;
+    }
+    if (btnUndo.contains(pt))
+    {
+        undo();
+        return;
+    }
+    if (btnRedo.contains(pt))
+    {
+        redo();
+        return;
+    }
 
     if (project.pieces.empty())
     {
-        if (btnBlankAddPiece.contains (pt))
+        if (btnBlankAddPiece.contains(pt))
         {
-            pushUndoState ("Add Kit Piece");
-            int newIdx = project.addPieceWithAutoLayout ("Snare", "snare");
+            pushUndoState("Add Kit Piece");
+            int newIdx = project.addPieceWithAutoLayout("Snare", "snare");
             reloadProjectIntoEngine();
-            selectPiece (newIdx, false);
-            showStatusToast ("Added first kit piece: Snare");
+            selectPiece(newIdx, false);
+            showStatusToast("Added first kit piece: Snare");
             return;
         }
-        if (btnBlankImportFolder.contains (pt))
+        if (btnBlankImportFolder.contains(pt))
         {
             promptImportAssetsFolder();
             return;
         }
-        if (btnBlankImportOra.contains (pt))
+        if (btnBlankImportOra.contains(pt))
         {
             promptImportOpenRaster();
             return;
         }
     }
-    if (btnAudioSettings.contains (pt)){ showAudioSettingsDialog(); return; }
-    if (btnGlowColor.contains (pt))    { showHitGlowColorMenu(); return; }
-    if (btnTour.contains (pt))         { setTutorialVisible (true, 0); return; }
-    if (btnThemeToggle.contains (pt))  { setDarkTheme (! theme.isDark); return; }
-    if (pillKitMeta.contains (pt))
+    if (btnAudioSettings.contains(pt))
+    {
+        showAudioSettingsDialog();
+        return;
+    }
+    if (btnGlowColor.contains(pt))
+    {
+        showHitGlowColorMenu();
+        return;
+    }
+    if (btnTour.contains(pt))
+    {
+        setTutorialVisible(true, 0);
+        return;
+    }
+    if (btnThemeToggle.contains(pt))
+    {
+        setDarkTheme(!theme.isDark);
+        return;
+    }
+    if (pillKitMeta.contains(pt))
     {
         if (e.getNumberOfClicks() >= 2)
             promptRenameKit();
@@ -1907,346 +2302,371 @@ void GlorpKitEditorComponent::mouseDown (const juce::MouseEvent& e)
         return;
     }
 
-    if (btnAddPiece.contains (pt))
+    if (btnAddPiece.contains(pt))
     {
-        int newIdx = project.addPiece ("Aux Perc " + std::to_string (project.pieces.size() + 1), "snare");
+        int newIdx = project.addPiece("Aux Perc " + std::to_string(project.pieces.size() + 1), "snare");
         reloadProjectIntoEngine();
-        selectPiece (newIdx, true);
-        showStatusToast ("Added new kit piece");
+        selectPiece(newIdx, true);
+        showStatusToast("Added new kit piece");
         return;
     }
-    if (btnDupPiece.contains (pt) && selectedPieceIdx >= 0)
+    if (btnDupPiece.contains(pt) && selectedPieceIdx >= 0)
     {
-        int newIdx = project.duplicatePiece (selectedPieceIdx);
+        int newIdx = project.duplicatePiece(selectedPieceIdx);
         reloadProjectIntoEngine();
-        selectPiece (newIdx, true);
-        showStatusToast ("Duplicated selected kit piece");
+        selectPiece(newIdx, true);
+        showStatusToast("Duplicated selected kit piece");
         return;
     }
-    if (btnDelPiece.contains (pt) && selectedPieceIdx >= 0 && project.pieces.size() > 1)
+    if (btnDelPiece.contains(pt) && selectedPieceIdx >= 0 && project.pieces.size() > 1)
     {
-        project.removePiece (selectedPieceIdx);
+        project.removePiece(selectedPieceIdx);
         reloadProjectIntoEngine();
-        selectPiece (std::max (0, selectedPieceIdx - 1), false);
-        showStatusToast ("Removed kit piece");
+        selectPiece(std::max(0, selectedPieceIdx - 1), false);
+        showStatusToast("Removed kit piece");
         return;
     }
-    for (const auto& row : layerRowHits)
+    for (const auto &row : layerRowHits)
     {
-        if (row.visBounds.contains (pt))
+        if (row.visBounds.contains(pt))
         {
-            auto& p = project.pieces[(size_t) row.pieceIndex];
-            p.visible = ! p.visible;
+            auto &p = project.pieces[(size_t) row.pieceIndex];
+            p.visible = !p.visible;
             repaint();
             return;
         }
-        if (row.upBounds.contains (pt))
+        if (row.upBounds.contains(pt))
         {
-            project.movePieceZOrder (row.pieceIndex, +1);
-            selectPiece (row.pieceIndex, false);
+            project.movePieceZOrder(row.pieceIndex, +1);
+            selectPiece(row.pieceIndex, false);
             return;
         }
-        if (row.downBounds.contains (pt))
+        if (row.downBounds.contains(pt))
         {
-            project.movePieceZOrder (row.pieceIndex, -1);
-            selectPiece (row.pieceIndex, false);
+            project.movePieceZOrder(row.pieceIndex, -1);
+            selectPiece(row.pieceIndex, false);
             return;
         }
-        if (row.hitBounds.contains (pt))
+        if (row.hitBounds.contains(pt))
         {
-            selectPiece (row.pieceIndex, true);
+            selectPiece(row.pieceIndex, true);
             return;
         }
-        if (row.rowBounds.contains (pt))
+        if (row.rowBounds.contains(pt))
         {
             if (e.getNumberOfClicks() >= 2)
             {
-                promptRenamePiece (row.pieceIndex);
+                promptRenamePiece(row.pieceIndex);
                 return;
             }
-            selectPiece (row.pieceIndex, false);
+            selectPiece(row.pieceIndex, false);
             isDraggingLayerRow = true;
             dragLayerPieceIndex = row.pieceIndex;
             dragLayerStartMouseY = pt.y;
             return;
         }
     }
-    if (btnAddMic.contains (pt))
+    if (btnAddMic.contains(pt))
     {
-        std::string newMic = "AuxMic" + std::to_string (project.mics.size() + 1);
-        project.addChannel (newMic);
-        showStatusToast ("Added kit mic channel: " + juce::String (newMic));
+        std::string newMic = "AuxMic" + std::to_string(project.mics.size() + 1);
+        project.addChannel(newMic);
+        showStatusToast("Added kit mic channel: " + juce::String(newMic));
         repaint();
         return;
     }
-    for (const auto& mp : micPillHits)
+    for (const auto &mp : micPillHits)
     {
-        if (mp.deleteBounds.contains (pt))
+        if (mp.deleteBounds.contains(pt))
         {
-            promptDeleteMic (mp.micIndex);
+            promptDeleteMic(mp.micIndex);
             return;
         }
-        if (mp.bounds.contains (pt))
+        if (mp.bounds.contains(pt))
         {
             if (e.mods.isPopupMenu())
             {
                 juce::PopupMenu m;
-                const auto mName = juce::String (project.mics[(size_t) mp.micIndex].name);
-                m.addSectionHeader ("Mic Channel: " + mName);
-                m.addItem (1, "Rename Mic Channel...");
+                const auto mName = juce::String(project.mics[(size_t) mp.micIndex].name);
+                m.addSectionHeader("Mic Channel: " + mName);
+                m.addItem(1, "Rename Mic Channel...");
                 if (project.mics.size() > 1)
-                    m.addItem (2, "Delete Mic Channel");
-                m.addItem (3, "Set as Active Target Mic (" + mName + ")");
-                m.showMenuAsync (juce::PopupMenu::Options().withTargetScreenArea (localAreaToGlobal (mp.bounds.toNearestInt())),
-                    [this, idx = mp.micIndex, mName] (int res)
+                    m.addItem(2, "Delete Mic Channel");
+                m.addItem(3, "Set as Active Target Mic (" + mName + ")");
+                m.showMenuAsync(
+                    juce::PopupMenu::Options().withTargetScreenArea(localAreaToGlobal(mp.bounds.toNearestInt())),
+                    [this, idx = mp.micIndex, mName](int res)
                     {
-                        if (res == 1) promptRenameMic (idx);
-                        else if (res == 2) promptDeleteMic (idx);
-                        else if (res == 3) { targetImportMic = mName.toStdString(); showStatusToast ("Target mic: " + mName); repaint(); }
+                        if (res == 1)
+                            promptRenameMic(idx);
+                        else if (res == 2)
+                            promptDeleteMic(idx);
+                        else if (res == 3)
+                        {
+                            targetImportMic = mName.toStdString();
+                            showStatusToast("Target mic: " + mName);
+                            repaint();
+                        }
                     });
                 return;
             }
-            promptRenameMic (mp.micIndex);
+            promptRenameMic(mp.micIndex);
             return;
         }
     }
 
-    if (btnSnapGrid.contains (pt))    { snapToGrid = ! snapToGrid; repaint(); return; }
-    if (btnSafeZone.contains (pt) || btnStageGuides.contains (pt))
+    if (btnSnapGrid.contains(pt))
     {
-        showSafeZone = ! showSafeZone;
+        snapToGrid = !snapToGrid;
+        repaint();
+        return;
+    }
+    if (btnSafeZone.contains(pt) || btnStageGuides.contains(pt))
+    {
+        showSafeZone = !showSafeZone;
         showStageGuides = showSafeZone;
         repaint();
         return;
     }
-    if (btnPreviewKit.contains (pt))  { previewKitMode = ! previewKitMode; repaint(); return; }
-    if (btnBringFront.contains (pt) && selectedPieceIdx >= 0)
+    if (btnPreviewKit.contains(pt))
     {
-        project.bringPieceToFront (selectedPieceIdx);
+        previewKitMode = !previewKitMode;
         repaint();
         return;
     }
-    if (btnSendBack.contains (pt) && selectedPieceIdx >= 0)
+    if (btnBringFront.contains(pt) && selectedPieceIdx >= 0)
     {
-        project.sendPieceToBack (selectedPieceIdx);
+        project.bringPieceToFront(selectedPieceIdx);
         repaint();
         return;
     }
-    if (btnResetLayout.contains (pt))
+    if (btnSendBack.contains(pt) && selectedPieceIdx >= 0)
     {
-        pushUndoState ("Reset Stage Layout");
-        const auto& guides = getIdealStageGuides();
+        project.sendPieceToBack(selectedPieceIdx);
+        repaint();
+        return;
+    }
+    if (btnResetLayout.contains(pt))
+    {
+        pushUndoState("Reset Stage Layout");
+        const auto &guides = getIdealStageGuides();
         for (size_t i = 0; i < project.pieces.size(); ++i)
         {
-            auto& p = project.pieces[i];
-            int gIdx = findMatchingStageGuide (p.name, p.graphicId);
+            auto &p = project.pieces[i];
+            int gIdx = findMatchingStageGuide(p.name, p.graphicId);
             if (gIdx < 0 && i < guides.size())
-                gIdx = static_cast<int> (i);
+                gIdx = static_cast<int>(i);
 
             if (gIdx >= 0 && gIdx < (int) guides.size())
             {
-                const auto& gd = guides[(size_t) gIdx];
-                p.normX  = gd.normX;
-                p.normY  = gd.normY;
-                p.normW  = gd.normW;
+                const auto &gd = guides[(size_t) gIdx];
+                p.normX = gd.normX;
+                p.normY = gd.normY;
+                p.normW = gd.normW;
                 p.zOrder = gd.zOrder;
             }
         }
         computeCanvasPieceBounds();
-        showStatusToast ("Reset stage coordinates to ideal layout guides");
+        showStatusToast("Reset stage coordinates to ideal layout guides");
         repaint();
         return;
     }
 
-    if (canvasViewportBounds.contains (pt))
+    if (canvasViewportBounds.contains(pt))
     {
         if (selectedPieceIdx >= 0 && selectedPieceIdx < (int) pieceSprites.size())
         {
-            const auto& sp = pieceSprites[(size_t) selectedPieceIdx];
-            juce::Rectangle<float> handle { sp.canvasBounds.getRight() - 10.0f, sp.canvasBounds.getBottom() - 10.0f, 20.0f, 20.0f };
-            if (handle.contains (pt))
+            const auto &sp = pieceSprites[(size_t) selectedPieceIdx];
+            juce::Rectangle<float> handle {
+                sp.canvasBounds.getRight() - 10.0f, sp.canvasBounds.getBottom() - 10.0f, 20.0f, 20.0f};
+            if (handle.contains(pt))
             {
                 isResizingCanvasPiece = true;
                 dragStartPos = pt;
-                dragStartW   = project.pieces[(size_t) selectedPieceIdx].normW;
+                dragStartW = project.pieces[(size_t) selectedPieceIdx].normW;
                 return;
             }
         }
 
-        const int hitPiece = canvasPieceAt (pt);
+        const int hitPiece = canvasPieceAt(pt);
         if (hitPiece >= 0)
         {
-            selectPiece (hitPiece, true);
+            selectPiece(hitPiece, true);
             isDraggingCanvasPiece = true;
             dragStartPos = pt;
-            dragStartX   = project.pieces[(size_t) hitPiece].normX;
-            dragStartY   = project.pieces[(size_t) hitPiece].normY;
+            dragStartX = project.pieces[(size_t) hitPiece].normX;
+            dragStartY = project.pieces[(size_t) hitPiece].normY;
             return;
         }
     }
 
-    if (btnAutoPower.contains (pt) && selectedPieceIdx >= 0)
+    if (btnAutoPower.contains(pt) && selectedPieceIdx >= 0)
     {
-        pushUndoState ("Auto Power");
-        project.autoComputeZonePowers (selectedPieceIdx, selectedZoneIdx);
+        pushUndoState("Auto Power");
+        project.autoComputeZonePowers(selectedPieceIdx, selectedZoneIdx);
         reloadProjectIntoEngine();
-        showStatusToast ("Auto-computed RMS/Peak sample power & sorted velocity layers");
+        showStatusToast("Auto-computed RMS/Peak sample power & sorted velocity layers");
         return;
     }
-    if (btnTargetMic.contains (pt))
+    if (btnTargetMic.contains(pt))
     {
         promptSelectTargetMic();
         return;
     }
-    if (btnImportWavs.contains (pt))
+    if (btnImportWavs.contains(pt))
     {
-        promptImportWavsForCurrentZone (targetImportMic);
+        promptImportWavsForCurrentZone(targetImportMic);
         return;
     }
-    if (btnVelDown.contains (pt) && selectedPieceIdx >= 0 && selectedZoneIdx >= 0)
+    if (btnVelDown.contains(pt) && selectedPieceIdx >= 0 && selectedZoneIdx >= 0)
     {
-        auto& p = project.pieces[(size_t) selectedPieceIdx];
+        auto &p = project.pieces[(size_t) selectedPieceIdx];
         if (selectedZoneIdx < (int) p.zones.size())
         {
-            auto& zn = p.zones[(size_t) selectedZoneIdx];
+            auto &zn = p.zones[(size_t) selectedZoneIdx];
             if (zn.numVelocityLayers > 1)
             {
-                pushUndoState ("Decrease Velocity Layers");
-                project.setZoneGridDimensions (selectedPieceIdx, selectedZoneIdx, zn.numVelocityLayers - 1, zn.numRoundRobins);
+                pushUndoState("Decrease Velocity Layers");
+                project.setZoneGridDimensions(
+                    selectedPieceIdx, selectedZoneIdx, zn.numVelocityLayers - 1, zn.numRoundRobins);
                 reloadProjectIntoEngine();
                 repaint();
             }
         }
         return;
     }
-    if (btnVelUp.contains (pt) && selectedPieceIdx >= 0 && selectedZoneIdx >= 0)
+    if (btnVelUp.contains(pt) && selectedPieceIdx >= 0 && selectedZoneIdx >= 0)
     {
-        auto& p = project.pieces[(size_t) selectedPieceIdx];
+        auto &p = project.pieces[(size_t) selectedPieceIdx];
         if (selectedZoneIdx < (int) p.zones.size())
         {
-            auto& zn = p.zones[(size_t) selectedZoneIdx];
+            auto &zn = p.zones[(size_t) selectedZoneIdx];
             if (zn.numVelocityLayers < 24)
             {
-                pushUndoState ("Increase Velocity Layers");
-                project.setZoneGridDimensions (selectedPieceIdx, selectedZoneIdx, zn.numVelocityLayers + 1, zn.numRoundRobins);
+                pushUndoState("Increase Velocity Layers");
+                project.setZoneGridDimensions(
+                    selectedPieceIdx, selectedZoneIdx, zn.numVelocityLayers + 1, zn.numRoundRobins);
                 reloadProjectIntoEngine();
                 repaint();
             }
         }
         return;
     }
-    if (btnRrDown.contains (pt) && selectedPieceIdx >= 0 && selectedZoneIdx >= 0)
+    if (btnRrDown.contains(pt) && selectedPieceIdx >= 0 && selectedZoneIdx >= 0)
     {
-        auto& p = project.pieces[(size_t) selectedPieceIdx];
+        auto &p = project.pieces[(size_t) selectedPieceIdx];
         if (selectedZoneIdx < (int) p.zones.size())
         {
-            auto& zn = p.zones[(size_t) selectedZoneIdx];
+            auto &zn = p.zones[(size_t) selectedZoneIdx];
             if (zn.numRoundRobins > 1)
             {
-                pushUndoState ("Decrease Round Robins");
-                project.setZoneGridDimensions (selectedPieceIdx, selectedZoneIdx, zn.numVelocityLayers, zn.numRoundRobins - 1);
+                pushUndoState("Decrease Round Robins");
+                project.setZoneGridDimensions(
+                    selectedPieceIdx, selectedZoneIdx, zn.numVelocityLayers, zn.numRoundRobins - 1);
                 reloadProjectIntoEngine();
                 repaint();
             }
         }
         return;
     }
-    if (btnRrUp.contains (pt) && selectedPieceIdx >= 0 && selectedZoneIdx >= 0)
+    if (btnRrUp.contains(pt) && selectedPieceIdx >= 0 && selectedZoneIdx >= 0)
     {
-        auto& p = project.pieces[(size_t) selectedPieceIdx];
+        auto &p = project.pieces[(size_t) selectedPieceIdx];
         if (selectedZoneIdx < (int) p.zones.size())
         {
-            auto& zn = p.zones[(size_t) selectedZoneIdx];
+            auto &zn = p.zones[(size_t) selectedZoneIdx];
             if (zn.numRoundRobins < 8)
             {
-                pushUndoState ("Increase Round Robins");
-                project.setZoneGridDimensions (selectedPieceIdx, selectedZoneIdx, zn.numVelocityLayers, zn.numRoundRobins + 1);
+                pushUndoState("Increase Round Robins");
+                project.setZoneGridDimensions(
+                    selectedPieceIdx, selectedZoneIdx, zn.numVelocityLayers, zn.numRoundRobins + 1);
                 reloadProjectIntoEngine();
                 repaint();
             }
         }
         return;
     }
-    if (pillVelCount.contains (pt) && selectedPieceIdx >= 0 && selectedZoneIdx >= 0)
+    if (pillVelCount.contains(pt) && selectedPieceIdx >= 0 && selectedZoneIdx >= 0)
     {
         juce::PopupMenu m;
-        m.addSectionHeader ("Velocity Layers");
-        const int counts[] = { 1, 2, 3, 4, 5, 6, 8, 10, 12, 13, 16, 20, 24 };
+        m.addSectionHeader("Velocity Layers");
+        const int counts[] = {1, 2, 3, 4, 5, 6, 8, 10, 12, 13, 16, 20, 24};
         int currentVL = project.pieces[(size_t) selectedPieceIdx].zones[(size_t) selectedZoneIdx].numVelocityLayers;
         for (int c : counts)
-            m.addItem (c, juce::String (c) + " Layers", true, c == currentVL);
-        m.showMenuAsync (juce::PopupMenu::Options().withTargetScreenArea (localAreaToGlobal (pillVelCount.toNearestInt())),
-            [this] (int res)
-            {
-                if (res > 0 && selectedPieceIdx >= 0 && selectedZoneIdx >= 0)
-                {
-                    pushUndoState ("Set Velocity Layers to " + juce::String (res));
-                    auto& zn = project.pieces[(size_t) selectedPieceIdx].zones[(size_t) selectedZoneIdx];
-                    project.setZoneGridDimensions (selectedPieceIdx, selectedZoneIdx, res, zn.numRoundRobins);
-                    reloadProjectIntoEngine();
-                    repaint();
-                }
-            });
+            m.addItem(c, juce::String(c) + " Layers", true, c == currentVL);
+        m.showMenuAsync(juce::PopupMenu::Options().withTargetScreenArea(localAreaToGlobal(pillVelCount.toNearestInt())),
+                        [this](int res)
+                        {
+                            if (res > 0 && selectedPieceIdx >= 0 && selectedZoneIdx >= 0)
+                            {
+                                pushUndoState("Set Velocity Layers to " + juce::String(res));
+                                auto &zn = project.pieces[(size_t) selectedPieceIdx].zones[(size_t) selectedZoneIdx];
+                                project.setZoneGridDimensions(
+                                    selectedPieceIdx, selectedZoneIdx, res, zn.numRoundRobins);
+                                reloadProjectIntoEngine();
+                                repaint();
+                            }
+                        });
         return;
     }
-    if (pillRrCount.contains (pt) && selectedPieceIdx >= 0 && selectedZoneIdx >= 0)
+    if (pillRrCount.contains(pt) && selectedPieceIdx >= 0 && selectedZoneIdx >= 0)
     {
         juce::PopupMenu m;
-        m.addSectionHeader ("Round Robin Columns");
+        m.addSectionHeader("Round Robin Columns");
         int currentRR = project.pieces[(size_t) selectedPieceIdx].zones[(size_t) selectedZoneIdx].numRoundRobins;
         for (int c = 1; c <= 8; ++c)
-            m.addItem (c, juce::String (c) + " Round Robins", true, c == currentRR);
-        m.showMenuAsync (juce::PopupMenu::Options().withTargetScreenArea (localAreaToGlobal (pillRrCount.toNearestInt())),
-            [this] (int res)
-            {
-                if (res > 0 && selectedPieceIdx >= 0 && selectedZoneIdx >= 0)
-                {
-                    pushUndoState ("Set Round Robins to " + juce::String (res));
-                    auto& zn = project.pieces[(size_t) selectedPieceIdx].zones[(size_t) selectedZoneIdx];
-                    project.setZoneGridDimensions (selectedPieceIdx, selectedZoneIdx, zn.numVelocityLayers, res);
-                    reloadProjectIntoEngine();
-                    repaint();
-                }
-            });
+            m.addItem(c, juce::String(c) + " Round Robins", true, c == currentRR);
+        m.showMenuAsync(juce::PopupMenu::Options().withTargetScreenArea(localAreaToGlobal(pillRrCount.toNearestInt())),
+                        [this](int res)
+                        {
+                            if (res > 0 && selectedPieceIdx >= 0 && selectedZoneIdx >= 0)
+                            {
+                                pushUndoState("Set Round Robins to " + juce::String(res));
+                                auto &zn = project.pieces[(size_t) selectedPieceIdx].zones[(size_t) selectedZoneIdx];
+                                project.setZoneGridDimensions(
+                                    selectedPieceIdx, selectedZoneIdx, zn.numVelocityLayers, res);
+                                reloadProjectIntoEngine();
+                                repaint();
+                            }
+                        });
         return;
     }
-    if (btnZoneScrollLeft.contains (pt) && maxZoneScrollX > 0.0f)
+    if (btnZoneScrollLeft.contains(pt) && maxZoneScrollX > 0.0f)
     {
-        zoneScrollX = juce::jlimit (0.0f, maxZoneScrollX, zoneScrollX - 120.0f);
+        zoneScrollX = juce::jlimit(0.0f, maxZoneScrollX, zoneScrollX - 120.0f);
         repaint();
         return;
     }
-    if (btnZoneScrollRight.contains (pt) && maxZoneScrollX > 0.0f)
+    if (btnZoneScrollRight.contains(pt) && maxZoneScrollX > 0.0f)
     {
-        zoneScrollX = juce::jlimit (0.0f, maxZoneScrollX, zoneScrollX + 120.0f);
+        zoneScrollX = juce::jlimit(0.0f, maxZoneScrollX, zoneScrollX + 120.0f);
         repaint();
         return;
     }
-    if (btnDeleteZone.contains (pt) && selectedPieceIdx >= 0)
+    if (btnDeleteZone.contains(pt) && selectedPieceIdx >= 0)
     {
-        auto& p = project.pieces[(size_t) selectedPieceIdx];
+        auto &p = project.pieces[(size_t) selectedPieceIdx];
         if (p.zones.size() > 1 && selectedZoneIdx >= 0 && selectedZoneIdx < (int) p.zones.size())
         {
             const std::string oldName = p.zones[(size_t) selectedZoneIdx].name;
             std::string err;
-            project.deleteZone (selectedPieceIdx, selectedZoneIdx, err);
+            project.deleteZone(selectedPieceIdx, selectedZoneIdx, err);
             reloadProjectIntoEngine();
-            selectZone (std::max (0, selectedZoneIdx - 1), false);
-            showStatusToast ("Deleted zone '" + juce::String (oldName) + "'");
+            selectZone(std::max(0, selectedZoneIdx - 1), false);
+            showStatusToast("Deleted zone '" + juce::String(oldName) + "'");
         }
         return;
     }
-    for (const auto& zt : zoneTabHits)
+    for (const auto &zt : zoneTabHits)
     {
-        const bool hitTest = (zt.zoneIndex == -1) ? zt.bounds.contains (pt)
-                                                  : (zoneTabBarBounds.contains (pt) && zt.bounds.contains (pt));
+        const bool hitTest =
+            (zt.zoneIndex == -1) ? zt.bounds.contains(pt) : (zoneTabBarBounds.contains(pt) && zt.bounds.contains(pt));
         if (hitTest)
         {
             if (zt.zoneIndex == -1 && selectedPieceIdx >= 0)
             {
-                auto& p = project.pieces[(size_t) selectedPieceIdx];
+                auto &p = project.pieces[(size_t) selectedPieceIdx];
                 EditableZone nz;
-                nz.name = "zone" + std::to_string (p.zones.size() + 1);
+                nz.name = "zone" + std::to_string(p.zones.size() + 1);
                 nz.note = 60 + (int) p.zones.size();
                 EditableHit sample;
                 sample.name = p.id + "_" + nz.name + "_v1_rr1";
@@ -2256,89 +2676,113 @@ void GlorpKitEditorComponent::mouseDown (const juce::MouseEvent& e)
                 EditableMicSample ms;
                 ms.mic = "close";
                 ms.fileName = sample.name + "_close.wav";
-                sample.micSamples.push_back (std::move (ms));
-                nz.hits.push_back (std::move (sample));
-                p.zones.push_back (std::move (nz));
+                sample.micSamples.push_back(std::move(ms));
+                nz.hits.push_back(std::move(sample));
+                p.zones.push_back(std::move(nz));
                 reloadProjectIntoEngine();
-                selectZone ((int) p.zones.size() - 1, true);
-                showStatusToast ("Added new articulation zone");
+                selectZone((int) p.zones.size() - 1, true);
+                showStatusToast("Added new articulation zone");
             }
             else if (zt.zoneIndex >= 0)
             {
                 if (e.getNumberOfClicks() >= 2 && selectedPieceIdx >= 0)
                 {
-                    promptRenameZone (selectedPieceIdx, zt.zoneIndex);
+                    promptRenameZone(selectedPieceIdx, zt.zoneIndex);
                     return;
                 }
-                selectZone (zt.zoneIndex, true);
+                selectZone(zt.zoneIndex, true);
             }
             return;
         }
     }
-    for (const auto& cell : matrixCellHits)
+    for (const auto &cell : matrixCellHits)
     {
-        if (cell.bounds.contains (pt))
+        if (cell.bounds.contains(pt))
         {
             if (e.mods.isPopupMenu())
             {
-                showMatrixCellContextMenu (cell);
+                showMatrixCellContextMenu(cell);
                 return;
             }
 
             if (cell.hitIndex >= 0)
             {
-                selectHit (cell.hitIndex, false);
+                selectHit(cell.hitIndex, false);
                 isPotentialMatrixDrag = true;
-                dragMatrixHitIdx      = cell.hitIndex;
-                dragMatrixSourceVel   = cell.velLayer;
-                dragMatrixSourceRr    = cell.rrIndex;
-                dragMatrixStartPos    = pt;
-                dragMatrixMousePos    = pt;
+                dragMatrixHitIdx = cell.hitIndex;
+                dragMatrixSourceVel = cell.velLayer;
+                dragMatrixSourceRr = cell.rrIndex;
+                dragMatrixStartPos = pt;
+                dragMatrixMousePos = pt;
             }
             else
             {
-                promptImportWavForSpecificCell (cell.velLayer, cell.rrIndex);
+                promptImportWavForSpecificCell(cell.velLayer, cell.rrIndex);
             }
             return;
         }
     }
 
-    if (btnBuiltinAsset.contains (pt))  { showBuiltinAssetMenu(); return; }
-    if (btnLoadCustomPng.contains (pt)) { promptLoadCustomPng(); return; }
-    if (btnAlignGuide.contains (pt))    { showAlignGuideMenu(); return; }
-    if (btnOutputBus.contains (pt))     { showOutputBusMenu(); return; }
-    if (btnChokeGroup.contains (pt))    { showChokeGroupMenu(); return; }
-    if (btnPieceMic.contains (pt) && selectedPieceIdx >= 0)
+    if (btnBuiltinAsset.contains(pt))
     {
-        promptRoutePieceMic (selectedPieceIdx);
+        showBuiltinAssetMenu();
         return;
     }
-    if (btnMidiNote.contains (pt))      { showMidiNoteMenu(); return; }
-    if (btnMidiLearn.contains (pt))
+    if (btnLoadCustomPng.contains(pt))
     {
-        midiLearnArmed = ! midiLearnArmed;
-        showStatusToast (midiLearnArmed ? "MIDI Learn armed — strike any pad on your e-kit..." : "MIDI Learn cancelled");
+        promptLoadCustomPng();
+        return;
+    }
+    if (btnAlignGuide.contains(pt))
+    {
+        showAlignGuideMenu();
+        return;
+    }
+    if (btnOutputBus.contains(pt))
+    {
+        showOutputBusMenu();
+        return;
+    }
+    if (btnChokeGroup.contains(pt))
+    {
+        showChokeGroupMenu();
+        return;
+    }
+    if (btnPieceMic.contains(pt) && selectedPieceIdx >= 0)
+    {
+        promptRoutePieceMic(selectedPieceIdx);
+        return;
+    }
+    if (btnMidiNote.contains(pt))
+    {
+        showMidiNoteMenu();
+        return;
+    }
+    if (btnMidiLearn.contains(pt))
+    {
+        midiLearnArmed = !midiLearnArmed;
+        showStatusToast(midiLearnArmed ? "MIDI Learn armed — strike any pad on your e-kit..." : "MIDI Learn cancelled");
         repaint();
         return;
     }
-    if (btnZoneMic.contains (pt) && selectedPieceIdx >= 0 && selectedZoneIdx >= 0)
+    if (btnZoneMic.contains(pt) && selectedPieceIdx >= 0 && selectedZoneIdx >= 0)
     {
-        promptRouteZoneMic (selectedPieceIdx, selectedZoneIdx);
+        promptRouteZoneMic(selectedPieceIdx, selectedZoneIdx);
         return;
     }
-    if (btnChokeTarget.contains (pt) && selectedPieceIdx >= 0)
+    if (btnChokeTarget.contains(pt) && selectedPieceIdx >= 0)
     {
-        auto& p = project.pieces[(size_t) selectedPieceIdx];
+        auto &p = project.pieces[(size_t) selectedPieceIdx];
         if (selectedZoneIdx >= 0 && selectedZoneIdx < (int) p.zones.size())
         {
-            auto& zn = p.zones[(size_t) selectedZoneIdx];
+            auto &zn = p.zones[(size_t) selectedZoneIdx];
             if (zn.chokes.empty() && p.zones.size() > 1)
             {
                 GlorpChokeTarget ct;
                 ct.instrument = p.name;
                 ct.zone = p.zones[((size_t) selectedZoneIdx + 1) % p.zones.size()].name;
                 ct.chokeTimeMs = 65.0f;
-                zn.chokes.push_back (ct);
+                zn.chokes.push_back(ct);
             }
             else
             {
@@ -2348,36 +2792,36 @@ void GlorpKitEditorComponent::mouseDown (const juce::MouseEvent& e)
         }
         return;
     }
-    if (btnPlaySample.contains (pt) || waveformPreviewBounds.contains (pt))
+    if (btnPlaySample.contains(pt) || waveformPreviewBounds.contains(pt))
     {
-        triggerAuditionForZone (selectedPieceIdx, selectedZoneIdx);
+        triggerAuditionForZone(selectedPieceIdx, selectedZoneIdx);
         return;
     }
-    for (const auto& mr : micAssignHits)
+    for (const auto &mr : micAssignHits)
     {
-        if (mr.delBounds.contains (pt))
+        if (mr.delBounds.contains(pt))
         {
-            deleteMicLayerFromSelectedHit (mr.micSampleIdx);
+            deleteMicLayerFromSelectedHit(mr.micSampleIdx);
             return;
         }
-        if (mr.badgeBounds.contains (pt) || mr.bounds.contains (pt))
+        if (mr.badgeBounds.contains(pt) || mr.bounds.contains(pt))
         {
-            promptReassignMicForSample (mr.micSampleIdx);
+            promptReassignMicForSample(mr.micSampleIdx);
             return;
         }
     }
-    if (btnAddMicLayer.contains (pt))
+    if (btnAddMicLayer.contains(pt))
     {
         promptAddMicLayerToSelectedHit();
         return;
     }
 }
 
-void GlorpKitEditorComponent::mouseDrag (const juce::MouseEvent& e)
+void GlorpKitEditorComponent::mouseDrag(const juce::MouseEvent &e)
 {
     if (isPotentialMatrixDrag && dragMatrixHitIdx >= 0)
     {
-        if (e.position.getDistanceFrom (dragMatrixStartPos) > 4.0f)
+        if (e.position.getDistanceFrom(dragMatrixStartPos) > 4.0f)
             isDraggingMatrixHit = true;
         if (isDraggingMatrixHit)
         {
@@ -2389,12 +2833,12 @@ void GlorpKitEditorComponent::mouseDrag (const juce::MouseEvent& e)
 
     if (isDraggingLayerRow && dragLayerPieceIndex >= 0)
     {
-        for (const auto& row : layerRowHits)
+        for (const auto &row : layerRowHits)
         {
-            if (row.pieceIndex != dragLayerPieceIndex && row.rowBounds.contains (e.position))
+            if (row.pieceIndex != dragLayerPieceIndex && row.rowBounds.contains(e.position))
             {
                 int currentZ = project.pieces[(size_t) dragLayerPieceIndex].zOrder;
-                int targetZ  = project.pieces[(size_t) row.pieceIndex].zOrder;
+                int targetZ = project.pieces[(size_t) row.pieceIndex].zOrder;
                 project.pieces[(size_t) dragLayerPieceIndex].zOrder = targetZ;
                 project.pieces[(size_t) row.pieceIndex].zOrder = currentZ;
                 repaint();
@@ -2404,12 +2848,13 @@ void GlorpKitEditorComponent::mouseDrag (const juce::MouseEvent& e)
         return;
     }
 
-    if (selectedPieceIdx < 0 || selectedPieceIdx >= (int) project.pieces.size()) return;
-    auto& piece = project.pieces[(size_t) selectedPieceIdx];
+    if (selectedPieceIdx < 0 || selectedPieceIdx >= (int) project.pieces.size())
+        return;
+    auto &piece = project.pieces[(size_t) selectedPieceIdx];
 
     const float W = canvasViewportBounds.getWidth();
     const float H = canvasViewportBounds.getHeight();
-    const float scale = std::min (W / 880.0f, H / 620.0f);
+    const float scale = std::min(W / 880.0f, H / 620.0f);
 
     if (isDraggingCanvasPiece && scale > 0.001f)
     {
@@ -2417,10 +2862,10 @@ void GlorpKitEditorComponent::mouseDrag (const juce::MouseEvent& e)
         const float dy = (e.position.y - dragStartPos.y) / scale;
         piece.normX = dragStartX + dx;
         piece.normY = dragStartY + dy;
-        if (snapToGrid && ! e.mods.isShiftDown())
+        if (snapToGrid && !e.mods.isShiftDown())
         {
-            piece.normX = std::round (piece.normX / 10.0f) * 10.0f;
-            piece.normY = std::round (piece.normY / 10.0f) * 10.0f;
+            piece.normX = std::round(piece.normX / 10.0f) * 10.0f;
+            piece.normY = std::round(piece.normY / 10.0f) * 10.0f;
         }
         computeCanvasPieceBounds();
         repaint();
@@ -2428,33 +2873,36 @@ void GlorpKitEditorComponent::mouseDrag (const juce::MouseEvent& e)
     else if (isResizingCanvasPiece && scale > 0.001f)
     {
         const float dw = (e.position.x - dragStartPos.x) / scale;
-        piece.normW = std::clamp (dragStartW + dw, 40.0f, 650.0f);
+        piece.normW = std::clamp(dragStartW + dw, 40.0f, 650.0f);
         computeCanvasPieceBounds();
         repaint();
     }
 }
 
-void GlorpKitEditorComponent::mouseUp (const juce::MouseEvent& e)
+void GlorpKitEditorComponent::mouseUp(const juce::MouseEvent &e)
 {
     if (isDraggingMatrixHit && dragMatrixHitIdx >= 0)
     {
-        for (const auto& cell : matrixCellHits)
+        for (const auto &cell : matrixCellHits)
         {
-            if (cell.bounds.contains (e.position))
+            if (cell.bounds.contains(e.position))
             {
                 if (cell.velLayer != dragMatrixSourceVel || cell.rrIndex != dragMatrixSourceRr)
                 {
                     if (cell.hitIndex >= 0)
                     {
-                        pushUndoState ("Swap Matrix Samples");
-                        project.swapSampleCells (selectedPieceIdx, selectedZoneIdx, dragMatrixHitIdx, cell.hitIndex);
-                        showStatusToast ("Swapped sample with RR" + juce::String (cell.rrIndex + 1) + " v" + juce::String (cell.velLayer + 1));
+                        pushUndoState("Swap Matrix Samples");
+                        project.swapSampleCells(selectedPieceIdx, selectedZoneIdx, dragMatrixHitIdx, cell.hitIndex);
+                        showStatusToast("Swapped sample with RR" + juce::String(cell.rrIndex + 1) + " v"
+                                        + juce::String(cell.velLayer + 1));
                     }
                     else
                     {
-                        pushUndoState ("Move Matrix Sample");
-                        project.moveSampleToCell (selectedPieceIdx, selectedZoneIdx, dragMatrixHitIdx, cell.velLayer, cell.rrIndex);
-                        showStatusToast ("Moved sample to RR" + juce::String (cell.rrIndex + 1) + " v" + juce::String (cell.velLayer + 1));
+                        pushUndoState("Move Matrix Sample");
+                        project.moveSampleToCell(
+                            selectedPieceIdx, selectedZoneIdx, dragMatrixHitIdx, cell.velLayer, cell.rrIndex);
+                        showStatusToast("Moved sample to RR" + juce::String(cell.rrIndex + 1) + " v"
+                                        + juce::String(cell.velLayer + 1));
                     }
                     reloadProjectIntoEngine();
                     rebuildPieceSprites();
@@ -2470,7 +2918,7 @@ void GlorpKitEditorComponent::mouseUp (const juce::MouseEvent& e)
     }
     else if (isPotentialMatrixDrag)
     {
-        triggerAuditionForZone (selectedPieceIdx, selectedZoneIdx);
+        triggerAuditionForZone(selectedPieceIdx, selectedZoneIdx);
         isPotentialMatrixDrag = false;
         dragMatrixHitIdx = -1;
     }
@@ -2478,13 +2926,13 @@ void GlorpKitEditorComponent::mouseUp (const juce::MouseEvent& e)
     if (isDraggingCanvasPiece || isResizingCanvasPiece)
     {
         bool changed = false;
-        if (project.pieces.size() == preInteractionProject.pieces.size() && selectedPieceIdx >= 0 && selectedPieceIdx < (int) project.pieces.size())
+        if (project.pieces.size() == preInteractionProject.pieces.size() && selectedPieceIdx >= 0
+            && selectedPieceIdx < (int) project.pieces.size())
         {
-            const auto& p1 = project.pieces[(size_t) selectedPieceIdx];
-            const auto& p0 = preInteractionProject.pieces[(size_t) selectedPieceIdx];
-            if (std::abs (p1.normX - p0.normX) > 0.001f ||
-                std::abs (p1.normY - p0.normY) > 0.001f ||
-                std::abs (p1.normW - p0.normW) > 0.001f)
+            const auto &p1 = project.pieces[(size_t) selectedPieceIdx];
+            const auto &p0 = preInteractionProject.pieces[(size_t) selectedPieceIdx];
+            if (std::abs(p1.normX - p0.normX) > 0.001f || std::abs(p1.normY - p0.normY) > 0.001f
+                || std::abs(p1.normW - p0.normW) > 0.001f)
             {
                 changed = true;
             }
@@ -2494,10 +2942,11 @@ void GlorpKitEditorComponent::mouseUp (const juce::MouseEvent& e)
             HistorySnapshot snap;
             snap.project = preInteractionProject;
             snap.selectedPieceIdx = selectedPieceIdx;
-            snap.selectedZoneIdx  = selectedZoneIdx;
+            snap.selectedZoneIdx = selectedZoneIdx;
             snap.actionDescription = "Move/Resize " + project.pieces[(size_t) selectedPieceIdx].name;
-            undoStack.push_back (std::move (snap));
-            if (undoStack.size() > 50) undoStack.erase (undoStack.begin());
+            undoStack.push_back(std::move(snap));
+            if (undoStack.size() > 50)
+                undoStack.erase(undoStack.begin());
             redoStack.clear();
         }
     }
@@ -2515,10 +2964,11 @@ void GlorpKitEditorComponent::mouseUp (const juce::MouseEvent& e)
             HistorySnapshot snap;
             snap.project = preInteractionProject;
             snap.selectedPieceIdx = selectedPieceIdx;
-            snap.selectedZoneIdx  = selectedZoneIdx;
+            snap.selectedZoneIdx = selectedZoneIdx;
             snap.actionDescription = "Reorder Z-Layers";
-            undoStack.push_back (std::move (snap));
-            if (undoStack.size() > 50) undoStack.erase (undoStack.begin());
+            undoStack.push_back(std::move(snap));
+            if (undoStack.size() > 50)
+                undoStack.erase(undoStack.begin());
             redoStack.clear();
         }
     }
@@ -2530,61 +2980,63 @@ void GlorpKitEditorComponent::mouseUp (const juce::MouseEvent& e)
     isCapturingInteraction = false;
 }
 
-void GlorpKitEditorComponent::mouseMove (const juce::MouseEvent& e)
+void GlorpKitEditorComponent::mouseMove(const juce::MouseEvent &e)
 {
-    if (canvasViewportBounds.contains (e.position))
+    if (canvasViewportBounds.contains(e.position))
     {
-        const int hit = canvasPieceAt (e.position);
-        setMouseCursor (hit >= 0 ? juce::MouseCursor::DraggingHandCursor : juce::MouseCursor::NormalCursor);
+        const int hit = canvasPieceAt(e.position);
+        setMouseCursor(hit >= 0 ? juce::MouseCursor::DraggingHandCursor : juce::MouseCursor::NormalCursor);
     }
     else
     {
-        setMouseCursor (juce::MouseCursor::NormalCursor);
+        setMouseCursor(juce::MouseCursor::NormalCursor);
     }
 }
 
-void GlorpKitEditorComponent::mouseWheelMove (const juce::MouseEvent& e, const juce::MouseWheelDetails& wheel)
+void GlorpKitEditorComponent::mouseWheelMove(const juce::MouseEvent &e, const juce::MouseWheelDetails &wheel)
 {
-    if (zoneTabBarBounds.contains (e.position) || btnZoneScrollLeft.contains (e.position) || btnZoneScrollRight.contains (e.position))
+    if (zoneTabBarBounds.contains(e.position) || btnZoneScrollLeft.contains(e.position)
+        || btnZoneScrollRight.contains(e.position))
     {
         if (maxZoneScrollX > 0.0f)
         {
-            const float dx = (std::abs (wheel.deltaX) > 0.001f ? wheel.deltaX : wheel.deltaY);
+            const float dx = (std::abs(wheel.deltaX) > 0.001f ? wheel.deltaX : wheel.deltaY);
             zoneScrollX -= dx * 60.0f;
-            zoneScrollX = juce::jlimit (0.0f, maxZoneScrollX, zoneScrollX);
+            zoneScrollX = juce::jlimit(0.0f, maxZoneScrollX, zoneScrollX);
             repaint();
             return;
         }
     }
 
-    if (matrixPanelBounds.contains (e.position))
+    if (matrixPanelBounds.contains(e.position))
     {
         matrixScrollY -= wheel.deltaY * 50.0f;
         repaint();
         return;
     }
 
-    if (selectedPieceIdx < 0 || selectedPieceIdx >= (int) project.pieces.size()) return;
-    auto& piece = project.pieces[(size_t) selectedPieceIdx];
+    if (selectedPieceIdx < 0 || selectedPieceIdx >= (int) project.pieces.size())
+        return;
+    auto &piece = project.pieces[(size_t) selectedPieceIdx];
 
-    if (canvasViewportBounds.contains (e.position) || pillNormW.contains (e.position))
+    if (canvasViewportBounds.contains(e.position) || pillNormW.contains(e.position))
     {
-        piece.normW = juce::jlimit (64.0f, 360.0f, piece.normW + wheel.deltaY * 28.0f);
+        piece.normW = juce::jlimit(64.0f, 360.0f, piece.normW + wheel.deltaY * 28.0f);
         computeCanvasPieceBounds();
         repaint();
     }
-    else if (pillZOrder.contains (e.position))
+    else if (pillZOrder.contains(e.position))
     {
-        project.movePieceZOrder (selectedPieceIdx, wheel.deltaY > 0.0f ? +1 : -1);
+        project.movePieceZOrder(selectedPieceIdx, wheel.deltaY > 0.0f ? +1 : -1);
         repaint();
     }
 }
 
-bool GlorpKitEditorComponent::keyPressed (const juce::KeyPress& key)
+bool GlorpKitEditorComponent::keyPressed(const juce::KeyPress &key)
 {
     if (key.getModifiers().isCommandDown() || key.getModifiers().isCtrlDown())
     {
-        if (key.isKeyCurrentlyDown ('z') || key.isKeyCurrentlyDown ('Z'))
+        if (key.isKeyCurrentlyDown('z') || key.isKeyCurrentlyDown('Z'))
         {
             if (key.getModifiers().isShiftDown())
                 redo();
@@ -2592,7 +3044,7 @@ bool GlorpKitEditorComponent::keyPressed (const juce::KeyPress& key)
                 undo();
             return true;
         }
-        if (key.isKeyCurrentlyDown ('y') || key.isKeyCurrentlyDown ('Y'))
+        if (key.isKeyCurrentlyDown('y') || key.isKeyCurrentlyDown('Y'))
         {
             redo();
             return true;
@@ -2601,121 +3053,137 @@ bool GlorpKitEditorComponent::keyPressed (const juce::KeyPress& key)
 
     if (tutorialActive)
     {
-        if (key == juce::KeyPress::rightKey || key == juce::KeyPress::returnKey) { nextTutorialStep(); return true; }
-        if (key == juce::KeyPress::leftKey)  { prevTutorialStep(); return true; }
-        if (key == juce::KeyPress::escapeKey) { setTutorialVisible (false, 0); return true; }
+        if (key == juce::KeyPress::rightKey || key == juce::KeyPress::returnKey)
+        {
+            nextTutorialStep();
+            return true;
+        }
+        if (key == juce::KeyPress::leftKey)
+        {
+            prevTutorialStep();
+            return true;
+        }
+        if (key == juce::KeyPress::escapeKey)
+        {
+            setTutorialVisible(false, 0);
+            return true;
+        }
     }
     if (key == juce::KeyPress::spaceKey)
     {
-        triggerAuditionForZone (selectedPieceIdx, selectedZoneIdx);
+        triggerAuditionForZone(selectedPieceIdx, selectedZoneIdx);
         return true;
     }
     return false;
 }
 
 //==============================================================================
-bool GlorpKitEditorComponent::isInterestedInFileDrag (const juce::StringArray& files)
+bool GlorpKitEditorComponent::isInterestedInFileDrag(const juce::StringArray &files)
 {
-    for (const auto& f : files)
+    for (const auto &f : files)
     {
-        juce::File file (f);
+        juce::File file(f);
         if (file.isDirectory())
             return true;
-        if (f.endsWithIgnoreCase (".wav") || f.endsWithIgnoreCase (".flac") || f.endsWithIgnoreCase (".ogg")
-            || f.endsWithIgnoreCase (".png") || f.endsWithIgnoreCase (".ora")
-            || f.endsWithIgnoreCase (".glorpkit") || f.endsWithIgnoreCase (".xml"))
+        if (f.endsWithIgnoreCase(".wav") || f.endsWithIgnoreCase(".flac") || f.endsWithIgnoreCase(".ogg")
+            || f.endsWithIgnoreCase(".png") || f.endsWithIgnoreCase(".ora") || f.endsWithIgnoreCase(".glorpkit")
+            || f.endsWithIgnoreCase(".xml"))
             return true;
     }
     return false;
 }
 
-void GlorpKitEditorComponent::filesDropped (const juce::StringArray& files, int x, int y)
+void GlorpKitEditorComponent::filesDropped(const juce::StringArray &files, int x, int y)
 {
-    if (files.isEmpty()) return;
+    if (files.isEmpty())
+        return;
 
     juce::Array<juce::File> pngFiles;
     juce::Array<juce::File> audioFiles;
     juce::File glorpKitOrXmlToOpen;
 
-    for (const auto& rawPath : files)
+    for (const auto &rawPath : files)
     {
-        juce::File f (rawPath);
-        if (! f.exists()) continue;
+        juce::File f(rawPath);
+        if (!f.exists())
+            continue;
 
-        if (f.hasFileExtension (".ora"))
+        if (f.hasFileExtension(".ora"))
         {
-            importOpenRasterFile (f);
+            importOpenRasterFile(f);
             return;
         }
 
         if (f.isDirectory())
         {
-            auto childPngs = f.findChildFiles (juce::File::findFiles, false, "*.png");
+            auto childPngs = f.findChildFiles(juce::File::findFiles, false, "*.png");
             if (childPngs.isEmpty())
-                childPngs = f.findChildFiles (juce::File::findFiles, true, "*.png");
-            pngFiles.addArray (childPngs);
+                childPngs = f.findChildFiles(juce::File::findFiles, true, "*.png");
+            pngFiles.addArray(childPngs);
 
-            auto childWavs = f.findChildFiles (juce::File::findFiles, true, "*.wav;*.flac;*.ogg");
-            audioFiles.addArray (childWavs);
+            auto childWavs = f.findChildFiles(juce::File::findFiles, true, "*.wav;*.flac;*.ogg");
+            audioFiles.addArray(childWavs);
         }
         else
         {
-            if (f.hasFileExtension (".glorpkit") || f.hasFileExtension (".xml"))
+            if (f.hasFileExtension(".glorpkit") || f.hasFileExtension(".xml"))
             {
-                if (! glorpKitOrXmlToOpen.exists())
+                if (!glorpKitOrXmlToOpen.exists())
                     glorpKitOrXmlToOpen = f;
             }
-            else if (f.hasFileExtension (".png"))
+            else if (f.hasFileExtension(".png"))
             {
-                pngFiles.add (f);
+                pngFiles.add(f);
             }
-            else if (f.hasFileExtension (".wav") || f.hasFileExtension (".flac") || f.hasFileExtension (".ogg"))
+            else if (f.hasFileExtension(".wav") || f.hasFileExtension(".flac") || f.hasFileExtension(".ogg"))
             {
-                audioFiles.add (f);
+                audioFiles.add(f);
             }
         }
     }
 
     if (glorpKitOrXmlToOpen.existsAsFile())
     {
-        openKitFile (glorpKitOrXmlToOpen);
+        openKitFile(glorpKitOrXmlToOpen);
         return;
     }
 
-    if (! pngFiles.isEmpty())
+    if (!pngFiles.isEmpty())
     {
-        importPngAssets (pngFiles);
+        importPngAssets(pngFiles);
     }
 
-    if (! audioFiles.isEmpty() && selectedPieceIdx >= 0)
+    if (!audioFiles.isEmpty() && selectedPieceIdx >= 0)
     {
         std::vector<std::string> wavPaths;
-        for (const auto& af : audioFiles)
-            wavPaths.push_back (af.getFullPathName().toStdString());
+        for (const auto &af : audioFiles)
+            wavPaths.push_back(af.getFullPathName().toStdString());
 
-        pushUndoState ("Import Audio Samples");
-        int count = project.importAudioFilesIntoZone (selectedPieceIdx, selectedZoneIdx, wavPaths, targetImportMic);
+        pushUndoState("Import Audio Samples");
+        int count = project.importAudioFilesIntoZone(selectedPieceIdx, selectedZoneIdx, wavPaths, targetImportMic);
         reloadProjectIntoEngine();
-        showStatusToast ("Imported " + juce::String (count) + " audio sample(s) into zone [" + juce::String (targetImportMic) + "]");
+        showStatusToast("Imported " + juce::String(count) + " audio sample(s) into zone ["
+                        + juce::String(targetImportMic) + "]");
     }
 
-    juce::ignoreUnused (x, y);
+    juce::ignoreUnused(x, y);
 }
 
 //==============================================================================
-void GlorpKitEditorComponent::audioDeviceIOCallbackWithContext (const float* const* /*inputChannelData*/,
-                                                                int /*numInputChannels*/,
-                                                                float* const* outputChannelData,
-                                                                int numOutputChannels,
-                                                                int numSamples,
-                                                                const juce::AudioIODeviceCallbackContext&)
+void GlorpKitEditorComponent::audioDeviceIOCallbackWithContext(const float *const * /*inputChannelData*/,
+                                                               int /*numInputChannels*/,
+                                                               float *const *outputChannelData,
+                                                               int numOutputChannels,
+                                                               int numSamples,
+                                                               const juce::AudioIODeviceCallbackContext &)
 {
     for (int ch = 0; ch < numOutputChannels; ++ch)
         if (outputChannelData[ch] != nullptr)
-            juce::FloatVectorOperations::clear (outputChannelData[ch], numSamples);
+            juce::FloatVectorOperations::clear(outputChannelData[ch], numSamples);
 
-    if (numOutputChannels < 1 || outputChannelData[0] == nullptr) return;
-    sampler.render (outputChannelData, numOutputChannels, numSamples);
+    if (numOutputChannels < 1 || outputChannelData[0] == nullptr)
+        return;
+    sampler.render(outputChannelData, numOutputChannels, numSamples);
 
     if (synthVoice.active)
     {
@@ -2726,10 +3194,11 @@ void GlorpKitEditorComponent::audioDeviceIOCallbackWithContext (const float* con
                 synthVoice.active = false;
                 break;
             }
-            float tone = std::sin (synthVoice.phase);
+            float tone = std::sin(synthVoice.phase);
             float noise = (((float) std::rand() / (float) RAND_MAX) * 2.0f - 1.0f);
             synthVoice.filterState += 0.45f * (noise - synthVoice.filterState);
-            float smp = ((1.0f - synthVoice.noiseMix) * tone + synthVoice.noiseMix * synthVoice.filterState) * synthVoice.env * 0.45f;
+            float smp = ((1.0f - synthVoice.noiseMix) * tone + synthVoice.noiseMix * synthVoice.filterState)
+                        * synthVoice.env * 0.45f;
 
             outputChannelData[0][i] += smp;
             if (numOutputChannels > 1 && outputChannelData[1] != nullptr)
@@ -2738,333 +3207,354 @@ void GlorpKitEditorComponent::audioDeviceIOCallbackWithContext (const float* con
             synthVoice.phase += synthVoice.freq * (juce::MathConstants<float>::twoPi / 44100.0f);
             if (synthVoice.phase > juce::MathConstants<float>::twoPi)
                 synthVoice.phase -= juce::MathConstants<float>::twoPi;
-            synthVoice.freq = std::max (25.0f, synthVoice.freq * synthVoice.freqDecay);
+            synthVoice.freq = std::max(25.0f, synthVoice.freq * synthVoice.freqDecay);
             synthVoice.env *= synthVoice.envDecay;
         }
     }
 }
 
-void GlorpKitEditorComponent::audioDeviceAboutToStart (juce::AudioIODevice* device)
+void GlorpKitEditorComponent::audioDeviceAboutToStart(juce::AudioIODevice *device)
 {
     if (device != nullptr)
-        sampler.setSampleRateAndBlock (device->getCurrentSampleRate(), device->getCurrentBufferSizeSamples());
+        sampler.setSampleRateAndBlock(device->getCurrentSampleRate(), device->getCurrentBufferSizeSamples());
 }
 
-void GlorpKitEditorComponent::audioDeviceStopped() {}
-
-void GlorpKitEditorComponent::handleIncomingMidiMessage (juce::MidiInput*, const juce::MidiMessage& message)
+void GlorpKitEditorComponent::audioDeviceStopped()
 {
-    if (! message.isNoteOn()) return;
+}
+
+void GlorpKitEditorComponent::handleIncomingMidiMessage(juce::MidiInput *, const juce::MidiMessage &message)
+{
+    if (!message.isNoteOn())
+        return;
     const int note = message.getNoteNumber();
     const float vel = message.getFloatVelocity();
 
-    juce::MessageManager::callAsync ([this, note, vel]()
-    {
-        if (midiLearnArmed && selectedPieceIdx >= 0)
+    juce::MessageManager::callAsync(
+        [this, note, vel]()
         {
-            auto& p = project.pieces[(size_t) selectedPieceIdx];
-            if (selectedZoneIdx >= 0 && selectedZoneIdx < (int) p.zones.size())
+            if (midiLearnArmed && selectedPieceIdx >= 0)
             {
-                p.zones[(size_t) selectedZoneIdx].note = note;
-                midiLearnArmed = false;
-                showStatusToast ("Assigned MIDI Note " + juce::String (midiNoteName (note)) + " to " + juce::String (p.zones[(size_t) selectedZoneIdx].name));
-                repaint();
-                return;
-            }
-        }
-
-        const auto& pieces = project.pieces;
-        for (size_t pi = 0; pi < pieces.size(); ++pi)
-        {
-            for (size_t zi = 0; zi < pieces[pi].zones.size(); ++zi)
-            {
-                const auto& z = pieces[pi].zones[zi];
-                if (z.note == note || z.altNote == note)
+                auto &p = project.pieces[(size_t) selectedPieceIdx];
+                if (selectedZoneIdx >= 0 && selectedZoneIdx < (int) p.zones.size())
                 {
-                    if (pi < pieceSprites.size())
-                        pieceSprites[pi].flash = std::max (pieceSprites[pi].flash, vel);
-                    int sIdx = project.getSamplerIndexForZone ((int) pi, (int) zi);
-                    if (sIdx >= 0 && sIdx < sampler.numInstruments())
-                    {
-                        sampler.noteOn (sIdx, vel, sampler.currentSamplePosition());
-                    }
-                    else
-                    {
-                        const juce::String sName = juce::String (pieces[pi].name);
-                        const juce::String sSpace = juce::String (pieces[pi].name + " " + z.name);
-                        const juce::String sDot = juce::String (pieces[pi].name + "." + z.name);
-                        const juce::String sUnder = juce::String (pieces[pi].name + "_" + z.name);
-                        for (int idx = 0; idx < sampler.numInstruments(); ++idx)
-                        {
-                            const auto iname = sampler.instrumentName (idx);
-                            if (iname.equalsIgnoreCase (sName) || iname.equalsIgnoreCase (sSpace)
-                                || iname.equalsIgnoreCase (sDot) || iname.equalsIgnoreCase (sUnder))
-                            {
-                                sampler.noteOn (idx, vel, sampler.currentSamplePosition());
-                                break;
-                            }
-                        }
-                    }
-                    bool hasPlayable = false;
-                    for (const auto& h : z.hits)
-                    {
-                        for (const auto& ms : h.micSamples)
-                        {
-                            if (! ms.sourceDiskPath.empty() || (! ms.sourceArchivePath.empty() && ms.archiveOffset >= 0))
-                            {
-                                hasPlayable = true;
-                                break;
-                            }
-                        }
-                        if (hasPlayable) break;
-                    }
-                    if (! hasPlayable)
-                        startAuditionSynth ((int) pi, vel);
+                    p.zones[(size_t) selectedZoneIdx].note = note;
+                    midiLearnArmed = false;
+                    showStatusToast("Assigned MIDI Note " + juce::String(midiNoteName(note)) + " to "
+                                    + juce::String(p.zones[(size_t) selectedZoneIdx].name));
                     repaint();
+                    return;
                 }
             }
-        }
-    });
+
+            const auto &pieces = project.pieces;
+            for (size_t pi = 0; pi < pieces.size(); ++pi)
+            {
+                for (size_t zi = 0; zi < pieces[pi].zones.size(); ++zi)
+                {
+                    const auto &z = pieces[pi].zones[zi];
+                    if (z.note == note || z.altNote == note)
+                    {
+                        if (pi < pieceSprites.size())
+                            pieceSprites[pi].flash = std::max(pieceSprites[pi].flash, vel);
+                        int sIdx = project.getSamplerIndexForZone((int) pi, (int) zi);
+                        if (sIdx >= 0 && sIdx < sampler.numInstruments())
+                        {
+                            sampler.noteOn(sIdx, vel, sampler.currentSamplePosition());
+                        }
+                        else
+                        {
+                            const juce::String sName = juce::String(pieces[pi].name);
+                            const juce::String sSpace = juce::String(pieces[pi].name + " " + z.name);
+                            const juce::String sDot = juce::String(pieces[pi].name + "." + z.name);
+                            const juce::String sUnder = juce::String(pieces[pi].name + "_" + z.name);
+                            for (int idx = 0; idx < sampler.numInstruments(); ++idx)
+                            {
+                                const auto iname = sampler.instrumentName(idx);
+                                if (iname.equalsIgnoreCase(sName) || iname.equalsIgnoreCase(sSpace)
+                                    || iname.equalsIgnoreCase(sDot) || iname.equalsIgnoreCase(sUnder))
+                                {
+                                    sampler.noteOn(idx, vel, sampler.currentSamplePosition());
+                                    break;
+                                }
+                            }
+                        }
+                        bool hasPlayable = false;
+                        for (const auto &h : z.hits)
+                        {
+                            for (const auto &ms : h.micSamples)
+                            {
+                                if (!ms.sourceDiskPath.empty()
+                                    || (!ms.sourceArchivePath.empty() && ms.archiveOffset >= 0))
+                                {
+                                    hasPlayable = true;
+                                    break;
+                                }
+                            }
+                            if (hasPlayable)
+                                break;
+                        }
+                        if (!hasPlayable)
+                            startAuditionSynth((int) pi, vel);
+                        repaint();
+                    }
+                }
+            }
+        });
 }
 
 void GlorpKitEditorComponent::timerCallback()
 {
     bool dirty = false;
-    for (auto& sp : pieceSprites)
+    for (auto &sp : pieceSprites)
     {
         if (sp.flash > 0.005f)
         {
             sp.flash *= 0.80f;
-            if (sp.flash < 0.01f) sp.flash = 0.0f;
+            if (sp.flash < 0.01f)
+                sp.flash = 0.0f;
             dirty = true;
         }
     }
     if (statusBannerAlpha > 0.0f)
     {
-        statusBannerAlpha = std::max (0.0f, statusBannerAlpha - 0.008f);
+        statusBannerAlpha = std::max(0.0f, statusBannerAlpha - 0.008f);
         dirty = true;
     }
     if (dirty)
-        repaint (canvasViewportBounds.toNearestInt());
+        repaint(canvasViewportBounds.toNearestInt());
 }
 
 //==============================================================================
 void GlorpKitEditorComponent::promptOpenKit()
 {
-    auto chooser = std::make_shared<juce::FileChooser> ("Open .glorpkit Archive", juce::File(), "*.glorpkit");
-    chooser->launchAsync (juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
-                          [this, chooser] (const juce::FileChooser& fc)
-                          {
-                              auto f = fc.getResult();
-                              if (f.existsAsFile())
-                                  openKitFile (f);
-                          });
+    auto chooser = std::make_shared<juce::FileChooser>("Open .glorpkit Archive", juce::File(), "*.glorpkit");
+    chooser->launchAsync(juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
+                         [this, chooser](const juce::FileChooser &fc)
+                         {
+                             auto f = fc.getResult();
+                             if (f.existsAsFile())
+                                 openKitFile(f);
+                         });
 }
 
 void GlorpKitEditorComponent::promptImportDrumGizmo()
 {
-    auto chooser = std::make_shared<juce::FileChooser> ("Import DrumGizmo Kit XML", juce::File(), "*.xml");
-    chooser->launchAsync (juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
-                          [this, chooser] (const juce::FileChooser& fc)
-                          {
-                              auto f = fc.getResult();
-                              if (f.existsAsFile())
-                                  openKitFile (f);
-                          });
+    auto chooser = std::make_shared<juce::FileChooser>("Import DrumGizmo Kit XML", juce::File(), "*.xml");
+    chooser->launchAsync(juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
+                         [this, chooser](const juce::FileChooser &fc)
+                         {
+                             auto f = fc.getResult();
+                             if (f.existsAsFile())
+                                 openKitFile(f);
+                         });
 }
 
 void GlorpKitEditorComponent::promptSaveGlorpKit()
 {
-    juce::String defaultStem = juce::String (project.title).trim();
+    juce::String defaultStem = juce::String(project.title).trim();
     if (defaultStem.isEmpty() || defaultStem == "Untitled Kit")
         defaultStem = "Custom_DrumKit";
-    defaultStem = defaultStem.replaceCharacter (' ', '_');
+    defaultStem = defaultStem.replaceCharacter(' ', '_');
 
-    juce::File defaultFile = juce::File::getSpecialLocation (juce::File::userHomeDirectory)
-                                 .getChildFile (defaultStem + ".glorpkit");
-    auto chooser = std::make_shared<juce::FileChooser> ("Save .glorpkit v2.0 Archive", defaultFile, "*.glorpkit");
-    chooser->launchAsync (juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles | juce::FileBrowserComponent::warnAboutOverwriting,
-                          [this, chooser] (const juce::FileChooser& fc)
-                          {
-                              auto f = fc.getResult();
-                              if (f != juce::File())
-                              {
-                                  auto targetFile = f.withFileExtension (".glorpkit");
-                                  if (project.title == "Untitled Kit" || project.title.empty())
-                                      project.title = targetFile.getFileNameWithoutExtension().replaceCharacter ('_', ' ').toStdString();
-                                  saveGlorpKitFile (targetFile);
-                              }
-                          });
-}
-
-void GlorpKitEditorComponent::promptLoadCustomPng()
-{
-    if (selectedPieceIdx < 0) return;
-    auto chooser = std::make_shared<juce::FileChooser> ("Select Custom Transparent PNG Sprite", juce::File(), "*.png");
-    chooser->launchAsync (juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
-                          [this, chooser] (const juce::FileChooser& fc)
-                          {
-                              auto f = fc.getResult();
-                              if (f.existsAsFile() && selectedPieceIdx >= 0)
-                              {
-                                  juce::MemoryBlock mb;
-                                  if (f.loadFileAsData (mb) && mb.getSize() > 8)
-                                  {
-                                      auto& p = project.pieces[(size_t) selectedPieceIdx];
-                                      p.customPngFileName = f.getFileName().toStdString();
-                                      p.customPngBytes.assign ((const uint8_t*) mb.getData(),
-                                                               (const uint8_t*) mb.getData() + mb.getSize());
-                                      rebuildPieceSprites();
-                                      showStatusToast ("Embedded custom PNG sprite: " + f.getFileName());
-                                      repaint();
-                                  }
-                              }
-                          });
-}
-
-void GlorpKitEditorComponent::promptImportWavsForCurrentZone (const std::string& targetMic)
-{
-    if (selectedPieceIdx < 0) return;
-    auto chooser = std::make_shared<juce::FileChooser> ("Select WAV/FLAC Audio Samples for Zone (" + juce::String (targetMic) + ")",
-                                                        juce::File(), "*.wav;*.flac;*.ogg");
-    chooser->launchAsync (juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles | juce::FileBrowserComponent::canSelectMultipleItems,
-                          [this, chooser, targetMic] (const juce::FileChooser& fc)
-                          {
-                              auto results = fc.getResults();
-                              std::vector<std::string> paths;
-                              for (const auto& f : results)
-                                  if (f.existsAsFile())
-                                      paths.push_back (f.getFullPathName().toStdString());
-                              if (! paths.empty())
-                              {
-                                  int n = project.importAudioFilesIntoZone (selectedPieceIdx, selectedZoneIdx, paths, targetMic);
-                                  reloadProjectIntoEngine();
-                                  showStatusToast ("Imported " + juce::String (n) + " audio files into " + juce::String (targetMic));
-                              }
-                          });
-}
-
-void GlorpKitEditorComponent::promptImportWavForSpecificCell (int velLayer, int roundRobin)
-{
-    if (selectedPieceIdx < 0 || selectedZoneIdx < 0) return;
-    auto chooser = std::make_shared<juce::FileChooser> (
-        "Select WAV for Cell (v" + juce::String (velLayer + 1) + ", RR" + juce::String (roundRobin + 1) + ")",
-        juce::File(), "*.wav;*.flac;*.ogg");
-    chooser->launchAsync (juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
-        [this, chooser, velLayer, roundRobin] (const juce::FileChooser& fc)
+    juce::File defaultFile =
+        juce::File::getSpecialLocation(juce::File::userHomeDirectory).getChildFile(defaultStem + ".glorpkit");
+    auto chooser = std::make_shared<juce::FileChooser>("Save .glorpkit v2.0 Archive", defaultFile, "*.glorpkit");
+    chooser->launchAsync(
+        juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles
+            | juce::FileBrowserComponent::warnAboutOverwriting,
+        [this, chooser](const juce::FileChooser &fc)
         {
             auto f = fc.getResult();
-            if (f.existsAsFile() && selectedPieceIdx >= 0 && selectedZoneIdx >= 0)
+            if (f != juce::File())
             {
-                auto& zone = project.pieces[(size_t) selectedPieceIdx].zones[(size_t) selectedZoneIdx];
-
-                int existingHit = -1;
-                for (size_t hi = 0; hi < zone.hits.size(); ++hi)
-                {
-                    if (zone.hits[hi].velocityLayerIndex == velLayer && zone.hits[hi].roundRobinIndex == roundRobin)
-                    {
-                        existingHit = (int) hi;
-                        break;
-                    }
-                }
-
-                if (existingHit >= 0)
-                {
-                    auto& h = zone.hits[(size_t) existingHit];
-                    h.name = f.getFileNameWithoutExtension().toStdString();
-                    if (! h.micSamples.empty())
-                    {
-                        h.micSamples[0].fileName = f.getFileName().toStdString();
-                        h.micSamples[0].sourceDiskPath = f.getFullPathName().toStdString();
-                    }
-                    else
-                    {
-                        EditableMicSample ms;
-                        ms.mic = "close";
-                        ms.fileName = f.getFileName().toStdString();
-                        ms.sourceDiskPath = f.getFullPathName().toStdString();
-                        h.micSamples.push_back (std::move (ms));
-                    }
-                }
-                else
-                {
-                    EditableHit nh;
-                    nh.name = f.getFileNameWithoutExtension().toStdString();
-                    nh.velocityLayerIndex = velLayer;
-                    nh.roundRobinIndex = roundRobin;
-                    const int totalVL = std::max (1, zone.numVelocityLayers);
-                    nh.power = 0.12f + 0.88f * ((float) velLayer / (float) std::max (1, totalVL - 1));
-
-                    EditableMicSample ms;
-                    ms.mic = "close";
-                    ms.fileName = f.getFileName().toStdString();
-                    ms.sourceDiskPath = f.getFullPathName().toStdString();
-                    nh.micSamples.push_back (std::move (ms));
-                    zone.hits.push_back (std::move (nh));
-                }
-
-                reloadProjectIntoEngine();
-                showStatusToast ("Assigned " + f.getFileName() + " to v" + juce::String (velLayer + 1) + " RR" + juce::String (roundRobin + 1));
-                repaint();
+                auto targetFile = f.withFileExtension(".glorpkit");
+                if (project.title == "Untitled Kit" || project.title.empty())
+                    project.title = targetFile.getFileNameWithoutExtension().replaceCharacter('_', ' ').toStdString();
+                saveGlorpKitFile(targetFile);
             }
         });
 }
 
-void GlorpKitEditorComponent::showMatrixCellContextMenu (const MatrixCellHit& cell)
+void GlorpKitEditorComponent::promptLoadCustomPng()
 {
-    if (selectedPieceIdx < 0 || selectedZoneIdx < 0) return;
-    auto& piece = project.pieces[(size_t) selectedPieceIdx];
-    if (selectedZoneIdx >= (int) piece.zones.size()) return;
-    auto& zone = piece.zones[(size_t) selectedZoneIdx];
+    if (selectedPieceIdx < 0)
+        return;
+    auto chooser = std::make_shared<juce::FileChooser>("Select Custom Transparent PNG Sprite", juce::File(), "*.png");
+    chooser->launchAsync(juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
+                         [this, chooser](const juce::FileChooser &fc)
+                         {
+                             auto f = fc.getResult();
+                             if (f.existsAsFile() && selectedPieceIdx >= 0)
+                             {
+                                 juce::MemoryBlock mb;
+                                 if (f.loadFileAsData(mb) && mb.getSize() > 8)
+                                 {
+                                     auto &p = project.pieces[(size_t) selectedPieceIdx];
+                                     p.customPngFileName = f.getFileName().toStdString();
+                                     p.customPngBytes.assign((const uint8_t *) mb.getData(),
+                                                             (const uint8_t *) mb.getData() + mb.getSize());
+                                     rebuildPieceSprites();
+                                     showStatusToast("Embedded custom PNG sprite: " + f.getFileName());
+                                     repaint();
+                                 }
+                             }
+                         });
+}
+
+void GlorpKitEditorComponent::promptImportWavsForCurrentZone(const std::string &targetMic)
+{
+    if (selectedPieceIdx < 0)
+        return;
+    auto chooser = std::make_shared<juce::FileChooser>(
+        "Select WAV/FLAC Audio Samples for Zone (" + juce::String(targetMic) + ")", juce::File(), "*.wav;*.flac;*.ogg");
+    chooser->launchAsync(
+        juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles
+            | juce::FileBrowserComponent::canSelectMultipleItems,
+        [this, chooser, targetMic](const juce::FileChooser &fc)
+        {
+            auto results = fc.getResults();
+            std::vector<std::string> paths;
+            for (const auto &f : results)
+                if (f.existsAsFile())
+                    paths.push_back(f.getFullPathName().toStdString());
+            if (!paths.empty())
+            {
+                int n = project.importAudioFilesIntoZone(selectedPieceIdx, selectedZoneIdx, paths, targetMic);
+                reloadProjectIntoEngine();
+                showStatusToast("Imported " + juce::String(n) + " audio files into " + juce::String(targetMic));
+            }
+        });
+}
+
+void GlorpKitEditorComponent::promptImportWavForSpecificCell(int velLayer, int roundRobin)
+{
+    if (selectedPieceIdx < 0 || selectedZoneIdx < 0)
+        return;
+    auto chooser = std::make_shared<juce::FileChooser>("Select WAV for Cell (v" + juce::String(velLayer + 1) + ", RR"
+                                                           + juce::String(roundRobin + 1) + ")",
+                                                       juce::File(),
+                                                       "*.wav;*.flac;*.ogg");
+    chooser->launchAsync(juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
+                         [this, chooser, velLayer, roundRobin](const juce::FileChooser &fc)
+                         {
+                             auto f = fc.getResult();
+                             if (f.existsAsFile() && selectedPieceIdx >= 0 && selectedZoneIdx >= 0)
+                             {
+                                 auto &zone = project.pieces[(size_t) selectedPieceIdx].zones[(size_t) selectedZoneIdx];
+
+                                 int existingHit = -1;
+                                 for (size_t hi = 0; hi < zone.hits.size(); ++hi)
+                                 {
+                                     if (zone.hits[hi].velocityLayerIndex == velLayer
+                                         && zone.hits[hi].roundRobinIndex == roundRobin)
+                                     {
+                                         existingHit = (int) hi;
+                                         break;
+                                     }
+                                 }
+
+                                 if (existingHit >= 0)
+                                 {
+                                     auto &h = zone.hits[(size_t) existingHit];
+                                     h.name = f.getFileNameWithoutExtension().toStdString();
+                                     if (!h.micSamples.empty())
+                                     {
+                                         h.micSamples[0].fileName = f.getFileName().toStdString();
+                                         h.micSamples[0].sourceDiskPath = f.getFullPathName().toStdString();
+                                     }
+                                     else
+                                     {
+                                         EditableMicSample ms;
+                                         ms.mic = "close";
+                                         ms.fileName = f.getFileName().toStdString();
+                                         ms.sourceDiskPath = f.getFullPathName().toStdString();
+                                         h.micSamples.push_back(std::move(ms));
+                                     }
+                                 }
+                                 else
+                                 {
+                                     EditableHit nh;
+                                     nh.name = f.getFileNameWithoutExtension().toStdString();
+                                     nh.velocityLayerIndex = velLayer;
+                                     nh.roundRobinIndex = roundRobin;
+                                     const int totalVL = std::max(1, zone.numVelocityLayers);
+                                     nh.power = 0.12f + 0.88f * ((float) velLayer / (float) std::max(1, totalVL - 1));
+
+                                     EditableMicSample ms;
+                                     ms.mic = "close";
+                                     ms.fileName = f.getFileName().toStdString();
+                                     ms.sourceDiskPath = f.getFullPathName().toStdString();
+                                     nh.micSamples.push_back(std::move(ms));
+                                     zone.hits.push_back(std::move(nh));
+                                 }
+
+                                 reloadProjectIntoEngine();
+                                 showStatusToast("Assigned " + f.getFileName() + " to v" + juce::String(velLayer + 1)
+                                                 + " RR" + juce::String(roundRobin + 1));
+                                 repaint();
+                             }
+                         });
+}
+
+void GlorpKitEditorComponent::showMatrixCellContextMenu(const MatrixCellHit &cell)
+{
+    if (selectedPieceIdx < 0 || selectedZoneIdx < 0)
+        return;
+    auto &piece = project.pieces[(size_t) selectedPieceIdx];
+    if (selectedZoneIdx >= (int) piece.zones.size())
+        return;
+    auto &zone = piece.zones[(size_t) selectedZoneIdx];
 
     juce::PopupMenu m;
-    m.addSectionHeader ("Cell: v" + juce::String (cell.velLayer + 1) + " - RR" + juce::String (cell.rrIndex + 1));
+    m.addSectionHeader("Cell: v" + juce::String(cell.velLayer + 1) + " - RR" + juce::String(cell.rrIndex + 1));
 
     if (cell.hitIndex >= 0 && cell.hitIndex < (int) zone.hits.size())
     {
-        const auto& hit = zone.hits[(size_t) cell.hitIndex];
-        m.addItem (1, "Audition Hit (" + juce::String (hit.name) + ")");
-        m.addItem (2, "Replace WAV Sample...");
+        const auto &hit = zone.hits[(size_t) cell.hitIndex];
+        m.addItem(1, "Audition Hit (" + juce::String(hit.name) + ")");
+        m.addItem(2, "Replace WAV Sample...");
 
         juce::PopupMenu hitMicM;
         for (size_t i = 0; i < project.mics.size(); ++i)
-            hitMicM.addItem (100 + (int) i, project.mics[i].name);
-        m.addSubMenu ("Assign this Hit to Mic", hitMicM);
-        m.addItem (20, "+ Add Additional Mic Layer to this Hit...");
+            hitMicM.addItem(100 + (int) i, project.mics[i].name);
+        m.addSubMenu("Assign this Hit to Mic", hitMicM);
+        m.addItem(20, "+ Add Additional Mic Layer to this Hit...");
 
         m.addSeparator();
-        m.addItem (3, "Remove Sample from Cell");
+        m.addItem(3, "Remove Sample from Cell");
     }
     else
     {
-        m.addItem (10, "Import WAV Sample into this Cell...");
+        m.addItem(10, "Import WAV Sample into this Cell...");
     }
 
     m.addSeparator();
     juce::PopupMenu zoneMicM;
     for (size_t i = 0; i < project.mics.size(); ++i)
-        zoneMicM.addItem (300 + (int) i, "Route to " + project.mics[i].name);
-    m.addSubMenu ("Assign Entire Zone '" + zone.name + "' to Mic", zoneMicM);
+        zoneMicM.addItem(300 + (int) i, "Route to " + project.mics[i].name);
+    m.addSubMenu("Assign Entire Zone '" + zone.name + "' to Mic", zoneMicM);
 
     juce::PopupMenu pieceMicM;
     for (size_t i = 0; i < project.mics.size(); ++i)
-        pieceMicM.addItem (400 + (int) i, "Route to " + project.mics[i].name);
-    m.addSubMenu ("Assign Entire Instrument '" + piece.name + "' to Mic", pieceMicM);
+        pieceMicM.addItem(400 + (int) i, "Route to " + project.mics[i].name);
+    m.addSubMenu("Assign Entire Instrument '" + piece.name + "' to Mic", pieceMicM);
 
-    m.showMenuAsync (juce::PopupMenu::Options().withTargetScreenArea (localAreaToGlobal (cell.bounds.toNearestInt())),
-        [this, cell] (int res)
+    m.showMenuAsync(
+        juce::PopupMenu::Options().withTargetScreenArea(localAreaToGlobal(cell.bounds.toNearestInt())),
+        [this, cell](int res)
         {
             if (res == 1)
             {
-                selectHit (cell.hitIndex, true);
+                selectHit(cell.hitIndex, true);
             }
             else if (res == 2 || res == 10)
             {
-                promptImportWavForSpecificCell (cell.velLayer, cell.rrIndex);
+                promptImportWavForSpecificCell(cell.velLayer, cell.rrIndex);
             }
             else if (res == 20)
             {
-                selectHit (cell.hitIndex, false);
+                selectHit(cell.hitIndex, false);
                 promptAddMicLayerToSelectedHit();
             }
             else if (res >= 100 && res < 200)
@@ -3072,12 +3562,12 @@ void GlorpKitEditorComponent::showMatrixCellContextMenu (const MatrixCellHit& ce
                 int micIdx = res - 100;
                 if (micIdx >= 0 && micIdx < (int) project.mics.size() && selectedPieceIdx >= 0 && selectedZoneIdx >= 0)
                 {
-                    auto& z = project.pieces[(size_t) selectedPieceIdx].zones[(size_t) selectedZoneIdx];
+                    auto &z = project.pieces[(size_t) selectedPieceIdx].zones[(size_t) selectedZoneIdx];
                     if (cell.hitIndex >= 0 && cell.hitIndex < (int) z.hits.size())
                     {
-                        const auto& micName = project.mics[(size_t) micIdx].name;
-                        pushUndoState ("Assign Hit to Mic " + micName);
-                        if (! z.hits[(size_t) cell.hitIndex].micSamples.empty())
+                        const auto &micName = project.mics[(size_t) micIdx].name;
+                        pushUndoState("Assign Hit to Mic " + micName);
+                        if (!z.hits[(size_t) cell.hitIndex].micSamples.empty())
                             z.hits[(size_t) cell.hitIndex].micSamples.front().mic = micName;
                         reloadProjectIntoEngine();
                         repaint();
@@ -3089,11 +3579,11 @@ void GlorpKitEditorComponent::showMatrixCellContextMenu (const MatrixCellHit& ce
                 int micIdx = res - 300;
                 if (micIdx >= 0 && micIdx < (int) project.mics.size() && selectedPieceIdx >= 0 && selectedZoneIdx >= 0)
                 {
-                    const auto& micName = project.mics[(size_t) micIdx].name;
-                    pushUndoState ("Assign Zone to Mic " + micName);
-                    project.setZoneMicrophone (selectedPieceIdx, selectedZoneIdx, micName);
+                    const auto &micName = project.mics[(size_t) micIdx].name;
+                    pushUndoState("Assign Zone to Mic " + micName);
+                    project.setZoneMicrophone(selectedPieceIdx, selectedZoneIdx, micName);
                     reloadProjectIntoEngine();
-                    showStatusToast ("Assigned zone to " + micName);
+                    showStatusToast("Assigned zone to " + micName);
                     repaint();
                 }
             }
@@ -3102,11 +3592,11 @@ void GlorpKitEditorComponent::showMatrixCellContextMenu (const MatrixCellHit& ce
                 int micIdx = res - 400;
                 if (micIdx >= 0 && micIdx < (int) project.mics.size() && selectedPieceIdx >= 0)
                 {
-                    const auto& micName = project.mics[(size_t) micIdx].name;
-                    pushUndoState ("Assign Instrument to Mic " + micName);
-                    project.setPieceMicrophone (selectedPieceIdx, micName);
+                    const auto &micName = project.mics[(size_t) micIdx].name;
+                    pushUndoState("Assign Instrument to Mic " + micName);
+                    project.setPieceMicrophone(selectedPieceIdx, micName);
                     reloadProjectIntoEngine();
-                    showStatusToast ("Assigned all samples in instrument to " + micName);
+                    showStatusToast("Assigned all samples in instrument to " + micName);
                     repaint();
                 }
             }
@@ -3114,12 +3604,12 @@ void GlorpKitEditorComponent::showMatrixCellContextMenu (const MatrixCellHit& ce
             {
                 if (selectedPieceIdx >= 0 && selectedZoneIdx >= 0)
                 {
-                    auto& z = project.pieces[(size_t) selectedPieceIdx].zones[(size_t) selectedZoneIdx];
+                    auto &z = project.pieces[(size_t) selectedPieceIdx].zones[(size_t) selectedZoneIdx];
                     if (cell.hitIndex >= 0 && cell.hitIndex < (int) z.hits.size())
                     {
-                        z.hits.erase (z.hits.begin() + cell.hitIndex);
+                        z.hits.erase(z.hits.begin() + cell.hitIndex);
                         reloadProjectIntoEngine();
-                        showStatusToast ("Removed sample from cell");
+                        showStatusToast("Removed sample from cell");
                         repaint();
                     }
                 }
@@ -3129,31 +3619,34 @@ void GlorpKitEditorComponent::showMatrixCellContextMenu (const MatrixCellHit& ce
 
 void GlorpKitEditorComponent::promptImportOpenRaster()
 {
-    auto chooser = std::make_shared<juce::FileChooser> ("Select OpenRaster (.ora) Layered Image", juce::File(), "*.ora");
-    chooser->launchAsync (juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
-        [this, chooser] (const juce::FileChooser& fc)
-        {
-            auto f = fc.getResult();
-            if (f.existsAsFile())
-                importOpenRasterFile (f);
-        });
+    auto chooser = std::make_shared<juce::FileChooser>("Select OpenRaster (.ora) Layered Image", juce::File(), "*.ora");
+    chooser->launchAsync(juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
+                         [this, chooser](const juce::FileChooser &fc)
+                         {
+                             auto f = fc.getResult();
+                             if (f.existsAsFile())
+                                 importOpenRasterFile(f);
+                         });
 }
 
-void GlorpKitEditorComponent::importOpenRasterFile (const juce::File& file)
+void GlorpKitEditorComponent::importOpenRasterFile(const juce::File &file)
 {
     OraDocument doc;
     juce::String err;
-    if (! OpenRasterReader::read (file, doc, err))
+    if (!OpenRasterReader::read(file, doc, err))
     {
-        showStatusToast ("Error loading .ora: " + err);
+        showStatusToast("Error loading .ora: " + err);
         return;
     }
 
-    oraOverlay = std::make_unique<OpenRasterModalOverlay> (
-        doc, file.getFileName(), project.pieces, theme,
-        [this, file] (const OraImportResult& res, const OraDocument& docRef)
+    oraOverlay = std::make_unique<OpenRasterModalOverlay>(
+        doc,
+        file.getFileName(),
+        project.pieces,
+        theme,
+        [this, file](const OraImportResult &res, const OraDocument &docRef)
         {
-            applyOpenRasterImport (file, docRef, res);
+            applyOpenRasterImport(file, docRef, res);
             oraOverlay.reset();
             repaint();
         },
@@ -3163,21 +3656,23 @@ void GlorpKitEditorComponent::importOpenRasterFile (const juce::File& file)
             repaint();
         });
 
-    addAndMakeVisible (*oraOverlay);
-    oraOverlay->setBounds (getLocalBounds());
+    addAndMakeVisible(*oraOverlay);
+    oraOverlay->setBounds(getLocalBounds());
     repaint();
 }
 
-void GlorpKitEditorComponent::applyOpenRasterImport (const juce::File& file, const OraDocument& doc, const OraImportResult& res)
+void GlorpKitEditorComponent::applyOpenRasterImport(const juce::File &file,
+                                                    const OraDocument &doc,
+                                                    const OraImportResult &res)
 {
     if (project.title == "Untitled Kit" || project.title.empty())
-        project.title = file.getFileNameWithoutExtension().replaceCharacter ('_', ' ').toStdString();
+        project.title = file.getFileNameWithoutExtension().replaceCharacter('_', ' ').toStdString();
     int count = 0;
 
     for (size_t i = 0; i < doc.layers.size() && i < res.assignments.size(); ++i)
     {
-        const auto& layer = doc.layers[i];
-        const auto& assign = res.assignments[i];
+        const auto &layer = doc.layers[i];
+        const auto &assign = res.assignments[i];
         if (assign.targetAction == 0)
             continue;
 
@@ -3186,12 +3681,14 @@ void GlorpKitEditorComponent::applyOpenRasterImport (const juce::File& file, con
         {
             std::string pieceName = assign.newPieceName.empty() ? layer.name : assign.newPieceName;
             std::string pieceId = pieceName;
-            for (auto& ch : pieceId)
+            for (auto &ch : pieceId)
             {
-                if (! std::isalnum ((unsigned char) ch)) ch = '_';
-                else ch = (char) std::tolower ((unsigned char) ch);
+                if (!std::isalnum((unsigned char) ch))
+                    ch = '_';
+                else
+                    ch = (char) std::tolower((unsigned char) ch);
             }
-            targetPieceIdx = project.addPieceWithAutoLayout (pieceName, pieceId);
+            targetPieceIdx = project.addPieceWithAutoLayout(pieceName, pieceId);
         }
         else if (assign.targetAction == 2)
         {
@@ -3201,7 +3698,7 @@ void GlorpKitEditorComponent::applyOpenRasterImport (const juce::File& file, con
 
         if (targetPieceIdx >= 0 && targetPieceIdx < (int) project.pieces.size())
         {
-            auto& p = project.pieces[(size_t) targetPieceIdx];
+            auto &p = project.pieces[(size_t) targetPieceIdx];
             p.customPngFileName = layer.name + ".png";
             p.customPngBytes = layer.pngBytes;
 
@@ -3211,132 +3708,131 @@ void GlorpKitEditorComponent::applyOpenRasterImport (const juce::File& file, con
                 const float fracY = (float) layer.y / (float) doc.canvasHeight;
                 p.normX = (fracX - 0.50f) * 880.0f;
                 p.normY = (fracY - 0.94f) * 620.0f;
-                p.normW = std::clamp ((float) layer.width / (float) doc.canvasWidth * 880.0f, 40.0f, 650.0f);
+                p.normW = std::clamp((float) layer.width / (float) doc.canvasWidth * 880.0f, 40.0f, 650.0f);
             }
             ++count;
         }
     }
 
-    if (selectedPieceIdx < 0 && ! project.pieces.empty())
-        selectPiece (0, false);
+    if (selectedPieceIdx < 0 && !project.pieces.empty())
+        selectPiece(0, false);
 
     rebuildPieceSprites();
     reloadProjectIntoEngine();
-    showStatusToast ("Successfully imported " + juce::String (count) + " layer(s) from " + file.getFileName());
+    showStatusToast("Successfully imported " + juce::String(count) + " layer(s) from " + file.getFileName());
     repaint();
 }
 
-class CustomGlowColorPicker : public juce::Component, public juce::ChangeListener
+class CustomGlowColorPicker
+    : public juce::Component
+    , public juce::ChangeListener
 {
-public:
-    CustomGlowColorPicker (GlorpKitEditorComponent& owner, juce::Colour initialColor)
-        : editor (owner), selector (juce::ColourSelector::showColourAtTop
-                                  | juce::ColourSelector::editableColour
-                                  | juce::ColourSelector::showSliders
-                                  | juce::ColourSelector::showColourspace)
+  public:
+    CustomGlowColorPicker(GlorpKitEditorComponent &owner, juce::Colour initialColor)
+        : editor(owner)
+        , selector(juce::ColourSelector::showColourAtTop | juce::ColourSelector::editableColour
+                   | juce::ColourSelector::showSliders | juce::ColourSelector::showColourspace)
     {
-        selector.setSize (320, 360);
-        selector.setCurrentColour (initialColor);
-        selector.addChangeListener (this);
-        addAndMakeVisible (selector);
-        setSize (320, 360);
+        selector.setSize(320, 360);
+        selector.setCurrentColour(initialColor);
+        selector.addChangeListener(this);
+        addAndMakeVisible(selector);
+        setSize(320, 360);
     }
 
-    ~CustomGlowColorPicker() override
+    ~CustomGlowColorPicker() override { selector.removeChangeListener(this); }
+
+    void changeListenerCallback(juce::ChangeBroadcaster *) override
     {
-        selector.removeChangeListener (this);
+        editor.setHitGlowColourHex(toHexColourString(selector.getCurrentColour()));
     }
 
-    void changeListenerCallback (juce::ChangeBroadcaster*) override
-    {
-        editor.setHitGlowColourHex (toHexColourString (selector.getCurrentColour()));
-    }
+    void resized() override { selector.setBounds(getLocalBounds()); }
 
-    void resized() override
-    {
-        selector.setBounds (getLocalBounds());
-    }
-
-private:
-    GlorpKitEditorComponent& editor;
+  private:
+    GlorpKitEditorComponent &editor;
     juce::ColourSelector selector;
 };
 
 void GlorpKitEditorComponent::showCustomGlowColorPicker()
 {
-    auto picker = std::make_unique<CustomGlowColorPicker> (*this, hitGlowColour);
-    juce::CallOutBox::launchAsynchronously (std::move (picker),
-                                            localAreaToGlobal (btnGlowColor.toNearestInt()),
-                                            this);
+    auto picker = std::make_unique<CustomGlowColorPicker>(*this, hitGlowColour);
+    juce::CallOutBox::launchAsynchronously(std::move(picker), localAreaToGlobal(btnGlowColor.toNearestInt()), this);
 }
 
 void GlorpKitEditorComponent::showHitGlowColorMenu()
 {
-    struct PresetColor { const char* name; const char* hex; };
+    struct PresetColor
+    {
+        const char *name;
+        const char *hex;
+    };
     static const PresetColor presets[] = {
-        { "Glorp Orange (Default)  #FF8200", "#ff8200" },
-        { "Radioactive Slime Green #2ECC71", "#2ecc71" },
-        { "Electric Cyan           #00D2FF", "#00d2ff" },
-        { "Hot Comic Magenta       #FF2E93", "#ff2e93" },
-        { "Neon Laser Purple       #A855F7", "#a855f7" },
-        { "Golden Sunburst         #F5B82E", "#f5b82e" },
-        { "Crimson Blaze           #FF3B30", "#ff3b30" },
-        { "Pure White Halo         #FFFFFF", "#ffffff" },
+        {"Glorp Orange (Default)  #FF8200", "#ff8200"},
+        {"Radioactive Slime Green #2ECC71", "#2ecc71"},
+        {"Electric Cyan           #00D2FF", "#00d2ff"},
+        {"Hot Comic Magenta       #FF2E93", "#ff2e93"},
+        {"Neon Laser Purple       #A855F7", "#a855f7"},
+        {"Golden Sunburst         #F5B82E", "#f5b82e"},
+        {"Crimson Blaze           #FF3B30", "#ff3b30"},
+        {"Pure White Halo         #FFFFFF", "#ffffff"},
     };
 
     juce::PopupMenu m;
-    m.addSectionHeader ("Kit-Wide Hit Glow Color");
-    const std::string curHex = toHexColourString (hitGlowColour);
+    m.addSectionHeader("Kit-Wide Hit Glow Color");
+    const std::string curHex = toHexColourString(hitGlowColour);
     for (int i = 0; i < 8; ++i)
     {
-        const bool ticked = (juce::String (curHex).equalsIgnoreCase (presets[i].hex));
-        m.addItem (i + 1, presets[i].name, true, ticked);
+        const bool ticked = (juce::String(curHex).equalsIgnoreCase(presets[i].hex));
+        m.addItem(i + 1, presets[i].name, true, ticked);
     }
     m.addSeparator();
-    m.addItem (100, "Custom Color (Hue Wheel & Sliders)...");
+    m.addItem(100, "Custom Color (Hue Wheel & Sliders)...");
 
-    m.showMenuAsync (juce::PopupMenu::Options().withTargetScreenArea (localAreaToGlobal (btnGlowColor.toNearestInt())),
-                     [this] (int res)
-                     {
-                         if (res >= 1 && res <= 8)
-                             setHitGlowColourHex (presets[res - 1].hex);
-                         else if (res == 100)
-                             showCustomGlowColorPicker();
-                     });
+    m.showMenuAsync(juce::PopupMenu::Options().withTargetScreenArea(localAreaToGlobal(btnGlowColor.toNearestInt())),
+                    [this](int res)
+                    {
+                        if (res >= 1 && res <= 8)
+                            setHitGlowColourHex(presets[res - 1].hex);
+                        else if (res == 100)
+                            showCustomGlowColorPicker();
+                    });
 }
 
 void GlorpKitEditorComponent::showBuiltinAssetMenu()
 {
-    if (selectedPieceIdx < 0) return;
-    static const char* names[] = { "kick", "snare", "hihat", "tom_1", "tom_2", "f_tom", "crash_1", "crash_2", "ride" };
+    if (selectedPieceIdx < 0)
+        return;
+    static const char *names[] = {"kick", "snare", "hihat", "tom_1", "tom_2", "f_tom", "crash_1", "crash_2", "ride"};
     juce::PopupMenu m;
-    m.addSectionHeader ("Built-in Sketch Sprite");
+    m.addSectionHeader("Built-in Sketch Sprite");
     for (int i = 0; i < 9; ++i)
-        m.addItem (i + 1, names[i]);
+        m.addItem(i + 1, names[i]);
     m.addSeparator();
-    m.addItem (99, "Clear Custom PNG Override");
+    m.addItem(99, "Clear Custom PNG Override");
 
-    m.showMenuAsync (juce::PopupMenu::Options().withTargetScreenArea (localAreaToGlobal (btnBuiltinAsset.toNearestInt())),
-                     [this] (int res)
-                     {
-                         if (selectedPieceIdx < 0) return;
-                         auto& p = project.pieces[(size_t) selectedPieceIdx];
-                         if (res >= 1 && res <= 9)
-                         {
-                             p.graphicId = names[res - 1];
-                             p.customPngBytes.clear();
-                             p.customPngFileName.clear();
-                             rebuildPieceSprites();
-                             repaint();
-                         }
-                         else if (res == 99)
-                         {
-                             p.customPngBytes.clear();
-                             p.customPngFileName.clear();
-                             rebuildPieceSprites();
-                             repaint();
-                         }
-                     });
+    m.showMenuAsync(juce::PopupMenu::Options().withTargetScreenArea(localAreaToGlobal(btnBuiltinAsset.toNearestInt())),
+                    [this](int res)
+                    {
+                        if (selectedPieceIdx < 0)
+                            return;
+                        auto &p = project.pieces[(size_t) selectedPieceIdx];
+                        if (res >= 1 && res <= 9)
+                        {
+                            p.graphicId = names[res - 1];
+                            p.customPngBytes.clear();
+                            p.customPngFileName.clear();
+                            rebuildPieceSprites();
+                            repaint();
+                        }
+                        else if (res == 99)
+                        {
+                            p.customPngBytes.clear();
+                            p.customPngFileName.clear();
+                            rebuildPieceSprites();
+                            repaint();
+                        }
+                    });
 }
 
 void GlorpKitEditorComponent::showAlignGuideMenu()
@@ -3344,178 +3840,193 @@ void GlorpKitEditorComponent::showAlignGuideMenu()
     if (selectedPieceIdx < 0 || selectedPieceIdx >= (int) project.pieces.size())
         return;
 
-    auto& piece = project.pieces[(size_t) selectedPieceIdx];
-    const auto& guides = getIdealStageGuides();
-    const int autoMatch = findMatchingStageGuide (piece.name, piece.graphicId);
+    auto &piece = project.pieces[(size_t) selectedPieceIdx];
+    const auto &guides = getIdealStageGuides();
+    const int autoMatch = findMatchingStageGuide(piece.name, piece.graphicId);
 
     juce::PopupMenu m;
-    m.addSectionHeader ("Align to Acoustic Stage Guide");
+    m.addSectionHeader("Align to Acoustic Stage Guide");
 
     juce::String autoTxt = "Auto-Snap to Best Match";
     if (autoMatch >= 0 && autoMatch < (int) guides.size())
-        autoTxt += " (" + juce::String (guides[(size_t) autoMatch].label) + ")";
-    m.addItem (100, autoTxt, true);
+        autoTxt += " (" + juce::String(guides[(size_t) autoMatch].label) + ")";
+    m.addItem(100, autoTxt, true);
     m.addSeparator();
 
     for (size_t gi = 0; gi < guides.size(); ++gi)
     {
-        juce::String itemText = juce::String (guides[gi].label);
-        if (static_cast<int> (gi) == autoMatch)
+        juce::String itemText = juce::String(guides[gi].label);
+        if (static_cast<int>(gi) == autoMatch)
             itemText += " [Auto-matched]";
-        m.addItem (static_cast<int> (gi + 1), itemText);
+        m.addItem(static_cast<int>(gi + 1), itemText);
     }
 
-    m.showMenuAsync (juce::PopupMenu::Options().withTargetScreenArea (localAreaToGlobal (btnAlignGuide.toNearestInt())),
-                     [this, autoMatch] (int res)
-                     {
-                         if (res <= 0 || selectedPieceIdx < 0 || selectedPieceIdx >= (int) project.pieces.size())
-                             return;
+    m.showMenuAsync(juce::PopupMenu::Options().withTargetScreenArea(localAreaToGlobal(btnAlignGuide.toNearestInt())),
+                    [this, autoMatch](int res)
+                    {
+                        if (res <= 0 || selectedPieceIdx < 0 || selectedPieceIdx >= (int) project.pieces.size())
+                            return;
 
-                         pushUndoState ("Align to Stage Guide");
-                         auto& p = project.pieces[(size_t) selectedPieceIdx];
-                         const auto& allGuides = getIdealStageGuides();
-                         int targetIdx = -1;
-                         if (res == 100)
-                             targetIdx = (autoMatch >= 0) ? autoMatch : 0;
-                         else
-                             targetIdx = res - 1;
+                        pushUndoState("Align to Stage Guide");
+                        auto &p = project.pieces[(size_t) selectedPieceIdx];
+                        const auto &allGuides = getIdealStageGuides();
+                        int targetIdx = -1;
+                        if (res == 100)
+                            targetIdx = (autoMatch >= 0) ? autoMatch : 0;
+                        else
+                            targetIdx = res - 1;
 
-                         if (targetIdx >= 0 && targetIdx < (int) allGuides.size())
-                         {
-                             const auto& gd = allGuides[(size_t) targetIdx];
-                             p.normX = gd.normX;
-                             p.normY = gd.normY;
-                             p.normW = gd.normW;
-                             p.zOrder = gd.zOrder;
-                             computeCanvasPieceBounds();
-                             showStatusToast ("Aligned " + juce::String (p.name) + " to " + juce::String (gd.label));
-                             repaint();
-                         }
-                     });
+                        if (targetIdx >= 0 && targetIdx < (int) allGuides.size())
+                        {
+                            const auto &gd = allGuides[(size_t) targetIdx];
+                            p.normX = gd.normX;
+                            p.normY = gd.normY;
+                            p.normW = gd.normW;
+                            p.zOrder = gd.zOrder;
+                            computeCanvasPieceBounds();
+                            showStatusToast("Aligned " + juce::String(p.name) + " to " + juce::String(gd.label));
+                            repaint();
+                        }
+                    });
 }
 
 void GlorpKitEditorComponent::showOutputBusMenu()
 {
-    if (selectedPieceIdx < 0) return;
+    if (selectedPieceIdx < 0)
+        return;
     juce::PopupMenu m;
     for (int i = 0; i < 16; ++i)
-        m.addItem (i + 1, "Stereo Bus #" + juce::String (i + 1) + " (Out " + juce::String (i * 2 + 1) + "/" + juce::String (i * 2 + 2) + ")");
-    m.showMenuAsync (juce::PopupMenu::Options().withTargetScreenArea (localAreaToGlobal (btnOutputBus.toNearestInt())),
-                     [this] (int res)
-                     {
-                         if (res >= 1 && res <= 16 && selectedPieceIdx >= 0)
-                         {
-                             project.pieces[(size_t) selectedPieceIdx].outputBus = res - 1;
-                             repaint();
-                         }
-                     });
+        m.addItem(i + 1,
+                  "Stereo Bus #" + juce::String(i + 1) + " (Out " + juce::String(i * 2 + 1) + "/"
+                      + juce::String(i * 2 + 2) + ")");
+    m.showMenuAsync(juce::PopupMenu::Options().withTargetScreenArea(localAreaToGlobal(btnOutputBus.toNearestInt())),
+                    [this](int res)
+                    {
+                        if (res >= 1 && res <= 16 && selectedPieceIdx >= 0)
+                        {
+                            project.pieces[(size_t) selectedPieceIdx].outputBus = res - 1;
+                            repaint();
+                        }
+                    });
 }
 
 void GlorpKitEditorComponent::showChokeGroupMenu()
 {
-    if (selectedPieceIdx < 0) return;
-    static const char* groups[] = { "none", "hihat", "cymbal_mute", "aux_perc" };
+    if (selectedPieceIdx < 0)
+        return;
+    static const char *groups[] = {"none", "hihat", "cymbal_mute", "aux_perc"};
     juce::PopupMenu m;
-    m.addItem (1, "none (Polyphonic)");
-    m.addItem (2, "hihat (Hi-Hat Open/Closed Choke)");
-    m.addItem (3, "cymbal_mute (Cymbal Mute Group)");
-    m.addItem (4, "aux_perc (Aux Percussion Group)");
-    m.showMenuAsync (juce::PopupMenu::Options().withTargetScreenArea (localAreaToGlobal (btnChokeGroup.toNearestInt())),
-                     [this] (int res)
-                     {
-                         if (res >= 1 && res <= 4 && selectedPieceIdx >= 0)
-                         {
-                             project.pieces[(size_t) selectedPieceIdx].chokeGroup = groups[res - 1];
-                             repaint();
-                         }
-                     });
+    m.addItem(1, "none (Polyphonic)");
+    m.addItem(2, "hihat (Hi-Hat Open/Closed Choke)");
+    m.addItem(3, "cymbal_mute (Cymbal Mute Group)");
+    m.addItem(4, "aux_perc (Aux Percussion Group)");
+    m.showMenuAsync(juce::PopupMenu::Options().withTargetScreenArea(localAreaToGlobal(btnChokeGroup.toNearestInt())),
+                    [this](int res)
+                    {
+                        if (res >= 1 && res <= 4 && selectedPieceIdx >= 0)
+                        {
+                            project.pieces[(size_t) selectedPieceIdx].chokeGroup = groups[res - 1];
+                            repaint();
+                        }
+                    });
 }
 
 void GlorpKitEditorComponent::showMidiNoteMenu()
 {
-    if (selectedPieceIdx < 0) return;
+    if (selectedPieceIdx < 0)
+        return;
     juce::PopupMenu m;
-    m.addSectionHeader ("General MIDI Drum Standard Notes");
-    const int gmNotes[] = { 35, 36, 37, 38, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 55, 57, 59 };
+    m.addSectionHeader("General MIDI Drum Standard Notes");
+    const int gmNotes[] = {35, 36, 37, 38, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 55, 57, 59};
     for (int n : gmNotes)
-        m.addItem (n + 100, midiNoteName (n));
-    m.showMenuAsync (juce::PopupMenu::Options().withTargetScreenArea (localAreaToGlobal (btnMidiNote.toNearestInt())),
-                     [this] (int res)
-                     {
-                         if (res >= 100 && selectedPieceIdx >= 0)
-                         {
-                             auto& p = project.pieces[(size_t) selectedPieceIdx];
-                             if (selectedZoneIdx >= 0 && selectedZoneIdx < (int) p.zones.size())
-                             {
-                                 p.zones[(size_t) selectedZoneIdx].note = res - 100;
-                                 repaint();
-                             }
-                         }
-                     });
+        m.addItem(n + 100, midiNoteName(n));
+    m.showMenuAsync(juce::PopupMenu::Options().withTargetScreenArea(localAreaToGlobal(btnMidiNote.toNearestInt())),
+                    [this](int res)
+                    {
+                        if (res >= 100 && selectedPieceIdx >= 0)
+                        {
+                            auto &p = project.pieces[(size_t) selectedPieceIdx];
+                            if (selectedZoneIdx >= 0 && selectedZoneIdx < (int) p.zones.size())
+                            {
+                                p.zones[(size_t) selectedZoneIdx].note = res - 100;
+                                repaint();
+                            }
+                        }
+                    });
 }
 
 void GlorpKitEditorComponent::showKitMetadataDialog()
 {
     juce::PopupMenu m;
-    m.addSectionHeader ("Kit: " + juce::String (project.title));
-    m.addItem (10, "Edit Kit Title & Info...", true, false);
+    m.addSectionHeader("Kit: " + juce::String(project.title));
+    m.addItem(10, "Edit Kit Title & Info...", true, false);
     m.addSeparator();
-    m.addSectionHeader ("Kit Sample Rate");
-    m.addItem (1, "44100 Hz", true, project.sampleRate == 44100);
-    m.addItem (2, "48000 Hz", true, project.sampleRate == 48000);
-    m.addItem (3, "96000 Hz", true, project.sampleRate == 96000);
-    m.showMenuAsync (juce::PopupMenu::Options().withTargetScreenArea (localAreaToGlobal (pillKitMeta.toNearestInt())),
-                     [this] (int res)
-                     {
-                         if (res == 10) promptRenameKit();
-                         else if (res == 1) project.sampleRate = 44100;
-                         else if (res == 2) project.sampleRate = 48000;
-                         else if (res == 3) project.sampleRate = 96000;
-                         repaint();
-                     });
+    m.addSectionHeader("Kit Sample Rate");
+    m.addItem(1, "44100 Hz", true, project.sampleRate == 44100);
+    m.addItem(2, "48000 Hz", true, project.sampleRate == 48000);
+    m.addItem(3, "96000 Hz", true, project.sampleRate == 96000);
+    m.showMenuAsync(juce::PopupMenu::Options().withTargetScreenArea(localAreaToGlobal(pillKitMeta.toNearestInt())),
+                    [this](int res)
+                    {
+                        if (res == 10)
+                            promptRenameKit();
+                        else if (res == 1)
+                            project.sampleRate = 44100;
+                        else if (res == 2)
+                            project.sampleRate = 48000;
+                        else if (res == 3)
+                            project.sampleRate = 96000;
+                        repaint();
+                    });
 }
 
 void GlorpKitEditorComponent::promptRenameKit()
 {
-    const auto currentTitle = juce::String (project.title);
-    auto* alert = new juce::AlertWindow ("Kit Properties", "Edit drumkit title, author, and description:", juce::AlertWindow::QuestionIcon);
-    alert->addTextEditor ("kitTitle", currentTitle, "Kit Title");
-    alert->addTextEditor ("kitAuthor", project.author, "Author");
-    alert->addTextEditor ("kitDesc", project.description, "Description");
-    alert->addButton ("OK", 1, juce::KeyPress (juce::KeyPress::returnKey));
-    alert->addButton ("Cancel", 0, juce::KeyPress (juce::KeyPress::escapeKey));
+    const auto currentTitle = juce::String(project.title);
+    auto *alert = new juce::AlertWindow(
+        "Kit Properties", "Edit drumkit title, author, and description:", juce::AlertWindow::QuestionIcon);
+    alert->addTextEditor("kitTitle", currentTitle, "Kit Title");
+    alert->addTextEditor("kitAuthor", project.author, "Author");
+    alert->addTextEditor("kitDesc", project.description, "Description");
+    alert->addButton("OK", 1, juce::KeyPress(juce::KeyPress::returnKey));
+    alert->addButton("Cancel", 0, juce::KeyPress(juce::KeyPress::escapeKey));
 
-    alert->enterModalState (true, juce::ModalCallbackFunction::create ([this, alert] (int result)
-    {
-        if (result == 1)
-        {
-            auto newTitle = alert->getTextEditorContents ("kitTitle").trim();
-            if (newTitle.isNotEmpty())
-            {
-                pushUndoState ("Rename Kit");
-                project.title = newTitle.toStdString();
-                project.author = alert->getTextEditorContents ("kitAuthor").trim().toStdString();
-                project.description = alert->getTextEditorContents ("kitDesc").trim().toStdString();
-                showStatusToast ("Updated kit title: " + newTitle);
-                repaint();
-            }
-        }
-        delete alert;
-    }));
+    alert->enterModalState(true,
+                           juce::ModalCallbackFunction::create(
+                               [this, alert](int result)
+                               {
+                                   if (result == 1)
+                                   {
+                                       auto newTitle = alert->getTextEditorContents("kitTitle").trim();
+                                       if (newTitle.isNotEmpty())
+                                       {
+                                           pushUndoState("Rename Kit");
+                                           project.title = newTitle.toStdString();
+                                           project.author =
+                                               alert->getTextEditorContents("kitAuthor").trim().toStdString();
+                                           project.description =
+                                               alert->getTextEditorContents("kitDesc").trim().toStdString();
+                                           showStatusToast("Updated kit title: " + newTitle);
+                                           repaint();
+                                       }
+                                   }
+                                   delete alert;
+                               }));
 }
 
-void GlorpKitEditorComponent::startAuditionSynth (int pieceIdx, float velocity)
+void GlorpKitEditorComponent::startAuditionSynth(int pieceIdx, float velocity)
 {
-    if (pieceIdx < 0 || pieceIdx >= (int) project.pieces.size()) return;
-    const auto& p = project.pieces[(size_t) pieceIdx];
-    const juce::String gid = juce::String (p.graphicId).toLowerCase();
-    const juce::String name = juce::String (p.name).toLowerCase();
+    if (pieceIdx < 0 || pieceIdx >= (int) project.pieces.size())
+        return;
+    const auto &p = project.pieces[(size_t) pieceIdx];
+    const juce::String gid = juce::String(p.graphicId).toLowerCase();
+    const juce::String name = juce::String(p.name).toLowerCase();
 
     synthVoice.active = true;
     synthVoice.phase = 0.0f;
     synthVoice.filterState = 0.0f;
 
-    if (gid.contains ("kick") || name.contains ("kick"))
+    if (gid.contains("kick") || name.contains("kick"))
     {
         synthVoice.freq = 150.0f;
         synthVoice.freqDecay = 0.9982f;
@@ -3523,7 +4034,7 @@ void GlorpKitEditorComponent::startAuditionSynth (int pieceIdx, float velocity)
         synthVoice.envDecay = 0.9993f;
         synthVoice.noiseMix = 0.05f;
     }
-    else if (gid.contains ("snare") || name.contains ("snare"))
+    else if (gid.contains("snare") || name.contains("snare"))
     {
         synthVoice.freq = 230.0f;
         synthVoice.freqDecay = 0.996f;
@@ -3531,7 +4042,7 @@ void GlorpKitEditorComponent::startAuditionSynth (int pieceIdx, float velocity)
         synthVoice.envDecay = 0.9986f;
         synthVoice.noiseMix = 0.65f;
     }
-    else if (gid.contains ("hihat") || name.contains ("hihat") || gid.contains ("hh") || name.contains ("hh"))
+    else if (gid.contains("hihat") || name.contains("hihat") || gid.contains("hh") || name.contains("hh"))
     {
         synthVoice.freq = 4200.0f;
         synthVoice.freqDecay = 0.999f;
@@ -3539,7 +4050,7 @@ void GlorpKitEditorComponent::startAuditionSynth (int pieceIdx, float velocity)
         synthVoice.envDecay = 0.9965f;
         synthVoice.noiseMix = 0.95f;
     }
-    else if (gid.contains ("crash") || name.contains ("crash") || gid.contains ("ride") || name.contains ("ride"))
+    else if (gid.contains("crash") || name.contains("crash") || gid.contains("ride") || name.contains("ride"))
     {
         synthVoice.freq = 3200.0f;
         synthVoice.freqDecay = 0.9994f;
@@ -3547,11 +4058,11 @@ void GlorpKitEditorComponent::startAuditionSynth (int pieceIdx, float velocity)
         synthVoice.envDecay = 0.9996f;
         synthVoice.noiseMix = 0.92f;
     }
-    else if (gid.contains ("tom") || name.contains ("tom"))
+    else if (gid.contains("tom") || name.contains("tom"))
     {
-        if (gid.contains ("1") || name.contains ("1") || gid.contains ("high"))
+        if (gid.contains("1") || name.contains("1") || gid.contains("high"))
             synthVoice.freq = 180.0f;
-        else if (gid.contains ("2") || name.contains ("2") || gid.contains ("mid"))
+        else if (gid.contains("2") || name.contains("2") || gid.contains("mid"))
             synthVoice.freq = 135.0f;
         else
             synthVoice.freq = 90.0f; // floor tom
@@ -3573,154 +4084,169 @@ void GlorpKitEditorComponent::startAuditionSynth (int pieceIdx, float velocity)
 
 void GlorpKitEditorComponent::showAudioSettingsDialog()
 {
-    auto* selector = new juce::AudioDeviceSelectorComponent (
-        deviceManager,
-        0, 2, // inputs
-        2, 2, // outputs
-        true, // midi in
-        false, // midi out
-        false, // channels as stereo pairs
-        false  // hide advanced
+    auto *selector = new juce::AudioDeviceSelectorComponent(deviceManager,
+                                                            0,
+                                                            2, // inputs
+                                                            2,
+                                                            2,     // outputs
+                                                            true,  // midi in
+                                                            false, // midi out
+                                                            false, // channels as stereo pairs
+                                                            false  // hide advanced
     );
-    selector->setSize (500, 380);
+    selector->setSize(500, 380);
 
     juce::DialogWindow::LaunchOptions opt;
     opt.dialogTitle = "Audio & MIDI Settings";
     opt.dialogBackgroundColour = theme.panel;
-    opt.content.setOwned (selector);
+    opt.content.setOwned(selector);
     opt.escapeKeyTriggersCloseButton = true;
     opt.useNativeTitleBar = true;
     opt.resizable = false;
     opt.launchAsync();
 }
 
-void GlorpKitEditorComponent::promptRenamePiece (int pieceIndex)
+void GlorpKitEditorComponent::promptRenamePiece(int pieceIndex)
 {
-    if (pieceIndex < 0 || pieceIndex >= (int) project.pieces.size()) return;
-    const auto currentName = juce::String (project.pieces[(size_t) pieceIndex].name);
+    if (pieceIndex < 0 || pieceIndex >= (int) project.pieces.size())
+        return;
+    const auto currentName = juce::String(project.pieces[(size_t) pieceIndex].name);
 
-    auto* alert = new juce::AlertWindow ("Rename Kit Piece", "Enter a new name for this drum/cymbal:", juce::AlertWindow::QuestionIcon);
-    alert->addTextEditor ("pieceName", currentName, "Piece Name");
-    alert->addButton ("OK", 1, juce::KeyPress (juce::KeyPress::returnKey));
-    alert->addButton ("Cancel", 0, juce::KeyPress (juce::KeyPress::escapeKey));
+    auto *alert = new juce::AlertWindow(
+        "Rename Kit Piece", "Enter a new name for this drum/cymbal:", juce::AlertWindow::QuestionIcon);
+    alert->addTextEditor("pieceName", currentName, "Piece Name");
+    alert->addButton("OK", 1, juce::KeyPress(juce::KeyPress::returnKey));
+    alert->addButton("Cancel", 0, juce::KeyPress(juce::KeyPress::escapeKey));
 
-    alert->enterModalState (true, juce::ModalCallbackFunction::create ([this, alert, pieceIndex] (int result)
-    {
-        if (result == 1)
-        {
-            auto newName = alert->getTextEditorContents ("pieceName").trim();
-            if (newName.isNotEmpty())
-            {
-                project.renamePiece (pieceIndex, newName.toStdString());
-                reloadProjectIntoEngine();
-                selectPiece (pieceIndex, false);
-                showStatusToast ("Renamed piece to '" + newName + "'");
-            }
-        }
-        delete alert;
-    }));
+    alert->enterModalState(true,
+                           juce::ModalCallbackFunction::create(
+                               [this, alert, pieceIndex](int result)
+                               {
+                                   if (result == 1)
+                                   {
+                                       auto newName = alert->getTextEditorContents("pieceName").trim();
+                                       if (newName.isNotEmpty())
+                                       {
+                                           project.renamePiece(pieceIndex, newName.toStdString());
+                                           reloadProjectIntoEngine();
+                                           selectPiece(pieceIndex, false);
+                                           showStatusToast("Renamed piece to '" + newName + "'");
+                                       }
+                                   }
+                                   delete alert;
+                               }));
 }
 
-void GlorpKitEditorComponent::promptRenameMic (int micIndex)
+void GlorpKitEditorComponent::promptRenameMic(int micIndex)
 {
-    if (micIndex < 0 || micIndex >= (int) project.mics.size()) return;
-    const auto currentName = juce::String (project.mics[(size_t) micIndex].name);
+    if (micIndex < 0 || micIndex >= (int) project.mics.size())
+        return;
+    const auto currentName = juce::String(project.mics[(size_t) micIndex].name);
 
-    auto* alert = new juce::AlertWindow ("Rename Mic Bus", "Enter a new name for this microphone channel:", juce::AlertWindow::QuestionIcon);
-    alert->addTextEditor ("micName", currentName, "Mic Name");
-    alert->addButton ("OK", 1, juce::KeyPress (juce::KeyPress::returnKey));
-    alert->addButton ("Cancel", 0, juce::KeyPress (juce::KeyPress::escapeKey));
+    auto *alert = new juce::AlertWindow(
+        "Rename Mic Bus", "Enter a new name for this microphone channel:", juce::AlertWindow::QuestionIcon);
+    alert->addTextEditor("micName", currentName, "Mic Name");
+    alert->addButton("OK", 1, juce::KeyPress(juce::KeyPress::returnKey));
+    alert->addButton("Cancel", 0, juce::KeyPress(juce::KeyPress::escapeKey));
 
-    alert->enterModalState (true, juce::ModalCallbackFunction::create ([this, alert, micIndex] (int result)
-    {
-        if (result == 1)
-        {
-            auto newName = alert->getTextEditorContents ("micName").trim();
-            if (newName.isNotEmpty())
-            {
-                project.renameMic (micIndex, newName.toStdString());
-                reloadProjectIntoEngine();
-                showStatusToast ("Renamed mic bus to '" + newName + "'");
-                repaint();
-            }
-        }
-        delete alert;
-    }));
+    alert->enterModalState(true,
+                           juce::ModalCallbackFunction::create(
+                               [this, alert, micIndex](int result)
+                               {
+                                   if (result == 1)
+                                   {
+                                       auto newName = alert->getTextEditorContents("micName").trim();
+                                       if (newName.isNotEmpty())
+                                       {
+                                           project.renameMic(micIndex, newName.toStdString());
+                                           reloadProjectIntoEngine();
+                                           showStatusToast("Renamed mic bus to '" + newName + "'");
+                                           repaint();
+                                       }
+                                   }
+                                   delete alert;
+                               }));
 }
 
-void GlorpKitEditorComponent::promptRenameZone (int pieceIndex, int zoneIndex)
+void GlorpKitEditorComponent::promptRenameZone(int pieceIndex, int zoneIndex)
 {
-    if (pieceIndex < 0 || pieceIndex >= (int) project.pieces.size()) return;
-    auto& p = project.pieces[(size_t) pieceIndex];
-    if (zoneIndex < 0 || zoneIndex >= (int) p.zones.size()) return;
-    const auto currentName = juce::String (p.zones[(size_t) zoneIndex].name);
+    if (pieceIndex < 0 || pieceIndex >= (int) project.pieces.size())
+        return;
+    auto &p = project.pieces[(size_t) pieceIndex];
+    if (zoneIndex < 0 || zoneIndex >= (int) p.zones.size())
+        return;
+    const auto currentName = juce::String(p.zones[(size_t) zoneIndex].name);
 
-    auto* alert = new juce::AlertWindow ("Rename Articulation Zone", "Enter a new name for this articulation zone:", juce::AlertWindow::QuestionIcon);
-    alert->addTextEditor ("zoneName", currentName, "Zone Name");
-    alert->addButton ("OK", 1, juce::KeyPress (juce::KeyPress::returnKey));
-    alert->addButton ("Cancel", 0, juce::KeyPress (juce::KeyPress::escapeKey));
+    auto *alert = new juce::AlertWindow(
+        "Rename Articulation Zone", "Enter a new name for this articulation zone:", juce::AlertWindow::QuestionIcon);
+    alert->addTextEditor("zoneName", currentName, "Zone Name");
+    alert->addButton("OK", 1, juce::KeyPress(juce::KeyPress::returnKey));
+    alert->addButton("Cancel", 0, juce::KeyPress(juce::KeyPress::escapeKey));
 
-    alert->enterModalState (true, juce::ModalCallbackFunction::create ([this, alert, pieceIndex, zoneIndex] (int result)
-    {
-        if (result == 1)
-        {
-            auto newName = alert->getTextEditorContents ("zoneName").trim();
-            if (newName.isNotEmpty())
-            {
-                project.renameZone (pieceIndex, zoneIndex, newName.toStdString());
-                reloadProjectIntoEngine();
-                selectZone (zoneIndex, false);
-                showStatusToast ("Renamed zone to '" + newName + "'");
-            }
-        }
-        delete alert;
-    }));
+    alert->enterModalState(true,
+                           juce::ModalCallbackFunction::create(
+                               [this, alert, pieceIndex, zoneIndex](int result)
+                               {
+                                   if (result == 1)
+                                   {
+                                       auto newName = alert->getTextEditorContents("zoneName").trim();
+                                       if (newName.isNotEmpty())
+                                       {
+                                           project.renameZone(pieceIndex, zoneIndex, newName.toStdString());
+                                           reloadProjectIntoEngine();
+                                           selectZone(zoneIndex, false);
+                                           showStatusToast("Renamed zone to '" + newName + "'");
+                                       }
+                                   }
+                                   delete alert;
+                               }));
 }
 
 void GlorpKitEditorComponent::promptSelectTargetMic()
 {
     juce::PopupMenu m;
-    m.addSectionHeader ("Active Target Mic Channel");
+    m.addSectionHeader("Active Target Mic Channel");
     for (size_t i = 0; i < project.mics.size(); ++i)
     {
-        const auto& mic = project.mics[i];
-        m.addItem ((int) i + 1, mic.name, true, mic.name == targetImportMic);
+        const auto &mic = project.mics[i];
+        m.addItem((int) i + 1, mic.name, true, mic.name == targetImportMic);
     }
     m.addSeparator();
 
     if (selectedPieceIdx >= 0 && selectedPieceIdx < (int) project.pieces.size())
     {
-        const auto& p = project.pieces[(size_t) selectedPieceIdx];
+        const auto &p = project.pieces[(size_t) selectedPieceIdx];
         if (selectedZoneIdx >= 0 && selectedZoneIdx < (int) p.zones.size())
         {
             juce::PopupMenu zoneM;
             for (size_t i = 0; i < project.mics.size(); ++i)
-                zoneM.addItem (200 + (int) i, "Route to " + project.mics[i].name);
-            m.addSubMenu ("Route Current Zone '" + p.zones[(size_t) selectedZoneIdx].name + "'", zoneM);
+                zoneM.addItem(200 + (int) i, "Route to " + project.mics[i].name);
+            m.addSubMenu("Route Current Zone '" + p.zones[(size_t) selectedZoneIdx].name + "'", zoneM);
         }
         juce::PopupMenu pieceM;
         for (size_t i = 0; i < project.mics.size(); ++i)
-            pieceM.addItem (300 + (int) i, "Route to " + project.mics[i].name);
-        m.addSubMenu ("Route Entire Instrument '" + p.name + "'", pieceM);
+            pieceM.addItem(300 + (int) i, "Route to " + project.mics[i].name);
+        m.addSubMenu("Route Entire Instrument '" + p.name + "'", pieceM);
         m.addSeparator();
     }
 
-    m.addItem (1000, "+ Add New Mic Channel...");
+    m.addItem(1000, "+ Add New Mic Channel...");
     if (project.mics.size() > 1)
     {
         juce::PopupMenu delM;
         for (size_t i = 0; i < project.mics.size(); ++i)
-            delM.addItem (500 + (int) i, project.mics[i].name);
-        m.addSubMenu ("Delete Mic Channel", delM);
+            delM.addItem(500 + (int) i, project.mics[i].name);
+        m.addSubMenu("Delete Mic Channel", delM);
     }
 
-    m.showMenuAsync (juce::PopupMenu::Options().withTargetScreenArea (localAreaToGlobal (btnTargetMic.toNearestInt())),
-        [this] (int res)
+    m.showMenuAsync(
+        juce::PopupMenu::Options().withTargetScreenArea(localAreaToGlobal(btnTargetMic.toNearestInt())),
+        [this](int res)
         {
             if (res > 0 && res <= (int) project.mics.size())
             {
                 targetImportMic = project.mics[(size_t) (res - 1)].name;
-                showStatusToast ("Active target mic set to: " + juce::String (targetImportMic));
+                showStatusToast("Active target mic set to: " + juce::String(targetImportMic));
                 repaint();
             }
             else if (res >= 200 && res < 300)
@@ -3728,11 +4254,13 @@ void GlorpKitEditorComponent::promptSelectTargetMic()
                 int micIdx = res - 200;
                 if (micIdx >= 0 && micIdx < (int) project.mics.size() && selectedPieceIdx >= 0 && selectedZoneIdx >= 0)
                 {
-                    const auto& micName = project.mics[(size_t) micIdx].name;
-                    pushUndoState ("Route Zone to " + micName);
-                    project.setZoneMicrophone (selectedPieceIdx, selectedZoneIdx, micName);
+                    const auto &micName = project.mics[(size_t) micIdx].name;
+                    pushUndoState("Route Zone to " + micName);
+                    project.setZoneMicrophone(selectedPieceIdx, selectedZoneIdx, micName);
                     reloadProjectIntoEngine();
-                    showStatusToast ("Routed zone '" + project.pieces[(size_t) selectedPieceIdx].zones[(size_t) selectedZoneIdx].name + "' to " + micName);
+                    showStatusToast("Routed zone '"
+                                    + project.pieces[(size_t) selectedPieceIdx].zones[(size_t) selectedZoneIdx].name
+                                    + "' to " + micName);
                     repaint();
                 }
             }
@@ -3741,235 +4269,259 @@ void GlorpKitEditorComponent::promptSelectTargetMic()
                 int micIdx = res - 300;
                 if (micIdx >= 0 && micIdx < (int) project.mics.size() && selectedPieceIdx >= 0)
                 {
-                    const auto& micName = project.mics[(size_t) micIdx].name;
-                    pushUndoState ("Route Instrument to " + micName);
-                    project.setPieceMicrophone (selectedPieceIdx, micName);
+                    const auto &micName = project.mics[(size_t) micIdx].name;
+                    pushUndoState("Route Instrument to " + micName);
+                    project.setPieceMicrophone(selectedPieceIdx, micName);
                     reloadProjectIntoEngine();
-                    showStatusToast ("Routed all samples in '" + project.pieces[(size_t) selectedPieceIdx].name + "' to " + micName);
+                    showStatusToast("Routed all samples in '" + project.pieces[(size_t) selectedPieceIdx].name + "' to "
+                                    + micName);
                     repaint();
                 }
             }
             else if (res >= 500 && res < 600)
             {
-                promptDeleteMic (res - 500);
+                promptDeleteMic(res - 500);
             }
             else if (res == 1000)
             {
-                std::string newMic = "AuxMic" + std::to_string (project.mics.size() + 1);
-                project.addChannel (newMic);
+                std::string newMic = "AuxMic" + std::to_string(project.mics.size() + 1);
+                project.addChannel(newMic);
                 targetImportMic = newMic;
-                showStatusToast ("Added new mic channel: " + juce::String (newMic));
+                showStatusToast("Added new mic channel: " + juce::String(newMic));
                 repaint();
             }
         });
 }
 
-void GlorpKitEditorComponent::promptRoutePieceMic (int pieceIndex)
+void GlorpKitEditorComponent::promptRoutePieceMic(int pieceIndex)
 {
-    if (pieceIndex < 0 || pieceIndex >= (int) project.pieces.size()) return;
-    const auto& p = project.pieces[(size_t) pieceIndex];
+    if (pieceIndex < 0 || pieceIndex >= (int) project.pieces.size())
+        return;
+    const auto &p = project.pieces[(size_t) pieceIndex];
 
     juce::PopupMenu m;
-    m.addSectionHeader ("Route Entire Instrument '" + p.name + "' to Mic:");
+    m.addSectionHeader("Route Entire Instrument '" + p.name + "' to Mic:");
     for (size_t i = 0; i < project.mics.size(); ++i)
     {
-        m.addItem ((int) i + 1, "Route all samples to: " + project.mics[i].name);
+        m.addItem((int) i + 1, "Route all samples to: " + project.mics[i].name);
     }
     m.addSeparator();
-    m.addItem (1000, "+ Add New Mic Channel...");
+    m.addItem(1000, "+ Add New Mic Channel...");
 
-    m.showMenuAsync (juce::PopupMenu::Options().withTargetScreenArea (localAreaToGlobal (btnPieceMic.toNearestInt())),
-        [this, pieceIndex] (int res)
-        {
-            if (res > 0 && res <= (int) project.mics.size())
-            {
-                const auto& newMic = project.mics[(size_t) (res - 1)].name;
-                pushUndoState ("Route Instrument '" + project.pieces[(size_t) pieceIndex].name + "' to " + newMic);
-                project.setPieceMicrophone (pieceIndex, newMic);
-                reloadProjectIntoEngine();
-                showStatusToast ("Assigned all samples in '" + project.pieces[(size_t) pieceIndex].name + "' to " + newMic);
-                repaint();
-            }
-            else if (res == 1000)
-            {
-                std::string newMic = "AuxMic" + std::to_string (project.mics.size() + 1);
-                project.addChannel (newMic);
-                pushUndoState ("Route Instrument to " + newMic);
-                project.setPieceMicrophone (pieceIndex, newMic);
-                reloadProjectIntoEngine();
-                showStatusToast ("Created and routed to: " + newMic);
-                repaint();
-            }
-        });
+    m.showMenuAsync(juce::PopupMenu::Options().withTargetScreenArea(localAreaToGlobal(btnPieceMic.toNearestInt())),
+                    [this, pieceIndex](int res)
+                    {
+                        if (res > 0 && res <= (int) project.mics.size())
+                        {
+                            const auto &newMic = project.mics[(size_t) (res - 1)].name;
+                            pushUndoState("Route Instrument '" + project.pieces[(size_t) pieceIndex].name + "' to "
+                                          + newMic);
+                            project.setPieceMicrophone(pieceIndex, newMic);
+                            reloadProjectIntoEngine();
+                            showStatusToast("Assigned all samples in '" + project.pieces[(size_t) pieceIndex].name
+                                            + "' to " + newMic);
+                            repaint();
+                        }
+                        else if (res == 1000)
+                        {
+                            std::string newMic = "AuxMic" + std::to_string(project.mics.size() + 1);
+                            project.addChannel(newMic);
+                            pushUndoState("Route Instrument to " + newMic);
+                            project.setPieceMicrophone(pieceIndex, newMic);
+                            reloadProjectIntoEngine();
+                            showStatusToast("Created and routed to: " + newMic);
+                            repaint();
+                        }
+                    });
 }
 
-void GlorpKitEditorComponent::promptRouteZoneMic (int pieceIndex, int zoneIndex)
+void GlorpKitEditorComponent::promptRouteZoneMic(int pieceIndex, int zoneIndex)
 {
-    if (pieceIndex < 0 || pieceIndex >= (int) project.pieces.size()) return;
-    const auto& p = project.pieces[(size_t) pieceIndex];
-    if (zoneIndex < 0 || zoneIndex >= (int) p.zones.size()) return;
-    const auto& z = p.zones[(size_t) zoneIndex];
+    if (pieceIndex < 0 || pieceIndex >= (int) project.pieces.size())
+        return;
+    const auto &p = project.pieces[(size_t) pieceIndex];
+    if (zoneIndex < 0 || zoneIndex >= (int) p.zones.size())
+        return;
+    const auto &z = p.zones[(size_t) zoneIndex];
 
     juce::PopupMenu m;
-    m.addSectionHeader ("Route Zone '" + z.name + "' to Mic:");
+    m.addSectionHeader("Route Zone '" + z.name + "' to Mic:");
     for (size_t i = 0; i < project.mics.size(); ++i)
     {
-        m.addItem ((int) i + 1, "Route all samples to: " + project.mics[i].name);
+        m.addItem((int) i + 1, "Route all samples to: " + project.mics[i].name);
     }
     m.addSeparator();
-    m.addItem (1000, "+ Add New Mic Channel...");
+    m.addItem(1000, "+ Add New Mic Channel...");
 
-    m.showMenuAsync (juce::PopupMenu::Options().withTargetScreenArea (localAreaToGlobal (btnZoneMic.toNearestInt())),
-        [this, pieceIndex, zoneIndex] (int res)
-        {
-            if (res > 0 && res <= (int) project.mics.size())
-            {
-                const auto& newMic = project.mics[(size_t) (res - 1)].name;
-                pushUndoState ("Route Zone '" + project.pieces[(size_t) pieceIndex].zones[(size_t) zoneIndex].name + "' to " + newMic);
-                project.setZoneMicrophone (pieceIndex, zoneIndex, newMic);
-                reloadProjectIntoEngine();
-                showStatusToast ("Assigned all samples in zone '" + project.pieces[(size_t) pieceIndex].zones[(size_t) zoneIndex].name + "' to " + newMic);
-                repaint();
-            }
-            else if (res == 1000)
-            {
-                std::string newMic = "AuxMic" + std::to_string (project.mics.size() + 1);
-                project.addChannel (newMic);
-                pushUndoState ("Route Zone to " + newMic);
-                project.setZoneMicrophone (pieceIndex, zoneIndex, newMic);
-                reloadProjectIntoEngine();
-                showStatusToast ("Created and routed to: " + newMic);
-                repaint();
-            }
-        });
+    m.showMenuAsync(juce::PopupMenu::Options().withTargetScreenArea(localAreaToGlobal(btnZoneMic.toNearestInt())),
+                    [this, pieceIndex, zoneIndex](int res)
+                    {
+                        if (res > 0 && res <= (int) project.mics.size())
+                        {
+                            const auto &newMic = project.mics[(size_t) (res - 1)].name;
+                            pushUndoState("Route Zone '"
+                                          + project.pieces[(size_t) pieceIndex].zones[(size_t) zoneIndex].name + "' to "
+                                          + newMic);
+                            project.setZoneMicrophone(pieceIndex, zoneIndex, newMic);
+                            reloadProjectIntoEngine();
+                            showStatusToast("Assigned all samples in zone '"
+                                            + project.pieces[(size_t) pieceIndex].zones[(size_t) zoneIndex].name
+                                            + "' to " + newMic);
+                            repaint();
+                        }
+                        else if (res == 1000)
+                        {
+                            std::string newMic = "AuxMic" + std::to_string(project.mics.size() + 1);
+                            project.addChannel(newMic);
+                            pushUndoState("Route Zone to " + newMic);
+                            project.setZoneMicrophone(pieceIndex, zoneIndex, newMic);
+                            reloadProjectIntoEngine();
+                            showStatusToast("Created and routed to: " + newMic);
+                            repaint();
+                        }
+                    });
 }
 
-void GlorpKitEditorComponent::promptDeleteMic (int micIndex)
+void GlorpKitEditorComponent::promptDeleteMic(int micIndex)
 {
-    if (micIndex < 0 || micIndex >= (int) project.mics.size()) return;
+    if (micIndex < 0 || micIndex >= (int) project.mics.size())
+        return;
     if (project.mics.size() <= 1)
     {
-        showStatusToast ("Cannot delete the only remaining microphone channel.");
+        showStatusToast("Cannot delete the only remaining microphone channel.");
         return;
     }
     const std::string micName = project.mics[(size_t) micIndex].name;
     const std::string fallbackMic = project.mics[micIndex == 0 ? 1 : 0].name;
 
-    auto* alert = new juce::AlertWindow ("Delete Microphone Channel",
-        "Are you sure you want to delete '" + juce::String (micName) + "'?\nAny samples currently assigned to it will be safely reassigned to '" + juce::String (fallbackMic) + "'.",
-        juce::AlertWindow::WarningIcon);
-    alert->addButton ("Delete Mic", 1, juce::KeyPress (juce::KeyPress::returnKey));
-    alert->addButton ("Cancel", 0, juce::KeyPress (juce::KeyPress::escapeKey));
+    auto *alert = new juce::AlertWindow("Delete Microphone Channel",
+                                        "Are you sure you want to delete '" + juce::String(micName)
+                                            + "'?\nAny samples currently assigned to it will be safely reassigned to '"
+                                            + juce::String(fallbackMic) + "'.",
+                                        juce::AlertWindow::WarningIcon);
+    alert->addButton("Delete Mic", 1, juce::KeyPress(juce::KeyPress::returnKey));
+    alert->addButton("Cancel", 0, juce::KeyPress(juce::KeyPress::escapeKey));
 
-    alert->enterModalState (true, juce::ModalCallbackFunction::create ([this, alert, micIndex, micName, fallbackMic] (int result)
-    {
-        if (result == 1)
-        {
-            pushUndoState ("Delete Mic Channel '" + micName + "'");
-            std::string err;
-            if (project.deleteMic (micIndex, err))
-            {
-                if (targetImportMic == micName)
-                    targetImportMic = fallbackMic;
-                reloadProjectIntoEngine();
-                showStatusToast ("Deleted mic channel '" + juce::String (micName) + "' (reassigned to '" + juce::String (fallbackMic) + "')");
-                repaint();
-            }
-            else
-            {
-                showStatusToast ("Error: " + juce::String (err));
-            }
-        }
-        delete alert;
-    }));
+    alert->enterModalState(true,
+                           juce::ModalCallbackFunction::create(
+                               [this, alert, micIndex, micName, fallbackMic](int result)
+                               {
+                                   if (result == 1)
+                                   {
+                                       pushUndoState("Delete Mic Channel '" + micName + "'");
+                                       std::string err;
+                                       if (project.deleteMic(micIndex, err))
+                                       {
+                                           if (targetImportMic == micName)
+                                               targetImportMic = fallbackMic;
+                                           reloadProjectIntoEngine();
+                                           showStatusToast("Deleted mic channel '" + juce::String(micName)
+                                                           + "' (reassigned to '" + juce::String(fallbackMic) + "')");
+                                           repaint();
+                                       }
+                                       else
+                                       {
+                                           showStatusToast("Error: " + juce::String(err));
+                                       }
+                                   }
+                                   delete alert;
+                               }));
 }
 
-void GlorpKitEditorComponent::promptReassignMicForSample (int micSampleIdx)
+void GlorpKitEditorComponent::promptReassignMicForSample(int micSampleIdx)
 {
-    if (selectedPieceIdx < 0 || selectedPieceIdx >= (int) project.pieces.size()) return;
-    auto& p = project.pieces[(size_t) selectedPieceIdx];
-    if (selectedZoneIdx < 0 || selectedZoneIdx >= (int) p.zones.size()) return;
-    auto& z = p.zones[(size_t) selectedZoneIdx];
-    if (selectedHitIdx < 0 || selectedHitIdx >= (int) z.hits.size()) return;
-    auto& h = z.hits[(size_t) selectedHitIdx];
-    if (micSampleIdx < 0 || micSampleIdx >= (int) h.micSamples.size()) return;
+    if (selectedPieceIdx < 0 || selectedPieceIdx >= (int) project.pieces.size())
+        return;
+    auto &p = project.pieces[(size_t) selectedPieceIdx];
+    if (selectedZoneIdx < 0 || selectedZoneIdx >= (int) p.zones.size())
+        return;
+    auto &z = p.zones[(size_t) selectedZoneIdx];
+    if (selectedHitIdx < 0 || selectedHitIdx >= (int) z.hits.size())
+        return;
+    auto &h = z.hits[(size_t) selectedHitIdx];
+    if (micSampleIdx < 0 || micSampleIdx >= (int) h.micSamples.size())
+        return;
 
     juce::PopupMenu m;
-    m.addSectionHeader ("Reassign Sample to Mic Channel");
+    m.addSectionHeader("Reassign Sample to Mic Channel");
     for (size_t i = 0; i < project.mics.size(); ++i)
     {
-        const auto& mic = project.mics[i];
-        m.addItem ((int) i + 1, mic.name, true, mic.name == h.micSamples[(size_t) micSampleIdx].mic);
+        const auto &mic = project.mics[i];
+        m.addItem((int) i + 1, mic.name, true, mic.name == h.micSamples[(size_t) micSampleIdx].mic);
     }
     m.addSeparator();
-    m.addItem (1000, "+ Add New Mic Channel...");
+    m.addItem(1000, "+ Add New Mic Channel...");
 
-    m.showMenuAsync (juce::PopupMenu::Options().withTargetScreenArea (
-        juce::Rectangle<int> (getMouseXYRelative().x, getMouseXYRelative().y, 1, 1)),
-        [this, micSampleIdx] (int res)
-        {
-            if (res > 0 && res <= (int) project.mics.size())
-            {
-                auto& p2 = project.pieces[(size_t) selectedPieceIdx];
-                auto& z2 = p2.zones[(size_t) selectedZoneIdx];
-                auto& h2 = z2.hits[(size_t) selectedHitIdx];
-                if (micSampleIdx < (int) h2.micSamples.size())
-                {
-                    pushUndoState ("Reassign sample to mic " + project.mics[(size_t) (res - 1)].name);
-                    h2.micSamples[(size_t) micSampleIdx].mic = project.mics[(size_t) (res - 1)].name;
-                    reloadProjectIntoEngine();
-                    repaint();
-                }
-            }
-            else if (res == 1000)
-            {
-                std::string newMic = "AuxMic" + std::to_string (project.mics.size() + 1);
-                project.addChannel (newMic);
-                auto& p2 = project.pieces[(size_t) selectedPieceIdx];
-                auto& z2 = p2.zones[(size_t) selectedZoneIdx];
-                auto& h2 = z2.hits[(size_t) selectedHitIdx];
-                if (micSampleIdx < (int) h2.micSamples.size())
-                {
-                    pushUndoState ("Reassign sample to mic " + newMic);
-                    h2.micSamples[(size_t) micSampleIdx].mic = newMic;
-                    reloadProjectIntoEngine();
-                    repaint();
-                }
-            }
-        });
+    m.showMenuAsync(juce::PopupMenu::Options().withTargetScreenArea(
+                        juce::Rectangle<int>(getMouseXYRelative().x, getMouseXYRelative().y, 1, 1)),
+                    [this, micSampleIdx](int res)
+                    {
+                        if (res > 0 && res <= (int) project.mics.size())
+                        {
+                            auto &p2 = project.pieces[(size_t) selectedPieceIdx];
+                            auto &z2 = p2.zones[(size_t) selectedZoneIdx];
+                            auto &h2 = z2.hits[(size_t) selectedHitIdx];
+                            if (micSampleIdx < (int) h2.micSamples.size())
+                            {
+                                pushUndoState("Reassign sample to mic " + project.mics[(size_t) (res - 1)].name);
+                                h2.micSamples[(size_t) micSampleIdx].mic = project.mics[(size_t) (res - 1)].name;
+                                reloadProjectIntoEngine();
+                                repaint();
+                            }
+                        }
+                        else if (res == 1000)
+                        {
+                            std::string newMic = "AuxMic" + std::to_string(project.mics.size() + 1);
+                            project.addChannel(newMic);
+                            auto &p2 = project.pieces[(size_t) selectedPieceIdx];
+                            auto &z2 = p2.zones[(size_t) selectedZoneIdx];
+                            auto &h2 = z2.hits[(size_t) selectedHitIdx];
+                            if (micSampleIdx < (int) h2.micSamples.size())
+                            {
+                                pushUndoState("Reassign sample to mic " + newMic);
+                                h2.micSamples[(size_t) micSampleIdx].mic = newMic;
+                                reloadProjectIntoEngine();
+                                repaint();
+                            }
+                        }
+                    });
 }
 
 void GlorpKitEditorComponent::promptAddMicLayerToSelectedHit()
 {
-    if (selectedPieceIdx < 0 || selectedPieceIdx >= (int) project.pieces.size()) return;
-    auto& p = project.pieces[(size_t) selectedPieceIdx];
-    if (selectedZoneIdx < 0 || selectedZoneIdx >= (int) p.zones.size()) return;
-    auto& z = p.zones[(size_t) selectedZoneIdx];
-    if (selectedHitIdx < 0 || selectedHitIdx >= (int) z.hits.size()) return;
+    if (selectedPieceIdx < 0 || selectedPieceIdx >= (int) project.pieces.size())
+        return;
+    auto &p = project.pieces[(size_t) selectedPieceIdx];
+    if (selectedZoneIdx < 0 || selectedZoneIdx >= (int) p.zones.size())
+        return;
+    auto &z = p.zones[(size_t) selectedZoneIdx];
+    if (selectedHitIdx < 0 || selectedHitIdx >= (int) z.hits.size())
+        return;
 
-    auto chooser = std::make_shared<juce::FileChooser> ("Select Additional Audio File for this Hit",
-                                                        juce::File::getSpecialLocation (juce::File::userHomeDirectory),
-                                                        "*.wav;*.flac;*.ogg;*.aif;*.aiff");
-    chooser->launchAsync (juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
-        [this, chooser] (const juce::FileChooser& fc)
+    auto chooser = std::make_shared<juce::FileChooser>("Select Additional Audio File for this Hit",
+                                                       juce::File::getSpecialLocation(juce::File::userHomeDirectory),
+                                                       "*.wav;*.flac;*.ogg;*.aif;*.aiff");
+    chooser->launchAsync(
+        juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
+        [this, chooser](const juce::FileChooser &fc)
         {
             auto f = fc.getResult();
             if (f.existsAsFile() && selectedPieceIdx >= 0 && selectedZoneIdx >= 0 && selectedHitIdx >= 0)
             {
-                auto& p2 = project.pieces[(size_t) selectedPieceIdx];
+                auto &p2 = project.pieces[(size_t) selectedPieceIdx];
                 if (selectedZoneIdx < (int) p2.zones.size())
                 {
-                    auto& z2 = p2.zones[(size_t) selectedZoneIdx];
+                    auto &z2 = p2.zones[(size_t) selectedZoneIdx];
                     if (selectedHitIdx < (int) z2.hits.size())
                     {
-                        pushUndoState ("Add Mic Layer to Hit");
+                        pushUndoState("Add Mic Layer to Hit");
                         EditableMicSample ms;
                         ms.mic = targetImportMic;
                         ms.fileName = f.getFileName().toStdString();
                         ms.sourceDiskPath = f.getFullPathName().toStdString();
-                        z2.hits[(size_t) selectedHitIdx].micSamples.push_back (std::move (ms));
+                        z2.hits[(size_t) selectedHitIdx].micSamples.push_back(std::move(ms));
                         reloadProjectIntoEngine();
-                        showStatusToast ("Added mic layer [" + juce::String (targetImportMic) + "] to hit");
+                        showStatusToast("Added mic layer [" + juce::String(targetImportMic) + "] to hit");
                         repaint();
                     }
                 }
@@ -3977,36 +4529,39 @@ void GlorpKitEditorComponent::promptAddMicLayerToSelectedHit()
         });
 }
 
-void GlorpKitEditorComponent::deleteMicLayerFromSelectedHit (int micSampleIdx)
+void GlorpKitEditorComponent::deleteMicLayerFromSelectedHit(int micSampleIdx)
 {
-    if (selectedPieceIdx < 0 || selectedPieceIdx >= (int) project.pieces.size()) return;
-    auto& p = project.pieces[(size_t) selectedPieceIdx];
-    if (selectedZoneIdx < 0 || selectedZoneIdx >= (int) p.zones.size()) return;
-    auto& z = p.zones[(size_t) selectedZoneIdx];
-    if (selectedHitIdx < 0 || selectedHitIdx >= (int) z.hits.size()) return;
-    auto& h = z.hits[(size_t) selectedHitIdx];
+    if (selectedPieceIdx < 0 || selectedPieceIdx >= (int) project.pieces.size())
+        return;
+    auto &p = project.pieces[(size_t) selectedPieceIdx];
+    if (selectedZoneIdx < 0 || selectedZoneIdx >= (int) p.zones.size())
+        return;
+    auto &z = p.zones[(size_t) selectedZoneIdx];
+    if (selectedHitIdx < 0 || selectedHitIdx >= (int) z.hits.size())
+        return;
+    auto &h = z.hits[(size_t) selectedHitIdx];
     if (micSampleIdx >= 0 && micSampleIdx < (int) h.micSamples.size())
     {
-        pushUndoState ("Remove Mic Layer from Hit");
-        h.micSamples.erase (h.micSamples.begin() + micSampleIdx);
+        pushUndoState("Remove Mic Layer from Hit");
+        h.micSamples.erase(h.micSamples.begin() + micSampleIdx);
         reloadProjectIntoEngine();
-        showStatusToast ("Removed mic layer");
+        showStatusToast("Removed mic layer");
         repaint();
     }
 }
 
 //==============================================================================
-void GlorpKitEditorComponent::pushUndoState (const juce::String& actionDescription)
+void GlorpKitEditorComponent::pushUndoState(const juce::String &actionDescription)
 {
     HistorySnapshot snap;
     snap.project = project;
     snap.selectedPieceIdx = selectedPieceIdx;
-    snap.selectedZoneIdx  = selectedZoneIdx;
+    snap.selectedZoneIdx = selectedZoneIdx;
     snap.actionDescription = actionDescription;
 
-    undoStack.push_back (std::move (snap));
+    undoStack.push_back(std::move(snap));
     if (undoStack.size() > 50)
-        undoStack.erase (undoStack.begin());
+        undoStack.erase(undoStack.begin());
 
     redoStack.clear();
 }
@@ -4015,26 +4570,26 @@ void GlorpKitEditorComponent::undo()
 {
     if (undoStack.empty())
     {
-        showStatusToast ("Nothing to undo");
+        showStatusToast("Nothing to undo");
         return;
     }
 
     HistorySnapshot current;
     current.project = project;
     current.selectedPieceIdx = selectedPieceIdx;
-    current.selectedZoneIdx  = selectedZoneIdx;
+    current.selectedZoneIdx = selectedZoneIdx;
     current.actionDescription = "Current State";
-    redoStack.push_back (std::move (current));
+    redoStack.push_back(std::move(current));
 
-    HistorySnapshot prev = std::move (undoStack.back());
+    HistorySnapshot prev = std::move(undoStack.back());
     undoStack.pop_back();
 
-    project = std::move (prev.project);
-    selectedPieceIdx = juce::jlimit (-1, (int) project.pieces.size() - 1, prev.selectedPieceIdx);
+    project = std::move(prev.project);
+    selectedPieceIdx = juce::jlimit(-1, (int) project.pieces.size() - 1, prev.selectedPieceIdx);
     if (selectedPieceIdx >= 0)
     {
-        auto& p = project.pieces[(size_t) selectedPieceIdx];
-        selectedZoneIdx = juce::jlimit (0, std::max (0, (int) p.zones.size() - 1), prev.selectedZoneIdx);
+        auto &p = project.pieces[(size_t) selectedPieceIdx];
+        selectedZoneIdx = juce::jlimit(0, std::max(0, (int) p.zones.size() - 1), prev.selectedZoneIdx);
     }
     else
     {
@@ -4044,7 +4599,7 @@ void GlorpKitEditorComponent::undo()
     rebuildPieceSprites();
     reloadProjectIntoEngine();
     updateInspectorEditors();
-    showStatusToast ("Undid: " + prev.actionDescription);
+    showStatusToast("Undid: " + prev.actionDescription);
     repaint();
 }
 
@@ -4052,26 +4607,26 @@ void GlorpKitEditorComponent::redo()
 {
     if (redoStack.empty())
     {
-        showStatusToast ("Nothing to redo");
+        showStatusToast("Nothing to redo");
         return;
     }
 
     HistorySnapshot current;
     current.project = project;
     current.selectedPieceIdx = selectedPieceIdx;
-    current.selectedZoneIdx  = selectedZoneIdx;
+    current.selectedZoneIdx = selectedZoneIdx;
     current.actionDescription = "Current State";
-    undoStack.push_back (std::move (current));
+    undoStack.push_back(std::move(current));
 
-    HistorySnapshot next = std::move (redoStack.back());
+    HistorySnapshot next = std::move(redoStack.back());
     redoStack.pop_back();
 
-    project = std::move (next.project);
-    selectedPieceIdx = juce::jlimit (-1, (int) project.pieces.size() - 1, next.selectedPieceIdx);
+    project = std::move(next.project);
+    selectedPieceIdx = juce::jlimit(-1, (int) project.pieces.size() - 1, next.selectedPieceIdx);
     if (selectedPieceIdx >= 0)
     {
-        auto& p = project.pieces[(size_t) selectedPieceIdx];
-        selectedZoneIdx = juce::jlimit (0, std::max (0, (int) p.zones.size() - 1), next.selectedZoneIdx);
+        auto &p = project.pieces[(size_t) selectedPieceIdx];
+        selectedZoneIdx = juce::jlimit(0, std::max(0, (int) p.zones.size() - 1), next.selectedZoneIdx);
     }
     else
     {
@@ -4081,89 +4636,91 @@ void GlorpKitEditorComponent::redo()
     rebuildPieceSprites();
     reloadProjectIntoEngine();
     updateInspectorEditors();
-    showStatusToast ("Redid: " + next.actionDescription);
+    showStatusToast("Redid: " + next.actionDescription);
     repaint();
 }
 
 void GlorpKitEditorComponent::promptImportAssetsFolder()
 {
-    auto startDir = juce::File ("/home/servandoc/Downloads/ludwig assets");
-    if (! startDir.isDirectory())
-        startDir = juce::File::getSpecialLocation (juce::File::userHomeDirectory).getChildFile ("Downloads");
+    auto startDir = juce::File("/home/servandoc/Downloads/ludwig assets");
+    if (!startDir.isDirectory())
+        startDir = juce::File::getSpecialLocation(juce::File::userHomeDirectory).getChildFile("Downloads");
 
-    auto chooser = std::make_shared<juce::FileChooser> (
-        "Select Assets Directory Containing Drum PNGs / WAVs",
-        startDir,
-        "");
+    auto chooser =
+        std::make_shared<juce::FileChooser>("Select Assets Directory Containing Drum PNGs / WAVs", startDir, "");
 
-    chooser->launchAsync (juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectDirectories,
-                          [this, chooser] (const juce::FileChooser& fc)
-    {
-        auto result = fc.getResult();
-        if (result.isDirectory())
-        {
-            importAssetsFromDirectory (result);
-        }
-    });
+    chooser->launchAsync(juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectDirectories,
+                         [this, chooser](const juce::FileChooser &fc)
+                         {
+                             auto result = fc.getResult();
+                             if (result.isDirectory())
+                             {
+                                 importAssetsFromDirectory(result);
+                             }
+                         });
 }
 
-void GlorpKitEditorComponent::importAssetsFromDirectory (const juce::File& dir)
+void GlorpKitEditorComponent::importAssetsFromDirectory(const juce::File &dir)
 {
-    if (! dir.isDirectory()) return;
+    if (!dir.isDirectory())
+        return;
 
     if (project.title == "Untitled Kit" || project.title.empty())
-        project.title = dir.getFileName().replaceCharacter ('_', ' ').toStdString();
+        project.title = dir.getFileName().replaceCharacter('_', ' ').toStdString();
 
-    auto pngFiles = dir.findChildFiles (juce::File::findFiles, false, "*.png");
+    auto pngFiles = dir.findChildFiles(juce::File::findFiles, false, "*.png");
     if (pngFiles.isEmpty())
-        pngFiles = dir.findChildFiles (juce::File::findFiles, true, "*.png");
+        pngFiles = dir.findChildFiles(juce::File::findFiles, true, "*.png");
 
-    auto audioFiles = dir.findChildFiles (juce::File::findFiles, true, "*.wav;*.flac;*.ogg");
+    auto audioFiles = dir.findChildFiles(juce::File::findFiles, true, "*.wav;*.flac;*.ogg");
 
     if (pngFiles.isEmpty() && audioFiles.isEmpty())
     {
-        showStatusToast ("No PNG or WAV files found in: " + dir.getFileName());
+        showStatusToast("No PNG or WAV files found in: " + dir.getFileName());
         return;
     }
 
-    if (! pngFiles.isEmpty())
-        importPngAssets (pngFiles);
+    if (!pngFiles.isEmpty())
+        importPngAssets(pngFiles);
 
-    if (! audioFiles.isEmpty() && selectedPieceIdx >= 0)
+    if (!audioFiles.isEmpty() && selectedPieceIdx >= 0)
     {
         std::vector<std::string> wavPaths;
-        for (const auto& af : audioFiles)
-            wavPaths.push_back (af.getFullPathName().toStdString());
-        project.importAudioFilesIntoZone (selectedPieceIdx, selectedZoneIdx, wavPaths, "close");
+        for (const auto &af : audioFiles)
+            wavPaths.push_back(af.getFullPathName().toStdString());
+        project.importAudioFilesIntoZone(selectedPieceIdx, selectedZoneIdx, wavPaths, "close");
         reloadProjectIntoEngine();
-        showStatusToast ("Imported " + juce::String (pngFiles.size()) + " sprites & " + juce::String (audioFiles.size()) + " audio files");
+        showStatusToast("Imported " + juce::String(pngFiles.size()) + " sprites & " + juce::String(audioFiles.size())
+                        + " audio files");
     }
 }
 
-void GlorpKitEditorComponent::importPngAssets (const juce::Array<juce::File>& pngFiles)
+void GlorpKitEditorComponent::importPngAssets(const juce::Array<juce::File> &pngFiles)
 {
-    if (pngFiles.isEmpty()) return;
+    if (pngFiles.isEmpty())
+        return;
 
-    pushUndoState ("Import PNG Assets (" + juce::String (pngFiles.size()) + " files)");
+    pushUndoState("Import PNG Assets (" + juce::String(pngFiles.size()) + " files)");
 
     int importedCount = 0;
-    for (const auto& f : pngFiles)
+    for (const auto &f : pngFiles)
     {
         juce::MemoryBlock mb;
-        if (! f.loadFileAsData (mb) || mb.getSize() < 16)
+        if (!f.loadFileAsData(mb) || mb.getSize() < 16)
             continue;
 
         const std::string stem = f.getFileNameWithoutExtension().toLowerCase().toStdString();
-        std::vector<uint8_t> pngBytes ((const uint8_t*) mb.getData(), (const uint8_t*) mb.getData() + mb.getSize());
+        std::vector<uint8_t> pngBytes((const uint8_t *) mb.getData(), (const uint8_t *) mb.getData() + mb.getSize());
 
         // Check if an existing piece matches
         int matchedIdx = -1;
         for (size_t i = 0; i < project.pieces.size(); ++i)
         {
-            const auto& p = project.pieces[i];
-            const std::string pId = sanitizeId (p.id);
-            const std::string pName = sanitizeId (p.name);
-            if (pId == stem || pName == stem || stem.find (pId) != std::string::npos || pId.find (stem) != std::string::npos)
+            const auto &p = project.pieces[i];
+            const std::string pId = sanitizeId(p.id);
+            const std::string pName = sanitizeId(p.name);
+            if (pId == stem || pName == stem || stem.find(pId) != std::string::npos
+                || pId.find(stem) != std::string::npos)
             {
                 matchedIdx = (int) i;
                 break;
@@ -4172,15 +4729,15 @@ void GlorpKitEditorComponent::importPngAssets (const juce::Array<juce::File>& pn
 
         if (matchedIdx >= 0)
         {
-            auto& p = project.pieces[(size_t) matchedIdx];
+            auto &p = project.pieces[(size_t) matchedIdx];
             p.customPngFileName = f.getFileName().toStdString();
-            p.customPngBytes = std::move (pngBytes);
+            p.customPngBytes = std::move(pngBytes);
             p.hasCustomLayout = true;
             importedCount++;
         }
         else
         {
-            int newIdx = project.addPieceWithAutoLayout (stem, stem, pngBytes);
+            int newIdx = project.addPieceWithAutoLayout(stem, stem, pngBytes);
             if (newIdx >= 0)
             {
                 project.pieces[(size_t) newIdx].customPngFileName = f.getFileName().toStdString();
@@ -4193,54 +4750,54 @@ void GlorpKitEditorComponent::importPngAssets (const juce::Array<juce::File>& pn
     rebuildPieceSprites();
     reloadProjectIntoEngine();
 
-    if (! project.pieces.empty())
+    if (!project.pieces.empty())
     {
         int sel = 0;
         for (size_t i = 0; i < project.pieces.size(); ++i)
         {
-            if (project.pieces[i].id.find ("snare") != std::string::npos)
+            if (project.pieces[i].id.find("snare") != std::string::npos)
             {
                 sel = (int) i;
                 break;
             }
         }
-        selectPiece (sel, false);
+        selectPiece(sel, false);
     }
     else
     {
-        selectPiece (-1, false);
+        selectPiece(-1, false);
     }
 
-    showStatusToast ("Loaded " + juce::String (importedCount) + " drum kit graphic sprites!");
+    showStatusToast("Loaded " + juce::String(importedCount) + " drum kit graphic sprites!");
     repaint();
 }
 
 void GlorpKitEditorComponent::updateInspectorEditors()
 {
     const bool hasPiece = (selectedPieceIdx >= 0 && selectedPieceIdx < (int) project.pieces.size());
-    pieceNameEditor.setVisible (hasPiece);
-    pieceIdEditor.setVisible (hasPiece);
-    zoneNameEditor.setVisible (hasPiece);
+    pieceNameEditor.setVisible(hasPiece);
+    pieceIdEditor.setVisible(hasPiece);
+    zoneNameEditor.setVisible(hasPiece);
 
     suppressEditorCallbacks = true;
     if (hasPiece)
     {
-        const auto& p = project.pieces[(size_t) selectedPieceIdx];
-        pieceNameEditor.setText (p.name, juce::dontSendNotification);
-        pieceIdEditor.setText (p.id, juce::dontSendNotification);
+        const auto &p = project.pieces[(size_t) selectedPieceIdx];
+        pieceNameEditor.setText(p.name, juce::dontSendNotification);
+        pieceIdEditor.setText(p.id, juce::dontSendNotification);
         if (selectedZoneIdx >= 0 && selectedZoneIdx < (int) p.zones.size())
-            zoneNameEditor.setText (p.zones[(size_t) selectedZoneIdx].name, juce::dontSendNotification);
+            zoneNameEditor.setText(p.zones[(size_t) selectedZoneIdx].name, juce::dontSendNotification);
         else
-            zoneNameEditor.setText ("", juce::dontSendNotification);
-        pieceNameEditor.setColour (juce::TextEditor::textColourId, theme.ink);
-        pieceIdEditor.setColour (juce::TextEditor::textColourId, theme.inkSoft);
-        zoneNameEditor.setColour (juce::TextEditor::textColourId, theme.ink);
+            zoneNameEditor.setText("", juce::dontSendNotification);
+        pieceNameEditor.setColour(juce::TextEditor::textColourId, theme.ink);
+        pieceIdEditor.setColour(juce::TextEditor::textColourId, theme.inkSoft);
+        zoneNameEditor.setColour(juce::TextEditor::textColourId, theme.ink);
     }
     else
     {
-        pieceNameEditor.setText ("", juce::dontSendNotification);
-        pieceIdEditor.setText ("", juce::dontSendNotification);
-        zoneNameEditor.setText ("", juce::dontSendNotification);
+        pieceNameEditor.setText("", juce::dontSendNotification);
+        pieceIdEditor.setText("", juce::dontSendNotification);
+        zoneNameEditor.setText("", juce::dontSendNotification);
     }
     suppressEditorCallbacks = false;
 }

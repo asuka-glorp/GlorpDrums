@@ -22,12 +22,12 @@
 
 #pragma once
 
-#include "Config.h"
+#include "AcousticCrosstalk.h"
+#include "BleedMatrix.h"
 #include "ChannelFX.h"
+#include "Config.h"
 #include "DrumKit.h"
 #include "SampleCache.h"
-#include "BleedMatrix.h"
-#include "AcousticCrosstalk.h"
 
 #include <algorithm>
 #include <atomic>
@@ -56,16 +56,16 @@ enum class VelocityCurve : int
 /// Per-instrument settings the UI exposes and the audio thread reads.
 struct InstrumentParams
 {
-    float level = 1.0f;             ///< linear gain
-    float pan = 0.0f;               ///< -1 hard left .. +1 hard right
+    float level = 1.0f; ///< linear gain
+    float pan = 0.0f;   ///< -1 hard left .. +1 hard right
     float pitchSemitones = 0.0f;
-    float tuneSpread = 0.0f;        ///< cents of random detune per hit
-    float dynamics = 0.5f;          ///< 0..1 per-zone velocity response & humanize
+    float tuneSpread = 0.0f;                             ///< cents of random detune per hit
+    float dynamics = 0.5f;                               ///< 0..1 per-zone velocity response & humanize
     VelocityCurve velocityCurve = VelocityCurve::linear; ///< E-drum velocity curve
-    bool  autoRoundRobin = false;   ///< "AUTO": cycle the instrument's samples
-    bool  mute = false;
-    bool  solo = false;
-    int   selectedSample = 0;       ///< used when autoRoundRobin is off
+    bool autoRoundRobin = false;                         ///< "AUTO": cycle the instrument's samples
+    bool mute = false;
+    bool solo = false;
+    int selectedSample = 0; ///< used when autoRoundRobin is off
 };
 
 /// Kit-wide controls.
@@ -73,10 +73,10 @@ struct GlobalParams
 {
     float masterLevel = 0.8f;
     float masterPan = 0.0f;
-    float attackMs = 0.0f;          ///< fade-in applied to every hit
-    float decayScale = 1.0f;        ///< 1 = natural length, <1 fades the tail out sooner
-    float humanize = 0.0f;          ///< 0..1 timing and level scatter
-    float velCurve = 1.0f;          ///< velocity response
+    float attackMs = 0.0f;   ///< fade-in applied to every hit
+    float decayScale = 1.0f; ///< 1 = natural length, <1 fades the tail out sooner
+    float humanize = 0.0f;   ///< 0..1 timing and level scatter
+    float velCurve = 1.0f;   ///< velocity response
 };
 
 /// A hit reported to the GUI so the kit can animate. Written from the audio
@@ -84,29 +84,29 @@ struct GlobalParams
 struct HitEvent
 {
     int instrumentIndex = 0;
-    int note = -1;                 ///< -1 when the hit did not come from a note
+    int note = -1; ///< -1 when the hit did not come from a note
     float velocity = 0.0f;
     float pitchSemitones = 0.0f;
 };
 
 class Sampler
 {
-public:
+  public:
     Sampler();
     ~Sampler();
 
-    Sampler (const Sampler&) = delete;
-    Sampler& operator= (const Sampler&) = delete;
+    Sampler(const Sampler &) = delete;
+    Sampler &operator=(const Sampler &) = delete;
 
     // -- setup -------------------------------------------------------------
 
     /// Tells the sampler the host's block geometry. Call before loading a kit.
-    void setSampleRateAndBlock (double sampleRate, int blockSize);
+    void setSampleRateAndBlock(double sampleRate, int blockSize);
 
     /** Loads a kit and resolves every sample handle. Blocking; never on the audio
         thread. Returns false and fills `error` if the kit is unusable.
     */
-    bool loadKit (DrumKit kit, juce::String& error);
+    bool loadKit(DrumKit kit, juce::String &error);
 
     void unloadKit();
 
@@ -114,17 +114,17 @@ public:
 
     int numInstruments() const noexcept { return instrumentCount; }
     int usedBusCount() const noexcept { return busCount; }
-    juce::String instrumentName (int index) const;
+    juce::String instrumentName(int index) const;
     juce::String kitTitleString() const { return kitTitle; }
 
-    int numSamplesForInstrument (int index) const;
-    juce::String sampleName (int instrument, int sample) const;
+    int numSamplesForInstrument(int index) const;
+    juce::String sampleName(int instrument, int sample) const;
 
     // -- parameters --------------------------------------------------------
 
-    void setInstrumentParams (int index, const InstrumentParams& params);
-    InstrumentParams getInstrumentParams (int index) const;
-    void setGlobalParams (const GlobalParams& params);
+    void setInstrumentParams(int index, const InstrumentParams &params);
+    InstrumentParams getInstrumentParams(int index) const;
+    void setGlobalParams(const GlobalParams &params);
     GlobalParams getGlobalParams() const;
 
     // -- note & e-drum handling --------------------------------------------
@@ -132,68 +132,68 @@ public:
     /** Triggers an instrument. `timeInSamples` is an absolute sample clock, the
         same one used by render(), so scheduling is sample accurate.
     */
-    void noteOn (int instrument, float velocity, int64_t timeInSamples);
+    void noteOn(int instrument, float velocity, int64_t timeInSamples);
 
     /// As above, but remembers which note caused the hit so the GUI can show it.
-    void noteOn (int instrument, int note, float velocity, int64_t timeInSamples);
+    void noteOn(int instrument, int note, float velocity, int64_t timeInSamples);
 
     /// E-drum hi-hat mode
-    void setHiHatMode (HiHatMode mode) noexcept { hiHatMode.store (mode, std::memory_order_relaxed); }
-    HiHatMode getHiHatMode() const noexcept { return hiHatMode.load (std::memory_order_relaxed); }
+    void setHiHatMode(HiHatMode mode) noexcept { hiHatMode.store(mode, std::memory_order_relaxed); }
+    HiHatMode getHiHatMode() const noexcept { return hiHatMode.load(std::memory_order_relaxed); }
 
     /// Continuous hi-hat pedal control (0.0 = fully open, 1.0 = fully closed / tight).
-    void setHiHatPedal (float pedalValue) noexcept;
-    float getHiHatPedal() const noexcept { return hiHatPedal.load (std::memory_order_relaxed); }
-    void resetHiHatCC4() noexcept { cc4Active.store (false, std::memory_order_relaxed); }
+    void setHiHatPedal(float pedalValue) noexcept;
+    float getHiHatPedal() const noexcept { return hiHatPedal.load(std::memory_order_relaxed); }
+    void resetHiHatCC4() noexcept { cc4Active.store(false, std::memory_order_relaxed); }
 
     /// Snare positional sensing (0.0 = edge, 1.0 = center).
-    void setSnarePosition (float pos) noexcept { snarePosition.store (pos, std::memory_order_relaxed); }
-    float getSnarePosition() const noexcept { return snarePosition.load (std::memory_order_relaxed); }
+    void setSnarePosition(float pos) noexcept { snarePosition.store(pos, std::memory_order_relaxed); }
+    float getSnarePosition() const noexcept { return snarePosition.load(std::memory_order_relaxed); }
 
     /// Fades out every voice of an instrument that matches a note. Kept simple:
     /// drum voices are one-shot, so a note off only matters for choking.
-    void chokeInstrument (int instrument, int64_t fadeMs, int64_t timeInSamples);
+    void chokeInstrument(int instrument, int64_t fadeMs, int64_t timeInSamples);
 
     /// Chokes a cymbal instrument and all associated articulations (edge/bow/bell).
-    void chokeCymbal (int instrumentIndex, int64_t fadeMs, int64_t timeInSamples);
+    void chokeCymbal(int instrumentIndex, int64_t fadeMs, int64_t timeInSamples);
 
     /// Chokes all currently active cymbal voices (for channel pressure / master choke).
-    void chokeAllCymbals (int64_t fadeMs, int64_t timeInSamples);
+    void chokeAllCymbals(int64_t fadeMs, int64_t timeInSamples);
 
     void allNotesOff();
 
     // -- Per-Mic Mixer (Phase 2) -------------------------------------------
 
     int numMicStrips() const noexcept;
-    juce::String micStripName (int index) const;
-    juce::String micStripTitle (int index) const;
+    juce::String micStripName(int index) const;
+    juce::String micStripTitle(int index) const;
 
-    void setMicStripParams (int index, const MicStripParams& params);
-    MicStripParams getMicStripParams (int index) const;
+    void setMicStripParams(int index, const MicStripParams &params);
+    MicStripParams getMicStripParams(int index) const;
 
-    void setMicOutputBus (int index, int bus);
-    int  getMicOutputBus (int index) const;
+    void setMicOutputBus(int index, int bus);
+    int getMicOutputBus(int index) const;
 
-    void setMasterStripParams (const MasterStripParams& params);
+    void setMasterStripParams(const MasterStripParams &params);
     MasterStripParams getMasterStripParams() const;
 
-    void applyMixerPreset (const MixerPreset& preset);
-    MixerPreset getCurrentMixerPreset (const juce::String& name) const;
+    void applyMixerPreset(const MixerPreset &preset);
+    MixerPreset getCurrentMixerPreset(const juce::String &name) const;
 
-    float getMicPeakL (int index) const noexcept;
-    float getMicPeakR (int index) const noexcept;
-    float getMicRmsL  (int index) const noexcept;
-    float getMicRmsR  (int index) const noexcept;
+    float getMicPeakL(int index) const noexcept;
+    float getMicPeakR(int index) const noexcept;
+    float getMicRmsL(int index) const noexcept;
+    float getMicRmsR(int index) const noexcept;
 
-    float getMasterPeakL() const noexcept { return masterPeakL.load (std::memory_order_relaxed); }
-    float getMasterPeakR() const noexcept { return masterPeakR.load (std::memory_order_relaxed); }
-    float getMasterRmsL()  const noexcept { return masterRmsL.load  (std::memory_order_relaxed); }
-    float getMasterRmsR()  const noexcept { return masterRmsR.load  (std::memory_order_relaxed); }
+    float getMasterPeakL() const noexcept { return masterPeakL.load(std::memory_order_relaxed); }
+    float getMasterPeakR() const noexcept { return masterPeakR.load(std::memory_order_relaxed); }
+    float getMasterRmsL() const noexcept { return masterRmsL.load(std::memory_order_relaxed); }
+    float getMasterRmsR() const noexcept { return masterRmsR.load(std::memory_order_relaxed); }
 
     // -- Bleed Matrix & Crosstalk (Phase 4) --------------------------------
-    BleedMatrix& getBleedMatrix() noexcept { return bleedMatrix; }
-    const BleedMatrix& getBleedMatrix() const noexcept { return bleedMatrix; }
-    AcousticCrosstalk& getAcousticCrosstalk() noexcept { return crosstalk; }
+    BleedMatrix &getBleedMatrix() noexcept { return bleedMatrix; }
+    const BleedMatrix &getBleedMatrix() const noexcept { return bleedMatrix; }
+    AcousticCrosstalk &getAcousticCrosstalk() noexcept { return crosstalk; }
 
     // -- rendering ---------------------------------------------------------
 
@@ -201,7 +201,7 @@ public:
         `numSamples` buffers; instrument i writes to channels 2i and 2i+1.
         Audio thread only.
     */
-    void render (float* const* output, int numOutputChannels, int numSamples);
+    void render(float *const *output, int numOutputChannels, int numSamples);
 
     /** Latency the tuner introduces (0 for varispeed). */
     int latencySamples() const noexcept { return 0; }
@@ -212,21 +212,21 @@ public:
     int64_t currentSamplePosition() const noexcept { return sampleClock; }
 
     /// Multi-out routing mode. When false (default), all instruments mix to stereo Bus 0.
-    void setMultiOutMode (bool enabled) noexcept { multiOutMode.store (enabled); }
+    void setMultiOutMode(bool enabled) noexcept { multiOutMode.store(enabled); }
     bool isMultiOutMode() const noexcept { return multiOutMode.load(); }
 
-    void setInstrumentBus (int instrument, int busIndex);
-    int  getInstrumentBus (int instrument) const noexcept;
+    void setInstrumentBus(int instrument, int busIndex);
+    int getInstrumentBus(int instrument) const noexcept;
 
     // -- GUI event feed ----------------------------------------------------
 
     /// Pops the oldest hit, or returns false if there are none.
-    bool popHit (HitEvent& event) noexcept;
+    bool popHit(HitEvent &event) noexcept;
 
     /// True if anything was queued for the GUI since the last call.
     bool hasPendingHits() const noexcept;
 
-private:
+  private:
     /// One channel of one sample round, already resolved and ready to read.
     struct ChannelRef
     {
@@ -234,9 +234,9 @@ private:
         int channel = 0;
         float gainL = 0.0f;
         float gainR = 0.0f;
-        int kitChannelIndex = 0;    ///< index into kitChannels_ for per-mic mixing
-        bool isBleed = false;       ///< true if this is an off-axis bleed mic channel
-        int pieceIdx = 0;           ///< source BleedPiece integer index
+        int kitChannelIndex = 0;         ///< index into kitChannels_ for per-mic mixing
+        bool isBleed = false;            ///< true if this is an off-axis bleed mic channel
+        int pieceIdx = 0;                ///< source BleedPiece integer index
         float channelBleedFactor = 1.0f; ///< XML bleed attribute (1.0 = default)
     };
 
@@ -246,7 +246,7 @@ private:
         std::vector<ChannelRef> channels;
         juce::String name;
         float power = 1.0f;
-        int64_t numFrames = 0;      ///< longest channel, i.e. when the round ends
+        int64_t numFrames = 0; ///< longest channel, i.e. when the round ends
     };
 
     struct ChokeTarget
@@ -274,9 +274,9 @@ private:
         float dynamics = 0.5f;
         VelocityCurve velocityCurve = VelocityCurve::linear;
         bool roundRobin = false;
-        bool mute = false;        ///< as the user set it
+        bool mute = false; ///< as the user set it
         bool solo = false;
-        bool muted = false;       ///< after solo resolution, read by the audio thread
+        bool muted = false; ///< after solo resolution, read by the audio thread
         int selectedSample = 0;
     };
 
@@ -299,19 +299,19 @@ private:
         int instrument = 0;
         int hit = 0;
         int64_t startedAt = 0;
-        int64_t endsAt = 0;          ///< absolute sample clock, 0 when not choking
-        int64_t endsAtAbsolute = 0;  ///< when the sample data + flush runs out
-        int64_t chokeFadeSamples = 0;///< total fade length in samples for anti-click choke
-        int64_t chokeStartSample = 0;///< sample clock when choke started
+        int64_t endsAt = 0;           ///< absolute sample clock, 0 when not choking
+        int64_t endsAtAbsolute = 0;   ///< when the sample data + flush runs out
+        int64_t chokeFadeSamples = 0; ///< total fade length in samples for anti-click choke
+        int64_t chokeStartSample = 0; ///< sample clock when choke started
 
-        double position = 0.0;       ///< fractional read position within the sample, in frames
-        double pitchRatio = 1.0;     ///< varispeed ratio: 2^(semitones/12) * rateRatio
-        int64_t startSkip = 0;       ///< output samples to discard so the note is sample accurate
+        double position = 0.0;   ///< fractional read position within the sample, in frames
+        double pitchRatio = 1.0; ///< varispeed ratio: 2^(semitones/12) * rateRatio
+        int64_t startSkip = 0;   ///< output samples to discard so the note is sample accurate
 
         float velocity = 1.0f;
         float pitchSemitones = 0.0f;
-        float attackGain = 0.0f;     ///< current value of the fade-in
-        int   attackSamples = 0;
+        float attackGain = 0.0f; ///< current value of the fade-in
+        int attackSamples = 0;
 
         // Reused scratch, sized to the largest block seen.
         std::vector<float> mixL, mixR, channelScratch;
@@ -324,26 +324,26 @@ private:
         std::vector<std::unique_ptr<Voice>> voices;
     };
 
-    Voice* allocateVoice();
-    int   chooseHit (int instrumentIndex, float velocity);
-    void  triggerVoice (int instrument, int note, float velocity, int64_t timeInSamples);
+    Voice *allocateVoice();
+    int chooseHit(int instrumentIndex, float velocity);
+    void triggerVoice(int instrument, int note, float velocity, int64_t timeInSamples);
 
     /// Which stereo output bus an instrument writes to.
-    int   busForInstrument (int instrument) const noexcept
+    int busForInstrument(int instrument) const noexcept
     {
-        if (instrument >= 0 && instrument < static_cast<int> (instrumentBuses.size()))
+        if (instrument >= 0 && instrument < static_cast<int>(instrumentBuses.size()))
         {
-            const int b = instrumentBuses[static_cast<size_t> (instrument)];
+            const int b = instrumentBuses[static_cast<size_t>(instrument)];
             if (b >= 0)
-                return busCount > 0 ? std::min (b, busCount - 1) : 0;
+                return busCount > 0 ? std::min(b, busCount - 1) : 0;
         }
-        return busCount > 0 ? std::min (instrument, busCount - 1) : 0;
+        return busCount > 0 ? std::min(instrument, busCount - 1) : 0;
     }
 
-    void  resolveInstrumentChannels (const DrumKit& kit, const Instrument& instrument, InstrumentRuntime& out);
-    void  recomputeSoloFlags();
+    void resolveInstrumentChannels(const DrumKit &kit, const Instrument &instrument, InstrumentRuntime &out);
+    void recomputeSoloFlags();
     float nextRandom();
-    void  pushHitEvent (const HitEvent& event) noexcept;
+    void pushHitEvent(const HitEvent &event) noexcept;
 
     static constexpr int maxVoices = config::MAX_VOICES;
 
@@ -356,14 +356,14 @@ private:
     int64_t sampleClock = 0;
     int currentBlockSize = config::DEFAULT_BLOCK_SIZE;
 
-    std::atomic<bool> kitLoaded { false };
-    std::atomic<bool> anySolo { false };
-    std::atomic<bool> multiOutMode { true };
-    std::atomic<int> nextVoiceIndex { 0 };
-    std::atomic<uint32_t> randomState { 0x12345678u };
+    std::atomic<bool> kitLoaded {false};
+    std::atomic<bool> anySolo {false};
+    std::atomic<bool> multiOutMode {true};
+    std::atomic<int> nextVoiceIndex {0};
+    std::atomic<uint32_t> randomState {0x12345678u};
 
     // -- E-drum state -------------------------------------------------------
-    std::atomic<HiHatMode> hiHatMode { HiHatMode::continuousCC4 };
+    std::atomic<HiHatMode> hiHatMode {HiHatMode::continuousCC4};
     int64_t lastPedalDownClock = 0;
     float lastPedalDownSpeed = 0.0f;
 
@@ -382,14 +382,14 @@ private:
         int splash = -1;
     } hiHat;
 
-    std::atomic<float> hiHatPedal { 0.0f };    ///< 0 = open, 1 = closed
-    std::atomic<bool>  cc4Active { false };    ///< true once an e-drum pedal sends CC#4
-    std::atomic<float> snarePosition { 0.5f }; ///< 0 = edge, 1 = center
+    std::atomic<float> hiHatPedal {0.0f};    ///< 0 = open, 1 = closed
+    std::atomic<bool> cc4Active {false};     ///< true once an e-drum pedal sends CC#4
+    std::atomic<float> snarePosition {0.5f}; ///< 0 = edge, 1 = center
 
     static constexpr int hitRingSize = config::HIT_RING_SIZE;
     HitEvent hitRing[hitRingSize];
-    std::atomic<int> hitWrite { 0 };
-    std::atomic<int> hitRead { 0 };
+    std::atomic<int> hitWrite {0};
+    std::atomic<int> hitRead {0};
 
     // -- Per-mic mixer state & DSP ------------------------------------------
     struct MicChannelState
@@ -398,19 +398,19 @@ private:
         juce::String title;
         MicStripParams params;
         ChannelStripFX fx;
-        std::atomic<float> peakL { 0.0f };
-        std::atomic<float> peakR { 0.0f };
-        std::atomic<float> rmsL  { 0.0f };
-        std::atomic<float> rmsR  { 0.0f };
+        std::atomic<float> peakL {0.0f};
+        std::atomic<float> peakR {0.0f};
+        std::atomic<float> rmsL {0.0f};
+        std::atomic<float> rmsR {0.0f};
     };
 
     std::vector<std::unique_ptr<MicChannelState>> micChannels;
     MasterStripParams masterStripParams;
     MasterFX masterFX;
-    std::atomic<float> masterPeakL { 0.0f };
-    std::atomic<float> masterPeakR { 0.0f };
-    std::atomic<float> masterRmsL  { 0.0f };
-    std::atomic<float> masterRmsR  { 0.0f };
+    std::atomic<float> masterPeakL {0.0f};
+    std::atomic<float> masterPeakR {0.0f};
+    std::atomic<float> masterRmsL {0.0f};
+    std::atomic<float> masterRmsR {0.0f};
 
     // Preallocated audio-thread scratch buffers for mixing
     std::vector<std::vector<float>> micScratchL, micScratchR;
@@ -421,8 +421,8 @@ private:
     AcousticCrosstalk crosstalk;
     int snareMicIndex = -1;
     int snareBotMicIndex = -1;
-    std::array<float*, 32> micScratchLPtrs {};
-    std::array<float*, 32> micScratchRPtrs {};
+    std::array<float *, 32> micScratchLPtrs {};
+    std::array<float *, 32> micScratchRPtrs {};
 
     // -- kit state, guarded by kitLock --------------------------------------
     mutable juce::CriticalSection kitLock;
@@ -431,17 +431,17 @@ private:
     int instrumentCount = 0;
     int busCount = 0;
     double currentSampleRate = 44100.0;
-    double kitSampleRate = 48000.0;   ///< declared sample rate of the loaded kit
+    double kitSampleRate = 48000.0; ///< declared sample rate of the loaded kit
     juce::String kitTitle;
 
     SampleCache sampleCache;
 
-public:
+  public:
     /// Kit-level read-only information for the UI. Safe to call from the message
     /// thread; the kit only changes when the user picks another one.
     int numKitChannels() const;
-    juce::String kitChannelName (int index) const;
-    juce::String kitChannelTitle (int index) const;
+    juce::String kitChannelName(int index) const;
+    juce::String kitChannelTitle(int index) const;
 
     /// Resets every instrument to its default tuning and level.
     void resetInstrumentParams();

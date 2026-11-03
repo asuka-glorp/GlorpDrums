@@ -22,7 +22,7 @@ namespace glorp
 
 class Settings
 {
-public:
+  public:
     Settings();
 
     /// Loads from disk, creating the directory and file if this is the first run.
@@ -37,8 +37,8 @@ public:
 
     // -- kit locations ------------------------------------------------------
     juce::StringArray extraKitPaths;
-    void addKitPath (const juce::String& path);
-    void removeKitPath (const juce::String& path);
+    void addKitPath(const juce::String &path);
+    void removeKitPath(const juce::String &path);
 
     /// Every root to scan: the built-in defaults plus the user's additions.
     std::vector<std::string> allSearchPaths() const;
@@ -51,7 +51,7 @@ public:
     int editorWidth = 1180;
     int editorHeight = 860;
     bool editorMaximised = false;
-    int themeIndex = 0;       ///< 0 = sketch (light), 1 = dark
+    int themeIndex = 0;        ///< 0 = sketch (light), 1 = dark
     bool openGlEnabled = true; ///< Hardware GPU acceleration via juce::OpenGLContext
 
     void markDirty() noexcept { dirty = true; }
@@ -59,12 +59,12 @@ public:
     /// Most recent kits, most recent first, for the FILE menu.
     juce::StringArray recentKits;
 
-    void pushRecentKit (const juce::String& path);
+    void pushRecentKit(const juce::String &path);
     static int maxRecentKits() { return 12; }
 
-private:
-    void writeState (juce::MemoryBlock& destination) const;
-    void readState (const juce::MemoryBlock& source);
+  private:
+    void writeState(juce::MemoryBlock &destination) const;
+    void readState(const juce::MemoryBlock &source);
 
     bool dirty = false;
 };

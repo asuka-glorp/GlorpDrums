@@ -73,11 +73,11 @@ struct EditablePiece
 
 struct DefaultPieceLayout
 {
-    const char* id;
-    const char* name;
-    const char* graphic;
+    const char *id;
+    const char *name;
+    const char *graphic;
     int bus;
-    const char* chokeGroup;
+    const char *chokeGroup;
     float x;
     float y;
     float w;
@@ -85,8 +85,8 @@ struct DefaultPieceLayout
     int defaultMidiNote;
 };
 
-const DefaultPieceLayout* findDefaultPieceLayout (const std::string& idOrName);
-std::string sanitizeId (const std::string& raw);
+const DefaultPieceLayout *findDefaultPieceLayout(const std::string &idOrName);
+std::string sanitizeId(const std::string &raw);
 
 struct ParsedSampleInfo
 {
@@ -94,18 +94,18 @@ struct ParsedSampleInfo
     std::string fileName;
     std::string instrument;
     std::string zone;
-    int roundRobin = 0;        // 0-indexed: 0=A, 1=B, etc.
-    int velocityLevel = 1;     // 1-indexed (e.g. 1..13)
+    int roundRobin = 0;    // 0-indexed: 0=A, 1=B, etc.
+    int velocityLevel = 1; // 1-indexed (e.g. 1..13)
     bool hasExplicitVelocity = false;
     bool hasExplicitRoundRobin = false;
     bool hasExplicitZone = false;
 };
 
-ParsedSampleInfo parseSampleFilename (const std::string& filenameOrPath);
+ParsedSampleInfo parseSampleFilename(const std::string &filenameOrPath);
 
 class GlorpKitProject
 {
-public:
+  public:
     GlorpKitProject();
 
     // -- Kit-wide Metadata & Visual Settings ---------------------------------
@@ -125,31 +125,31 @@ public:
     void createNewDefaultKit();
     void createNewBlankKit();
 
-    std::vector<EditablePiece>& getPieces() noexcept { return pieces; }
-    const std::vector<EditablePiece>& getPieces() const noexcept { return pieces; }
+    std::vector<EditablePiece> &getPieces() noexcept { return pieces; }
+    const std::vector<EditablePiece> &getPieces() const noexcept { return pieces; }
 
-    const std::string& getTitle() const noexcept { return title; }
-    void setTitle (const std::string& t) { title = t; }
+    const std::string &getTitle() const noexcept { return title; }
+    void setTitle(const std::string &t) { title = t; }
 
-    const std::string& getHitGlowColor() const noexcept { return hitGlowColor; }
-    void setHitGlowColor (const std::string& c) { hitGlowColor = c; }
+    const std::string &getHitGlowColor() const noexcept { return hitGlowColor; }
+    void setHitGlowColor(const std::string &c) { hitGlowColor = c; }
 
     double getSampleRate() const noexcept { return (double) sampleRate; }
-    void setSampleRate (double sr) noexcept { sampleRate = (int) sr; }
+    void setSampleRate(double sr) noexcept { sampleRate = (int) sr; }
 
-    void addChannel (const std::string& micName)
+    void addChannel(const std::string &micName)
     {
         GlorpMic m;
         m.name = micName;
         m.title = micName;
-        mics.push_back (std::move (m));
+        mics.push_back(std::move(m));
     }
 
-    int addPiece (const std::string& pieceName, const std::string& graphic = "snare")
+    int addPiece(const std::string &pieceName, const std::string &graphic = "snare")
     {
         EditablePiece p;
         p.name = pieceName;
-        p.id = "piece_" + std::to_string (pieces.size() + 1);
+        p.id = "piece_" + std::to_string(pieces.size() + 1);
         p.graphicId = graphic;
         p.normX = -90.0f;
         p.normY = -280.0f;
@@ -166,98 +166,108 @@ public:
         EditableMicSample ms;
         ms.mic = "close";
         ms.fileName = h.name + "_close.wav";
-        h.micSamples.push_back (std::move (ms));
-        z.hits.push_back (std::move (h));
-        p.zones.push_back (std::move (z));
-        pieces.push_back (std::move (p));
+        h.micSamples.push_back(std::move(ms));
+        z.hits.push_back(std::move(h));
+        p.zones.push_back(std::move(z));
+        pieces.push_back(std::move(p));
         normalizeZOrders();
         return (int) pieces.size() - 1;
     }
 
-    int duplicatePiece (int idx)
+    int duplicatePiece(int idx)
     {
-        if (idx < 0 || idx >= (int) pieces.size()) return -1;
+        if (idx < 0 || idx >= (int) pieces.size())
+            return -1;
         EditablePiece copy = pieces[(size_t) idx];
         copy.name += " Copy";
-        copy.id   += "_copy";
+        copy.id += "_copy";
         copy.normX += 20.0f;
         copy.normY += 15.0f;
         copy.zOrder = (int) pieces.size() + 1;
-        pieces.push_back (std::move (copy));
+        pieces.push_back(std::move(copy));
         normalizeZOrders();
         return (int) pieces.size() - 1;
     }
 
-    bool deletePiece (int idx)
+    bool deletePiece(int idx)
     {
         if (idx >= 0 && idx < (int) pieces.size())
         {
-            pieces.erase (pieces.begin() + idx);
+            pieces.erase(pieces.begin() + idx);
             normalizeZOrders();
             return true;
         }
         return false;
     }
 
-    void removePiece (int idx)
-    {
-        deletePiece (idx);
-    }
+    void removePiece(int idx) { deletePiece(idx); }
 
-    int addPieceWithAutoLayout (const std::string& nameOrStem,
-                                const std::string& graphic = "",
-                                const std::vector<uint8_t>& pngBytes = {});
+    int addPieceWithAutoLayout(const std::string &nameOrStem,
+                               const std::string &graphic = "",
+                               const std::vector<uint8_t> &pngBytes = {});
 
-    bool openGlorpKitArchive (const std::string& archivePath, std::string& outError);
-    bool importDrumGizmoXml (const std::string& drumkitXmlPath, std::string& outError);
-    bool exportToGlorpKit (const std::string& outputArchivePath, std::string& outError) const;
-    bool relinkSamplesFromDirectory (const std::string& directoryPath);
+    bool openGlorpKitArchive(const std::string &archivePath, std::string &outError);
+    bool importDrumGizmoXml(const std::string &drumkitXmlPath, std::string &outError);
+    bool exportToGlorpKit(const std::string &outputArchivePath, std::string &outError) const;
+    bool relinkSamplesFromDirectory(const std::string &directoryPath);
 
     /// Builds a playable DrumKit in memory so the editor's Sampler can audition hits live.
     DrumKit buildRuntimeDrumKit() const;
-    int getSamplerIndexForZone (int pieceIndex, int zoneIndex) const;
+    int getSamplerIndexForZone(int pieceIndex, int zoneIndex) const;
 
     // -- Piece, Mic & Zone Management ----------------------------------------
-    bool renamePiece (int pieceIndex, const std::string& newName, const std::string& newId = "");
-    bool renameMic (int micIndex, const std::string& newName);
-    bool deleteMic (int micIndex, std::string& outError);
-    bool deleteMic (int micIndex) { std::string err; return deleteMic (micIndex, err); }
-    bool renameZone (int pieceIndex, int zoneIndex, const std::string& newName);
-    bool deleteZone (int pieceIndex, int zoneIndex, std::string& outError);
-    bool deleteZone (int pieceIndex, int zoneIndex) { std::string err; return deleteZone (pieceIndex, zoneIndex, err); }
+    bool renamePiece(int pieceIndex, const std::string &newName, const std::string &newId = "");
+    bool renameMic(int micIndex, const std::string &newName);
+    bool deleteMic(int micIndex, std::string &outError);
+    bool deleteMic(int micIndex)
+    {
+        std::string err;
+        return deleteMic(micIndex, err);
+    }
+    bool renameZone(int pieceIndex, int zoneIndex, const std::string &newName);
+    bool deleteZone(int pieceIndex, int zoneIndex, std::string &outError);
+    bool deleteZone(int pieceIndex, int zoneIndex)
+    {
+        std::string err;
+        return deleteZone(pieceIndex, zoneIndex, err);
+    }
 
     // -- High-level Mic Routing ----------------------------------------------
-    bool setPieceMicrophone (int pieceIndex, const std::string& micName, const std::string& oldMicToReplace = "");
-    bool setZoneMicrophone (int pieceIndex, int zoneIndex, const std::string& micName, const std::string& oldMicToReplace = "");
-    std::string getPieceDominantMicrophone (int pieceIndex) const;
-    std::string getZoneDominantMicrophone (int pieceIndex, int zoneIndex) const;
+    bool setPieceMicrophone(int pieceIndex, const std::string &micName, const std::string &oldMicToReplace = "");
+    bool setZoneMicrophone(int pieceIndex,
+                           int zoneIndex,
+                           const std::string &micName,
+                           const std::string &oldMicToReplace = "");
+    std::string getPieceDominantMicrophone(int pieceIndex) const;
+    std::string getZoneDominantMicrophone(int pieceIndex, int zoneIndex) const;
 
     // -- Z-Order & Piece Helpers ---------------------------------------------
     void normalizeZOrders();
-    bool movePieceZOrder (int pieceIndex, int deltaZ);
-    bool bringPieceToFront (int pieceIndex);
-    bool sendPieceToBack (int pieceIndex);
+    bool movePieceZOrder(int pieceIndex, int deltaZ);
+    bool bringPieceToFront(int pieceIndex);
+    bool sendPieceToBack(int pieceIndex);
 
     /// Automatically calculates sample hit power values from audio RMS/Peak energy
     /// and organizes the zone's hits into sorted velocity layers and round-robins.
-    void autoComputeZonePowers (int pieceIndex, int zoneIndex);
+    void autoComputeZonePowers(int pieceIndex, int zoneIndex);
 
     /// Recomputes velocityLayerIndex and roundRobinIndex for a zone based on hit powers.
-    static void rebuildZoneLayerGrid (EditableZone& zone, int maxRoundRobins = 3);
+    static void rebuildZoneLayerGrid(EditableZone &zone, int maxRoundRobins = 3);
 
     /// Imports one or more WAV/FLAC/OGG files from disk into a piece's zone.
-    int importAudioFilesIntoZone (int pieceIndex, int zoneIndex,
-                                  const std::vector<std::string>& filePaths,
-                                  const std::string& targetMic = "close");
+    int importAudioFilesIntoZone(int pieceIndex,
+                                 int zoneIndex,
+                                 const std::vector<std::string> &filePaths,
+                                 const std::string &targetMic = "close");
 
     /// Moves a sample hit to a specific velocity layer and round robin column.
-    bool moveSampleToCell (int pieceIndex, int zoneIndex, int hitIndex, int newVelocityLayer, int newRoundRobin);
+    bool moveSampleToCell(int pieceIndex, int zoneIndex, int hitIndex, int newVelocityLayer, int newRoundRobin);
 
     /// Swaps the matrix cells of two sample hits.
-    bool swapSampleCells (int pieceIndex, int zoneIndex, int hitAIndex, int hitBIndex);
+    bool swapSampleCells(int pieceIndex, int zoneIndex, int hitAIndex, int hitBIndex);
 
     /// Sets the velocity layer and round robin dimensions of a zone.
-    void setZoneGridDimensions (int pieceIndex, int zoneIndex, int numVelLayers, int numRoundRobins);
+    void setZoneGridDimensions(int pieceIndex, int zoneIndex, int numVelLayers, int numRoundRobins);
 };
 
 } // namespace glorp

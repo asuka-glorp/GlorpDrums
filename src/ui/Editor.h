@@ -14,20 +14,20 @@
 
 #include <juce_opengl/juce_opengl.h>
 
-
 #include <memory>
 #include <vector>
 
 namespace glorp
 {
 
-class Editor : public juce::Component,
-               public juce::Timer,
-               public juce::FileDragAndDropTarget,
-               private PluginProcessor::Listener
+class Editor
+    : public juce::Component
+    , public juce::Timer
+    , public juce::FileDragAndDropTarget
+    , private PluginProcessor::Listener
 {
-public:
-    explicit Editor (PluginProcessor&);
+  public:
+    explicit Editor(PluginProcessor &);
     ~Editor() override;
 
     enum class EditorView
@@ -37,19 +37,19 @@ public:
         practiceView
     };
 
-    void setViewMode (EditorView mode);
+    void setViewMode(EditorView mode);
     EditorView getViewMode() const noexcept { return currentView; }
 
-    void paint (juce::Graphics&) override;
+    void paint(juce::Graphics &) override;
     void resized() override;
     void timerCallback() override;
-    bool keyPressed (const juce::KeyPress&) override;
-    void mouseDown (const juce::MouseEvent&) override;
+    bool keyPressed(const juce::KeyPress &) override;
+    void mouseDown(const juce::MouseEvent &) override;
 
-    bool isInterestedInFileDrag (const juce::StringArray& files) override;
-    void filesDropped (const juce::StringArray& files, int x, int y) override;
+    bool isInterestedInFileDrag(const juce::StringArray &files) override;
+    void filesDropped(const juce::StringArray &files, int x, int y) override;
 
-    void selectInstrument (int samplerIndex);
+    void selectInstrument(int samplerIndex);
     void openEDrumWizard();
 
     struct ZoneInfo
@@ -61,27 +61,27 @@ public:
     struct LogicalInstrument
     {
         juce::String name;
-        KitPiece piece { KitPiece::count };
+        KitPiece piece {KitPiece::count};
         std::vector<ZoneInfo> zones;
         int selectedZoneIndex = 0;
         int outputBus = 0;
     };
 
-    const std::vector<LogicalInstrument>& getLogicalInstruments() const noexcept { return logicalInstruments; }
-    void selectLogicalInstrument (int index);
-    void selectZone (int logicalIndex, int zoneIndex, bool triggerPreview = false);
+    const std::vector<LogicalInstrument> &getLogicalInstruments() const noexcept { return logicalInstruments; }
+    void selectLogicalInstrument(int index);
+    void selectZone(int logicalIndex, int zoneIndex, bool triggerPreview = false);
     int getActiveSamplerIndex() const;
-    DrumKitView& getKitView() noexcept { return kitView; }
-    Scope& getScope() noexcept { return scope; }
-    MixerView* getMixerView() noexcept { return mixerView.get(); }
-    RecordPracticeView* getPracticeView() noexcept { return practiceView.get(); }
-    void applyTheme (const Theme& newTheme);
+    DrumKitView &getKitView() noexcept { return kitView; }
+    Scope &getScope() noexcept { return scope; }
+    MixerView *getMixerView() noexcept { return mixerView.get(); }
+    RecordPracticeView *getPracticeView() noexcept { return practiceView.get(); }
+    void applyTheme(const Theme &newTheme);
 
-    void setOpenGlEnabled (bool enabled);
+    void setOpenGlEnabled(bool enabled);
     bool isOpenGlEnabled() const noexcept;
     void parentHierarchyChanged() override;
 
-private:
+  private:
     void kitChanged() override;
     void parametersChanged() override;
 
@@ -96,133 +96,196 @@ private:
     void bindInstrumentKnobs();
     void updateInstrumentDisplay();
 
-    juce::String noteLabelFor (int instrument) const;
+    juce::String noteLabelFor(int instrument) const;
 
     juce::PopupMenu buildFileMenu();
     juce::PopupMenu buildPresetsMenu();
     juce::PopupMenu buildMidiMenu();
     juce::PopupMenu buildSettingsMenu();
 
-    void armLearn (int samplerIndex);
+    void armLearn(int samplerIndex);
     void promptLoadKitFile();
 
-    PluginProcessor& processor;
+    PluginProcessor &processor;
 
     // Header buttons (hand-drawn text buttons)
     class MenuButton : public juce::Button
     {
-    public:
-        explicit MenuButton (const juce::String& name) : juce::Button (name) {}
-        void setActive (bool a) { active = a; repaint(); }
+      public:
+        explicit MenuButton(const juce::String &name) : juce::Button(name) {}
+        void setActive(bool a)
+        {
+            active = a;
+            repaint();
+        }
         bool getActive() const noexcept { return active; }
-        void setTheme (const Theme& t) { theme = t; repaint(); }
-        void paintButton (juce::Graphics& g, bool isHover, bool isDown) override;
-    private:
+        void setTheme(const Theme &t)
+        {
+            theme = t;
+            repaint();
+        }
+        void paintButton(juce::Graphics &g, bool isHover, bool isDown) override;
+
+      private:
         bool active = false;
         Theme theme = Theme::sketch();
     };
 
     class InstrumentSelectorButton : public juce::Button
     {
-    public:
-        InstrumentSelectorButton() : juce::Button ("instSelect") {}
-        void paintButton (juce::Graphics& g, bool isHover, bool isDown) override;
-        void setInstrumentName (const juce::String& name) { currentName = name; repaint(); }
-        const juce::String& getInstrumentName() const noexcept { return currentName; }
-        void setTheme (const Theme& t) { theme = t; repaint(); }
-    private:
-        juce::String currentName { "SNARE" };
+      public:
+        InstrumentSelectorButton() : juce::Button("instSelect") {}
+        void paintButton(juce::Graphics &g, bool isHover, bool isDown) override;
+        void setInstrumentName(const juce::String &name)
+        {
+            currentName = name;
+            repaint();
+        }
+        const juce::String &getInstrumentName() const noexcept { return currentName; }
+        void setTheme(const Theme &t)
+        {
+            theme = t;
+            repaint();
+        }
+
+      private:
+        juce::String currentName {"SNARE"};
         Theme theme = Theme::sketch();
     };
 
     class KitSelectorButton : public juce::Button
     {
-    public:
-        KitSelectorButton() : juce::Button ("kitSelect") {}
-        void paintButton (juce::Graphics& g, bool isHover, bool isDown) override;
-        void setKitName (const juce::String& name) { currentName = name; repaint(); }
-        const juce::String& getKitName() const noexcept { return currentName; }
-        void setTheme (const Theme& t) { theme = t; repaint(); }
-    private:
-        juce::String currentName { "NO KIT LOADED" };
+      public:
+        KitSelectorButton() : juce::Button("kitSelect") {}
+        void paintButton(juce::Graphics &g, bool isHover, bool isDown) override;
+        void setKitName(const juce::String &name)
+        {
+            currentName = name;
+            repaint();
+        }
+        const juce::String &getKitName() const noexcept { return currentName; }
+        void setTheme(const Theme &t)
+        {
+            theme = t;
+            repaint();
+        }
+
+      private:
+        juce::String currentName {"NO KIT LOADED"};
         Theme theme = Theme::sketch();
     };
 
     class OutputBusButton : public juce::Button
     {
-    public:
-        OutputBusButton() : juce::Button ("outBus") {}
-        void setBusIndex (int busIdx) { currentBus = busIdx; repaint(); }
+      public:
+        OutputBusButton() : juce::Button("outBus") {}
+        void setBusIndex(int busIdx)
+        {
+            currentBus = busIdx;
+            repaint();
+        }
         int getBusIndex() const noexcept { return currentBus; }
-        void setTheme (const Theme& t) { theme = t; repaint(); }
-        void paintButton (juce::Graphics& g, bool isHover, bool isDown) override;
-    private:
+        void setTheme(const Theme &t)
+        {
+            theme = t;
+            repaint();
+        }
+        void paintButton(juce::Graphics &g, bool isHover, bool isDown) override;
+
+      private:
         int currentBus = 0;
         Theme theme = Theme::sketch();
     };
 
     class ZoneButton : public juce::Button
     {
-    public:
-        ZoneButton (const juce::String& name, bool active);
-        void setActive (bool active);
+      public:
+        ZoneButton(const juce::String &name, bool active);
+        void setActive(bool active);
         bool getActive() const noexcept { return isActive; }
-        void setTheme (const Theme& t) { theme = t; repaint(); }
-        void paintButton (juce::Graphics& g, bool isHover, bool isDown) override;
-    private:
+        void setTheme(const Theme &t)
+        {
+            theme = t;
+            repaint();
+        }
+        void paintButton(juce::Graphics &g, bool isHover, bool isDown) override;
+
+      private:
         bool isActive = false;
         Theme theme = Theme::sketch();
     };
 
     class LearnButton : public juce::Button
     {
-    public:
-        LearnButton() : juce::Button ("LEARN") {}
-        void setLearning (bool learning);
-        void setTheme (const Theme& t) { theme = t; repaint(); }
-        void paintButton (juce::Graphics& g, bool isHover, bool isDown) override;
-    private:
+      public:
+        LearnButton() : juce::Button("LEARN") {}
+        void setLearning(bool learning);
+        void setTheme(const Theme &t)
+        {
+            theme = t;
+            repaint();
+        }
+        void paintButton(juce::Graphics &g, bool isHover, bool isDown) override;
+
+      private:
         bool isLearning_ = false;
         Theme theme = Theme::sketch();
     };
 
     class CurveButton : public juce::Button
     {
-    public:
-        CurveButton() : juce::Button ("CURVE") {}
-        void setCurve (VelocityCurve c) { currentCurve = c; repaint(); }
+      public:
+        CurveButton() : juce::Button("CURVE") {}
+        void setCurve(VelocityCurve c)
+        {
+            currentCurve = c;
+            repaint();
+        }
         VelocityCurve getCurve() const noexcept { return currentCurve; }
-        void setTheme (const Theme& t) { theme = t; repaint(); }
-        void paintButton (juce::Graphics& g, bool isHover, bool isDown) override;
-    private:
+        void setTheme(const Theme &t)
+        {
+            theme = t;
+            repaint();
+        }
+        void paintButton(juce::Graphics &g, bool isHover, bool isDown) override;
+
+      private:
         VelocityCurve currentCurve = VelocityCurve::linear;
         Theme theme = Theme::sketch();
     };
 
     class VelocityCurvePreview : public juce::Component
     {
-    public:
+      public:
         VelocityCurvePreview();
-        void setCurve (VelocityCurve c) { currentCurve = c; repaint(); }
+        void setCurve(VelocityCurve c)
+        {
+            currentCurve = c;
+            repaint();
+        }
         VelocityCurve getCurve() const noexcept { return currentCurve; }
-        void setTheme (const Theme& t) { theme = t; repaint(); }
+        void setTheme(const Theme &t)
+        {
+            theme = t;
+            repaint();
+        }
 
         std::function<void()> onClick;
 
-        void paint (juce::Graphics& g) override;
-        void mouseDown (const juce::MouseEvent& e) override;
+        void paint(juce::Graphics &g) override;
+        void mouseDown(const juce::MouseEvent &e) override;
 
-    private:
+      private:
         VelocityCurve currentCurve = VelocityCurve::linear;
         Theme theme = Theme::sketch();
     };
 
-    MenuButton viewToggleButton { "MIXER VIEW" };
-    MenuButton practiceToggleButton { "PRACTICE" };
-    MenuButton fileButton { "FILE" };
-    MenuButton presetsButton { "PRESETS" };
-    MenuButton midiButton { "MIDI" };
-    MenuButton settingsButton { "SETTINGS" };
+    MenuButton viewToggleButton {"MIXER VIEW"};
+    MenuButton practiceToggleButton {"PRACTICE"};
+    MenuButton fileButton {"FILE"};
+    MenuButton presetsButton {"PRESETS"};
+    MenuButton midiButton {"MIDI"};
+    MenuButton settingsButton {"SETTINGS"};
 
     KitSelectorButton kitSelectorButton;
     DrumKitView kitView;
@@ -269,7 +332,7 @@ private:
 
     Theme theme = Theme::sketch();
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Editor)
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Editor)
 };
 
 } // namespace glorp

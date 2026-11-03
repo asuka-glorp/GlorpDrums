@@ -18,61 +18,61 @@ namespace glorp
 
 class ParameterManager
 {
-public:
+  public:
     ParameterManager();
     ~ParameterManager() = default;
 
-    ParameterManager (const ParameterManager&) = delete;
-    ParameterManager& operator= (const ParameterManager&) = delete;
+    ParameterManager(const ParameterManager &) = delete;
+    ParameterManager &operator=(const ParameterManager &) = delete;
 
     // -- Parameter layout -----------------------------------------------------
 
-    void createParameterLayout (juce::AudioProcessor& processor);
+    void createParameterLayout(juce::AudioProcessor &processor);
 
     // -- Parameter access -----------------------------------------------------
 
-    juce::AudioProcessorParameter* findParameter (const juce::String& paramID) const;
-    juce::AudioProcessorParameter* getParameterForMidiControl (int cc, int channel) const;
+    juce::AudioProcessorParameter *findParameter(const juce::String &paramID) const;
+    juce::AudioProcessorParameter *getParameterForMidiControl(int cc, int channel) const;
 
     // -- Parameter pointers (for audio thread access) -------------------------
 
-    juce::AudioParameterFloat* masterLevelParam = nullptr;
-    juce::AudioParameterFloat* masterPanParam = nullptr;
-    juce::AudioParameterFloat* attackParam = nullptr;
-    juce::AudioParameterFloat* decayParam = nullptr;
-    juce::AudioParameterFloat* humanizeParam = nullptr;
-    juce::AudioParameterFloat* velCurveParam = nullptr;
+    juce::AudioParameterFloat *masterLevelParam = nullptr;
+    juce::AudioParameterFloat *masterPanParam = nullptr;
+    juce::AudioParameterFloat *attackParam = nullptr;
+    juce::AudioParameterFloat *decayParam = nullptr;
+    juce::AudioParameterFloat *humanizeParam = nullptr;
+    juce::AudioParameterFloat *velCurveParam = nullptr;
 
-    std::vector<juce::AudioParameterFloat*> instrumentLevelParams;
-    std::vector<juce::AudioParameterFloat*> instrumentPanParams;
-    std::vector<juce::AudioParameterFloat*> instrumentPitchParams;
-    std::vector<juce::AudioParameterFloat*> instrumentDynamicsParams;
-    std::vector<juce::AudioParameterChoice*> instrumentBusParams;
+    std::vector<juce::AudioParameterFloat *> instrumentLevelParams;
+    std::vector<juce::AudioParameterFloat *> instrumentPanParams;
+    std::vector<juce::AudioParameterFloat *> instrumentPitchParams;
+    std::vector<juce::AudioParameterFloat *> instrumentDynamicsParams;
+    std::vector<juce::AudioParameterChoice *> instrumentBusParams;
 
     // -- MIDI learn queue -----------------------------------------------------
 
     /// Called from audio thread to queue a control value for message thread.
-    void enqueueControlValue (const juce::String& controlId, float normalised);
+    void enqueueControlValue(const juce::String &controlId, float normalised);
 
     /// Called from message thread to apply queued values to parameters.
     void drainControlQueue();
 
     /// Checks if a control ID is a master parameter.
-    bool isMasterParameter (const juce::String& controlId) const;
+    bool isMasterParameter(const juce::String &controlId) const;
 
     /// Applies a normalized value to a master parameter.
-    void setMasterParameterValue (const juce::String& controlId, float normalised);
+    void setMasterParameterValue(const juce::String &controlId, float normalised);
 
     /// Applies a normalized value to an instrument parameter.
-    void setInstrumentParameterValue (int instrumentIndex, const juce::String& field, float normalised);
+    void setInstrumentParameterValue(int instrumentIndex, const juce::String &field, float normalised);
 
     /// Parses "instN.field" control ID into parts.
-    bool parseControlId (const juce::String& controlId, int& instrumentIndex, juce::String& field) const;
+    bool parseControlId(const juce::String &controlId, int &instrumentIndex, juce::String &field) const;
 
     /// Generates a control ID for an instrument parameter.
-    static juce::String controlIdForInstrument (const juce::String& suffix, int index);
+    static juce::String controlIdForInstrument(const juce::String &suffix, int index);
 
-private:
+  private:
     // -- MIDI learn queue (audio thread -> message thread) --------------------
 
     struct PendingControl
@@ -83,10 +83,10 @@ private:
 
     static constexpr int controlRingSize = config::CONTROL_RING_SIZE;
     PendingControl controlRing[controlRingSize];
-    std::atomic<int> controlWrite { 0 };
-    std::atomic<int> controlRead { 0 };
+    std::atomic<int> controlWrite {0};
+    std::atomic<int> controlRead {0};
 
-    bool dequeueControlValue (juce::String& controlId, float& normalised);
+    bool dequeueControlValue(juce::String &controlId, float &normalised);
 };
 
 } // namespace glorp

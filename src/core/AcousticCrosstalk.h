@@ -5,24 +5,24 @@
 
 #pragma once
 
-#include "BleedMatrix.h"
 #include <array>
 #include <cmath>
 #include <vector>
+#include "BleedMatrix.h"
 
 namespace glorp
 {
 
 class AcousticCrosstalk
 {
-public:
+  public:
     AcousticCrosstalk();
 
-    void prepare (double sampleRate, int maxBlockSize);
+    void prepare(double sampleRate, int maxBlockSize);
     void reset();
 
     /// Trigger sympathetic snare wire buzz when Kick or Low Toms are struck.
-    void triggerSympatheticHit (BleedPiece piece, float velocity) noexcept;
+    void triggerSympatheticHit(BleedPiece piece, float velocity) noexcept;
 
     /// Renders acoustic crosstalk and sympathetic resonance into per-mic scratch buffers.
     /// @param micBuffersL Pointer to array of left scratch buffers (one per mic)
@@ -32,18 +32,18 @@ public:
     /// @param bleedMatrix Reference to matrix settings (master bleed, sympathetic level, etc.)
     /// @param snareMicIndex Index of the primary snare mic (or -1 if not identified)
     /// @param snareBotMicIndex Index of the snare bottom mic (or -1 if not identified)
-    void render (float* const* micBuffersL,
-                 float* const* micBuffersR,
-                 int numMics,
-                 int numSamples,
-                 const BleedMatrix& bleedMatrix,
-                 int snareMicIndex,
-                 int snareBotMicIndex);
+    void render(float *const *micBuffersL,
+                float *const *micBuffersR,
+                int numMics,
+                int numSamples,
+                const BleedMatrix &bleedMatrix,
+                int snareMicIndex,
+                int snareBotMicIndex);
 
     /// Feed direct voice hit audio to inter-mic delay ring buffer for synthetic crosstalk
-    void feedDirectSignal (BleedPiece piece, const float* audioL, const float* audioR, int numSamples);
+    void feedDirectSignal(BleedPiece piece, const float *audioL, const float *audioR, int numSamples);
 
-private:
+  private:
     double currentSampleRate = 44100.0;
 
     // Ring buffer size for acoustic delays (2048 covers >42 ms at 48kHz)
@@ -51,13 +51,13 @@ private:
     static constexpr size_t ringMask = ringSize - 1;
 
     // Ring buffer per drum piece (left/right)
-    std::array<std::vector<float>, static_cast<size_t> (BleedPiece::count)> pieceDelayL;
-    std::array<std::vector<float>, static_cast<size_t> (BleedPiece::count)> pieceDelayR;
+    std::array<std::vector<float>, static_cast<size_t>(BleedPiece::count)> pieceDelayL;
+    std::array<std::vector<float>, static_cast<size_t>(BleedPiece::count)> pieceDelayR;
     size_t writePos = 0;
 
     // 1-pole low-pass filter states per piece
-    std::array<float, static_cast<size_t> (BleedPiece::count)> lpfStateL {};
-    std::array<float, static_cast<size_t> (BleedPiece::count)> lpfStateR {};
+    std::array<float, static_cast<size_t>(BleedPiece::count)> lpfStateL {};
+    std::array<float, static_cast<size_t>(BleedPiece::count)> lpfStateR {};
     float lpfCoeff = 0.35f;
 
     // Sympathetic Snare Wire Model
@@ -72,10 +72,10 @@ private:
     float nextNoise() noexcept
     {
         noiseState = noiseState * 1664525u + 1013904223u;
-        return (static_cast<float> (noiseState & 0x00FFFFFF) / 8388607.0f) - 1.0f;
+        return (static_cast<float>(noiseState & 0x00FFFFFF) / 8388607.0f) - 1.0f;
     }
 
-    void setupBandpassFilter (float freq, float q);
+    void setupBandpassFilter(float freq, float q);
 };
 
 } // namespace glorp

@@ -20,8 +20,8 @@
 
 #pragma once
 
-#include "XmlLite.h"
 #include "BleedMatrix.h"
+#include "XmlLite.h"
 
 #include <map>
 #include <string>
@@ -34,9 +34,9 @@ namespace glorp
 /// One <audiofile> element: which channel of which wav file feeds an instrument channel.
 struct AudioFileRef
 {
-    std::string channel;      ///< instrument-side channel name (matches `in` of a channelmap)
-    std::string file;         ///< path relative to the instrument XML's directory
-    int fileChannel = 0;      ///< zero-based channel index inside that wav file
+    std::string channel;        ///< instrument-side channel name (matches `in` of a channelmap)
+    std::string file;           ///< path relative to the instrument XML's directory
+    int fileChannel = 0;        ///< zero-based channel index inside that wav file
     int64_t archiveOffset = -1; ///< byte offset in .glorpkit archive (or -1 if plain file)
     int64_t archiveLength = -1; ///< byte length in .glorpkit archive
 };
@@ -57,7 +57,7 @@ struct KitChannel
 {
     std::string name;
     std::string title;
-    std::string source;   ///< older kits call the microphone attribute "microphone"
+    std::string source; ///< older kits call the microphone attribute "microphone"
 };
 
 /** Ties one instrument-side channel to one kit channel.
@@ -81,12 +81,12 @@ struct ChokeSpec
 
 struct Instrument
 {
-    std::string name;          ///< semantic name used by midimap.xml
-    std::string displayName;   ///< human title; falls back to `name`
-    std::string group;         ///< instruments sharing a group choke each other
+    std::string name;        ///< semantic name used by midimap.xml
+    std::string displayName; ///< human title; falls back to `name`
+    std::string group;       ///< instruments sharing a group choke each other
 
-    std::string xmlPath;       ///< absolute path of the instrument XML
-    std::string baseDir;       ///< directory that `file` attributes are relative to
+    std::string xmlPath; ///< absolute path of the instrument XML
+    std::string baseDir; ///< directory that `file` attributes are relative to
 
     std::vector<ChannelMap> channelMaps;
     std::vector<ChokeSpec> chokes;
@@ -98,27 +98,27 @@ struct Instrument
     /// iterate channel-major without any lookups.
     struct ChannelSource
     {
-        std::string kitChannel;   ///< which kit channel this feeds
-        int audioFileIndex = 0;   ///< index into SampleHit::audioFiles
+        std::string kitChannel; ///< which kit channel this feeds
+        int audioFileIndex = 0; ///< index into SampleHit::audioFiles
         bool main = false;
-        float bleed = 1.0f;       ///< bleed attribute from channelmap
+        float bleed = 1.0f; ///< bleed attribute from channelmap
     };
     std::vector<std::vector<ChannelSource>> resolvedChannels;
 
-    int index = -1;             ///< position in the kit, i.e. which output bus it uses
-    std::string archivePath;    ///< set when loaded from a .glorpkit archive
+    int index = -1;          ///< position in the kit, i.e. which output bus it uses
+    std::string archivePath; ///< set when loaded from a .glorpkit archive
 
-    std::string logicalName;    ///< Logical piece name (e.g. "Snare")
-    std::string zoneName;       ///< Zone name (e.g. "head", "rimshot")
+    std::string logicalName;                   ///< Logical piece name (e.g. "Snare")
+    std::string zoneName;                      ///< Zone name (e.g. "head", "rimshot")
     BleedPiece bleedPiece = BleedPiece::snare; ///< Bleed piece classification
-    int outputBus = 0;          ///< Target output bus
+    int outputBus = 0;                         ///< Target output bus
 
     /// Absolute path of an audio file, resolved against the instrument's directory.
     /// DrumGizmo writes these relative to the instrument XML, so every consumer needs
     /// this rather than the raw string.
-    std::string samplePath (const AudioFileRef& ref) const;
+    std::string samplePath(const AudioFileRef &ref) const;
 
-    bool isValid() const noexcept { return ! samples.empty(); }
+    bool isValid() const noexcept { return !samples.empty(); }
 };
 
 struct DrumKit
@@ -131,8 +131,8 @@ struct DrumKit
     std::string email;
     std::string website;
     std::string license;
-    std::string version;        ///< kit metadata version
-    std::string formatVersion;  ///< drumkit `version` attribute
+    std::string version;       ///< kit metadata version
+    std::string formatVersion; ///< drumkit `version` attribute
 
     int declaredSampleRate = 48000;
     std::string hitGlowColor = "#ff8200";
@@ -183,7 +183,7 @@ struct DrumKit
     std::map<std::string, float> factoryInstrumentPans;
 
     // -- diagnostics ------------------------------------------------------
-    std::string error;          ///< non-empty if the kit failed to load properly
+    std::string error; ///< non-empty if the kit failed to load properly
     std::vector<std::string> warnings;
 
     /// Human-readable name for the kit dropdown: "<title>" or the folder name.
@@ -191,23 +191,22 @@ struct DrumKit
 
     /// Loads a kit from a path to its drumkit.xml or a .glorpkit archive. Always returns a DrumKit;
     /// check `error` and the emptiness of `instruments` to know whether it worked.
-    static DrumKit load (const std::string& drumkitPath);
+    static DrumKit load(const std::string &drumkitPath);
 
     /// Index of the instrument with this semantic name, or -1.
-    int indexOfInstrument (const std::string& name) const noexcept;
+    int indexOfInstrument(const std::string &name) const noexcept;
 
     /// Resolves a kit channel name to its index in `channels`, or -1.
-    int indexOfKitChannel (const std::string& name) const noexcept;
+    int indexOfKitChannel(const std::string &name) const noexcept;
 
-private:
-    static DrumKit loadFromArchive (const std::string& archivePath);
-    static DrumKit loadNativeGlorpKit (class GlorpKitReader& reader, const std::string& archivePath);
-    static DrumKit loadLegacyArchive (class GlorpKitReader& reader, const std::string& archivePath);
+  private:
+    static DrumKit loadFromArchive(const std::string &archivePath);
+    static DrumKit loadNativeGlorpKit(class GlorpKitReader &reader, const std::string &archivePath);
+    static DrumKit loadLegacyArchive(class GlorpKitReader &reader, const std::string &archivePath);
 
-    bool parseInstrument (Instrument& instrument, const XmlNode& node,
-                          const std::string& kitDir, std::string& error);
-    bool loadInstrumentSamples (Instrument& instrument, std::string& error);
-    bool resolveChannels (Instrument& instrument, std::string& error);
+    bool parseInstrument(Instrument &instrument, const XmlNode &node, const std::string &kitDir, std::string &error);
+    bool loadInstrumentSamples(Instrument &instrument, std::string &error);
+    bool resolveChannels(Instrument &instrument, std::string &error);
 };
 
 } // namespace glorp

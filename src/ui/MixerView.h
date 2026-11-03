@@ -17,31 +17,32 @@
 namespace glorp
 {
 
-class MixerView : public juce::Component,
-                  private juce::Timer
+class MixerView
+    : public juce::Component
+    , private juce::Timer
 {
-public:
-    explicit MixerView (PluginProcessor& processor);
+  public:
+    explicit MixerView(PluginProcessor &processor);
     ~MixerView() override;
 
-    void paint (juce::Graphics& g) override;
+    void paint(juce::Graphics &g) override;
     void resized() override;
-    void mouseDown (const juce::MouseEvent& e) override;
+    void mouseDown(const juce::MouseEvent &e) override;
 
     void refreshChannels();
-    void openChannelFX (int channelIndex);
+    void openChannelFX(int channelIndex);
     void openMasterFX();
-    void openBleedMatrix (int highlightMic = -1);
+    void openBleedMatrix(int highlightMic = -1);
     void toggleBleedMatrix();
-    void setBleedMatrixOpen (bool open);
+    void setBleedMatrixOpen(bool open);
     bool isBleedMatrixOpen() const noexcept { return bleedMatrixOpen; }
     void closePopups();
-    void setTheme (const Theme& newTheme);
+    void setTheme(const Theme &newTheme);
 
-private:
+  private:
     void timerCallback() override;
 
-    PluginProcessor& processor;
+    PluginProcessor &processor;
     Theme theme = Theme::sketch();
     bool bleedMatrixOpen = false;
 
@@ -50,14 +51,23 @@ private:
     //==========================================================================
     class HandButton : public juce::Button
     {
-    public:
-        HandButton (const juce::String& name, bool isToggle = false);
-        void paintButton (juce::Graphics& g, bool isHover, bool isDown) override;
-        void setActive (bool a) { active = a; repaint(); }
+      public:
+        HandButton(const juce::String &name, bool isToggle = false);
+        void paintButton(juce::Graphics &g, bool isHover, bool isDown) override;
+        void setActive(bool a)
+        {
+            active = a;
+            repaint();
+        }
         bool getActive() const noexcept { return active; }
-        void setTheme (const Theme& t) { theme = t; repaint(); }
-        juce::Colour activeColour = juce::Colour (0xfff1c40f);
-    private:
+        void setTheme(const Theme &t)
+        {
+            theme = t;
+            repaint();
+        }
+        juce::Colour activeColour = juce::Colour(0xfff1c40f);
+
+      private:
         bool isToggle_ = false;
         bool active = false;
         Theme theme = Theme::sketch();
@@ -68,26 +78,26 @@ private:
     //==========================================================================
     class ChannelFXPopup : public juce::Component
     {
-    public:
-        ChannelFXPopup (MixerView& owner, PluginProcessor& processor);
-        void openForChannel (int channelIndex);
+      public:
+        ChannelFXPopup(MixerView &owner, PluginProcessor &processor);
+        void openForChannel(int channelIndex);
         void close();
         bool isOpen() const noexcept { return isVisible(); }
-        void setTheme (const Theme& t);
+        void setTheme(const Theme &t);
 
-        void paint (juce::Graphics& g) override;
+        void paint(juce::Graphics &g) override;
         void resized() override;
-        void mouseDown (const juce::MouseEvent& e) override;
+        void mouseDown(const juce::MouseEvent &e) override;
 
-    private:
-        MixerView& owner;
-        PluginProcessor& processor;
+      private:
+        MixerView &owner;
+        PluginProcessor &processor;
         int currentChannel = -1;
         Theme theme = Theme::sketch();
 
-        HandButton closeBtn { "CLOSE" };
-        HandButton eqToggle { "EQ ON", true };
-        HandButton compToggle { "COMP ON", true };
+        HandButton closeBtn {"CLOSE"};
+        HandButton eqToggle {"EQ ON", true};
+        HandButton compToggle {"COMP ON", true};
 
         // EQ Knobs
         std::unique_ptr<Knob> eqLowGainKnob;
@@ -113,24 +123,24 @@ private:
     //==========================================================================
     class MasterFXPopup : public juce::Component
     {
-    public:
-        MasterFXPopup (MixerView& owner, PluginProcessor& processor);
+      public:
+        MasterFXPopup(MixerView &owner, PluginProcessor &processor);
         void open();
         void close();
         bool isOpen() const noexcept { return isVisible(); }
-        void setTheme (const Theme& t);
+        void setTheme(const Theme &t);
 
-        void paint (juce::Graphics& g) override;
+        void paint(juce::Graphics &g) override;
         void resized() override;
-        void mouseDown (const juce::MouseEvent& e) override;
+        void mouseDown(const juce::MouseEvent &e) override;
 
-    private:
-        MixerView& owner;
-        PluginProcessor& processor;
+      private:
+        MixerView &owner;
+        PluginProcessor &processor;
         Theme theme = Theme::sketch();
 
-        HandButton closeBtn { "CLOSE" };
-        HandButton limiterToggle { "LIMITER", true };
+        HandButton closeBtn {"CLOSE"};
+        HandButton limiterToggle {"LIMITER", true};
 
         std::unique_ptr<Knob> revReturnKnob;
         std::unique_ptr<Knob> revSizeKnob;
@@ -143,42 +153,42 @@ private:
     //==========================================================================
     class BleedMatrixPopup : public juce::Component
     {
-    public:
-        BleedMatrixPopup (MixerView& owner, PluginProcessor& processor);
-        void open (int highlightMic = -1);
+      public:
+        BleedMatrixPopup(MixerView &owner, PluginProcessor &processor);
+        void open(int highlightMic = -1);
         void close();
         bool isOpen() const noexcept { return isVisible(); }
         void updateFromState();
-        void setTheme (const Theme& t);
+        void setTheme(const Theme &t);
 
-        void paint (juce::Graphics& g) override;
+        void paint(juce::Graphics &g) override;
         void resized() override;
-        void mouseDown (const juce::MouseEvent& e) override;
-        void mouseDrag (const juce::MouseEvent& e) override;
-        void mouseUp (const juce::MouseEvent& e) override;
-        void mouseDoubleClick (const juce::MouseEvent& e) override;
-        void mouseMove (const juce::MouseEvent& e) override;
-        void mouseExit (const juce::MouseEvent& e) override;
-        void mouseWheelMove (const juce::MouseEvent& e, const juce::MouseWheelDetails& wheel) override;
+        void mouseDown(const juce::MouseEvent &e) override;
+        void mouseDrag(const juce::MouseEvent &e) override;
+        void mouseUp(const juce::MouseEvent &e) override;
+        void mouseDoubleClick(const juce::MouseEvent &e) override;
+        void mouseMove(const juce::MouseEvent &e) override;
+        void mouseExit(const juce::MouseEvent &e) override;
+        void mouseWheelMove(const juce::MouseEvent &e, const juce::MouseWheelDetails &wheel) override;
 
-    private:
-        MixerView& owner;
-        PluginProcessor& processor;
+      private:
+        MixerView &owner;
+        PluginProcessor &processor;
         Theme theme = Theme::sketch();
         int highlightedMicIndex = -1;
 
-        HandButton closeBtn { "CLOSE" };
+        HandButton closeBtn {"CLOSE"};
 
         // Presets
-        HandButton naturalBtn { "NATURAL" };
-        HandButton cleanBtn   { "CLEAN (DRY)" };
-        HandButton liveBtn    { "LIVE ROOM" };
-        HandButton ohOnlyBtn  { "OH ONLY" };
+        HandButton naturalBtn {"NATURAL"};
+        HandButton cleanBtn {"CLEAN (DRY)"};
+        HandButton liveBtn {"LIVE ROOM"};
+        HandButton ohOnlyBtn {"OH ONLY"};
 
         // Modes
-        HandButton hybridModeBtn   { "HYBRID ACOUSTIC", true };
-        HandButton recordedModeBtn { "RECORDED ONLY",   true };
-        HandButton disabledModeBtn { "MUTE BLEED",      true };
+        HandButton hybridModeBtn {"HYBRID ACOUSTIC", true};
+        HandButton recordedModeBtn {"RECORDED ONLY", true};
+        HandButton disabledModeBtn {"MUTE BLEED", true};
 
         std::unique_ptr<Knob> masterBleedKnob;
         std::unique_ptr<Knob> sympResonanceKnob;
@@ -206,9 +216,9 @@ private:
         int colWidth = 64;
         int headerColWidth = 100;
 
-        bool getCellAtPos (juce::Point<int> pos, int& outPiece, int& outMic) const;
-        bool getRowMuteAtPos (juce::Point<int> pos, int& outPiece) const;
-        bool getColMuteAtPos (juce::Point<int> pos, int& outMic) const;
+        bool getCellAtPos(juce::Point<int> pos, int &outPiece, int &outMic) const;
+        bool getRowMuteAtPos(juce::Point<int> pos, int &outPiece) const;
+        bool getColMuteAtPos(juce::Point<int> pos, int &outMic) const;
     };
 
     //==========================================================================
@@ -216,32 +226,32 @@ private:
     //==========================================================================
     class ChannelStripComponent : public juce::Component
     {
-    public:
-        ChannelStripComponent (MixerView& owner, PluginProcessor& processor, int channelIndex);
+      public:
+        ChannelStripComponent(MixerView &owner, PluginProcessor &processor, int channelIndex);
 
-        void paint (juce::Graphics& g) override;
+        void paint(juce::Graphics &g) override;
         void resized() override;
-        void mouseDown (const juce::MouseEvent& e) override;
-        void mouseDrag (const juce::MouseEvent& e) override;
-        void mouseDoubleClick (const juce::MouseEvent& e) override;
+        void mouseDown(const juce::MouseEvent &e) override;
+        void mouseDrag(const juce::MouseEvent &e) override;
+        void mouseDoubleClick(const juce::MouseEvent &e) override;
 
         int getChannelIndex() const noexcept { return channelIndex_; }
         void updateFromState();
         void repaintMeter();
-        void setTheme (const Theme& t);
+        void setTheme(const Theme &t);
 
-    private:
-        MixerView& owner;
-        PluginProcessor& processor;
+      private:
+        MixerView &owner;
+        PluginProcessor &processor;
         int channelIndex_ = 0;
         Theme theme = Theme::sketch();
 
-        HandButton phaseBtn { "0", true };
-        HandButton fxBtn    { "FX", true };
-        HandButton bleedBtn { "BLD" };
-        HandButton soloBtn  { "S", true };
-        HandButton muteBtn  { "M", true };
-        HandButton busBtn   { "M 1/2" };
+        HandButton phaseBtn {"0", true};
+        HandButton fxBtn {"FX", true};
+        HandButton bleedBtn {"BLD"};
+        HandButton soloBtn {"S", true};
+        HandButton muteBtn {"M", true};
+        HandButton busBtn {"M 1/2"};
 
         // Fader & Meter bounds
         juce::Rectangle<float> faderTrackBounds;
@@ -259,26 +269,26 @@ private:
     //==========================================================================
     class MasterStripComponent : public juce::Component
     {
-    public:
-        MasterStripComponent (MixerView& owner, PluginProcessor& processor);
+      public:
+        MasterStripComponent(MixerView &owner, PluginProcessor &processor);
 
-        void paint (juce::Graphics& g) override;
+        void paint(juce::Graphics &g) override;
         void resized() override;
-        void mouseDown (const juce::MouseEvent& e) override;
-        void mouseDrag (const juce::MouseEvent& e) override;
-        void mouseDoubleClick (const juce::MouseEvent& e) override;
+        void mouseDown(const juce::MouseEvent &e) override;
+        void mouseDrag(const juce::MouseEvent &e) override;
+        void mouseDoubleClick(const juce::MouseEvent &e) override;
 
         void updateFromState();
         void repaintMeter();
-        void setTheme (const Theme& t);
+        void setTheme(const Theme &t);
 
-    private:
-        MixerView& owner;
-        PluginProcessor& processor;
+      private:
+        MixerView &owner;
+        PluginProcessor &processor;
         Theme theme = Theme::sketch();
 
-        HandButton fxBtn { "REVERB FX" };
-        HandButton limiterBtn { "LIMITER", true };
+        HandButton fxBtn {"REVERB FX"};
+        HandButton limiterBtn {"LIMITER", true};
 
         juce::Rectangle<float> faderTrackBounds;
         juce::Rectangle<float> faderThumbBounds;
@@ -302,29 +312,29 @@ private:
     std::unique_ptr<MasterStripComponent> masterStrip;
 
     // Preset buttons
-    HandButton presetCleanBtn  { "CLEAN", false };
-    HandButton presetRockBtn   { "ROCK", false };
-    HandButton presetWarmBtn   { "WARM", false };
-    HandButton presetPunchBtn  { "PUNCH", false };
-    HandButton presetDryBtn    { "DRY", false };
-    HandButton savePresetBtn   { "SAVE .glorpmix" };
-    HandButton loadPresetBtn   { "LOAD..." };
+    HandButton presetCleanBtn {"CLEAN", false};
+    HandButton presetRockBtn {"ROCK", false};
+    HandButton presetWarmBtn {"WARM", false};
+    HandButton presetPunchBtn {"PUNCH", false};
+    HandButton presetDryBtn {"DRY", false};
+    HandButton savePresetBtn {"SAVE .glorpmix"};
+    HandButton loadPresetBtn {"LOAD..."};
 
     // Bleed Matrix Button
-    HandButton bleedMatrixBtn  { "BLEED MATRIX" };
+    HandButton bleedMatrixBtn {"BLEED MATRIX"};
 
     // FX Drawers & Popups
     std::unique_ptr<ChannelFXPopup> channelFXPopup;
     std::unique_ptr<MasterFXPopup> masterFXPopup;
     std::unique_ptr<BleedMatrixPopup> bleedMatrixPopup;
 
-    void applyPreset (int presetIndex);
+    void applyPreset(int presetIndex);
     void promptSavePreset();
     void promptLoadPreset();
 
-    juce::String activePresetName { "Default Clean" };
+    juce::String activePresetName {"Default Clean"};
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MixerView)
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MixerView)
 };
 
 } // namespace glorp

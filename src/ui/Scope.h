@@ -15,9 +15,9 @@
 
 #pragma once
 
-#include "Theme.h"
-#include "DrumKitView.h"
 #include <vector>
+#include "DrumKitView.h"
+#include "Theme.h"
 
 namespace glorp
 {
@@ -35,7 +35,7 @@ enum class ScopeLane
 
 struct ScopeHit
 {
-    ScopeLane lane { ScopeLane::etc };
+    ScopeLane lane {ScopeLane::etc};
     juce::String instrumentName;
     juce::String shortLabel;
     juce::Colour color;
@@ -45,33 +45,35 @@ struct ScopeHit
     double timeSeconds = 0.0;
 };
 
-class Scope : public juce::Component,
-              private juce::Timer
+class Scope
+    : public juce::Component
+    , private juce::Timer
 {
-public:
+  public:
     Scope();
     ~Scope() override;
 
     /// Called when an instrument is hit from the audio engine or UI click
-    void hitReceived (const juce::String& instrumentName, KitPiece piece, int note, float velocity, double timestampSeconds = 0.0);
+    void hitReceived(
+        const juce::String &instrumentName, KitPiece piece, int note, float velocity, double timestampSeconds = 0.0);
 
     /// Fallback for raw MIDI note input
-    void noteReceived (int note, int velocity);
+    void noteReceived(int note, int velocity);
 
     /// Controller input (e.g. hi-hat pedal CC4)
-    void controllerReceived (int cc, int value);
+    void controllerReceived(int cc, int value);
 
-    void paint (juce::Graphics&) override;
+    void paint(juce::Graphics &) override;
     void resized() override;
-    void setTheme (const Theme& t);
+    void setTheme(const Theme &t);
 
     bool isBackgroundCacheValid() const noexcept { return staticBgImage.isValid(); }
 
-    static ScopeLane laneForPieceAndName (KitPiece piece, const juce::String& name);
-    static juce::Colour colorForInstrument (KitPiece piece, const juce::String& name);
-    static juce::String shortLabelForInstrument (KitPiece piece, const juce::String& name);
+    static ScopeLane laneForPieceAndName(KitPiece piece, const juce::String &name);
+    static juce::Colour colorForInstrument(KitPiece piece, const juce::String &name);
+    static juce::String shortLabelForInstrument(KitPiece piece, const juce::String &name);
 
-private:
+  private:
     void timerCallback() override;
     void rebuildBackgroundCache();
 
@@ -104,7 +106,7 @@ private:
 
     Theme theme = Theme::sketch();
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Scope)
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Scope)
 };
 
 } // namespace glorp

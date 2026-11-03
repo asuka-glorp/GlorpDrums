@@ -19,7 +19,7 @@ namespace glorp
 
 class TempoDetector
 {
-public:
+  public:
     struct Result
     {
         double bpm = 120.0;
@@ -27,75 +27,79 @@ public:
         double firstDownbeatSeconds = 0.0; // Offset of first strong transient
         int startBeat = 1;                 // Beat within bar where music starts (1, 2, 3, 4)
         bool isValid = false;
-        std::vector<float> onsetEnvelope;  // Subsampled novelty curve for UI beat markers
+        std::vector<float> onsetEnvelope; // Subsampled novelty curve for UI beat markers
     };
 
     /// Synchronously detect tempo from an in-memory audio buffer.
-    static Result detectTempo (const juce::AudioBuffer<float>& buffer, double sampleRate);
+    static Result detectTempo(const juce::AudioBuffer<float> &buffer, double sampleRate);
 
     /// Synchronously detect tempo within a specific time slice [startSec, startSec + durationSec].
-    static Result detectTempoRange (const juce::AudioBuffer<float>& buffer, double sampleRate,
-                                    double startSec, double durationSec);
+    static Result
+    detectTempoRange(const juce::AudioBuffer<float> &buffer, double sampleRate, double startSec, double durationSec);
 
     /// Asynchronous worker thread that analyzes backing tracks without blocking UI.
     class Worker : public juce::Thread
     {
-    public:
+      public:
         Worker();
         ~Worker() override;
 
-        void startDetection (juce::AudioBuffer<float> buffer, double sampleRate,
-                             std::function<void (const Result&)> callback);
+        void startDetection(juce::AudioBuffer<float> buffer,
+                            double sampleRate,
+                            std::function<void(const Result &)> callback);
 
-        void startDetectionRange (juce::AudioBuffer<float> buffer, double sampleRate,
-                                  double startSec, double durationSec,
-                                  std::function<void (const Result&)> callback);
+        void startDetectionRange(juce::AudioBuffer<float> buffer,
+                                 double sampleRate,
+                                 double startSec,
+                                 double durationSec,
+                                 std::function<void(const Result &)> callback);
 
         void cancel();
         bool isAnalyzing() const noexcept { return isBusy.load(); }
 
         void run() override;
 
-    private:
+      private:
         juce::AudioBuffer<float> analysisBuffer;
         double inputSampleRate = 44100.0;
         double rangeStartSec = 0.0;
         double rangeDurationSec = 0.0;
         bool useRange = false;
-        std::function<void (const Result&)> onComplete;
-        std::atomic<bool> isBusy { false };
-        std::atomic<bool> shouldCancel { false };
+        std::function<void(const Result &)> onComplete;
+        std::atomic<bool> isBusy {false};
+        std::atomic<bool> shouldCancel {false};
     };
 
     static constexpr double analysisSampleRate = 22050.0;
     static constexpr int fftSize = 512;
     static constexpr int hopSize = 128;
 
-private:
+  private:
     struct NoveltyData
     {
         std::vector<float> fullBand;
         std::vector<float> lowBand;
     };
 
-    static std::vector<float> downsampleToMono (const juce::AudioBuffer<float>& buffer,
-                                                double inputSampleRate, double targetSampleRate);
+    static std::vector<float>
+    downsampleToMono(const juce::AudioBuffer<float> &buffer, double inputSampleRate, double targetSampleRate);
 
-    static NoveltyData computeMultiBandNovelty (const std::vector<float>& monoAudio,
-                                                double sampleRate, int frameSize, int hopSize);
+    static NoveltyData
+    computeMultiBandNovelty(const std::vector<float> &monoAudio, double sampleRate, int frameSize, int hopSize);
 
-    static std::vector<float> computeSpectralFlux (const std::vector<float>& monoAudio,
-                                                   double sampleRate, int frameSize, int hopSize);
+    static std::vector<float>
+    computeSpectralFlux(const std::vector<float> &monoAudio, double sampleRate, int frameSize, int hopSize);
 
-    static double estimateBpmAutocorrelation (const std::vector<float>& novelty,
-                                              double framesPerSec, float& outConfidence);
+    static double
+    estimateBpmAutocorrelation(const std::vector<float> &novelty, double framesPerSec, float &outConfidence);
 
-    static double refineBpmPulseTrain (const std::vector<float>& novelty,
-                                       double framesPerSec, double coarseBpm, float& ioConfidence);
+    static double
+    refineBpmPulseTrain(const std::vector<float> &novelty, double framesPerSec, double coarseBpm, float &ioConfidence);
 
-    static double findFirstDownbeat (const std::vector<float>& novelty,
-                                     const std::vector<float>& lowBandNovelty,
-                                     double framesPerSec, double bpm);
+    static double findFirstDownbeat(const std::vector<float> &novelty,
+                                    const std::vector<float> &lowBandNovelty,
+                                    double framesPerSec,
+                                    double bpm);
 };
 
 } // namespace glorp

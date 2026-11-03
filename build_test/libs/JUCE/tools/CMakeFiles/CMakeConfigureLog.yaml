@@ -2013,3 +2013,39 @@ events:
         
       exitCode: 0
 ...
+
+---
+events:
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "extras/Build/CMake/JUCECheckAtomic.cmake:73 (try_compile)"
+      - "extras/Build/CMake/JUCECheckAtomic.cmake:128 (_juce_create_atomic_target)"
+      - "extras/Build/CMake/JUCEModuleSupport.cmake:57 (include)"
+      - "CMakeLists.txt:50 (include)"
+    directories:
+      source: "/home/servandoc/Documents/DEV/GlorpDrums/build_test/libs/JUCE/tools/check_atomic_dir_FkALHkbGBod59CEt/CMakeFiles/CMakeTmp"
+      binary: "/home/servandoc/Documents/DEV/GlorpDrums/build_test/libs/JUCE/tools/check_atomic_dir_FkALHkbGBod59CEt/CMakeFiles/CMakeTmp"
+    cmakeVariables:
+      CMAKE_CXX_FLAGS: ""
+      CMAKE_CXX_FLAGS_DEBUG: "-g"
+      CMAKE_CXX_STDLIB_MODULES_JSON: ""
+      CMAKE_EXE_LINKER_FLAGS: ""
+    buildResult:
+      variable: "compile_result"
+      cached: true
+      stdout: |
+        Change Dir: '/home/servandoc/Documents/DEV/GlorpDrums/build_test/libs/JUCE/tools/check_atomic_dir_FkALHkbGBod59CEt/CMakeFiles/CMakeTmp'
+        
+        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/gmake -f Makefile cmTC_52488/fast
+        /usr/bin/gmake  -f CMakeFiles/cmTC_52488.dir/build.make CMakeFiles/cmTC_52488.dir/build
+        gmake[1]: Entering directory '/home/servandoc/Documents/DEV/GlorpDrums/build_test/libs/JUCE/tools/check_atomic_dir_FkALHkbGBod59CEt/CMakeFiles/CMakeTmp'
+        Building CXX object CMakeFiles/cmTC_52488.dir/check_atomic_yyRR3ydNnX6AWtth.cpp.o
+        /usr/bin/c++   -std=c++17 -o CMakeFiles/cmTC_52488.dir/check_atomic_yyRR3ydNnX6AWtth.cpp.o -c /home/servandoc/Documents/DEV/GlorpDrums/build_test/libs/JUCE/tools/check_atomic_yyRR3ydNnX6AWtth.cpp
+        Linking CXX executable cmTC_52488
+        /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_52488.dir/link.txt --verbose=1
+        /usr/bin/c++ CMakeFiles/cmTC_52488.dir/check_atomic_yyRR3ydNnX6AWtth.cpp.o -o cmTC_52488
+        gmake[1]: Leaving directory '/home/servandoc/Documents/DEV/GlorpDrums/build_test/libs/JUCE/tools/check_atomic_dir_FkALHkbGBod59CEt/CMakeFiles/CMakeTmp'
+        
+      exitCode: 0
+...

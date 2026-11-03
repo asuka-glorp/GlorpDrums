@@ -25,11 +25,11 @@ struct Theme
     juce::Colour background;
     juce::Colour panel;
     juce::Colour panelEdge;
-    juce::Colour ink;              ///< outlines and text
-    juce::Colour inkSoft;          ///< secondary text and tick marks
-    juce::Colour accent;           ///< highlights, active state, learned mapping
+    juce::Colour ink;     ///< outlines and text
+    juce::Colour inkSoft; ///< secondary text and tick marks
+    juce::Colour accent;  ///< highlights, active state, learned mapping
     juce::Colour warning;
-    juce::Colour trough;           ///< recessed wells, fader slots, meters, graph interior
+    juce::Colour trough; ///< recessed wells, fader slots, meters, graph interior
 
     // -- drum kit art ------------------------------------------------------
     juce::Colour shell;
@@ -43,18 +43,18 @@ struct Theme
     {
         Theme t;
         t.isDark = false;
-        t.background = juce::Colour (0xffe2e5e2);
-        t.panel = juce::Colour (0xfffcfdfc);
-        t.panelEdge = juce::Colour (0xff111215);
-        t.ink = juce::Colour (0xff101114);
-        t.inkSoft = juce::Colour (0xff4b4e54);
-        t.accent = juce::Colour (0xffea8c16);
-        t.warning = juce::Colour (0xffd03020);
-        t.trough = juce::Colour (0xffede8dc);
-        t.shell = juce::Colour (0xfff9fafb);
-        t.shellShade = juce::Colour (0xffcbd0d6);
-        t.cymbal = juce::Colour (0xfff4f5f6);
-        t.head = juce::Colour (0xffffffff);
+        t.background = juce::Colour(0xffe2e5e2);
+        t.panel = juce::Colour(0xfffcfdfc);
+        t.panelEdge = juce::Colour(0xff111215);
+        t.ink = juce::Colour(0xff101114);
+        t.inkSoft = juce::Colour(0xff4b4e54);
+        t.accent = juce::Colour(0xffea8c16);
+        t.warning = juce::Colour(0xffd03020);
+        t.trough = juce::Colour(0xffede8dc);
+        t.shell = juce::Colour(0xfff9fafb);
+        t.shellShade = juce::Colour(0xffcbd0d6);
+        t.cymbal = juce::Colour(0xfff4f5f6);
+        t.head = juce::Colour(0xffffffff);
         return t;
     }
 
@@ -62,29 +62,29 @@ struct Theme
     {
         Theme t;
         t.isDark = true;
-        t.background = juce::Colour (0xff161719);
-        t.panel = juce::Colour (0xff1c1d21);
-        t.panelEdge = juce::Colour (0xffffffff);
-        t.ink = juce::Colour (0xffffffff);
-        t.inkSoft = juce::Colour (0xffb0b4ba);
-        t.accent = juce::Colour (0xffea8c16);
-        t.warning = juce::Colour (0xffe8a33f);
-        t.trough = juce::Colour (0xff121316);
-        t.shell = juce::Colour (0xff3a3a41);
-        t.shellShade = juce::Colour (0xff2a2a30);
-        t.cymbal = juce::Colour (0xff9c8f52);
-        t.head = juce::Colour (0xff45454d);
+        t.background = juce::Colour(0xff161719);
+        t.panel = juce::Colour(0xff1c1d21);
+        t.panelEdge = juce::Colour(0xffffffff);
+        t.ink = juce::Colour(0xffffffff);
+        t.inkSoft = juce::Colour(0xffb0b4ba);
+        t.accent = juce::Colour(0xffea8c16);
+        t.warning = juce::Colour(0xffe8a33f);
+        t.trough = juce::Colour(0xff121316);
+        t.shell = juce::Colour(0xff3a3a41);
+        t.shellShade = juce::Colour(0xff2a2a30);
+        t.cymbal = juce::Colour(0xff9c8f52);
+        t.head = juce::Colour(0xff45454d);
         return t;
     }
 
-    static Theme byIndex (int index) noexcept { return index == 1 ? dark() : sketch(); }
+    static Theme byIndex(int index) noexcept { return index == 1 ? dark() : sketch(); }
 };
 
 //==============================================================================
 /** Loads one of the bundled fonts. */
 inline juce::Typeface::Ptr uiTypeface()
 {
-    static const juce::Typeface::Ptr face = juce::Typeface::createSystemTypefaceFor (
+    static const juce::Typeface::Ptr face = juce::Typeface::createSystemTypefaceFor(
         GlorpAssets::PatrickHandRegular_ttf, GlorpAssets::PatrickHandRegular_ttfSize);
 
     return face;
@@ -92,58 +92,57 @@ inline juce::Typeface::Ptr uiTypeface()
 
 inline juce::Typeface::Ptr displayTypeface()
 {
-    static const juce::Typeface::Ptr face = juce::Typeface::createSystemTypefaceFor (
+    static const juce::Typeface::Ptr face = juce::Typeface::createSystemTypefaceFor(
         GlorpAssets::LilitaOneRegular_ttf, GlorpAssets::LilitaOneRegular_ttfSize);
 
     return face;
 }
 
-inline juce::Font uiFont (float height)
+inline juce::Font uiFont(float height)
 {
-    const auto size = juce::jmax (9.0f, height);
+    const auto size = juce::jmax(9.0f, height);
 
     if (auto face = uiTypeface())
     {
-        juce::Font font (face);
-        font.setHeight (size);
+        juce::Font font(face);
+        font.setHeight(size);
         return font;
     }
 
-    return juce::Font (size);
+    return juce::Font(size);
 }
 
-inline juce::Font displayFont (float height)
+inline juce::Font displayFont(float height)
 {
-    const auto size = juce::jmax (11.0f, height);
+    const auto size = juce::jmax(11.0f, height);
 
     if (auto face = displayTypeface())
     {
-        juce::Font font (face);
-        font.setHeight (size);
+        juce::Font font(face);
+        font.setHeight(size);
         return font;
     }
 
-    return juce::Font (size);
+    return juce::Font(size);
 }
 
 /// The bundled logo. Parsed fresh each call, because it is only ever needed once
 /// per editor and an SVG parse is not worth caching across plugin instances.
 inline std::unique_ptr<juce::Drawable> logoDrawable()
 {
-    auto root = juce::parseXML (juce::String::fromUTF8 (GlorpAssets::logo_svg,
-                                                        GlorpAssets::logo_svgSize));
+    auto root = juce::parseXML(juce::String::fromUTF8(GlorpAssets::logo_svg, GlorpAssets::logo_svgSize));
 
     if (root != nullptr)
-        return juce::Drawable::createFromSVG (*root);
+        return juce::Drawable::createFromSVG(*root);
 
     return {};
 }
 
-inline juce::Image imageFromMemory (const char* data, int size)
+inline juce::Image imageFromMemory(const char *data, int size)
 {
     if (data == nullptr || size <= 0)
         return {};
-    return juce::ImageFileFormat::loadFrom (data, static_cast<size_t> (size));
+    return juce::ImageFileFormat::loadFrom(data, static_cast<size_t>(size));
 }
 
 //==============================================================================
@@ -152,16 +151,16 @@ inline juce::Image imageFromMemory (const char* data, int size)
     plugin, so every outline gets a deterministic per-edge jitter. Deterministic
     matters: the same control must not shimmer when redrawn.
 */
-inline void drawSketchRect (juce::Graphics& g, juce::Rectangle<float> r, const juce::Colour& colour,
-                            float thickness = 1.6f, unsigned seed = 0)
+inline void drawSketchRect(
+    juce::Graphics &g, juce::Rectangle<float> r, const juce::Colour &colour, float thickness = 1.6f, unsigned seed = 0)
 {
-    auto jitter = [] (unsigned s, int index, float amount)
+    auto jitter = [](unsigned s, int index, float amount)
     {
         // Cheap integer hash, stable for a given seed and edge.
-        auto h = static_cast<unsigned> (index) * 374761393u + s * 668265263u + 1442695040u;
+        auto h = static_cast<unsigned>(index) * 374761393u + s * 668265263u + 1442695040u;
         h = (h ^ (h >> 13)) * 1274126177u;
         h = h ^ (h >> 16);
-        return (static_cast<float> (h & 0xFFFF) / 32767.5f - 1.0f) * amount;
+        return (static_cast<float>(h & 0xFFFF) / 32767.5f - 1.0f) * amount;
     };
 
     juce::Path path;
@@ -170,14 +169,18 @@ inline void drawSketchRect (juce::Graphics& g, juce::Rectangle<float> r, const j
 
     for (int edge = 0; edge < 4; ++edge)
     {
-        const auto from = [&] (float t)
+        const auto from = [&](float t)
         {
             switch (edge)
             {
-                case 0: return r.getX() + t * r.getWidth();
-                case 1: return r.getY() + t * r.getHeight();
-                case 2: return r.getRight() - t * r.getWidth();
-                default: return r.getBottom() - t * r.getHeight();
+                case 0:
+                    return r.getX() + t * r.getWidth();
+                case 1:
+                    return r.getY() + t * r.getHeight();
+                case 2:
+                    return r.getRight() - t * r.getWidth();
+                default:
+                    return r.getBottom() - t * r.getHeight();
             }
         };
 
@@ -185,29 +188,28 @@ inline void drawSketchRect (juce::Graphics& g, juce::Rectangle<float> r, const j
 
         for (int s = 0; s <= segmentsPerEdge; ++s)
         {
-            const auto t = static_cast<float> (s) / segmentsPerEdge;
-            const auto base = from (t);
-            const auto nudge = jitter (seed, edge * 8 + s, std::min (1.4f, r.getWidth() * 0.012f));
+            const auto t = static_cast<float>(s) / segmentsPerEdge;
+            const auto base = from(t);
+            const auto nudge = jitter(seed, edge * 8 + s, std::min(1.4f, r.getWidth() * 0.012f));
 
-            const juce::Point<float> point = horizontal
-                ? juce::Point<float> (base, r.getY() + (edge == 0 ? 0.0f : r.getHeight()) + nudge)
-                : juce::Point<float> (r.getX() + (edge == 3 ? 0.0f : r.getWidth()) + nudge, base);
+            const juce::Point<float> point =
+                horizontal ? juce::Point<float>(base, r.getY() + (edge == 0 ? 0.0f : r.getHeight()) + nudge)
+                           : juce::Point<float>(r.getX() + (edge == 3 ? 0.0f : r.getWidth()) + nudge, base);
 
             if (edge == 0 && s == 0)
-                path.startNewSubPath (point);
+                path.startNewSubPath(point);
             else
-                path.lineTo (point);
+                path.lineTo(point);
         }
 
         travelled += horizontal ? r.getWidth() : r.getHeight();
-        juce::ignoreUnused (travelled);
+        juce::ignoreUnused(travelled);
     }
 
     path.closeSubPath();
 
-    g.setColour (colour);
-    g.strokePath (path, juce::PathStrokeType (thickness, juce::PathStrokeType::curved,
-                                              juce::PathStrokeType::rounded));
+    g.setColour(colour);
+    g.strokePath(path, juce::PathStrokeType(thickness, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
 }
 
 } // namespace glorp

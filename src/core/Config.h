@@ -98,14 +98,14 @@ constexpr int MAX_KIT_CHANNELS = 32;
 /// Semi-Open:   0.20 - 0.45
 /// Open Mid:    0.45 - 0.75
 /// Full Open:   0.75 - 1.00
-constexpr float HH_CLOSED_MAX      = 0.20f;
-constexpr float HH_SEMI_OPEN_MAX   = 0.45f;
-constexpr float HH_OPEN_MID_MAX    = 0.75f;
-constexpr float HH_FULL_OPEN_MIN   = 0.75f;
+constexpr float HH_CLOSED_MAX = 0.20f;
+constexpr float HH_SEMI_OPEN_MAX = 0.45f;
+constexpr float HH_OPEN_MID_MAX = 0.75f;
+constexpr float HH_FULL_OPEN_MIN = 0.75f;
 
 /// Foot chick detection: pedal speed threshold (CC/sec) and time window (ms).
 constexpr float HH_CHICK_SPEED_THRESHOLD = 0.40f;
-constexpr int   HH_CHICK_TIME_WINDOW_MS  = 45;
+constexpr int HH_CHICK_TIME_WINDOW_MS = 45;
 
 /// Cymbal choke fade time (ms) - C^1 half-cosine window for click-free choking.
 constexpr float CYMBAL_CHOKE_FADE_MS = 15.0f;
@@ -124,7 +124,7 @@ constexpr float MAX_WAVEFORM_ZOOM = 32.0f;
 constexpr float MIN_WAVEFORM_ZOOM = 1.0f;
 
 /// Default editor dimensions (pixels).
-constexpr int DEFAULT_EDITOR_WIDTH  = 1180;
+constexpr int DEFAULT_EDITOR_WIDTH = 1180;
 constexpr int DEFAULT_EDITOR_HEIGHT = 860;
 
 /// Maximum recent kits to remember in FILE menu.

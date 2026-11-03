@@ -2117,3 +2117,40 @@ events:
         
       exitCode: 0
 ...
+
+---
+events:
+  -
+    kind: "try_compile-v1"
+    backtrace:
+      - "libs/JUCE/extras/Build/CMake/JUCECheckAtomic.cmake:73 (try_compile)"
+      - "libs/JUCE/extras/Build/CMake/JUCECheckAtomic.cmake:128 (_juce_create_atomic_target)"
+      - "libs/JUCE/extras/Build/CMake/JUCEModuleSupport.cmake:57 (include)"
+      - "libs/JUCE/CMakeLists.txt:50 (include)"
+    directories:
+      source: "/home/servandoc/Documents/DEV/GlorpDrums/build_test/libs/JUCE/check_atomic_dir_PKAh1WKE8I4bejTM/CMakeFiles/CMakeTmp"
+      binary: "/home/servandoc/Documents/DEV/GlorpDrums/build_test/libs/JUCE/check_atomic_dir_PKAh1WKE8I4bejTM/CMakeFiles/CMakeTmp"
+    cmakeVariables:
+      CMAKE_CXX_FLAGS: ""
+      CMAKE_CXX_FLAGS_DEBUG: "-g"
+      CMAKE_CXX_STDLIB_MODULES_JSON: ""
+      CMAKE_EXE_LINKER_FLAGS: ""
+      CMAKE_POSITION_INDEPENDENT_CODE: "ON"
+    buildResult:
+      variable: "compile_result"
+      cached: true
+      stdout: |
+        Change Dir: '/home/servandoc/Documents/DEV/GlorpDrums/build_test/libs/JUCE/check_atomic_dir_PKAh1WKE8I4bejTM/CMakeFiles/CMakeTmp'
+        
+        Run Build Command(s): /usr/bin/cmake -E env VERBOSE=1 /usr/bin/gmake -f Makefile cmTC_ca5d4/fast
+        /usr/bin/gmake  -f CMakeFiles/cmTC_ca5d4.dir/build.make CMakeFiles/cmTC_ca5d4.dir/build
+        gmake[1]: Entering directory '/home/servandoc/Documents/DEV/GlorpDrums/build_test/libs/JUCE/check_atomic_dir_PKAh1WKE8I4bejTM/CMakeFiles/CMakeTmp'
+        Building CXX object CMakeFiles/cmTC_ca5d4.dir/check_atomic_VxfLZPtUOAfdVtcP.cpp.o
+        /usr/bin/c++   -std=c++17 -fPIE -o CMakeFiles/cmTC_ca5d4.dir/check_atomic_VxfLZPtUOAfdVtcP.cpp.o -c /home/servandoc/Documents/DEV/GlorpDrums/build_test/libs/JUCE/check_atomic_VxfLZPtUOAfdVtcP.cpp
+        Linking CXX executable cmTC_ca5d4
+        /usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_ca5d4.dir/link.txt --verbose=1
+        /usr/bin/c++ CMakeFiles/cmTC_ca5d4.dir/check_atomic_VxfLZPtUOAfdVtcP.cpp.o -o cmTC_ca5d4
+        gmake[1]: Leaving directory '/home/servandoc/Documents/DEV/GlorpDrums/build_test/libs/JUCE/check_atomic_dir_PKAh1WKE8I4bejTM/CMakeFiles/CMakeTmp'
+        
+      exitCode: 0
+...
