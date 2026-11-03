@@ -16,6 +16,7 @@ permissions:
 
 jobs:
   build:
+    name: Build (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -23,7 +24,7 @@ jobs:
         os: [ubuntu-22.04, ubuntu-24.04, windows-latest]
         include:
           - os: ubuntu-22.04
-            cmake_args: -DGLORP_BUILD_VST3=ON -DGLORP_BUILD_LV2=ON -DGLORP_BUILD_STANDALONE=ON
+            cmake_args: -DGLORP_BUILD_VST3=ON -DGLORP_BUILD_LV2=ON -DGLORP_BUILD_STANDALONE=ON -DGLORP_BUILD_KIT_EDITOR=ON
             staging_dirs: |
               mkdir -p "${RELEASE_STAGING}/kits"
               mkdir -p "${RELEASE_STAGING}/VST3"
@@ -37,19 +38,15 @@ jobs:
             copy_editor: |
               cp build/GlorpKitEditor_artefacts/Release/GlorpKitEditor "${RELEASE_STAGING}/GlorpKit Studio/"
               chmod +x "${RELEASE_STAGING}/GlorpKit Studio/GlorpKitEditor"
-            package_name: "GlorpDrums-${{ matrix.os }}.tar.gz"
-            package_contents: |
+            package_command: |
               tar czf build/dist/GlorpDrums-${{ matrix.os }}.tar.gz -C "${RELEASE_STAGING}" \
                 kits \
                 LV2 \
                 VST3 \
                 Standalone \
                 "GlorpKit Studio"
-            upload_files: |
-              build/dist/GlorpDrums-${{ matrix.os }}.tar.gz
-              build/dist/GlorpDemoKit.tar.gz
           - os: ubuntu-24.04
-            cmake_args: -DGLORP_BUILD_VST3=ON -DGLORP_BUILD_LV2=ON -DGLORP_BUILD_STANDALONE=ON
+            cmake_args: -DGLORP_BUILD_VST3=ON -DGLORP_BUILD_LV2=ON -DGLORP_BUILD_STANDALONE=ON -DGLORP_BUILD_KIT_EDITOR=ON
             staging_dirs: |
               mkdir -p "${RELEASE_STAGING}/kits"
               mkdir -p "${RELEASE_STAGING}/VST3"
@@ -63,17 +60,13 @@ jobs:
             copy_editor: |
               cp build/GlorpKitEditor_artefacts/Release/GlorpKitEditor "${RELEASE_STAGING}/GlorpKit Studio/"
               chmod +x "${RELEASE_STAGING}/GlorpKit Studio/GlorpKitEditor"
-            package_name: "GlorpDrums-${{ matrix.os }}.tar.gz"
-            package_contents: |
+            package_command: |
               tar czf build/dist/GlorpDrums-${{ matrix.os }}.tar.gz -C "${RELEASE_STAGING}" \
                 kits \
                 LV2 \
                 VST3 \
                 Standalone \
                 "GlorpKit Studio"
-            upload_files: |
-              build/dist/GlorpDrums-${{ matrix.os }}.tar.gz
-              build/dist/GlorpDemoKit.tar.gz
           - os: windows-latest
             cmake_args: -DGLORP_BUILD_VST3=ON -DGLORP_BUILD_STANDALONE=ON -DGLORP_BUILD_KIT_EDITOR=ON
             staging_dirs: |
@@ -86,16 +79,12 @@ jobs:
               cp build/GlorpDrums_artefacts/Release/Standalone/GlorpDrums.exe "${RELEASE_STAGING}/Standalone/"
             copy_editor: |
               cp build/GlorpKitEditor_artefacts/Release/GlorpKitEditor.exe "${RELEASE_STAGING}/GlorpKit Studio/"
-            package_name: "GlorpDrums-${{ matrix.os }}.zip"
-            package_contents: |
+            package_command: |
               cd "${RELEASE_STAGING}" && 7z a -tzip "../dist/GlorpDrums-${{ matrix.os }}.zip" \
                 kits \
                 VST3 \
                 Standalone \
-                "GlorpKit Studio"
-            upload_files: |
-              build/dist/GlorpDrums-${{ matrix.os }}.zip
-              build/dist/GlorpDemoKit.tar.gz
+                "GlorpKit Studio" && cd -
 
     steps:
       - uses: actions/checkout@v4
@@ -124,11 +113,6 @@ jobs:
             libxrender-dev \
             libcurl4-openssl-dev \
             libjack-jackd2-dev
-
-      - name: Install 7zip (Windows)
-        if: runner.os == 'Windows'
-        run: choco install 7zip --no-progress
-        shell: bash
 
       - name: Setup ccache
         uses: hendrikmuhs/ccache-action@v1.2
@@ -161,7 +145,7 @@ jobs:
           rm -rf "${RELEASE_STAGING}"
           ${{ matrix.staging_dirs }}
 
-          # 1. Copy default demo kit (.glorpkit)
+          # 1. Copy default demo kit (.glorpkit) into staging
           if [ -f "test/kits/GlorpDemoKit.glorpkit" ]; then
             cp "test/kits/GlorpDemoKit.glorpkit" "${RELEASE_STAGING}/kits/"
           fi
@@ -177,20 +161,54 @@ jobs:
 
           # 4. Package standalone demo kit archive
           mkdir -p build/dist
-          if [ -f "test/kits/GlorpDemoKit.glorpkit" ]; then
-            tar czf build/dist/GlorpDemoKit.tar.gz -C test/kits GlorpDemoKit.glorpkit
-          else
-            tar czf build/dist/GlorpDemoKit.tar.gz -C test/kits GlorpDemoKit
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            if [ -f "test/kits/GlorpDemoKit.glorpkit" ]; then
+              7z a -tzip build/dist/GlorpDemoKit.zip ./test/kits/GlorpDemoKit.glorpkit
+            elif [ -d "test/kits/GlorpDemoKit" ]; then
+              cd test/kits && 7z a -tzip ../../build/dist/GlorpDemoKit.zip GlorpDemoKit && cd -
+            fi
+          elif [ "${{ matrix.os }}" = "ubuntu-24.04" ]; then
+            if [ -f "test/kits/GlorpDemoKit.glorpkit" ]; then
+              tar czf build/dist/GlorpDemoKit.tar.gz -C test/kits GlorpDemoKit.glorpkit
+            elif [ -d "test/kits/GlorpDemoKit" ]; then
+              tar czf build/dist/GlorpDemoKit.tar.gz -C test/kits GlorpDemoKit
+            fi
           fi
 
           # 5. Package main release bundle
-          ${{ matrix.package_contents }}
+          ${{ matrix.package_command }}
+        shell: bash
 
-      - name: Upload release asset
+      - name: Upload build dist artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-dist-${{ matrix.os }}
+          path: build/dist/*
+          if-no-files-found: error
+
+  publish:
+    name: Publish Release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download all release artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: 'release-dist-*'
+          path: dist
+          merge-multiple: true
+
+      - name: Display downloaded release assets
+        run: ls -la dist/
+
+      - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ inputs.tag_name || github.ref_name }}
-          files: ${{ matrix.upload_files }}
+          files: dist/*
+          make_latest: true
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

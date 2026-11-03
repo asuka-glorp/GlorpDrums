@@ -1,6 +1,6 @@
 # GlorpDrums
 
-**GlorpDrums** is a sample-based acoustic drum plugin and standalone application built with JUCE and modern C++20 for Linux musicians (with Windows and macOS ports on the roadmap). Designed to serve as the definitive open-source alternative to commercial drum samplers, GlorpDrums delivers zero-copy sample playback, multi-zone articulations, comprehensive e-drum calibration, per-instrument sound shaping, and multi-channel stem routing for professional music production.
+**GlorpDrums** is a sample-based acoustic drum plugin and standalone application built with JUCE and modern C++20 for Linux and Windows musicians (with macOS port on the roadmap). Designed to serve as the definitive open-source alternative to commercial drum samplers, GlorpDrums delivers zero-copy sample playback, multi-zone articulations, comprehensive e-drum calibration, per-instrument sound shaping, and multi-channel stem routing for professional music production.
 
 ![GlorpDrums Dark Theme Interface](docs/dark_kit_view.png)
 
@@ -21,6 +21,20 @@
 >
 > 🥁 **E-Drum Testers Needed!**  
 > I do not currently own a physical electronic drum kit, so hardware features (continuous CC#4 hi-hat pedal tracking, velocity response curves, and cymbal chokes) have been developed and tested using MIDI simulations and virtual controllers. If you own an e-drum kit (Roland, Alesis, Yamaha, Efnote, Millenium, etc.), I would love for you to test GlorpDrums with your physical kit and share your real-world feedback, trigger responsiveness, and mapping suggestions!
+
+---
+
+## 🚀 Download Prebuilt Releases (Linux & Windows)
+
+Prebuilt portable release bundles are automatically compiled, tested, and published on GitHub Releases for every version:
+
+👉 **[Download Latest Release from GitHub](https://github.com/asuka-glorp/GlorpDrums/releases/latest)**
+
+| Platform | Download Package | Included Formats & Tools |
+| :--- | :--- | :--- |
+| **Windows 10 / 11** (64-bit) | `GlorpDrums-windows-latest.zip` | • **VST3**: `VST3/GlorpDrums.vst3` (64-bit DAW plugin bundle)<br>• **Standalone**: `Standalone/GlorpDrums.exe` (WASAPI/ASIO host)<br>• **GlorpKit Studio**: `GlorpKit Studio/GlorpKitEditor.exe` (kit creator)<br>• **Starter Kit**: `kits/GlorpDemoKit.glorpkit` |
+| **Linux (Ubuntu 24.04 / Modern)** | `GlorpDrums-ubuntu-24.04.tar.gz` | • **VST3**: `VST3/GlorpDrums.vst3`<br>• **LV2**: `LV2/GlorpDrums.lv2`<br>• **Standalone**: `Standalone/GlorpDrums` (ALSA/JACK/PipeWire)<br>• **GlorpKit Studio**: `GlorpKit Studio/GlorpKitEditor`<br>• **Starter Kit**: `kits/GlorpDemoKit.glorpkit` |
+| **Linux (Ubuntu 22.04 / LTS)** | `GlorpDrums-ubuntu-22.04.tar.gz` | • **VST3**: `VST3/GlorpDrums.vst3`<br>• **LV2**: `LV2/GlorpDrums.lv2`<br>• **Standalone**: `Standalone/GlorpDrums`<br>• **GlorpKit Studio**: `GlorpKit Studio/GlorpKitEditor`<br>• **Starter Kit**: `kits/GlorpDemoKit.glorpkit` |
 
 ---
 
@@ -341,12 +355,20 @@ Or to quickly update only the DAW plugin scan folders:
 ## Drum Kit Locations
 
 GlorpDrums automatically scans the following directories for `.glorpkit` files and DrumGizmo XML manifests:
+
+### Linux
 * `~/.glorpdrums/kits/` (Recommended)
 * `~/.config/GlorpDrums/kits/`
 * `~/DrumGizmo/kits/`
 * `~/.local/share/drumgizmo/kits/`
 * `~/Documents/drumgizmo/kits/`
-* Custom directories configured via **FILE $\to$ Scan Custom Folder...** or the `GLORP_KITS_PATH` environment variable.
+
+### Windows
+* `%APPDATA%\GlorpDrums\kits\` (Recommended: `C:\Users\<User>\AppData\Roaming\GlorpDrums\kits\`)
+* `%USERPROFILE%\.glorpdrums\kits\` (`C:\Users\<User>\.glorpdrums\kits\`)
+* `%USERPROFILE%\Documents\drumgizmo\kits\`
+
+You can also point GlorpDrums to any kit folder on any drive via **FILE $\to$ Scan Custom Folder...** or by setting the `GLORP_KITS_PATH` environment variable (colon-separated on Linux, semicolon-separated on Windows).
 
 ---
 

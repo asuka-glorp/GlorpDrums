@@ -209,6 +209,7 @@
         <a href="#kits" class="hover:text-[var(--accent)] transition-colors">Drum Kits</a>
         <a href="#studio" class="hover:text-[var(--accent)] transition-colors">GlorpKit Studio</a>
         <a href="#screenshots" class="hover:text-[var(--accent)] transition-colors">Screenshots</a>
+        <a href="#downloads" class="hover:text-[var(--accent)] transition-colors">Downloads</a>
         <a href="#installation" class="hover:text-[var(--accent)] transition-colors">Install</a>
       </nav>
 
@@ -255,24 +256,26 @@
         </div>
 
         <p class="text-base sm:text-lg text-[var(--ink-soft)] leading-relaxed">
-          A sample-based acoustic drum plugin and standalone workstation built with JUCE and modern C++20 for Linux musicians. Designed with zero-copy sample playback, multi-zone articulations, continuous e-drum calibration, acoustic crosstalk bleed, and an integrated rehearsal suite.
+          A sample-based acoustic drum plugin and standalone workstation built with JUCE and modern C++20 for Linux and Windows musicians (macOS port on the roadmap). Designed with zero-copy sample playback, multi-zone articulations, continuous e-drum calibration, acoustic crosstalk bleed, and an integrated rehearsal suite.
         </p>
 
         <!-- Feature Badges -->
         <div class="flex flex-wrap gap-2 font-mono text-xs">
-          <span class="comic-card px-3 py-1 rounded-md text-[var(--ink)]">C++20 &amp; JUCE 8</span>
+          <span class="comic-card px-3 py-1 rounded-md text-[var(--ink)]">Linux &amp; Windows 10/11</span>
           <span class="comic-card px-3 py-1 rounded-md text-[var(--ink)]">VST3 / LV2 / Standalone</span>
           <span class="comic-card px-3 py-1 rounded-md text-[var(--ink)]">16 Stereo DAW Buses</span>
           <span class="comic-card px-3 py-1 rounded-md text-[var(--ink)]">Zero-Copy Memory Mapped (.glorpkit)</span>
+          <span class="comic-card px-3 py-1 rounded-md text-[var(--ink)]">GlorpKit Studio Included</span>
         </div>
 
         <!-- Action CTAs -->
         <div class="flex flex-wrap gap-3 pt-2">
-          <a href="#demos" class="comic-btn px-6 py-3 rounded-xl font-mono text-sm uppercase flex items-center gap-2">
-            ▶ Watch Video Demos
           <a href="https://github.com/asuka-glorp/GlorpDrums/releases/latest" target="_blank" rel="noopener noreferrer" class="comic-btn px-6 py-3 rounded-xl font-mono text-sm uppercase flex items-center gap-2">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
             Download Latest Release
+          </a>
+          <a href="#demos" class="comic-btn-secondary px-5 py-3 rounded-xl font-mono text-sm uppercase flex items-center gap-2">
+            ▶ Watch Video Demos
           </a>
           <a href="#kits" class="comic-btn-secondary px-5 py-3 rounded-xl font-mono text-sm uppercase flex items-center gap-2">
             🥁 Drum Kits (.glorpkit)
@@ -683,12 +686,98 @@
   </section>
 
   <!-- ========================================================================= -->
+  <!-- SECTION: PREBUILT RELEASES (WINDOWS & LINUX)                              -->
+  <!-- ========================================================================= -->
+  <section id="downloads" class="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 py-12 border-t-[3px] border-[var(--border)] space-y-8">
+    <div class="flex flex-wrap items-end justify-between gap-4">
+      <div class="space-y-2">
+        <div class="inline-block px-2.5 py-1 rounded bg-[var(--accent)] text-black font-mono text-xs font-bold border-2 border-[var(--border)] uppercase">
+          Binary Releases
+        </div>
+        <h2 class="font-display text-3xl sm:text-4xl uppercase tracking-wide">Download Prebuilt Packages</h2>
+        <p class="text-sm text-[var(--ink-soft)] max-w-2xl">
+          Standalone applications, DAW plugins (VST3 &amp; LV2), the GlorpKit Studio kit editor, and starter kits packaged for Linux and Windows.
+        </p>
+      </div>
+      <a href="https://github.com/asuka-glorp/GlorpDrums/releases/latest" target="_blank" rel="noopener noreferrer" class="comic-btn px-4 py-2 rounded-xl font-mono text-xs uppercase flex items-center gap-1.5" title="View all releases on GitHub">
+        GitHub Releases ↗
+      </a>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <!-- Windows Release Card -->
+      <div class="comic-card rounded-2xl p-6 sm:p-7 space-y-5 flex flex-col justify-between border-2">
+        <div class="space-y-4">
+          <div class="flex items-center justify-between">
+            <span class="inline-block px-2.5 py-1 rounded bg-[#00d2ff] text-black font-mono text-xs font-bold border-2 border-[var(--border)] uppercase">
+              Windows 10 / 11
+            </span>
+            <span class="font-mono text-xs font-bold text-[var(--ink-muted)]">64-bit .ZIP</span>
+          </div>
+          <div>
+            <h3 class="font-display text-2xl uppercase">GlorpDrums for Windows</h3>
+            <p class="text-xs font-mono text-[var(--ink-muted)]">WASAPI &amp; ASIO Audio • VST3 &amp; Standalone</p>
+          </div>
+          <ul class="text-xs font-mono space-y-1.5 text-[var(--ink-soft)] bg-[var(--code-bg)]/40 p-3.5 rounded-xl border border-[var(--border)]/30">
+            <li>• <strong>VST3:</strong> <code class="text-[var(--accent)]">VST3/GlorpDrums.vst3</code> (DAW bundle)</li>
+            <li>• <strong>Standalone:</strong> <code class="text-[var(--accent)]">Standalone/GlorpDrums.exe</code></li>
+            <li>• <strong>GlorpKit Studio:</strong> <code class="text-[var(--accent)]">GlorpKit Studio/GlorpKitEditor.exe</code></li>
+            <li>• <strong>Starter Kit:</strong> <code class="text-[var(--accent)]">kits/GlorpDemoKit.glorpkit</code></li>
+          </ul>
+        </div>
+        <a href="https://github.com/asuka-glorp/GlorpDrums/releases/latest" target="_blank" rel="noopener noreferrer" class="comic-btn w-full py-3 rounded-xl font-mono text-sm uppercase flex items-center justify-center gap-2">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+          Download Windows Release (.zip)
+        </a>
+      </div>
+
+      <!-- Linux Release Card -->
+      <div class="comic-card rounded-2xl p-6 sm:p-7 space-y-5 flex flex-col justify-between border-2">
+        <div class="space-y-4">
+          <div class="flex items-center justify-between">
+            <span class="inline-block px-2.5 py-1 rounded bg-[#ff7b00] text-black font-mono text-xs font-bold border-2 border-[var(--border)] uppercase">
+              Linux x86_64
+            </span>
+            <span class="font-mono text-xs font-bold text-[var(--ink-muted)]">Ubuntu 24.04 &amp; 22.04 .tar.gz</span>
+          </div>
+          <div>
+            <h3 class="font-display text-2xl uppercase">GlorpDrums for Linux</h3>
+            <p class="text-xs font-mono text-[var(--ink-muted)]">ALSA, JACK &amp; PipeWire • VST3, LV2 &amp; Standalone</p>
+          </div>
+          <ul class="text-xs font-mono space-y-1.5 text-[var(--ink-soft)] bg-[var(--code-bg)]/40 p-3.5 rounded-xl border border-[var(--border)]/30">
+            <li>• <strong>DAW Plugins:</strong> <code class="text-[var(--accent)]">VST3/GlorpDrums.vst3</code> &amp; <code class="text-[var(--accent)]">LV2/GlorpDrums.lv2</code></li>
+            <li>• <strong>Standalone:</strong> <code class="text-[var(--accent)]">Standalone/GlorpDrums</code> (low-latency JACK)</li>
+            <li>• <strong>GlorpKit Studio:</strong> <code class="text-[var(--accent)]">GlorpKit Studio/GlorpKitEditor</code></li>
+            <li>• <strong>Starter Kit:</strong> <code class="text-[var(--accent)]">kits/GlorpDemoKit.glorpkit</code></li>
+          </ul>
+        </div>
+        <a href="https://github.com/asuka-glorp/GlorpDrums/releases/latest" target="_blank" rel="noopener noreferrer" class="comic-btn w-full py-3 rounded-xl font-mono text-sm uppercase flex items-center justify-center gap-2">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+          Download Linux Release (.tar.gz)
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================================================================= -->
   <!-- SECTION: BUILDING & INSTALLATION                                          -->
   <!-- ========================================================================= -->
   <section id="installation" class="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 py-12 border-t-[3px] border-[var(--border)] space-y-6">
-    <div class="space-y-2">
-      <h2 class="font-display text-3xl sm:text-4xl uppercase tracking-wide">Building from Source</h2>
-      <p class="text-sm text-[var(--ink-soft)]">Compile GlorpDrums on Linux (x86_64) using CMake and GCC or Clang.</p>
+    <div class="flex flex-wrap items-center justify-between gap-4">
+      <div class="space-y-1">
+        <h2 class="font-display text-3xl sm:text-4xl uppercase tracking-wide">Building from Source</h2>
+        <p class="text-sm text-[var(--ink-soft)]">Compile GlorpDrums on Linux or Windows using modern C++20 and CMake.</p>
+      </div>
+
+      <!-- Platform Selector Tabs -->
+      <div class="flex gap-2 font-mono text-xs">
+        <button id="btnBuildLinux" onclick="switchBuildTab('linux')" class="comic-btn px-3.5 py-1.5 rounded-lg uppercase">
+          Linux (Bash)
+        </button>
+        <button id="btnBuildWindows" onclick="switchBuildTab('windows')" class="comic-btn-secondary px-3.5 py-1.5 rounded-lg uppercase">
+          Windows (MSVC)
+        </button>
+      </div>
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
@@ -699,36 +788,55 @@
             <span class="w-3 h-3 rounded-full bg-red-500 inline-block"></span>
             <span class="w-3 h-3 rounded-full bg-yellow-500 inline-block"></span>
             <span class="w-3 h-3 rounded-full bg-green-500 inline-block"></span>
-            <span class="font-mono text-xs text-white/70 ml-2">bash terminal</span>
+            <span id="terminalTitle" class="font-mono text-xs text-white/70 ml-2">bash terminal (linux)</span>
           </div>
           <button onclick="copyBuildCommands()" id="copyBtn" class="comic-btn px-3 py-1 rounded text-xs font-mono uppercase">
             📋 Copy Commands
           </button>
         </div>
 
-        <div class="font-mono text-xs text-[#00d2ff] space-y-2 overflow-x-auto">
-          <p class="text-white/40"># 1. Clone repository with submodules (JUCE)</p>
-          <p class="text-white">git clone --recurse-submodules https://github.com/asuka-glorp/GlorpDrums/.git</p>
+        <!-- Linux Commands -->
+        <div id="cmdsLinux" class="font-mono text-xs text-[#00d2ff] space-y-2 overflow-x-auto">
+          <p class="text-white/40"># 1. Clone repository with submodules (JUCE 8)</p>
           <p class="text-white">git clone --recurse-submodules https://github.com/asuka-glorp/GlorpDrums.git</p>
           <p class="text-white">cd GlorpDrums</p>
           <p class="text-white/40 pt-1"># 2. Configure release build with CMake</p>
-          <p class="text-white">cmake -B build -DCMAKE_BUILD_TYPE=Release</p>
-          <p class="text-white/40 pt-1"># 3. Compile all targets (GlorpDrums, VST3, LV2, GlorpKitEditor)</p>
+          <p class="text-white">cmake -B build -DCMAKE_BUILD_TYPE=Release -DGLORP_BUILD_VST3=ON -DGLORP_BUILD_LV2=ON -DGLORP_BUILD_STANDALONE=ON -DGLORP_BUILD_KIT_EDITOR=ON</p>
+          <p class="text-white/40 pt-1"># 3. Compile all targets (VST3, LV2, Standalone, GlorpKitEditor)</p>
           <p class="text-white">cmake --build build -j$(nproc)</p>
           <p class="text-white/40 pt-1"># 4. Verify test suite</p>
           <p class="text-white">./build/verify_fixes &amp;&amp; ./build/glorp_core_tests</p>
+        </div>
+
+        <!-- Windows Commands (Hidden by default) -->
+        <div id="cmdsWindows" class="font-mono text-xs text-[#00d2ff] space-y-2 overflow-x-auto hidden">
+          <p class="text-white/40"># 1. Clone repository with submodules in Developer Command Prompt for VS 2022</p>
+          <p class="text-white">git clone --recurse-submodules https://github.com/asuka-glorp/GlorpDrums.git</p>
+          <p class="text-white">cd GlorpDrums</p>
+          <p class="text-white/40 pt-1"># 2. Configure release build with CMake (MSVC)</p>
+          <p class="text-white">cmake -B build -DCMAKE_BUILD_TYPE=Release -DGLORP_BUILD_VST3=ON -DGLORP_BUILD_STANDALONE=ON -DGLORP_BUILD_KIT_EDITOR=ON</p>
+          <p class="text-white/40 pt-1"># 3. Compile all targets</p>
+          <p class="text-white">cmake --build build --config Release</p>
+          <p class="text-white/40 pt-1"># 4. Verify test suite</p>
+          <p class="text-white">ctest --test-dir build --output-on-failure -C Release</p>
         </div>
       </div>
 
       <!-- System Requirements Card -->
       <div class="lg:col-span-4 comic-card rounded-2xl p-5 sm:p-6 space-y-3 font-mono text-xs">
-        <h4 class="font-display text-lg uppercase text-[var(--accent)]">Prerequisites</h4>
-        <ul class="space-y-2 text-[var(--ink-soft)]">
-          <li>• <strong>Compiler:</strong> C++20 compliant (GCC &ge; 11 or Clang &ge; 14)</li>
-          <li>• <strong>Build System:</strong> CMake &ge; 3.22</li>
-          <li>• <strong>Audio Drivers:</strong> ALSA development headers (<code class="bg-[var(--code-bg)] text-[var(--ink)] px-1 py-0.5 rounded">libasound2-dev</code>)</li>
-          <li>• <strong>Graphics / GUI:</strong> FreeType &amp; X11 development libraries (<code class="bg-[var(--code-bg)] text-[var(--ink)] px-1 py-0.5 rounded">libx11-dev</code>, <code class="bg-[var(--code-bg)] text-[var(--ink)] px-1 py-0.5 rounded">libxrandr-dev</code>, etc.)</li>
-        </ul>
+        <h4 id="prereqTitle" class="font-display text-lg uppercase text-[var(--accent)]">Linux Prerequisites</h4>
+        <div id="prereqLinux" class="space-y-2 text-[var(--ink-soft)]">
+          <p>• <strong>Compiler:</strong> C++20 compliant (GCC &ge; 11 or Clang &ge; 14)</p>
+          <p>• <strong>Build System:</strong> CMake &ge; 3.22</p>
+          <p>• <strong>Audio Drivers:</strong> ALSA development headers (<code class="bg-[var(--code-bg)] text-[var(--ink)] px-1 py-0.5 rounded">libasound2-dev</code>) &amp; JACK/PipeWire</p>
+          <p>• <strong>Graphics / GUI:</strong> FreeType &amp; X11 libraries (<code class="bg-[var(--code-bg)] text-[var(--ink)] px-1 py-0.5 rounded">libx11-dev</code>, <code class="bg-[var(--code-bg)] text-[var(--ink)] px-1 py-0.5 rounded">libxrandr-dev</code>, etc.)</p>
+        </div>
+        <div id="prereqWindows" class="space-y-2 text-[var(--ink-soft)] hidden">
+          <p>• <strong>Compiler:</strong> Visual Studio 2022 (MSVC) with "Desktop development with C++"</p>
+          <p>• <strong>Build System:</strong> CMake &ge; 3.22</p>
+          <p>• <strong>Audio Drivers:</strong> Windows WASAPI (shared &amp; low latency) or ASIO</p>
+          <p>• <strong>Architecture:</strong> x64 (64-bit Windows 10/11)</p>
+        </div>
         <div class="pt-2 border-t border-[var(--border)]/20 text-[var(--ink-muted)]">
           Binaries output to <code class="text-[var(--accent)] font-bold">build/GlorpDrums_artefacts/Release/</code>
         </div>
@@ -917,9 +1025,50 @@
       });
     }
 
+    // Platform Build Tab Switcher
+    let activeBuildPlatform = 'linux';
+
+    function switchBuildTab(platform) {
+      activeBuildPlatform = platform;
+      const btnLinux = document.getElementById('btnBuildLinux');
+      const btnWindows = document.getElementById('btnBuildWindows');
+      const cmdsLinux = document.getElementById('cmdsLinux');
+      const cmdsWindows = document.getElementById('cmdsWindows');
+      const prereqLinux = document.getElementById('prereqLinux');
+      const prereqWindows = document.getElementById('prereqWindows');
+      const prereqTitle = document.getElementById('prereqTitle');
+      const terminalTitle = document.getElementById('terminalTitle');
+
+      if (platform === 'windows') {
+        btnWindows.className = "comic-btn px-3.5 py-1.5 rounded-lg uppercase";
+        btnLinux.className = "comic-btn-secondary px-3.5 py-1.5 rounded-lg uppercase";
+        cmdsLinux.classList.add('hidden');
+        cmdsWindows.classList.remove('hidden');
+        prereqLinux.classList.add('hidden');
+        prereqWindows.classList.remove('hidden');
+        if (prereqTitle) prereqTitle.innerText = "Windows Prerequisites";
+        if (terminalTitle) terminalTitle.innerText = "cmd.exe (visual studio 2022)";
+      } else {
+        btnLinux.className = "comic-btn px-3.5 py-1.5 rounded-lg uppercase";
+        btnWindows.className = "comic-btn-secondary px-3.5 py-1.5 rounded-lg uppercase";
+        cmdsWindows.classList.add('hidden');
+        cmdsLinux.classList.remove('hidden');
+        prereqWindows.classList.add('hidden');
+        prereqLinux.classList.remove('hidden');
+        if (prereqTitle) prereqTitle.innerText = "Linux Prerequisites";
+        if (terminalTitle) terminalTitle.innerText = "bash terminal (linux)";
+      }
+    }
+
     // 1-Click Clipboard Copy with visual confirmation
     function copyBuildCommands() {
-      const cmds = "git clone --recurse-submodules https://github.com/asuka-glorp/GlorpDrums/.git\ncd GlorpDrums\ncmake -B build -DCMAKE_BUILD_TYPE=Release\ncmake --build build -j$(nproc)\n./build/verify_fixes && ./build/glorp_core_tests";
+      let cmds = "";
+      if (activeBuildPlatform === 'windows') {
+        cmds = "git clone --recurse-submodules https://github.com/asuka-glorp/GlorpDrums.git\ncd GlorpDrums\ncmake -B build -DCMAKE_BUILD_TYPE=Release -DGLORP_BUILD_VST3=ON -DGLORP_BUILD_STANDALONE=ON -DGLORP_BUILD_KIT_EDITOR=ON\ncmake --build build --config Release\nctest --test-dir build --output-on-failure -C Release";
+      } else {
+        cmds = "git clone --recurse-submodules https://github.com/asuka-glorp/GlorpDrums.git\ncd GlorpDrums\ncmake -B build -DCMAKE_BUILD_TYPE=Release -DGLORP_BUILD_VST3=ON -DGLORP_BUILD_LV2=ON -DGLORP_BUILD_STANDALONE=ON -DGLORP_BUILD_KIT_EDITOR=ON\ncmake --build build -j$(nproc)\n./build/verify_fixes && ./build/glorp_core_tests";
+      }
+
       navigator.clipboard.writeText(cmds).then(() => {
         const btn = document.getElementById('copyBtn');
         const origText = btn.innerText;
