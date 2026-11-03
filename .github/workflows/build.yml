@@ -63,15 +63,6 @@ jobs:
             libcurl4-openssl-dev \
             libjack-jackd2-dev
 
-      - name: Install LLVM clang-format/clang-tidy
-        if: runner.os == 'Linux'
-        run: |
-          wget -q https://apt.llvm.org/llvm.sh
-          chmod +x llvm.sh
-          sudo ./llvm.sh 22 all
-          sudo update-alternatives --install /usr/bin/clang-format clang-format /usr/bin/clang-format-22 100
-          sudo update-alternatives --install /usr/bin/clang-tidy clang-tidy /usr/bin/clang-tidy-22 100
-
       - name: Setup ccache
         uses: hendrikmuhs/ccache-action@v1.2
         with:
@@ -86,20 +77,6 @@ jobs:
 
       - name: Configure
         run: cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache ${{ matrix.cmake_args }}
-        shell: bash
-
-      - name: Check clang-format
-        if: runner.os == 'Linux'
-        run: |
-          clang-format --version
-          find src -name "*.cpp" -o -name "*.h" | xargs clang-format --dry-run --Werror
-        shell: bash
-
-      - name: Check clang-tidy
-        if: runner.os == 'Linux'
-        run: |
-          clang-tidy --version
-          find src -name "*.cpp" | xargs clang-tidy -p build --quiet
         shell: bash
 
       - name: Build

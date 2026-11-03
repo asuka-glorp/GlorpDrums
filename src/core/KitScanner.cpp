@@ -56,7 +56,10 @@ std::string homeDirectory()
 {
     if (const auto *h = std::getenv("HOME"); h != nullptr && h[0] != '\0')
         return h;
-
+#if defined(_WIN32)
+    if (const auto *h = std::getenv("USERPROFILE"); h != nullptr && h[0] != '\0')
+        return h;
+#endif
     return {};
 }
 } // namespace
@@ -103,7 +106,11 @@ std::vector<std::string> KitScanner::defaultSearchPaths()
 
         for (const char *c = env;; ++c)
         {
+#if defined(_WIN32)
+            if (*c == ';' || *c == '\0')
+#else
             if (*c == ':' || *c == '\0')
+#endif
             {
                 if (auto resolved = resolvePath(current); !resolved.empty())
                     paths.push_back(std::move(resolved));

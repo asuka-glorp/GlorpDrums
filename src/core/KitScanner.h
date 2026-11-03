@@ -64,7 +64,7 @@ class KitScanner
 
     /// Full load, including samples. Slower; used when the user actually picks a kit.
     /// `error` is cleared on success.
-    static bool loadKit(const std::string &drumkitPath, class DrumKit &kit);
+    static bool loadKit(const std::string &drumkitPath, struct DrumKit &kit);
 };
 
 } // namespace glorp

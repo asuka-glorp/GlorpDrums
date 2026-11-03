@@ -1220,11 +1220,9 @@ bool GlorpKitProject::exportToGlorpKit(const std::string &outputArchivePath, std
 
         std::ostringstream ss;
         ss << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
-        ss << "<glorpkit version=\"2.0\" name=\"" << escapeXml(effectiveTitle) << "\" "
-           << "author=\"" << escapeXml(author) << "\" "
-           << "license=\"" << escapeXml(license) << "\" "
-           << "samplerate=\"" << sampleRate << "\" "
-           << "hit-glow-color=\"" << escapeXml(hitGlowColor) << "\">\n";
+        ss << "<glorpkit version=\"2.0\" name=\"" << escapeXml(effectiveTitle) << "\" " << "author=\""
+           << escapeXml(author) << "\" " << "license=\"" << escapeXml(license) << "\" " << "samplerate=\"" << sampleRate
+           << "\" " << "hit-glow-color=\"" << escapeXml(hitGlowColor) << "\">\n";
 
         if (!description.empty())
             ss << "  <description>" << escapeXml(description) << "</description>\n";
@@ -1232,8 +1230,7 @@ bool GlorpKitProject::exportToGlorpKit(const std::string &outputArchivePath, std
         ss << "  <mics>\n";
         for (const auto &m : mics)
         {
-            ss << "    <mic name=\"" << escapeXml(m.name) << "\" "
-               << "title=\"" << escapeXml(m.title) << "\" "
+            ss << "    <mic name=\"" << escapeXml(m.name) << "\" " << "title=\"" << escapeXml(m.title) << "\" "
                << "default=\"" << std::fixed << std::setprecision(2) << m.defaultLevel << "\"/>\n";
         }
         ss << "  </mics>\n";
@@ -1352,19 +1349,15 @@ bool GlorpKitProject::exportToGlorpKit(const std::string &outputArchivePath, std
 
         std::ostringstream is;
         is << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
-        is << "<glorp-instrument name=\"" << escapeXml(p.name) << "\" "
-           << "graphic=\"" << escapeXml(gName) << "\" "
-           << "output-bus=\"" << p.outputBus << "\" "
-           << "choke-group=\"" << escapeXml(p.chokeGroup) << "\" " << std::fixed << std::setprecision(4) << "norm-x=\""
-           << p.normX << "\" "
-           << "norm-y=\"" << p.normY << "\" "
-           << "norm-w=\"" << p.normW << "\" "
-           << "z-order=\"" << p.zOrder << "\">\n";
+        is << "<glorp-instrument name=\"" << escapeXml(p.name) << "\" " << "graphic=\"" << escapeXml(gName) << "\" "
+           << "output-bus=\"" << p.outputBus << "\" " << "choke-group=\"" << escapeXml(p.chokeGroup) << "\" "
+           << std::fixed << std::setprecision(4) << "norm-x=\"" << p.normX << "\" " << "norm-y=\"" << p.normY << "\" "
+           << "norm-w=\"" << p.normW << "\" " << "z-order=\"" << p.zOrder << "\">\n";
 
         for (const auto &z : p.zones)
         {
-            is << "  <zone name=\"" << escapeXml(z.name) << "\" "
-               << "graphic=\"" << escapeXml(z.graphicId.empty() ? gName : z.graphicId) << "\"";
+            is << "  <zone name=\"" << escapeXml(z.name) << "\" " << "graphic=\""
+               << escapeXml(z.graphicId.empty() ? gName : z.graphicId) << "\"";
             if (z.note >= 0)
                 is << " note=\"" << z.note << "\"";
             if (z.altNote >= 0)
@@ -1385,9 +1378,8 @@ bool GlorpKitProject::exportToGlorpKit(const std::string &outputArchivePath, std
             const std::string zoneDir = instDir + "/" + z.name;
             std::ostringstream zs;
             zs << "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
-            zs << "<glorp-zone name=\"" << escapeXml(z.name) << "\" power=\"1.0\" "
-               << "round-robin=\"" << z.numRoundRobins << "\" "
-               << "velocity-layers=\"" << z.numVelocityLayers << "\">\n";
+            zs << "<glorp-zone name=\"" << escapeXml(z.name) << "\" power=\"1.0\" " << "round-robin=\""
+               << z.numRoundRobins << "\" " << "velocity-layers=\"" << z.numVelocityLayers << "\">\n";
 
             std::set<std::string> writtenWavsInZone;
 
@@ -1399,11 +1391,9 @@ bool GlorpKitProject::exportToGlorpKit(const std::string &outputArchivePath, std
                     const std::string relWav = "samples/" + wavName;
                     const std::string fullArcWav = zoneDir + "/" + relWav;
 
-                    zs << "  <sample name=\"" << escapeXml(hit.name) << "\" "
-                       << "file=\"" << escapeXml(relWav) << "\" "
-                       << "mic=\"" << escapeXml(ms.mic) << "\" "
-                       << "power=\"" << std::fixed << std::setprecision(4) << hit.power << "\" "
-                       << "velocity=\"" << (hit.velocityLayerIndex + 1) << "\" "
+                    zs << "  <sample name=\"" << escapeXml(hit.name) << "\" " << "file=\"" << escapeXml(relWav) << "\" "
+                       << "mic=\"" << escapeXml(ms.mic) << "\" " << "power=\"" << std::fixed << std::setprecision(4)
+                       << hit.power << "\" " << "velocity=\"" << (hit.velocityLayerIndex + 1) << "\" "
                        << "round-robin=\"" << (hit.roundRobinIndex + 1) << "\"";
                     if (ms.fileChannel > 0)
                         zs << " channel=\"" << (ms.fileChannel + 1) << "\"";
@@ -1426,8 +1416,8 @@ bool GlorpKitProject::exportToGlorpKit(const std::string &outputArchivePath, std
 
             for (const auto &c : z.chokes)
             {
-                zs << "  <choke target=\"" << escapeXml(c.instrument) << "\" "
-                   << "time=\"" << static_cast<int>(c.chokeTimeMs) << "\"/>\n";
+                zs << "  <choke target=\"" << escapeXml(c.instrument) << "\" " << "time=\""
+                   << static_cast<int>(c.chokeTimeMs) << "\"/>\n";
             }
 
             zs << "</glorp-zone>\n";
