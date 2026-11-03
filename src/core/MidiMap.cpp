@@ -104,7 +104,7 @@ void MidiMap::removeBindingForMessage(int cc, bool useNote, int channel)
 {
     bindings_.erase(std::remove_if(bindings_.begin(),
                                    bindings_.end(),
-                                   [&] (const MidiBinding & b)
+                                   [&](const MidiBinding &b)
                                    {
                                        return b.cc == cc && b.useNote == useNote
                                               && (b.channel == 0 || channel == 0 || b.channel == channel);
