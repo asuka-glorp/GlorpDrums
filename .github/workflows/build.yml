@@ -49,8 +49,6 @@ jobs:
             cmake \
             pkg-config \
             ccache \
-            clang-format-14 \
-            clang-tidy-14 \
             libasound2-dev \
             libfreetype-dev \
             libfontconfig1-dev \
@@ -64,6 +62,15 @@ jobs:
             libxrender-dev \
             libcurl4-openssl-dev \
             libjack-jackd2-dev
+
+      - name: Install LLVM clang-format/clang-tidy
+        if: runner.os == 'Linux'
+        run: |
+          wget -q https://apt.llvm.org/llvm.sh
+          chmod +x llvm.sh
+          sudo ./llvm.sh 22 all
+          sudo update-alternatives --install /usr/bin/clang-format clang-format /usr/bin/clang-format-22 100
+          sudo update-alternatives --install /usr/bin/clang-tidy clang-tidy /usr/bin/clang-tidy-22 100
 
       - name: Setup ccache
         uses: hendrikmuhs/ccache-action@v1.2
@@ -84,15 +91,15 @@ jobs:
       - name: Check clang-format
         if: runner.os == 'Linux'
         run: |
-          clang-format-14 --version
-          find src -name "*.cpp" -o -name "*.h" | xargs clang-format-14 --dry-run --Werror
+          clang-format --version
+          find src -name "*.cpp" -o -name "*.h" | xargs clang-format --dry-run --Werror
         shell: bash
 
       - name: Check clang-tidy
         if: runner.os == 'Linux'
         run: |
-          clang-tidy-14 --version
-          find src -name "*.cpp" | xargs clang-tidy-14 -p build --quiet
+          clang-tidy --version
+          find src -name "*.cpp" | xargs clang-tidy -p build --quiet
         shell: bash
 
       - name: Build
