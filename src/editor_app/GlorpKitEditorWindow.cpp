@@ -80,9 +80,9 @@ juce::Colour parseHexColourSafe(const std::string &hex, juce::Colour fallback = 
     if (s.startsWithChar('#'))
         s = s.substring(1);
     if (s.length() == 6)
-        return juce::Colour((juce::uint32) (0xff000000u | (juce::uint32) s.getHexValue32()));
+        return juce::Colour((juce::uint32)(0xff000000u | (juce::uint32)s.getHexValue32()));
     if (s.length() == 8)
-        return juce::Colour((juce::uint32) s.getHexValue32());
+        return juce::Colour((juce::uint32)s.getHexValue32());
     return fallback;
 }
 
