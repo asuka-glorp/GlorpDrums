@@ -38,13 +38,6 @@ jobs:
             copy_editor: |
               cp build/GlorpKitEditor_artefacts/Release/GlorpKitEditor "${RELEASE_STAGING}/GlorpKit Studio/"
               chmod +x "${RELEASE_STAGING}/GlorpKit Studio/GlorpKitEditor"
-            package_command: |
-              tar czf build/dist/GlorpDrums-${{ matrix.os }}.tar.gz -C "${RELEASE_STAGING}" \
-                kits \
-                LV2 \
-                VST3 \
-                Standalone \
-                "GlorpKit Studio"
           - os: ubuntu-24.04
             cmake_args: -DGLORP_BUILD_VST3=ON -DGLORP_BUILD_LV2=ON -DGLORP_BUILD_STANDALONE=ON -DGLORP_BUILD_KIT_EDITOR=ON
             staging_dirs: |
@@ -60,13 +53,6 @@ jobs:
             copy_editor: |
               cp build/GlorpKitEditor_artefacts/Release/GlorpKitEditor "${RELEASE_STAGING}/GlorpKit Studio/"
               chmod +x "${RELEASE_STAGING}/GlorpKit Studio/GlorpKitEditor"
-            package_command: |
-              tar czf build/dist/GlorpDrums-${{ matrix.os }}.tar.gz -C "${RELEASE_STAGING}" \
-                kits \
-                LV2 \
-                VST3 \
-                Standalone \
-                "GlorpKit Studio"
           - os: windows-latest
             cmake_args: -DGLORP_BUILD_VST3=ON -DGLORP_BUILD_STANDALONE=ON -DGLORP_BUILD_KIT_EDITOR=ON
             staging_dirs: |
@@ -79,12 +65,6 @@ jobs:
               cp build/GlorpDrums_artefacts/Release/Standalone/GlorpDrums.exe "${RELEASE_STAGING}/Standalone/"
             copy_editor: |
               cp build/GlorpKitEditor_artefacts/Release/GlorpKitEditor.exe "${RELEASE_STAGING}/GlorpKit Studio/"
-            package_command: |
-              cd "${RELEASE_STAGING}" && 7z a -tzip "../dist/GlorpDrums-${{ matrix.os }}.zip" \
-                kits \
-                VST3 \
-                Standalone \
-                "GlorpKit Studio" && cd -
 
     steps:
       - uses: actions/checkout@v4
@@ -176,7 +156,20 @@ jobs:
           fi
 
           # 5. Package main release bundle
-          ${{ matrix.package_command }}
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            cd "${RELEASE_STAGING}" && 7z a -tzip "../dist/GlorpDrums-${{ matrix.os }}.zip" \
+              kits \
+              VST3 \
+              Standalone \
+              "GlorpKit Studio" && cd -
+          else
+            tar czf "build/dist/GlorpDrums-${{ matrix.os }}.tar.gz" -C "${RELEASE_STAGING}" \
+              kits \
+              LV2 \
+              VST3 \
+              Standalone \
+              "GlorpKit Studio"
+          fi
         shell: bash
 
       - name: Upload build dist artifacts
