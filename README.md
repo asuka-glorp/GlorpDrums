@@ -156,6 +156,25 @@ Access the integrated practice, setlist, and recording suite directly via the **
   * **Also Record Backing Track**: Toggle between recording **Drums Only** (isolated drum performance with zero click or backing bleed) and **Full Mix** (drums + backing track, still excluding the metronome click).
   * **Record Entire Setlist Take**: Keep recording armed across an entire multi-song setlist rehearsal to capture a continuous end-to-end WAV and MIDI performance across all songs and count-in transitions, or toggle off to stop recording after a single song.
 
+### 🎥 OBS & Live Stream Clean Audio Output (Standalone Only)
+*Designed specifically for drummers recording video covers or streaming with a camera feed directly into OBS Studio:*
+
+> [!NOTE]
+> **Standalone Application Only**  
+> This feature operates exclusively in the **GlorpDrums Standalone application** (`wrapperType == wrapperType_Standalone`). When running as a VST3 or LV2 plugin inside a DAW (Reaper, Bitwig, Ardour), multi-bus audio routing is managed by your DAW's mixer routing matrix.
+
+* **Dedicated Pre-Click Clean Tap Point**:
+  * GlorpDrums taps the audio pipeline right after the rendered drum kit and backing track are summed, but **strictly before** the metronome count-in/click synthesizer renders onto the main monitor bus.
+  * Your headphones (`Out 1/2`) receive the full practice mix (**Drums + Backing Track + Metronome Click**), while your capture software receives an immaculate broadcast stream (**Drums + Backing Track ONLY**)—saving hours of tedious post-production manual audio syncing.
+* **Secondary Output Device Bridge (`StreamOutputBridge`)**:
+  * A lock-free single-producer single-consumer ring buffer feeds a secondary audio device via an independent callback thread with adaptive fractional resampling to absorb sample-rate differences or clock drift between your primary audio interface and capture device.
+  * **Windows Streaming Workflow**: Drummers with standard 2-channel interfaces can route clean audio directly to **VB-Audio Virtual Cable** (`CABLE Input`), VoiceMeeter, or a secondary hardware output for OBS Audio Input Capture.
+  * **Linux 1-Click Virtual Sink (`GlorpDrums_OBS_Clean`)**: Built-in 1-click helper in the dropdown menu creates a dedicated PipeWire/PulseAudio null-sink (`pactl load-module module-null-sink sink_name=GlorpDrums_OBS_Clean`) so `GlorpDrums_OBS_Clean` immediately appears in OBS Audio Capture sources.
+* **Out 3/4 Zero-Latency Stem Mirror**:
+  * Automatically mirrors the pre-click clean mix onto hardware stereo outputs 3 & 4. Perfect for multi-channel interfaces with loopback channels or PipeWire graph routing (`qpwgraph`, `helvum`).
+* **"Listen Clean" Headphone Level Check**:
+  * Click **Listen Clean** (turns into an amber `Listening Clean` button) in the Recording Console at any time to temporarily mute the metronome click in your headphones (`Out 1/2`). This lets you quickly balance relative levels between your drum kit and the backing track before hitting record, while visual beat lights and count-in timing remain active.
+
 ---
 
 ### 🎚️ Phase 4 — Multi-Mic Leakage & Bleed Matrix
@@ -248,6 +267,10 @@ GlorpDrums is actively developed following an ambitious multi-phase roadmap:
   * **Build System Cleanup**: Deduplicated CMake configuration, removed stale standalone definitions.
 * [x] **Phase 8 — Cross-Platform Port (Windows)**:
   * Windows 10/11 support: **VST3 + Standalone** (GlorpDrums + GlorpKitEditor) with WASAPI audio backend.
+* [x] **Phase 8.5 — OBS & Stream Clean Audio Output (Standalone Only)**:
+  * Lock-free pre-click broadcast bridge routing Drums + Backing Track (excluding metronome click) to secondary audio devices (VB-Audio Cable, VoiceMeeter) and Out 3/4 bus mirror.
+  * 1-Click PipeWire/PulseAudio virtual sink (`GlorpDrums_OBS_Clean`) creation for Linux streamers.
+  * Tactile `Listen Clean` monitor mode in the Practice tab for rapid drum/backing balance checks.
   * Linux: **VST3 + LV2 + Standalone** (GlorpDrums + GlorpKitEditor) with ALSA/JACK backend (unchanged).
   * CLAP support deferred — JUCE 8.x experimental implementation not yet stable.
   * NSIS installer for Windows distribution (VST3 system path registration, Start Menu shortcuts).
