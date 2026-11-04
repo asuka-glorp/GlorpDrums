@@ -263,8 +263,12 @@ class RecordPracticeView
     ComicButton stopButton {"STOP"};
     ComicButton alsoRecordTrackButton {"Also record backing track"};
     ComicButton recordEntireSetlistButton {"Record Entire Setlist Take"};
+    ComicButton obsCleanOutButton {"OBS Clean Out: Off v"};
+    ComicButton listenCleanMixButton {"Monitor Clean"};
     ComicButton exportWavButton {"Export WAV"};
     ComicButton exportMidButton {"Export MIDI"};
+    juce::String obsStatusOverride;
+    double obsStatusOverrideTime = 0.0;
 
     // -- Persistent Song Database Modal Overlay -------------------------------
     class SongDbModalOverlay : public juce::Component
@@ -368,6 +372,8 @@ class RecordPracticeView
 
     void updateButtonStyles();
     void updateCountInButtons();
+    void updateObsStreamButtons();
+    void showObsStreamMenu();
 };
 
 } // namespace glorp

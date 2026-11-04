@@ -515,6 +515,32 @@ RecordPracticeView::RecordPracticeView(PluginProcessor &p) : processor(p)
         repaint();
     };
 
+    addAndMakeVisible(obsCleanOutButton);
+    obsCleanOutButton.setFontSize(11.5f);
+    obsCleanOutButton.setLeftAligned(true);
+    obsCleanOutButton.onClick = [this]()
+    {
+        if (!processor.isStandaloneApp())
+            return;
+        showObsStreamMenu();
+    };
+
+    addAndMakeVisible(listenCleanMixButton);
+    listenCleanMixButton.setFontSize(11.5f);
+    listenCleanMixButton.onClick = [this]()
+    {
+        if (!processor.isStandaloneApp())
+            return;
+        auto &bridge = processor.getStreamOutputBridge();
+        const bool next = !bridge.isMonitoringCleanMixInHeadphones();
+        bridge.setMonitorCleanMixInHeadphones(next);
+        obsStatusOverride =
+            next ? "MONITORING CLEAN MIX (Click Muted in Headphones)" : "MONITOR NORMAL (Click Active in Headphones)";
+        obsStatusOverrideTime = juce::Time::getMillisecondCounterHiRes() * 0.001;
+        updateObsStreamButtons();
+        repaint();
+    };
+
     addAndMakeVisible(exportWavButton);
     exportWavButton.setFontSize(13.0f);
     exportWavButton.onClick = [this]()
@@ -986,6 +1012,7 @@ void RecordPracticeView::updateButtonStyles()
     styleBtn(stopButton, currentTheme.panel);
     styleBtn(alsoRecordTrackButton, alsoRecordBackingTrack ? skyBlue : currentTheme.panel);
     styleBtn(recordEntireSetlistButton, recordEntireSetlistTake ? tanCol : currentTheme.panel);
+    updateObsStreamButtons();
     styleBtn(exportWavButton, mintGreen);
     styleBtn(exportMidButton, tanCol);
 
@@ -1049,6 +1076,184 @@ void RecordPracticeView::updateCountInButtons()
     }
 
     repaint();
+}
+
+void RecordPracticeView::updateObsStreamButtons()
+{
+    const auto mintGreen = juce::Colour(0xffa8e6cf);
+    const auto skyBlue = juce::Colour(0xff7ec8f8);
+    const auto warmOrange = juce::Colour(0xffea8c16);
+
+    obsCleanOutButton.setTheme(currentTheme);
+    listenCleanMixButton.setTheme(currentTheme);
+
+    if (!processor.isStandaloneApp())
+    {
+        obsCleanOutButton.setLabel("OBS Clean Out (Standalone Only)");
+        obsCleanOutButton.setDisabledStyle(true);
+        obsCleanOutButton.setBaseColour(currentTheme.panel);
+
+        listenCleanMixButton.setLabel("Listen Clean");
+        listenCleanMixButton.setDisabledStyle(true);
+        listenCleanMixButton.setBaseColour(currentTheme.panel);
+        return;
+    }
+
+    obsCleanOutButton.setDisabledStyle(false);
+    listenCleanMixButton.setDisabledStyle(false);
+
+    auto &bridge = processor.getStreamOutputBridge();
+    const bool devActive = bridge.isActive();
+    const bool bus2Active = processor.getAudioEngine().isRoutingCleanMixToBus2();
+
+    if (devActive)
+    {
+        auto devName = bridge.getActiveDeviceName();
+        if (devName.length() > 17)
+            devName = devName.substring(0, 15) + "..";
+        obsCleanOutButton.setLabel("OBS Out: " + devName + " v");
+        obsCleanOutButton.setBaseColour(mintGreen);
+    }
+    else if (bus2Active)
+    {
+        obsCleanOutButton.setLabel("OBS Clean: Out 3/4 + Dev v");
+        obsCleanOutButton.setBaseColour(skyBlue.withAlpha(0.65f));
+    }
+    else
+    {
+        obsCleanOutButton.setLabel("OBS Clean Out: Off v");
+        obsCleanOutButton.setBaseColour(currentTheme.panel);
+    }
+
+    const bool monitoringClean = bridge.isMonitoringCleanMixInHeadphones();
+    listenCleanMixButton.setLabel(monitoringClean ? "Listening Clean" : "Listen Clean");
+    listenCleanMixButton.setBaseColour(monitoringClean ? warmOrange : currentTheme.panel);
+}
+
+void RecordPracticeView::showObsStreamMenu()
+{
+    juce::PopupMenu m;
+    auto &bridge = processor.getStreamOutputBridge();
+    const bool isBus2On = processor.getAudioEngine().isRoutingCleanMixToBus2();
+    const bool isMonitorClean = bridge.isMonitoringCleanMixInHeadphones();
+    const auto activeDev = bridge.getActiveDeviceName();
+
+    m.addSectionHeader("OBS / Stream Clean Mix (Drums + Backing, No Click)");
+    m.addItem(1, "Mirror Clean Mix to Bus Out 3/4 (PipeWire / JACK)", true, isBus2On);
+    m.addItem(2, "Listen to Clean Mix in Headphones (Mute Click to Check Levels)", true, isMonitorClean);
+
+#if JUCE_LINUX
+    m.addSeparator();
+    m.addItem(3, "Create PipeWire / PulseAudio Virtual Sink ('GlorpDrums_OBS_Clean')");
+#endif
+
+    m.addSeparator();
+    m.addSectionHeader("Secondary Output Device (StreamOutputBridge)");
+    m.addItem(10, "Secondary Device: Off", true, !bridge.isActive());
+
+    const auto devices = bridge.getAvailableOutputDevices();
+    for (int i = 0; i < static_cast<int>(devices.size()); ++i)
+    {
+        const auto &d = devices[static_cast<size_t>(i)];
+        const bool isCurrent = bridge.isActive() && (d.deviceName == activeDev);
+        m.addItem(100 + i, d.displayLabel, true, isCurrent);
+    }
+
+    m.addSeparator();
+    m.addSectionHeader("Clean Stream Output Trim");
+    const float curGain = bridge.getStreamGain();
+    m.addItem(50, "Stream Level: -6 dB (50%)", true, std::abs(curGain - 0.5f) < 0.05f);
+    m.addItem(51, "Stream Level: 0 dB (100% Unity)", true, std::abs(curGain - 1.0f) < 0.05f);
+    m.addItem(52, "Stream Level: +3 dB (141%)", true, std::abs(curGain - 1.41f) < 0.05f);
+
+    m.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(&obsCleanOutButton),
+                    [this, devices](int result)
+                    {
+                        if (result == 0)
+                            return;
+
+                        auto &bridgeRef = processor.getStreamOutputBridge();
+                        auto &settings = processor.getSettings();
+
+                        if (result == 1)
+                        {
+                            const bool next = !processor.getAudioEngine().isRoutingCleanMixToBus2();
+                            processor.getAudioEngine().setRouteCleanMixToBus2(next);
+                            settings.obsCleanOutBus2Enabled = next;
+                            settings.markDirty();
+                            settings.saveIfChanged();
+                            obsStatusOverride =
+                                next ? "OBS Clean Mix mirrored to Out 3/4" : "Out 3/4 Clean Mirror disabled";
+                            obsStatusOverrideTime = juce::Time::getMillisecondCounterHiRes() * 0.001;
+                        }
+                        else if (result == 2)
+                        {
+                            const bool next = !bridgeRef.isMonitoringCleanMixInHeadphones();
+                            bridgeRef.setMonitorCleanMixInHeadphones(next);
+                            obsStatusOverride = next ? "MONITORING CLEAN MIX (Click Muted in Headphones)"
+                                                     : "MONITOR NORMAL (Click Active in Headphones)";
+                            obsStatusOverrideTime = juce::Time::getMillisecondCounterHiRes() * 0.001;
+                        }
+                        else if (result == 3)
+                        {
+                            juce::String statusMsg;
+                            if (StreamOutputBridge::createLinuxVirtualObsSink(statusMsg))
+                            {
+                                juce::String err;
+                                bridgeRef.setOutputDevice("GlorpDrums_OBS_Clean", err);
+                                if (bridgeRef.isActive())
+                                {
+                                    settings.obsStreamDeviceName = "GlorpDrums_OBS_Clean";
+                                    settings.markDirty();
+                                    settings.saveIfChanged();
+                                }
+                            }
+                            obsStatusOverride = statusMsg;
+                            obsStatusOverrideTime = juce::Time::getMillisecondCounterHiRes() * 0.001;
+                        }
+                        else if (result == 10)
+                        {
+                            bridgeRef.closeOutputDevice();
+                            settings.obsStreamDeviceName = "Off";
+                            settings.markDirty();
+                            settings.saveIfChanged();
+                            obsStatusOverride = "Secondary OBS Output Device turned Off";
+                            obsStatusOverrideTime = juce::Time::getMillisecondCounterHiRes() * 0.001;
+                        }
+                        else if (result == 50)
+                        {
+                            bridgeRef.setStreamGain(0.5f);
+                        }
+                        else if (result == 51)
+                        {
+                            bridgeRef.setStreamGain(1.0f);
+                        }
+                        else if (result == 52)
+                        {
+                            bridgeRef.setStreamGain(1.4125f);
+                        }
+                        else if (result >= 100 && result < 100 + static_cast<int>(devices.size()))
+                        {
+                            const auto &chosen = devices[static_cast<size_t>(result - 100)];
+                            const auto id = chosen.typeName + "::" + chosen.deviceName;
+                            juce::String err;
+                            if (bridgeRef.setOutputDevice(id, err))
+                            {
+                                settings.obsStreamDeviceName = id;
+                                settings.markDirty();
+                                settings.saveIfChanged();
+                                obsStatusOverride = "OBS Clean Out -> " + chosen.deviceName;
+                            }
+                            else
+                            {
+                                obsStatusOverride = "OBS Device Error: " + err;
+                            }
+                            obsStatusOverrideTime = juce::Time::getMillisecondCounterHiRes() * 0.001;
+                        }
+
+                        updateObsStreamButtons();
+                        repaint();
+                    });
 }
 
 void RecordPracticeView::handleTapTempo()
@@ -1655,22 +1860,29 @@ void RecordPracticeView::resized()
 
     // --- Layout Column 3: DUAL RECORDING CONSOLE ---
     auto c3Inner = recordingConsoleBounds.reduced(12, 8);
-    c3Inner.removeFromTop(34); // Header space
+    c3Inner.removeFromTop(30); // Header space
 
-    auto rRow1 = c3Inner.removeFromTop(52);
+    auto rRow1 = c3Inner.removeFromTop(44);
     const int recW = static_cast<int>(rRow1.getWidth() * 0.62);
     recordButton.setBounds(rRow1.removeFromLeft(recW));
     rRow1.removeFromLeft(6);
     stopButton.setBounds(rRow1);
 
-    c3Inner.removeFromTop(8);
-    alsoRecordTrackButton.setBounds(c3Inner.removeFromTop(34));
+    c3Inner.removeFromTop(5);
+    alsoRecordTrackButton.setBounds(c3Inner.removeFromTop(28));
 
-    c3Inner.removeFromTop(8);
-    recordEntireSetlistButton.setBounds(c3Inner.removeFromTop(34));
+    c3Inner.removeFromTop(5);
+    recordEntireSetlistButton.setBounds(c3Inner.removeFromTop(28));
 
-    c3Inner.removeFromTop(8);
-    auto rRow4 = c3Inner.removeFromTop(38);
+    c3Inner.removeFromTop(5);
+    auto rRowObs = c3Inner.removeFromTop(28);
+    const int listenW = std::min(104, static_cast<int>(rRowObs.getWidth() * 0.38));
+    listenCleanMixButton.setBounds(rRowObs.removeFromRight(listenW));
+    rRowObs.removeFromRight(5);
+    obsCleanOutButton.setBounds(rRowObs);
+
+    c3Inner.removeFromTop(5);
+    auto rRow4 = c3Inner.removeFromTop(32);
     const int expW = (rRow4.getWidth() - 6) / 2;
     exportWavButton.setBounds(rRow4.removeFromLeft(expW));
     rRow4.removeFromLeft(6);
@@ -2345,7 +2557,18 @@ void RecordPracticeView::drawRecordingConsole(juce::Graphics &g, juce::Rectangle
     juce::String statusStr = "STATUS: READY";
     juce::Colour statusCol = currentTheme.inkSoft;
 
-    if (processor.getMetronome().isCountingIn())
+    const double nowSec = juce::Time::getMillisecondCounterHiRes() * 0.001;
+    if (obsStatusOverride.isNotEmpty() && (nowSec - obsStatusOverrideTime) < 4.5)
+    {
+        statusStr = obsStatusOverride;
+        statusCol = juce::Colour(0xffea8c16);
+    }
+    else if (processor.isStandaloneApp() && processor.getStreamOutputBridge().isMonitoringCleanMixInHeadphones())
+    {
+        statusStr = "CLEAN MIX SOLO (Click Muted in Headphones)";
+        statusCol = juce::Colour(0xffea8c16);
+    }
+    else if (processor.getMetronome().isCountingIn())
     {
         statusStr =
             juce::String::formatted("COUNT-IN: %d BEATS LEFT", processor.getMetronome().getBeatsRemainingInCountIn());

@@ -81,6 +81,8 @@ void Settings::writeState(juce::MemoryBlock &destination) const
     root.setAttribute("editorMaximised", editorMaximised);
     root.setAttribute("theme", themeIndex);
     root.setAttribute("openGlEnabled", openGlEnabled);
+    root.setAttribute("obsStreamDeviceName", obsStreamDeviceName);
+    root.setAttribute("obsCleanOutBus2Enabled", obsCleanOutBus2Enabled);
 
     juce::MemoryOutputStream stream(destination, false);
     root.writeToStream(stream, {});
@@ -112,6 +114,8 @@ void Settings::readState(const juce::MemoryBlock &source)
     editorMaximised = root->getBoolAttribute("editorMaximised", editorMaximised);
     themeIndex = root->getIntAttribute("theme", themeIndex);
     openGlEnabled = root->getBoolAttribute("openGlEnabled", openGlEnabled);
+    obsStreamDeviceName = root->getStringAttribute("obsStreamDeviceName", obsStreamDeviceName);
+    obsCleanOutBus2Enabled = root->getBoolAttribute("obsCleanOutBus2Enabled", obsCleanOutBus2Enabled);
 }
 
 void Settings::addKitPath(const juce::String &path)

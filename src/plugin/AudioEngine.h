@@ -14,6 +14,7 @@
 #include "Metronome.h"
 #include "MidiRecorder.h"
 #include "Sampler.h"
+#include "StreamOutputBridge.h"
 
 #include <juce_audio_processors/juce_audio_processors.h>
 
@@ -57,6 +58,14 @@ class AudioEngine
     Metronome &getMetronome() noexcept { return metronome; }
     AudioRecorder &getAudioRecorder() noexcept { return audioRecorder; }
     MidiRecorder &getMidiRecorder() noexcept { return midiRecorder; }
+    StreamOutputBridge &getStreamOutputBridge() noexcept { return streamOutputBridge; }
+    const StreamOutputBridge &getStreamOutputBridge() const noexcept { return streamOutputBridge; }
+
+    void setRouteCleanMixToBus2(bool enabled) noexcept
+    {
+        routeCleanMixToBus2.store(enabled, std::memory_order_relaxed);
+    }
+    bool isRoutingCleanMixToBus2() const noexcept { return routeCleanMixToBus2.load(std::memory_order_relaxed); }
 
     // -- Engine state ---------------------------------------------------------
 
@@ -91,6 +100,8 @@ class AudioEngine
     Metronome metronome;
     AudioRecorder audioRecorder;
     MidiRecorder midiRecorder;
+    StreamOutputBridge streamOutputBridge;
+    std::atomic<bool> routeCleanMixToBus2 {true};
 
     // -- Engine state ---------------------------------------------------------
     double currentSampleRate = 44100.0;

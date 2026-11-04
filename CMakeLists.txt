@@ -185,6 +185,7 @@ target_sources(GlorpDrums PRIVATE
     src/practice/BackingTrackPlayer.cpp
     src/practice/SongDatabase.cpp
     src/practice/SetlistPlayer.cpp
+    src/practice/StreamOutputBridge.cpp
     src/ui/Editor.cpp
     src/ui/DrumKitView.cpp
     src/ui/CalloutBox.cpp

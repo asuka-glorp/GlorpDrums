@@ -89,7 +89,18 @@ class PluginProcessor : public juce::AudioProcessor
     SetlistPlayer &getSetlistPlayer() noexcept { return setlistPlayer; }
     AudioRecorder &getAudioRecorder() noexcept { return audioEngine.getAudioRecorder(); }
     MidiRecorder &getMidiRecorder() noexcept { return audioEngine.getMidiRecorder(); }
+    StreamOutputBridge &getStreamOutputBridge() noexcept { return audioEngine.getStreamOutputBridge(); }
     TempoDetector::Worker &getTempoWorker() noexcept { return tempoWorker; }
+
+    /// Returns true when running as the Standalone application (or forced in unit tests).
+    bool isStandaloneApp() const noexcept
+    {
+        return wrapperType == wrapperType_Standalone || forceStandaloneModeForTest.load(std::memory_order_relaxed);
+    }
+    void setForceStandaloneModeForTest(bool force) noexcept
+    {
+        forceStandaloneModeForTest.store(force, std::memory_order_relaxed);
+    }
 
     AudioEngine &getAudioEngine() noexcept { return audioEngine; }
     const AudioEngine &getAudioEngine() const noexcept { return audioEngine; }
@@ -154,6 +165,7 @@ class PluginProcessor : public juce::AudioProcessor
 
     std::atomic<float> lastHiHatCC4 {0.0f};
     std::atomic<float> lastSnareCC16 {0.5f};
+    std::atomic<bool> forceStandaloneModeForTest {false};
 
     juce::ListenerList<Listener> listeners;
 

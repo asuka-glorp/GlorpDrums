@@ -1787,6 +1787,145 @@ int main()
         }
     }
 
+    // 21. Verify Standalone OBS / Stream Clean Output (StreamOutputBridge, Out 3/4 Mirror, and Listen Clean Mode)
+    std::cout << "Testing Section 21: Standalone OBS Clean Output (StreamOutputBridge + Listen Clean Mode)...\n";
+    {
+        processor.setForceStandaloneModeForTest (true);
+        VERIFY_CHECK (processor.isStandaloneApp());
+
+        processor.prepareToPlay (44100.0, 512);
+        processor.getAudioEngine().setRouteCleanMixToBus2 (true);
+
+        auto& bridge = processor.getStreamOutputBridge();
+        juce::String bridgeErr;
+        bool bridgeOk = bridge.setOutputDevice ("VirtualTestLoopback", bridgeErr);
+        VERIFY_CHECK (bridgeOk);
+        VERIFY_CHECK (bridge.isActive());
+        bridge.setStreamGain (1.0f);
+        bridge.setMonitorCleanMixInHeadphones (false);
+
+        // Configure Metronome so it produces a loud click on Beat 1 immediately
+        auto& metro = processor.getMetronome();
+        metro.stop();
+        metro.prepareToPlay (44100.0, 512);
+        metro.setBpm (120.0);
+        metro.setLevel (2.5f);
+        metro.setEnabled (true);
+        metro.setCountInMode (glorp::Metronome::CountInMode::oneBar);
+        metro.startCountIn (0.0); // Immediate click on first block!
+
+        // Test 21A: Metronome click ONLY (no drums, no backing track)
+        // Out 1/2 (Headphones) MUST contain the click (> 0.05f),
+        // while Out 3/4 and StreamOutputBridge MUST be completely silent (0.0f)!
+        juce::AudioBuffer<float> busBuf (4, 512);
+        busBuf.clear();
+        juce::MidiBuffer emptyMidi;
+        processor.processBlock (busBuf, emptyMidi);
+
+        float mainClickPeak = std::max (busBuf.getMagnitude (0, 0, 512), busBuf.getMagnitude (1, 0, 512));
+        float bus2ClickPeak = std::max (busBuf.getMagnitude (2, 0, 512), busBuf.getMagnitude (3, 0, 512));
+
+        std::vector<float> obsL (512, 0.0f), obsR (512, 0.0f);
+        int pulled = bridge.pullAudioForTest (obsL.data(), obsR.data(), 512);
+        VERIFY_CHECK (pulled == 512);
+        float obsClickPeak = 0.0f;
+        for (int i = 0; i < 512; ++i)
+            obsClickPeak = std::max (obsClickPeak, std::max (std::abs (obsL[static_cast<size_t> (i)]),
+                                                             std::abs (obsR[static_cast<size_t> (i)])));
+
+        std::cout << "  [21A] Click-only block -> Headphones Out 1/2 peak: " << mainClickPeak
+                  << ", Out 3/4 peak: " << bus2ClickPeak
+                  << ", StreamOutputBridge peak: " << obsClickPeak << "\n";
+        VERIFY_CHECK (mainClickPeak > 0.05f);
+        VERIFY_CHECK (bus2ClickPeak <= 1e-7f);
+        VERIFY_CHECK (obsClickPeak <= 1e-7f);
+
+        // Test 21B: Backing Track + Metronome Click
+        // Load a synthetic sine backing track so we can verify that Out 3/4 and StreamOutputBridge
+        // match the exact clean backing track while Out 1/2 has Backing Track + Click.
+        const auto tempBackWav = juce::File::createTempFile ("obs_test_backing.wav");
+        {
+            juce::WavAudioFormat wavFmt;
+            std::unique_ptr<juce::AudioFormatWriter> w (wavFmt.createWriterFor (
+                new juce::FileOutputStream (tempBackWav), 44100.0, 2, 16, {}, 0));
+            juce::AudioBuffer<float> sinBuf (2, 44100);
+            for (int i = 0; i < 44100; ++i)
+            {
+                const float v = 0.25f * std::sin (2.0f * juce::MathConstants<float>::pi * 220.0f * i / 44100.0f);
+                sinBuf.setSample (0, i, v);
+                sinBuf.setSample (1, i, v);
+            }
+            w->writeFromAudioSampleBuffer (sinBuf, 0, 44100);
+        }
+
+        auto& bt = processor.getBackingTrackPlayer();
+        VERIFY_CHECK (bt.loadFile (tempBackWav));
+        bt.setLevel (1.0f);
+        bt.play();
+
+        metro.stop();
+        metro.startCountIn (0.0); // Trigger fresh click concurrently with backing track
+
+        busBuf.clear();
+        processor.processBlock (busBuf, emptyMidi);
+
+        pulled = bridge.pullAudioForTest (obsL.data(), obsR.data(), 512);
+        VERIFY_CHECK (pulled == 512);
+
+        float cleanObsPeak = 0.0f;
+        float diffMainVsClean = 0.0f;
+        float diffBus2VsObs = 0.0f;
+        for (int i = 0; i < 512; ++i)
+        {
+            const float oL = obsL[static_cast<size_t> (i)];
+            const float mL = busBuf.getSample (0, i);
+            const float b2L = busBuf.getSample (2, i);
+            cleanObsPeak = std::max (cleanObsPeak, std::abs (oL));
+            diffMainVsClean = std::max (diffMainVsClean, std::abs (mL - oL));
+            diffBus2VsObs = std::max (diffBus2VsObs, std::abs (b2L - oL));
+        }
+
+        std::cout << "  [21B] Backing + Click -> Clean OBS Peak: " << cleanObsPeak
+                  << ", Diff(Headphones vs Clean OBS): " << diffMainVsClean
+                  << ", Diff(Out 3/4 vs Clean OBS): " << diffBus2VsObs << "\n";
+        VERIFY_CHECK (cleanObsPeak > 0.1f);
+        VERIFY_CHECK (diffMainVsClean > 0.05f); // Headphones have the click on top of backing track
+        VERIFY_CHECK (diffBus2VsObs < 1e-5f);   // Out 3/4 and StreamOutputBridge are identical clean audio
+
+        // Test 21C: "Listen Clean" Mode (setMonitorCleanMixInHeadphones(true))
+        // When enabled, Headphones (Out 1/2) must match the clean mix (click muted in headphones),
+        // while the metronome still advances its count-in state!
+        bridge.setMonitorCleanMixInHeadphones (true);
+        VERIFY_CHECK (bridge.isMonitoringCleanMixInHeadphones());
+
+        metro.stop();
+        metro.startCountIn (0.0);
+        busBuf.clear();
+        processor.processBlock (busBuf, emptyMidi);
+
+        pulled = bridge.pullAudioForTest (obsL.data(), obsR.data(), 512);
+        VERIFY_CHECK (pulled == 512);
+
+        float diffWhenListeningClean = 0.0f;
+        for (int i = 0; i < 512; ++i)
+        {
+            diffWhenListeningClean = std::max (
+                diffWhenListeningClean, std::abs (busBuf.getSample (0, i) - obsL[static_cast<size_t> (i)]));
+        }
+        std::cout << "  [21C] Listen Clean Mode active -> Diff(Headphones Out 1/2 vs Clean OBS): "
+                  << diffWhenListeningClean << "\n";
+        VERIFY_CHECK (diffWhenListeningClean < 1e-5f); // Zero click in headphones while checking levels!
+
+        bridge.setMonitorCleanMixInHeadphones (false);
+        bridge.closeOutputDevice();
+        bt.stop();
+        metro.stop();
+        tempBackWav.deleteFile();
+        processor.setForceStandaloneModeForTest (false);
+
+        std::cout << "-> Section 21 Standalone OBS Clean Output & Listen Clean Mode: PASSED!\n";
+    }
+
     processor.releaseResources();
 
     std::cout << "=== ALL VERIFICATIONS PASSED SUCCESSFULLY ===\n";

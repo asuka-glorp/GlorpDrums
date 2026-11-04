@@ -54,6 +54,10 @@ class Settings
     int themeIndex = 0;        ///< 0 = sketch (light), 1 = dark
     bool openGlEnabled = true; ///< Hardware GPU acceleration via juce::OpenGLContext
 
+    // -- standalone OBS / Stream clean output ------------------------------
+    juce::String obsStreamDeviceName;   ///< Secondary output device identifier for clean mix (no click)
+    bool obsCleanOutBus2Enabled = true; ///< Mirror clean mix (Drums + Backing, no click) to Out 3/4 in Standalone
+
     void markDirty() noexcept { dirty = true; }
 
     /// Most recent kits, most recent first, for the FILE menu.

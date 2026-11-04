@@ -32,6 +32,7 @@ void AudioEngine::prepareToPlay(double sampleRate, int samplesPerBlock)
     backingTrackPlayer.prepareToPlay(sampleRate, samplesPerBlock);
     metronome.prepareToPlay(sampleRate, samplesPerBlock);
     audioRecorder.prepareToPlay(sampleRate, samplesPerBlock);
+    streamOutputBridge.prepareToPlay(sampleRate, samplesPerBlock);
 }
 
 void AudioEngine::releaseResources()
@@ -50,6 +51,7 @@ void AudioEngine::sampleRateChanged(double newRate)
     backingTrackPlayer.prepareToPlay(newRate, 512);
     metronome.prepareToPlay(newRate, 512);
     audioRecorder.prepareToPlay(newRate, 512);
+    streamOutputBridge.prepareToPlay(newRate, 512);
 }
 
 void AudioEngine::blockSizeChanged(int)
