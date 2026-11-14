@@ -642,7 +642,7 @@
         <h2 class="font-display text-3xl sm:text-4xl uppercase tracking-wide">Screenshot Gallery</h2>
         <p class="text-sm text-[var(--ink-soft)]">Click any screenshot to view full-resolution image.</p>
       </div>
-      <span class="text-xs font-mono text-[var(--ink-muted)]">Light &amp; Dark Themes</span>
+      <span class="text-xs font-mono text-[var(--ink-muted)]">4 Skins • Scalable UI Text</span>
     </div>
 
     <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -741,22 +741,22 @@
             <span class="inline-block px-2.5 py-1 rounded bg-[#ff7b00] text-black font-mono text-xs font-bold border-2 border-[var(--border)] uppercase">
               Linux x86_64
             </span>
-            <span class="font-mono text-xs font-bold text-[var(--ink-muted)]">Ubuntu 24.04 &amp; 22.04 .tar.gz</span>
+            <span class="font-mono text-xs font-bold text-[var(--ink-muted)]">.deb • .rpm • .tar.gz</span>
           </div>
           <div>
             <h3 class="font-display text-2xl uppercase">GlorpDrums for Linux</h3>
             <p class="text-xs font-mono text-[var(--ink-muted)]">ALSA, JACK &amp; PipeWire • VST3, LV2 &amp; Standalone</p>
           </div>
           <ul class="text-xs font-mono space-y-1.5 text-[var(--ink-soft)] bg-[var(--code-bg)]/40 p-3.5 rounded-xl border border-[var(--border)]/30">
-            <li>• <strong>DAW Plugins:</strong> <code class="text-[var(--accent)]">VST3/GlorpDrums.vst3</code> &amp; <code class="text-[var(--accent)]">LV2/GlorpDrums.lv2</code></li>
-            <li>• <strong>Standalone:</strong> <code class="text-[var(--accent)]">Standalone/GlorpDrums</code> (low-latency JACK)</li>
-            <li>• <strong>GlorpKit Studio:</strong> <code class="text-[var(--accent)]">GlorpKit Studio/GlorpKitEditor</code></li>
-            <li>• <strong>Starter Kit:</strong> <code class="text-[var(--accent)]">kits/GlorpDemoKit.glorpkit</code></li>
+            <li>• <strong>Ubuntu / Debian:</strong> <code class="text-[var(--accent)]">GlorpDrums-ubuntu-x86-64.deb</code> (Ubuntu 24.04+ / Debian 13+)</li>
+            <li>• <strong>Fedora:</strong> <code class="text-[var(--accent)]">GlorpDrums-fedora-x86_64.rpm</code></li>
+            <li>• <strong>Portable Archive:</strong> <code class="text-[var(--accent)]">GlorpDrums-ubuntu-24.04.tar.gz</code> (VST3, LV2, Standalone, GlorpKit Studio &amp; Starter Kit)</li>
+            <li>• <strong>Readability &amp; Logs:</strong> 4 Skins, 90%–130% UI text scaling &amp; built-in <code class="text-[var(--accent)]">glorpdrums_debug.log</code> export</li>
           </ul>
         </div>
         <a href="https://github.com/asuka-glorp/GlorpDrums/releases/latest" target="_blank" rel="noopener noreferrer" class="comic-btn w-full py-3 rounded-xl font-mono text-sm uppercase flex items-center justify-center gap-2">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-          Download Linux Release (.tar.gz)
+          Download Linux Releases (.deb / .rpm / .tar.gz)
         </a>
       </div>
     </div>
@@ -808,7 +808,7 @@
           <p class="text-white/40 pt-1"># 3. Compile all targets (VST3, LV2, Standalone, GlorpKitEditor)</p>
           <p class="text-white">cmake --build build -j$(nproc)</p>
           <p class="text-white/40 pt-1"># 4. Verify test suite</p>
-          <p class="text-white">./build/verify_fixes &amp;&amp; ./build/glorp_core_tests</p>
+          <p class="text-white">ctest --test-dir build --output-on-failure &amp;&amp; cmake --build build --target verify_fixes &amp;&amp; ./build/verify_fixes</p>
         </div>
 
         <!-- Windows Commands (Hidden by default) -->

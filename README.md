@@ -4,7 +4,7 @@
 
 ![GlorpDrums Dark Theme Interface](docs/dark_kit_view.png)
 
-*GlorpDrums features both a high-contrast Dark Theme with a unified comic-cutout drum kit contour and a warm, hand-drawn Light Sketch Theme.*
+*GlorpDrums includes 4 built-in skins — **Sketch (Light)**, **Dark (Night)**, **Studio Clean (Light)**, and **High Contrast Pro (Dark)** — plus adjustable **UI Text Scaling (90%–130%)** under `SETTINGS` for small or high-DPI monitors.*
 
 <details>
 <summary><b>View Light (Sketch) Theme Interface</b></summary>
@@ -33,8 +33,9 @@ Prebuilt portable release bundles are automatically compiled, tested, and publis
 | Platform | Download Package | Included Formats & Tools |
 | :--- | :--- | :--- |
 | **Windows 10 / 11** (64-bit) | `GlorpDrums-windows-latest.zip` | • **VST3**: `VST3/GlorpDrums.vst3` (64-bit DAW plugin bundle)<br>• **Standalone**: `Standalone/GlorpDrums.exe` (WASAPI/ASIO host)<br>• **GlorpKit Studio**: `GlorpKit Studio/GlorpKitEditor.exe` (kit creator)<br>• **Starter Kit**: `kits/GlorpDemoKit.glorpkit` |
-| **Linux (Ubuntu 24.04 / Modern)** | `GlorpDrums-ubuntu-24.04.tar.gz` | • **VST3**: `VST3/GlorpDrums.vst3`<br>• **LV2**: `LV2/GlorpDrums.lv2`<br>• **Standalone**: `Standalone/GlorpDrums` (ALSA/JACK/PipeWire)<br>• **GlorpKit Studio**: `GlorpKit Studio/GlorpKitEditor`<br>• **Starter Kit**: `kits/GlorpDemoKit.glorpkit` |
-| **Linux (Ubuntu 22.04 / LTS)** | `GlorpDrums-ubuntu-22.04.tar.gz` | • **VST3**: `VST3/GlorpDrums.vst3`<br>• **LV2**: `LV2/GlorpDrums.lv2`<br>• **Standalone**: `Standalone/GlorpDrums`<br>• **GlorpKit Studio**: `GlorpKit Studio/GlorpKitEditor`<br>• **Starter Kit**: `kits/GlorpDemoKit.glorpkit` |
+| **Debian / Ubuntu (64-bit)** | `GlorpDrums-ubuntu-x86-64.deb` | • Native `.deb` package for **Ubuntu 24.04+** and **Debian 13+**<br>• Installs `/usr/bin/glorpdrums`, `/usr/bin/glorpkit-editor`, system **VST3** (`/usr/lib/vst3`), **LV2** (`/usr/lib/lv2`), desktop entries & starter kit |
+| **Fedora (x86_64)** | `GlorpDrums-fedora-x86_64.rpm` | • Native `.rpm` package (`sudo dnf install ./GlorpDrums-fedora-x86_64.rpm`)<br>• Installs Standalone, GlorpKit Studio, **VST3**, **LV2**, desktop entries & starter kit |
+| **Linux Portable (x86_64)** | `GlorpDrums-ubuntu-24.04.tar.gz` | • **VST3**: `VST3/GlorpDrums.vst3`<br>• **LV2**: `LV2/GlorpDrums.lv2`<br>• **Standalone**: `Standalone/GlorpDrums` (ALSA/JACK/PipeWire)<br>• **GlorpKit Studio**: `GlorpKit Studio/GlorpKitEditor`<br>• **Starter Kit**: `kits/GlorpDemoKit.glorpkit` |
 
 ---
 
@@ -175,6 +176,13 @@ Access the integrated practice, setlist, and recording suite directly via the **
 * **"Listen Clean" Headphone Level Check**:
   * Click **Listen Clean** (turns into an amber `Listening Clean` button) in the Recording Console at any time to temporarily mute the metronome click in your headphones (`Out 1/2`). This lets you quickly balance relative levels between your drum kit and the backing track before hitting record, while visual beat lights and count-in timing remain active.
 
+### 🎨 Skins, Text Scaling & Diagnostic Tools (`SETTINGS`)
+* **4 Visual Skins (`SETTINGS → Skin / Theme`)**: Switch between **Sketch (Light)**, **Dark (Night)**, **Studio Clean (Light)**, and **High Contrast Pro (Dark)**—with the Studio Clean and High Contrast Pro skins replacing wobbly ink outlines and comic fonts with crisp straight borders and system sans-serif typography.
+* **UI Text Scalability (`SETTINGS → Text Size (UI Scale)`)**: Adjust button and label sizes between **90% (Compact)**, **100% (Standard)**, **115% (Large)**, and **130% (Extra Large)**, persisted automatically across sessions.
+* **Standalone Audio/MIDI Access (`SETTINGS → Audio / MIDI Device Options...`)**: Open audio buffer, sample-rate, and MIDI input device selection directly from the `SETTINGS` menu when running the Standalone app.
+* **Built-In Debug Log (`SETTINGS → Save / Open Debug Log...`)**: Captures live lock-free MIDI events (`NoteOn`, `LEARN` captures, throttled hi-hat `CC#4`), audio device sample rate/block size, loaded kit info, and your active MIDI note map into `~/.config/GlorpDrums/glorpdrums_debug.log` (Linux) / `%APPDATA%\GlorpDrums\glorpdrums_debug.log` (Windows).
+* **Linux Window Resizing & OpenGL**: Software rendering defaults to active on Linux (`GPU Hardware Acceleration (OpenGL)` remains toggleable in `SETTINGS`) for glitch-free window resizing on X11/Xfce/Wayland desktop environments.
+
 ---
 
 ### 🎚️ Phase 4 — Multi-Mic Leakage & Bleed Matrix
@@ -290,10 +298,10 @@ GlorpDrums is actively developed following an ambitious multi-phase roadmap:
 ### Prerequisites (Linux)
 * CMake 3.22 or higher
 * C++20 compatible compiler (GCC 11+ or Clang 14+)
-* Linux development headers (ALSA, JACK, FreeType, FontConfig, OpenGL, X11):
+* Linux development headers (ALSA, JACK, FreeType, FontConfig, OpenGL, X11, cURL) & JUCE `8.0.6` (fetched automatically via CMake FetchContent if `libs/JUCE` is absent):
   ```bash
   sudo apt install build-essential cmake pkg-config \
-                   libasound2-dev libjack-jackd2-dev \
+                   libasound2-dev libjack-jackd2-dev libcurl4-openssl-dev \
                    libfreetype-dev libfontconfig1-dev libgl1-mesa-dev \
                    libx11-dev libxcomposite-dev libxcursor-dev \
                    libxext-dev libxinerama-dev libxrandr-dev libxrender-dev
