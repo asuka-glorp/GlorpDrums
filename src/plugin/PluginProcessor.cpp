@@ -3,6 +3,7 @@
 */
 
 #include "PluginProcessor.h"
+#include "DebugLog.h"
 #include "KitScanner.h"
 #include "PluginEditor.h"
 
@@ -25,6 +26,11 @@ juce::AudioProcessor::BusesProperties PluginProcessor::createBusesProperties()
 //==============================================================================
 PluginProcessor::PluginProcessor() : juce::AudioProcessor(createBusesProperties())
 {
+    DebugLog::instance().setLogFile(settings.getConfigDirectory().getChildFile("glorpdrums_debug.log"));
+    DebugLog::instance().logInfo("APP",
+                                 "PluginProcessor init (" + juce::String(isStandaloneApp() ? "Standalone" : "Plugin")
+                                     + ", OS=" + juce::SystemStats::getOperatingSystemName() + ")");
+
     parameterManager.createParameterLayout(*this);
 
     midiRouter.onMidiMapChanged = [this] { listeners.call(&Listener::parametersChanged); };
@@ -271,6 +277,7 @@ void PluginProcessor::loadKit(const juce::String &drumkitPath)
     if (!audioEngine.getSampler().loadKit(currentKit, error))
     {
         lastKitError = error;
+        DebugLog::instance().logInfo("KIT", "Failed to load kit '" + drumkitPath + "': " + error);
         audioEngine.getSampler().unloadKit();
         currentKit = {};
         return;
@@ -279,6 +286,11 @@ void PluginProcessor::loadKit(const juce::String &drumkitPath)
     currentKitPath = drumkitPath;
     settings.pushRecentKit(drumkitPath);
     settings.saveIfChanged();
+    audioEngine.invalidateParamCache();
+
+    DebugLog::instance().logInfo("KIT",
+                                 "Loaded kit '" + drumkitPath + "' ("
+                                     + juce::String(audioEngine.getSampler().numInstruments()) + " instruments)");
 
     // Delegate note mapping to MidiRouter (handles kit midimap, GM fallback, and default assignments)
     midiRouter.setupNoteMappingFromKit(currentKit, audioEngine.getSampler());
@@ -330,8 +342,15 @@ void PluginProcessor::applyMapPreset(const juce::String &presetName)
 {
     midiRouter.applyMapPreset(presetName, audioEngine.getSampler());
 
+    DebugLog::instance().logInfo("MIDI",
+                                 "Applied map preset '" + presetName + "' (mapped notes="
+                                     + juce::String(static_cast<int>(midiRouter.getMidiMap().noteAssignments().size()))
+                                     + ")");
+
     settings.lastMapPreset = presetName;
+    settings.markDirty();
     settings.saveIfChanged();
+    notifyParametersChanged();
 }
 
 void PluginProcessor::notifyParametersChanged()

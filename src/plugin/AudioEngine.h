@@ -92,6 +92,7 @@ class AudioEngine
 
     void setMultiOutMode(bool enabled) { sampler.setMultiOutMode(enabled); }
     bool isMultiOutMode() const noexcept { return sampler.isMultiOutMode(); }
+    void invalidateParamCache() noexcept { hasCachedParams = false; }
 
   private:
     // -- Sub-components -------------------------------------------------------
@@ -106,6 +107,15 @@ class AudioEngine
     // -- Engine state ---------------------------------------------------------
     double currentSampleRate = 44100.0;
     int currentBlockSize = 512;
+
+    // -- Parameter change cache (avoids redundant per-block re-writes) --------
+    bool hasCachedParams = false;
+    GlobalParams cachedGlobals {};
+    std::array<float, config::MAX_SUPPORTED_INSTRUMENTS> cachedLevel {};
+    std::array<float, config::MAX_SUPPORTED_INSTRUMENTS> cachedPan {};
+    std::array<float, config::MAX_SUPPORTED_INSTRUMENTS> cachedPitch {};
+    std::array<float, config::MAX_SUPPORTED_INSTRUMENTS> cachedDynamics {};
+    std::array<int, config::MAX_SUPPORTED_INSTRUMENTS> cachedBus {};
 
     // -- Rendering helpers ----------------------------------------------------
     std::array<float *, config::MAX_OUTPUT_BUSES * 2> busOutputs {};

@@ -21,23 +21,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-22.04, ubuntu-24.04, windows-latest]
+        os: [ubuntu-24.04, windows-latest]
         include:
-          - os: ubuntu-22.04
-            cmake_args: -DGLORP_BUILD_VST3=ON -DGLORP_BUILD_LV2=ON -DGLORP_BUILD_STANDALONE=ON -DGLORP_BUILD_KIT_EDITOR=ON
-            staging_dirs: |
-              mkdir -p "${RELEASE_STAGING}/kits"
-              mkdir -p "${RELEASE_STAGING}/VST3"
-              mkdir -p "${RELEASE_STAGING}/LV2"
-              mkdir -p "${RELEASE_STAGING}/Standalone"
-              mkdir -p "${RELEASE_STAGING}/GlorpKit Studio"
-            copy_plugins: |
-              cp -r build/GlorpDrums_artefacts/Release/VST3/GlorpDrums.vst3 "${RELEASE_STAGING}/VST3/"
-              cp -r build/GlorpDrums_artefacts/Release/LV2/GlorpDrums.lv2 "${RELEASE_STAGING}/LV2/"
-              cp build/GlorpDrums_artefacts/Release/Standalone/GlorpDrums "${RELEASE_STAGING}/Standalone/"
-            copy_editor: |
-              cp build/GlorpKitEditor_artefacts/Release/GlorpKitEditor "${RELEASE_STAGING}/GlorpKit Studio/"
-              chmod +x "${RELEASE_STAGING}/GlorpKit Studio/GlorpKitEditor"
           - os: ubuntu-24.04
             cmake_args: -DGLORP_BUILD_VST3=ON -DGLORP_BUILD_LV2=ON -DGLORP_BUILD_STANDALONE=ON -DGLORP_BUILD_KIT_EDITOR=ON
             staging_dirs: |
@@ -92,7 +77,8 @@ jobs:
             libxrandr-dev \
             libxrender-dev \
             libcurl4-openssl-dev \
-            libjack-jackd2-dev
+            libjack-jackd2-dev \
+            rpm
 
       - name: Setup ccache
         uses: hendrikmuhs/ccache-action@v1.2
@@ -169,6 +155,119 @@ jobs:
               VST3 \
               Standalone \
               "GlorpKit Studio"
+
+            # 6. Build native Linux packages (.deb and .rpm) on ubuntu-24.04
+            RAW_TAG="${{ inputs.tag_name || github.ref_name }}"
+            PKG_VER="$(echo "${RAW_TAG#v}" | grep -oE '^[0-9]+(\.[0-9]+)*' || true)"
+            PKG_VER="${PKG_VER:-0.8.2}"
+
+            # --- Debian/Ubuntu .deb ---
+            DEB_ROOT="build/pkg_deb"
+            rm -rf "${DEB_ROOT}"
+            mkdir -p "${DEB_ROOT}/DEBIAN" \
+                     "${DEB_ROOT}/usr/bin" \
+                     "${DEB_ROOT}/usr/lib/vst3" \
+                     "${DEB_ROOT}/usr/lib/lv2" \
+                     "${DEB_ROOT}/usr/share/glorpdrums/kits" \
+                     "${DEB_ROOT}/usr/share/applications" \
+                     "${DEB_ROOT}/usr/share/icons/hicolor/256x256/apps"
+
+            cp "${RELEASE_STAGING}/Standalone/GlorpDrums" "${DEB_ROOT}/usr/bin/glorpdrums"
+            cp "${RELEASE_STAGING}/GlorpKit Studio/GlorpKitEditor" "${DEB_ROOT}/usr/bin/glorpkit-editor"
+            chmod 0755 "${DEB_ROOT}/usr/bin/glorpdrums" "${DEB_ROOT}/usr/bin/glorpkit-editor"
+            cp -r "${RELEASE_STAGING}/VST3/GlorpDrums.vst3" "${DEB_ROOT}/usr/lib/vst3/"
+            cp -r "${RELEASE_STAGING}/LV2/GlorpDrums.lv2" "${DEB_ROOT}/usr/lib/lv2/"
+            cp -r "${RELEASE_STAGING}/kits/"* "${DEB_ROOT}/usr/share/glorpdrums/kits/" 2>/dev/null || true
+            cp assets/glorpdrums_icon.png "${DEB_ROOT}/usr/share/icons/hicolor/256x256/apps/glorpdrums.png"
+            cp assets/glorpkit_studio_icon.png "${DEB_ROOT}/usr/share/icons/hicolor/256x256/apps/glorpkit-editor.png"
+
+            cat > "${DEB_ROOT}/usr/share/applications/glorpdrums.desktop" << 'EOF'
+[Desktop Entry]
+Type=Application
+Name=GlorpDrums
+Comment=Acoustic & E-Drum Sampler Standalone
+Exec=/usr/bin/glorpdrums
+Icon=glorpdrums
+Categories=AudioVideo;Audio;Music;
+Terminal=false
+EOF
+
+            cat > "${DEB_ROOT}/usr/share/applications/glorpkit-editor.desktop" << 'EOF'
+[Desktop Entry]
+Type=Application
+Name=GlorpKit Studio
+Comment=GlorpDrums Drum Kit Authoring Studio
+Exec=/usr/bin/glorpkit-editor
+Icon=glorpkit-editor
+Categories=AudioVideo;Audio;Music;
+Terminal=false
+EOF
+
+            cat > "${DEB_ROOT}/DEBIAN/control" << EOF
+Package: glorpdrums
+Version: ${PKG_VER}
+Section: sound
+Priority: optional
+Architecture: amd64
+Maintainer: asuka-glorp <https://github.com/asuka-glorp/GlorpDrums>
+Depends: libc6, libstdc++6, libasound2t64 | libasound2, libfreetype6, libfontconfig1, libgl1, libx11-6, libxext6
+Description: GlorpDrums acoustic drum sampler (Standalone, VST3, LV2) and GlorpKit Studio
+EOF
+            dpkg-deb --build --root-owner-group "${DEB_ROOT}" "build/dist/GlorpDrums-ubuntu-x86-64.deb"
+
+            # --- Fedora .rpm ---
+            RPM_TOP="${PWD}/build/pkg_rpm"
+            rm -rf "${RPM_TOP}"
+            mkdir -p "${RPM_TOP}/BUILD" "${RPM_TOP}/RPMS" "${RPM_TOP}/SOURCES" "${RPM_TOP}/SPECS" "${RPM_TOP}/SRPMS"
+
+            cat > "${RPM_TOP}/SPECS/glorpdrums.spec" << EOF
+%define _build_id_links none
+%global debug_package %{nil}
+
+Name:           glorpdrums
+Version:        ${PKG_VER}
+Release:        1%{?dist}
+Summary:        GlorpDrums acoustic drum sampler (Standalone, VST3, LV2) and GlorpKit Studio
+License:        GPL-3.0-or-later
+AutoReqProv:    no
+Requires:       alsa-lib, freetype, fontconfig, libX11, libXext, mesa-libGL
+
+%description
+GlorpDrums acoustic drum sampler (Standalone, VST3, LV2 plugins) and GlorpKit Studio.
+
+%install
+rm -rf %{buildroot}
+mkdir -p %{buildroot}/usr/bin \
+         %{buildroot}/usr/lib/vst3 \
+         %{buildroot}/usr/lib/lv2 \
+         %{buildroot}/usr/share/glorpdrums/kits \
+         %{buildroot}/usr/share/applications \
+         %{buildroot}/usr/share/icons/hicolor/256x256/apps
+cp "${PWD}/${DEB_ROOT}/usr/bin/glorpdrums" %{buildroot}/usr/bin/glorpdrums
+cp "${PWD}/${DEB_ROOT}/usr/bin/glorpkit-editor" %{buildroot}/usr/bin/glorpkit-editor
+cp -r "${PWD}/${DEB_ROOT}/usr/lib/vst3/GlorpDrums.vst3" %{buildroot}/usr/lib/vst3/
+cp -r "${PWD}/${DEB_ROOT}/usr/lib/lv2/GlorpDrums.lv2" %{buildroot}/usr/lib/lv2/
+cp -r "${PWD}/${DEB_ROOT}/usr/share/glorpdrums/kits/"* %{buildroot}/usr/share/glorpdrums/kits/ 2>/dev/null || true
+cp "${PWD}/${DEB_ROOT}/usr/share/icons/hicolor/256x256/apps/glorpdrums.png" %{buildroot}/usr/share/icons/hicolor/256x256/apps/glorpdrums.png
+cp "${PWD}/${DEB_ROOT}/usr/share/icons/hicolor/256x256/apps/glorpkit-editor.png" %{buildroot}/usr/share/icons/hicolor/256x256/apps/glorpkit-editor.png
+cp "${PWD}/${DEB_ROOT}/usr/share/applications/glorpdrums.desktop" %{buildroot}/usr/share/applications/glorpdrums.desktop
+cp "${PWD}/${DEB_ROOT}/usr/share/applications/glorpkit-editor.desktop" %{buildroot}/usr/share/applications/glorpkit-editor.desktop
+
+%files
+/usr/bin/glorpdrums
+/usr/bin/glorpkit-editor
+/usr/lib/vst3/GlorpDrums.vst3
+/usr/lib/lv2/GlorpDrums.lv2
+/usr/share/glorpdrums
+/usr/share/applications/glorpdrums.desktop
+/usr/share/applications/glorpkit-editor.desktop
+/usr/share/icons/hicolor/256x256/apps/glorpdrums.png
+/usr/share/icons/hicolor/256x256/apps/glorpkit-editor.png
+EOF
+
+            rpmbuild -bb --target x86_64 --define "_topdir ${RPM_TOP}" "${RPM_TOP}/SPECS/glorpdrums.spec"
+            RPM_OUT="$(find "${RPM_TOP}/RPMS" -name '*.rpm' | head -n 1)"
+            cp "${RPM_OUT}" "build/dist/GlorpDrums-fedora-x86_64.rpm"
           fi
         shell: bash
 

@@ -66,7 +66,7 @@ else()
     FetchContent_Declare(
         JUCE
         GIT_REPOSITORY https://github.com/juce-framework/JUCE.git
-        GIT_TAG        8.3.2
+        GIT_TAG        8.0.6
         GIT_SHALLOW    TRUE
     )
     FetchContent_MakeAvailable(JUCE)
@@ -173,6 +173,7 @@ target_sources(GlorpDrums PRIVATE
     src/core/Sampler.cpp
     src/core/MidiMap.cpp
     src/core/Settings.cpp
+    src/core/DebugLog.cpp
     src/core/GlorpKit.cpp
     src/core/GlorpKitWriter.cpp
     src/core/ChannelFX.cpp

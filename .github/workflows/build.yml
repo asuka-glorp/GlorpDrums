@@ -12,15 +12,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-22.04, ubuntu-24.04, windows-latest]
+        os: [ubuntu-24.04, windows-latest]
         include:
-          - os: ubuntu-22.04
-            cmake_args: -DGLORP_BUILD_VST3=ON -DGLORP_BUILD_LV2=ON -DGLORP_BUILD_STANDALONE=ON
-            artifact_paths: |
-              build/GlorpDrums_artefacts/Release/VST3/GlorpDrums.vst3
-              build/GlorpDrums_artefacts/Release/LV2/GlorpDrums.lv2
-              build/GlorpDrums_artefacts/Release/Standalone/GlorpDrums
-              build/GlorpKitEditor_artefacts/Release/GlorpKitEditor
           - os: ubuntu-24.04
             cmake_args: -DGLORP_BUILD_VST3=ON -DGLORP_BUILD_LV2=ON -DGLORP_BUILD_STANDALONE=ON
             artifact_paths: |

@@ -51,8 +51,12 @@ class Settings
     int editorWidth = 1180;
     int editorHeight = 860;
     bool editorMaximised = false;
-    int themeIndex = 0;        ///< 0 = sketch (light), 1 = dark
+    int themeIndex = 0; ///< 0 = sketch (light), 1 = dark
+#if defined(__linux__)
+    bool openGlEnabled = false; ///< Hardware GPU acceleration disabled by default on Linux (X11/Xfce resize stability)
+#else
     bool openGlEnabled = true; ///< Hardware GPU acceleration via juce::OpenGLContext
+#endif
 
     // -- standalone OBS / Stream clean output ------------------------------
     juce::String obsStreamDeviceName;   ///< Secondary output device identifier for clean mix (no click)

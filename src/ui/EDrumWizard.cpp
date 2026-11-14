@@ -280,7 +280,7 @@ void EDrumWizard::goToStep(int stepIndex)
     if (instIdx >= 0)
     {
         steps[static_cast<size_t>(currentStepIndex)].currentNote = processor.getMidiMap().noteForInstrument(instIdx);
-        processor.getMidiMap().beginLearn("note" + std::to_string(instIdx));
+        processor.getMidiMap().beginLearn("note" + std::to_string(instIdx), true);
         isWaitingForHit = true;
         statusFeedback = "Waiting for pad strike...";
     }

@@ -4,11 +4,14 @@
 
 #include "MidiRouter.h"
 
+#include "DebugLog.h"
 #include "DrumKit.h"
 #include "MidiMap.h"
 #include "Sampler.h"
 
 #include <juce_core/juce_core.h>
+#include <cmath>
+#include <cstdio>
 
 namespace glorp
 {
@@ -39,6 +42,27 @@ bool MidiRouter::processMidiMessage(const juce::MidiMessage &message,
     if (midiMap.isLearning() && midiMap.offerMessage(message, &learnedControl))
     {
         consumedByLearn = true;
+
+        char learnBuf[160] {};
+        if (message.isNoteOn())
+            std::snprintf(learnBuf,
+                          sizeof(learnBuf),
+                          "LEARN control=%s note=%d ch=%d vel=%d",
+                          learnedControl.toRawUTF8(),
+                          message.getNoteNumber(),
+                          message.getChannel(),
+                          message.getVelocity());
+        else if (message.isController())
+            std::snprintf(learnBuf,
+                          sizeof(learnBuf),
+                          "LEARN control=%s cc=%d ch=%d val=%d",
+                          learnedControl.toRawUTF8(),
+                          message.getControllerNumber(),
+                          message.getChannel(),
+                          message.getControllerValue());
+        else
+            std::snprintf(learnBuf, sizeof(learnBuf), "LEARN control=%s", learnedControl.toRawUTF8());
+        DebugLog::instance().pushRealtimeEvent("MIDI", learnBuf);
 
         // Learning a note on an instrument's callout also makes that note
         // trigger the instrument, which is what the user actually meant.
@@ -87,12 +111,27 @@ bool MidiRouter::processMidiMessage(const juce::MidiMessage &message,
             const float pedal = static_cast<float>(val) / 127.0f;
             sampler.setHiHatPedal(pedal);
             lastHiHatCC4.store(pedal, std::memory_order_relaxed);
+            if (std::abs(val - lastLoggedCC4) >= 4 || (val == 0 && lastLoggedCC4 != 0)
+                || (val == 127 && lastLoggedCC4 != 127))
+            {
+                lastLoggedCC4 = val;
+                char buf[96] {};
+                std::snprintf(buf, sizeof(buf), "CC#4 HiHat pedal=%d (ch=%d)", val, message.getChannel());
+                DebugLog::instance().pushRealtimeEvent("MIDI", buf);
+            }
         }
         else if (cc == 16) // Snare position
         {
             const float pos = static_cast<float>(val) / 127.0f;
             sampler.setSnarePosition(pos);
             lastSnareCC16.store(pos, std::memory_order_relaxed);
+            if (std::abs(val - lastLoggedCC16) >= 8)
+            {
+                lastLoggedCC16 = val;
+                char buf[96] {};
+                std::snprintf(buf, sizeof(buf), "CC#16 Snare pos=%d (ch=%d)", val, message.getChannel());
+                DebugLog::instance().pushRealtimeEvent("MIDI", buf);
+            }
         }
     }
 
@@ -134,6 +173,17 @@ bool MidiRouter::processMidiMessage(const juce::MidiMessage &message,
         return true;
 
     const auto instrument = midiMap.instrumentForNote(message.getNoteNumber());
+
+    char noteBuf[128] {};
+    std::snprintf(noteBuf,
+                  sizeof(noteBuf),
+                  "NoteOn note=%d ch=%d vel=%d -> inst=%d (%s)",
+                  message.getNoteNumber(),
+                  message.getChannel(),
+                  message.getVelocity(),
+                  instrument,
+                  instrument >= 0 ? sampler.instrumentName(instrument).toRawUTF8() : "UNMAPPED");
+    DebugLog::instance().pushRealtimeEvent("MIDI", noteBuf);
 
     if (instrument < 0)
         return true;
@@ -337,7 +387,7 @@ std::vector<MapPreset> MidiRouter::getAvailablePresets()
 
 void MidiRouter::beginMidiLearn(const juce::String &controlId)
 {
-    midiMap.beginLearn(controlId.toStdString());
+    midiMap.beginLearn(controlId.toStdString(), controlId.startsWith("note"));
 }
 
 void MidiRouter::cancelMidiLearn()

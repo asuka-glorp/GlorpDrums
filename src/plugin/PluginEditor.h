@@ -19,7 +19,12 @@ class PluginEditor : public juce::AudioProcessorEditor
     {
         addAndMakeVisible(editor);
 
+#if defined(__linux__)
+        // Let the X11/Wayland window manager handle resize handles cleanly without an extra JUCE corner resizer.
+        setResizable(true, false);
+#else
         setResizable(true, true);
+#endif
         setResizeLimits(900, 620, 2400, 1800);
 
         auto &settings = p.getSettings();
@@ -28,7 +33,21 @@ class PluginEditor : public juce::AudioProcessorEditor
 
     void paint(juce::Graphics &g) override { g.fillAll(Theme::byIndex(proc.getSettings().themeIndex).background); }
 
-    void resized() override { editor.setBounds(getLocalBounds()); }
+    void resized() override
+    {
+        auto bounds = getLocalBounds();
+        editor.setBounds(bounds);
+        if (bounds.getWidth() >= 900 && bounds.getHeight() >= 620)
+        {
+            auto &settings = proc.getSettings();
+            if (settings.editorWidth != bounds.getWidth() || settings.editorHeight != bounds.getHeight())
+            {
+                settings.editorWidth = bounds.getWidth();
+                settings.editorHeight = bounds.getHeight();
+                settings.markDirty();
+            }
+        }
+    }
 
   private:
     PluginProcessor &proc;

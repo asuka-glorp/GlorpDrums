@@ -78,6 +78,8 @@ class MidiRouter
 
   private:
     MidiMap midiMap;
+    int lastLoggedCC4 = -100;
+    int lastLoggedCC16 = -100;
 
     // Helper to strip names for comparison
     static juce::String stripName(const juce::String &s);

@@ -1,4 +1,5 @@
 #include "DrumKitView.h"
+#include "DebugLog.h"
 #include "Editor.h"
 #include "Sampler.h"
 #include "PluginProcessor.h"
@@ -1924,6 +1925,103 @@ int main()
         processor.setForceStandaloneModeForTest (false);
 
         std::cout << "-> Section 21 Standalone OBS Clean Output & Listen Clean Mode: PASSED!\n";
+    }
+
+    // 22. Verify GitHub Issue #1 Fixes: MIDI Learn Note Filtering, Roland V-Drums Matching, DebugLog, OpenGL Linux Default
+    {
+        std::cout << "Testing Section 22: Issue #1 Fixes (MIDI Learn, Roland V-Drums, DebugLog, Linux OpenGL)...\n";
+
+        // 22A. Verify OpenGL default on Linux vs non-Linux
+        glorp::Settings freshSettings;
+       #if defined(__linux__)
+        VERIFY_CHECK (freshSettings.openGlEnabled == false || freshSettings.getConfigFile().existsAsFile());
+       #endif
+
+        // 22B. Verify MIDI Manual Learn ignores continuous CC#4 and NoteOff when armed for a drum note
+        glorp::MidiMap map;
+        map.beginLearn ("note2", true);
+        VERIFY_CHECK (map.isLearning());
+
+        juce::String learnedId;
+        const auto cc4 = juce::MidiMessage::controllerEvent (10, 4, 64);
+        VERIFY_CHECK (! map.offerMessage (cc4, &learnedId));
+        VERIFY_CHECK (map.isLearning());
+
+        const auto noteOff = juce::MidiMessage::noteOff (10, 46);
+        VERIFY_CHECK (! map.offerMessage (noteOff, &learnedId));
+        VERIFY_CHECK (map.isLearning());
+
+        const auto zeroVelOn = juce::MidiMessage::noteOn (10, 46, (juce::uint8) 0);
+        VERIFY_CHECK (! map.offerMessage (zeroVelOn, &learnedId));
+        VERIFY_CHECK (map.isLearning());
+
+        const auto hihatHit = juce::MidiMessage::noteOn (10, 42, (juce::uint8) 96);
+        VERIFY_CHECK (map.offerMessage (hihatHit, &learnedId));
+        VERIFY_CHECK (learnedId == "note2");
+        VERIFY_CHECK (! map.isLearning());
+
+        // 22C. Verify Roland V-Drums preset matches spaced / custom instrument names
+        std::vector<juce::String> customKitNames {
+            "Kick",
+            "Snare",
+            "Snare Rim",
+            "Hi-Hat Closed",
+            "Hi-Hat Open",
+            "Hi-Hat Pedal",
+            "Tom 1",
+            "Tom 2",
+            "Floor Tom 1",
+            "Crash Istanbul Xist",
+            "Crash 2",
+            "Ride",
+            "Ride Bell"
+        };
+
+        glorp::MapPreset rolandPreset;
+        bool foundRoland = false;
+        for (const auto& p : glorp::MidiMap::availablePresets())
+        {
+            if (p.name == "Roland V-Drums")
+            {
+                rolandPreset = p;
+                foundRoland = true;
+                break;
+            }
+        }
+        VERIFY_CHECK (foundRoland);
+        map.applyPreset (rolandPreset, customKitNames);
+
+        VERIFY_CHECK (map.instrumentForNote (36) == 0);  // Kick
+        VERIFY_CHECK (map.instrumentForNote (38) == 1);  // Snare
+        VERIFY_CHECK (map.instrumentForNote (40) == 2);  // Snare Rim
+        VERIFY_CHECK (map.instrumentForNote (42) == 3);  // Hi-Hat Closed
+        VERIFY_CHECK (map.instrumentForNote (46) == 4);  // Hi-Hat Open
+        VERIFY_CHECK (map.instrumentForNote (26) == 4);  // Hi-Hat Open edge -> falls back to Hi-Hat Open
+        VERIFY_CHECK (map.instrumentForNote (44) == 5);  // Hi-Hat Pedal
+        VERIFY_CHECK (map.instrumentForNote (48) == 6);  // Tom 1
+        VERIFY_CHECK (map.instrumentForNote (45) == 7);  // Tom 2
+        VERIFY_CHECK (map.instrumentForNote (43) == 8);  // Floor Tom 1
+        VERIFY_CHECK (map.instrumentForNote (49) == 9);  // Crash Istanbul Xist
+        VERIFY_CHECK (map.instrumentForNote (57) == 10); // Crash 2
+        VERIFY_CHECK (map.instrumentForNote (51) == 11); // Ride
+        VERIFY_CHECK (map.instrumentForNote (53) == 12); // Ride Bell
+
+        // 22D. Verify DebugLog ring buffer + snapshot file output
+        const auto tmpLog = juce::File::getSpecialLocation (juce::File::tempDirectory)
+                                .getChildFile ("glorpdrums_verify_debug.log");
+        tmpLog.deleteFile();
+        glorp::DebugLog::instance().setLogFile (tmpLog);
+        glorp::DebugLog::instance().pushRealtimeEvent ("MIDI", "NoteOn note=42 ch=10 vel=96 -> inst=3 (Hi-Hat Closed)");
+        glorp::DebugLog::instance().logInfo ("TEST", "Roland preset check");
+        VERIFY_CHECK (glorp::DebugLog::instance().writeDiagnosticReport ("Kit: Ludwig Black Cortex Test\nMode: Standalone"));
+        VERIFY_CHECK (tmpLog.existsAsFile());
+        const auto logContents = tmpLog.loadFileAsString();
+        VERIFY_CHECK (logContents.contains ("NoteOn note=42 ch=10 vel=96"));
+        VERIFY_CHECK (logContents.contains ("Roland preset check"));
+        VERIFY_CHECK (logContents.contains ("Ludwig Black Cortex Test"));
+        tmpLog.deleteFile();
+
+        std::cout << "-> Section 22 Issue #1 Fixes (MIDI Learn, Roland V-Drums, DebugLog, OpenGL Default): PASSED!\n";
     }
 
     processor.releaseResources();

@@ -104,7 +104,7 @@ void MidiMap::removeBindingForMessage(int cc, bool useNote, int channel)
 {
     bindings_.erase(std::remove_if(bindings_.begin(),
                                    bindings_.end(),
-                                   [&](const MidiBinding& b)
+                                   [&](const MidiBinding &b)
                                    {
                                        return b.cc == cc && b.useNote == useNote
                                               && (b.channel == 0 || channel == 0 || b.channel == channel);
@@ -151,6 +151,11 @@ bool MidiMap::offerMessage(const juce::MidiMessage &message, juce::String *learn
     const bool isNote = message.isNoteOn() || message.isNoteOff();
 
     if (isNote != learningUsesNote)
+        return false;
+
+    // Ignore NoteOff / zero-velocity NoteOn during note learn so releasing a pad or
+    // re-triggering doesn't lock onto a spurious event, and ignore CC/pedal traffic.
+    if (learningUsesNote && !(message.isNoteOn() && message.getVelocity() > 0))
         return false;
 
     if (learningChannel > 1 && message.getChannel() + 1 != learningChannel)
@@ -229,12 +234,12 @@ std::vector<MapPreset> MidiMap::availablePresets()
           {56, "Cowbell"}, {57, "Crash2"},    {52, "China"}}},
 
         {"Roland V-Drums",
-         {{36, "Kick"},          {35, "Kick"},        {38, "SnareHead"},     {40, "Rimshot"},    {37, "CrossStick"},
-          {42, "HihatClosed"},   {22, "HihatClosed"}, {26, "HihatSemiOpen"}, {46, "HihatOpen"},  {44, "HihatPedal"},
-          {80, "HihatSemiOpen"}, {48, "Tom1Head"},    {50, "Tom1Rim"},       {45, "Tom2Head"},   {47, "Tom2Rim"},
-          {43, "FTomHead"},      {58, "FTomRim"},     {49, "Crash1Bow"},     {55, "Crash1Edge"}, {57, "Crash2Bow"},
-          {52, "Crash2Edge"},    {51, "RideBow"},     {53, "RideBell"},      {59, "RideEdge"},   {54, "Tambourine"},
-          {56, "Cowbell"}}},
+         {{36, "Kick"},          {35, "Kick"},          {38, "SnareHead"},     {40, "Rimshot"},   {37, "CrossStick"},
+          {42, "HihatClosed"},   {22, "HihatClosed"},   {26, "HihatSemiOpen"}, {46, "HihatOpen"}, {44, "HihatPedal"},
+          {80, "HihatSemiOpen"}, {23, "HihatSemiOpen"}, {48, "Tom1Head"},      {50, "Tom1Rim"},   {45, "Tom2Head"},
+          {47, "Tom2Rim"},       {43, "FTomHead"},      {41, "FTomHead"},      {58, "FTomRim"},   {49, "Crash1Bow"},
+          {55, "Crash1Edge"},    {57, "Crash2Bow"},     {52, "Crash2Edge"},    {51, "RideBow"},   {53, "RideBell"},
+          {59, "RideEdge"},      {54, "Tambourine"},    {56, "Cowbell"}}},
 
         {"Yamaha DTX",
          {{36, "Kick"},        {35, "Kick"},          {38, "SnareHead"}, {40, "Rimshot"},    {37, "CrossStick"},
@@ -459,220 +464,276 @@ void MidiMap::applyPreset(const MapPreset &preset, const std::vector<juce::Strin
     bindings_ = preset.bindings;
 
     // Smart instrument name matching so presets resolve correctly against any kit
+    const auto stripName = [](const juce::String &s) { return s.toLowerCase().removeCharacters(" .-_/\\"); };
+    std::vector<juce::String> strippedNames;
+    strippedNames.reserve(kitInstrumentNames.size());
+    for (const auto &name : kitInstrumentNames)
+        strippedNames.push_back(stripName(name));
+
+    auto isHiHatName = [](const juce::String &ns) { return ns.contains("hat") || ns.contains("hh"); };
+
     auto matchInstrument = [&](const juce::String &target) -> int
     {
         const auto lower = target.toLowerCase();
-        const auto stripName = [](const juce::String &s) { return s.toLowerCase().removeCharacters(" .-_/\\"); };
-
         const auto targetStripped = stripName(target);
 
         // 1. Exact match (case-insensitive or normalized-stripped)
         for (size_t i = 0; i < kitInstrumentNames.size(); ++i)
-            if (kitInstrumentNames[i].equalsIgnoreCase(target) || stripName(kitInstrumentNames[i]) == targetStripped)
+            if (kitInstrumentNames[i].equalsIgnoreCase(target) || strippedNames[i] == targetStripped)
                 return static_cast<int>(i);
 
         // 2. Multi-zone snare pieces
-        if (lower == "snarehead" || lower == "snare")
+        if (targetStripped == "snarehead" || targetStripped == "snare")
         {
-            for (size_t i = 0; i < kitInstrumentNames.size(); ++i)
+            for (size_t i = 0; i < strippedNames.size(); ++i)
             {
-                const auto n = kitInstrumentNames[i].toLowerCase();
-                if (n == "snarehead" || n == "snare"
-                    || (n.contains("snare") && !n.contains("rim") && !n.contains("click") && !n.contains("rest")))
+                const auto &ns = strippedNames[i];
+                if (ns == "snarehead" || ns == "snare"
+                    || (ns.contains("snare") && !ns.contains("rim") && !ns.contains("click") && !ns.contains("cross")
+                        && !ns.contains("stick") && !ns.contains("rest")))
                     return static_cast<int>(i);
             }
         }
-        else if (lower == "rimshot" || lower == "snarerimshot")
+        else if (targetStripped == "rimshot" || targetStripped == "snarerimshot")
         {
-            for (size_t i = 0; i < kitInstrumentNames.size(); ++i)
-                if (kitInstrumentNames[i].toLowerCase().contains("rimshot"))
-                    return static_cast<int>(i);
-        }
-        else if (lower == "crossstick" || lower == "rimclick" || lower == "sidestick")
-        {
-            for (size_t i = 0; i < kitInstrumentNames.size(); ++i)
+            for (size_t i = 0; i < strippedNames.size(); ++i)
             {
-                const auto n = kitInstrumentNames[i].toLowerCase();
-                if (n.contains("click") || n.contains("cross") || n.contains("stick"))
+                const auto &ns = strippedNames[i];
+                if (ns.contains("rimshot")
+                    || (ns.contains("snare") && ns.contains("rim") && !ns.contains("click") && !ns.contains("cross")
+                        && !ns.contains("stick")))
+                    return static_cast<int>(i);
+            }
+        }
+        else if (targetStripped == "crossstick" || targetStripped == "rimclick" || targetStripped == "sidestick")
+        {
+            for (size_t i = 0; i < strippedNames.size(); ++i)
+            {
+                const auto &ns = strippedNames[i];
+                if (ns.contains("click") || ns.contains("crossstick") || ns.contains("sidestick")
+                    || ns.contains("cross"))
                     return static_cast<int>(i);
             }
         }
 
         // 3. Kick
-        else if (lower == "kick" || lower == "kick2")
+        else if (targetStripped == "kick" || targetStripped == "kick2")
         {
-            for (size_t i = 0; i < kitInstrumentNames.size(); ++i)
+            for (size_t i = 0; i < strippedNames.size(); ++i)
             {
-                const auto n = kitInstrumentNames[i].toLowerCase();
-                if (n.contains("kick") || n.contains("kdrum") || n.contains("bdrum") || n.contains("bd"))
+                const auto &ns = strippedNames[i];
+                if (ns.contains("kick") || ns.contains("kdrum") || ns.contains("bdrum") || ns == "bd")
                     return static_cast<int>(i);
             }
         }
 
         // 4. Hi-Hat
-        else if (lower.contains("closed") || lower.contains("close"))
+        else if (targetStripped.contains("closed") || targetStripped.contains("close"))
         {
-            for (size_t i = 0; i < kitInstrumentNames.size(); ++i)
+            for (size_t i = 0; i < strippedNames.size(); ++i)
             {
-                const auto n = kitInstrumentNames[i].toLowerCase();
-                if ((n.contains("hat") || n.contains("hh")) && (n.contains("closed") || n.contains("close")))
+                const auto &ns = strippedNames[i];
+                if (isHiHatName(ns) && (ns.contains("closed") || ns.contains("close")))
+                    return static_cast<int>(i);
+            }
+            for (size_t i = 0; i < strippedNames.size(); ++i)
+            {
+                const auto &ns = strippedNames[i];
+                if (isHiHatName(ns) && !ns.contains("open") && !ns.contains("pedal") && !ns.contains("foot"))
                     return static_cast<int>(i);
             }
         }
-        else if (lower.contains("semi"))
+        else if (targetStripped.contains("semi"))
         {
-            for (size_t i = 0; i < kitInstrumentNames.size(); ++i)
+            for (size_t i = 0; i < strippedNames.size(); ++i)
             {
-                const auto n = kitInstrumentNames[i].toLowerCase();
-                if ((n.contains("hat") || n.contains("hh")) && n.contains("semi"))
+                const auto &ns = strippedNames[i];
+                if (isHiHatName(ns) && ns.contains("semi"))
+                    return static_cast<int>(i);
+            }
+            for (size_t i = 0; i < strippedNames.size(); ++i)
+            {
+                const auto &ns = strippedNames[i];
+                if (isHiHatName(ns) && ns.contains("open"))
                     return static_cast<int>(i);
             }
         }
-        else if (lower.contains("open"))
+        else if (targetStripped.contains("open"))
         {
-            for (size_t i = 0; i < kitInstrumentNames.size(); ++i)
+            for (size_t i = 0; i < strippedNames.size(); ++i)
             {
-                const auto n = kitInstrumentNames[i].toLowerCase();
-                if ((n.contains("hat") || n.contains("hh")) && n.contains("open") && !n.contains("semi"))
+                const auto &ns = strippedNames[i];
+                if (isHiHatName(ns) && ns.contains("open") && !ns.contains("semi"))
+                    return static_cast<int>(i);
+            }
+            for (size_t i = 0; i < strippedNames.size(); ++i)
+            {
+                const auto &ns = strippedNames[i];
+                if (isHiHatName(ns) && !ns.contains("closed") && !ns.contains("close") && !ns.contains("pedal")
+                    && !ns.contains("foot"))
                     return static_cast<int>(i);
             }
         }
-        else if (lower.contains("pedal") || lower.contains("foot"))
+        else if (targetStripped.contains("pedal") || targetStripped.contains("foot"))
         {
-            for (size_t i = 0; i < kitInstrumentNames.size(); ++i)
+            for (size_t i = 0; i < strippedNames.size(); ++i)
             {
-                const auto n = kitInstrumentNames[i].toLowerCase();
-                if ((n.contains("hat") || n.contains("hh")) && (n.contains("pedal") || n.contains("foot")))
+                const auto &ns = strippedNames[i];
+                if (isHiHatName(ns) && (ns.contains("pedal") || ns.contains("foot") || ns.contains("chick")))
                     return static_cast<int>(i);
             }
         }
 
         // 5. Toms
-        else if (lower == "tom1head" || lower == "tom1")
+        else if (targetStripped == "tom1head" || targetStripped == "tom1" || targetStripped == "hightom")
         {
-            for (size_t i = 0; i < kitInstrumentNames.size(); ++i)
+            for (size_t i = 0; i < strippedNames.size(); ++i)
             {
-                const auto n = kitInstrumentNames[i].toLowerCase();
-                if ((n.contains("tom1") || n.contains("rack1") || n.contains("hightom")) && !n.contains("rim"))
+                const auto &ns = strippedNames[i];
+                if ((ns.contains("tom1") || ns.contains("rack1") || ns.contains("racktom1") || ns.contains("hightom"))
+                    && !ns.contains("rim"))
                     return static_cast<int>(i);
             }
         }
-        else if (lower == "tom1rim")
+        else if (targetStripped == "tom1rim")
         {
-            for (size_t i = 0; i < kitInstrumentNames.size(); ++i)
+            for (size_t i = 0; i < strippedNames.size(); ++i)
             {
-                const auto n = kitInstrumentNames[i].toLowerCase();
-                if ((n.contains("tom1") || n.contains("rack1")) && n.contains("rim"))
+                const auto &ns = strippedNames[i];
+                if ((ns.contains("tom1") || ns.contains("rack1") || ns.contains("racktom1")) && ns.contains("rim"))
                     return static_cast<int>(i);
             }
         }
-        else if (lower == "tom2head" || lower == "tom2")
+        else if (targetStripped == "tom2head" || targetStripped == "tom2" || targetStripped == "midtom")
         {
-            for (size_t i = 0; i < kitInstrumentNames.size(); ++i)
+            for (size_t i = 0; i < strippedNames.size(); ++i)
             {
-                const auto n = kitInstrumentNames[i].toLowerCase();
-                if ((n.contains("tom2") || n.contains("rack2") || n.contains("midtom")) && !n.contains("rim"))
+                const auto &ns = strippedNames[i];
+                if ((ns.contains("tom2") || ns.contains("rack2") || ns.contains("racktom2") || ns.contains("midtom"))
+                    && !ns.contains("rim"))
                     return static_cast<int>(i);
             }
         }
-        else if (lower == "tom2rim")
+        else if (targetStripped == "tom2rim")
         {
-            for (size_t i = 0; i < kitInstrumentNames.size(); ++i)
+            for (size_t i = 0; i < strippedNames.size(); ++i)
             {
-                const auto n = kitInstrumentNames[i].toLowerCase();
-                if ((n.contains("tom2") || n.contains("rack2")) && n.contains("rim"))
+                const auto &ns = strippedNames[i];
+                if ((ns.contains("tom2") || ns.contains("rack2") || ns.contains("racktom2")) && ns.contains("rim"))
                     return static_cast<int>(i);
             }
         }
-        else if (lower.contains("ftomhead") || lower.contains("floortom") || lower == "ftom" || lower == "tom3")
+        else if (targetStripped.contains("ftomhead") || targetStripped.contains("floortom")
+                 || targetStripped == "lowfloortom" || targetStripped == "ftom" || targetStripped == "tom3")
         {
-            for (size_t i = 0; i < kitInstrumentNames.size(); ++i)
+            for (size_t i = 0; i < strippedNames.size(); ++i)
             {
-                const auto n = kitInstrumentNames[i].toLowerCase();
-                if ((n.contains("floor") || n.contains("ftom") || n.contains("lowtom") || n.contains("tom3"))
-                    && !n.contains("rim"))
+                const auto &ns = strippedNames[i];
+                if ((ns.contains("floor") || ns.contains("ftom") || ns.contains("lowtom") || ns.contains("tom3")
+                     || ns.contains("tom4"))
+                    && !ns.contains("rim"))
                     return static_cast<int>(i);
             }
         }
-        else if (lower.contains("ftomrim") || lower.contains("floortomrim"))
+        else if (targetStripped.contains("ftomrim") || targetStripped.contains("floortomrim"))
         {
-            for (size_t i = 0; i < kitInstrumentNames.size(); ++i)
+            for (size_t i = 0; i < strippedNames.size(); ++i)
             {
-                const auto n = kitInstrumentNames[i].toLowerCase();
-                if ((n.contains("floor") || n.contains("ftom")) && n.contains("rim"))
+                const auto &ns = strippedNames[i];
+                if ((ns.contains("floor") || ns.contains("ftom") || ns.contains("tom3")) && ns.contains("rim"))
                     return static_cast<int>(i);
             }
         }
 
         // 6. Cymbals
-        else if (lower == "ridebell")
+        else if (targetStripped == "ridebell")
         {
-            for (size_t i = 0; i < kitInstrumentNames.size(); ++i)
+            for (size_t i = 0; i < strippedNames.size(); ++i)
             {
-                const auto n = kitInstrumentNames[i].toLowerCase();
-                if (n.contains("ride") && n.contains("bell"))
+                const auto &ns = strippedNames[i];
+                if (ns.contains("ride") && ns.contains("bell"))
                     return static_cast<int>(i);
             }
         }
-        else if (lower == "rideedge")
+        else if (targetStripped == "rideedge")
         {
-            for (size_t i = 0; i < kitInstrumentNames.size(); ++i)
+            for (size_t i = 0; i < strippedNames.size(); ++i)
             {
-                const auto n = kitInstrumentNames[i].toLowerCase();
-                if (n.contains("ride") && n.contains("edge"))
+                const auto &ns = strippedNames[i];
+                if (ns.contains("ride") && ns.contains("edge"))
+                    return static_cast<int>(i);
+            }
+            for (size_t i = 0; i < strippedNames.size(); ++i)
+            {
+                const auto &ns = strippedNames[i];
+                if (ns.contains("ride") && !ns.contains("bell") && !ns.contains("choke"))
                     return static_cast<int>(i);
             }
         }
-        else if (lower == "ridebow" || lower == "ride")
+        else if (targetStripped == "ridebow" || targetStripped == "ride")
         {
-            for (size_t i = 0; i < kitInstrumentNames.size(); ++i)
+            for (size_t i = 0; i < strippedNames.size(); ++i)
             {
-                const auto n = kitInstrumentNames[i].toLowerCase();
-                if (n.contains("ride") && !n.contains("bell") && !n.contains("edge") && !n.contains("choke"))
+                const auto &ns = strippedNames[i];
+                if (ns.contains("ride") && !ns.contains("bell") && !ns.contains("edge") && !ns.contains("choke"))
                     return static_cast<int>(i);
             }
-            for (size_t i = 0; i < kitInstrumentNames.size(); ++i)
-                if (kitInstrumentNames[i].toLowerCase().contains("ride"))
+            for (size_t i = 0; i < strippedNames.size(); ++i)
+                if (strippedNames[i].contains("ride"))
                     return static_cast<int>(i);
         }
-        else if (lower.startsWith("crash1") || lower == "crash")
+        else if (targetStripped.startsWith("crash1") || targetStripped == "crash")
         {
-            const bool wantsEdge = lower.contains("edge");
-            for (size_t i = 0; i < kitInstrumentNames.size(); ++i)
+            const bool wantsEdge = targetStripped.contains("edge");
+            for (size_t i = 0; i < strippedNames.size(); ++i)
             {
-                const auto n = kitInstrumentNames[i].toLowerCase();
-                if (n.contains("crash1") || n.contains("crash 1")
-                    || (n.contains("crash") && !n.contains("2") && !n.contains("crashr") && !n.contains("right")))
+                const auto &ns = strippedNames[i];
+                if (ns.contains("crash1") || ns.contains("crashl") || ns.contains("leftcrash")
+                    || (ns.contains("crash") && !ns.contains("2") && !ns.contains("crashr") && !ns.contains("right")))
                 {
-                    if (wantsEdge && n.contains("edge"))
+                    if (wantsEdge && ns.contains("edge"))
                         return static_cast<int>(i);
-                    if (!wantsEdge && (n.contains("bow") || (!n.contains("edge") && !n.contains("choke"))))
+                    if (!wantsEdge && (ns.contains("bow") || (!ns.contains("edge") && !ns.contains("choke"))))
                         return static_cast<int>(i);
                 }
             }
-            for (size_t i = 0; i < kitInstrumentNames.size(); ++i)
-                if (kitInstrumentNames[i].toLowerCase().contains("crash")
-                    && !kitInstrumentNames[i].toLowerCase().contains("2"))
+            for (size_t i = 0; i < strippedNames.size(); ++i)
+                if (strippedNames[i].contains("crash") && !strippedNames[i].contains("2"))
                     return static_cast<int>(i);
         }
-        else if (lower.startsWith("crash2"))
+        else if (targetStripped.startsWith("crash2"))
         {
-            const bool wantsEdge = lower.contains("edge");
-            for (size_t i = 0; i < kitInstrumentNames.size(); ++i)
+            const bool wantsEdge = targetStripped.contains("edge");
+            for (size_t i = 0; i < strippedNames.size(); ++i)
             {
-                const auto n = kitInstrumentNames[i].toLowerCase();
-                if (n.contains("crash2") || n.contains("crash 2") || n.contains("crashr") || n.contains("china")
-                    || n.contains("splash"))
+                const auto &ns = strippedNames[i];
+                if (ns.contains("crash2") || ns.contains("crashr") || ns.contains("rightcrash") || ns.contains("china")
+                    || ns.contains("splash"))
                 {
-                    if (wantsEdge && n.contains("edge"))
+                    if (wantsEdge && ns.contains("edge"))
                         return static_cast<int>(i);
-                    if (!wantsEdge && (n.contains("bow") || (!n.contains("edge") && !n.contains("choke"))))
+                    if (!wantsEdge && (ns.contains("bow") || (!ns.contains("edge") && !ns.contains("choke"))))
+                        return static_cast<int>(i);
+                }
+            }
+            // Fallback to the second crash-like instrument if multiple unlabeled crashes exist
+            int crashSeen = 0;
+            for (size_t i = 0; i < strippedNames.size(); ++i)
+            {
+                if (strippedNames[i].contains("crash"))
+                {
+                    ++crashSeen;
+                    if (crashSeen >= 2)
                         return static_cast<int>(i);
                 }
             }
         }
 
-        // Substring fallback
+        // Substring fallback (normalized then raw)
+        for (size_t i = 0; i < strippedNames.size(); ++i)
+            if (strippedNames[i].contains(targetStripped))
+                return static_cast<int>(i);
+
         for (size_t i = 0; i < kitInstrumentNames.size(); ++i)
             if (kitInstrumentNames[i].toLowerCase().contains(lower))
                 return static_cast<int>(i);

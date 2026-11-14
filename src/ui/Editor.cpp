@@ -1,4 +1,5 @@
 #include "Editor.h"
+#include "DebugLog.h"
 
 namespace glorp
 {
@@ -945,7 +946,19 @@ juce::PopupMenu Editor::buildPresetsMenu()
     juce::PopupMenu menu;
 
     for (const auto &preset : MidiMap::availablePresets())
-        menu.addItem(preset.name, [this, preset] { processor.applyMapPreset(preset.name); });
+    {
+        const bool isCurrent = (processor.getSettings().lastMapPreset == preset.name);
+        menu.addItem(preset.name,
+                     true,
+                     isCurrent,
+                     [this, preset]
+                     {
+                         processor.applyMapPreset(preset.name);
+                         updateInstrumentDisplay();
+                         statusText = "Applied preset: " + preset.name;
+                         repaint();
+                     });
+    }
 
     menu.addSeparator();
 
@@ -1036,6 +1049,36 @@ juce::PopupMenu Editor::buildSettingsMenu()
 {
     juce::PopupMenu menu;
 
+    if (processor.isStandaloneApp())
+    {
+        menu.addItem("Audio / MIDI Device Options...",
+                     [this]
+                     {
+                         std::function<juce::Button *(juce::Component *)> findOptionsBtn =
+                             [&](juce::Component *comp) -> juce::Button *
+                         {
+                             if (comp == nullptr)
+                                 return nullptr;
+                             if (auto *btn = dynamic_cast<juce::Button *>(comp))
+                                 if (btn->getButtonText() == "Options" || btn->getName() == "Options")
+                                     return btn;
+                             for (int i = 0; i < comp->getNumChildComponents(); ++i)
+                                 if (auto *found = findOptionsBtn(comp->getChildComponent(i)))
+                                     return found;
+                             return nullptr;
+                         };
+
+                         if (auto *btn = findOptionsBtn(getTopLevelComponent()))
+                             btn->triggerClick();
+                         else
+                             juce::AlertWindow::showMessageBoxAsync(
+                                 juce::AlertWindow::InfoIcon,
+                                 "Audio / MIDI Settings",
+                                 "Use the Standalone window's top-left Options button to configure Audio & MIDI.");
+                     });
+        menu.addSeparator();
+    }
+
     menu.addItem(theme.isDark ? "Theme: Sketch" : "Theme: Dark",
                  [this]
                  {
@@ -1065,6 +1108,54 @@ juce::PopupMenu Editor::buildSettingsMenu()
                      updateInstrumentDisplay();
                      repaint();
                  });
+
+    menu.addItem(
+        "Save / Open Debug Log...",
+        [this]
+        {
+            auto &sampler = processor.getSampler();
+            const auto &map = processor.getMidiMap();
+            auto &engine = processor.getAudioEngine();
+
+            juce::String report;
+            report << "App Mode: " << (processor.isStandaloneApp() ? "Standalone" : "Plugin") << "\n"
+                   << "OS: " << juce::SystemStats::getOperatingSystemName()
+                   << " | Arch: " << (juce::SystemStats::isOperatingSystem64Bit() ? "x86_64/64-bit" : "32-bit") << "\n"
+                   << "Sample Rate: " << juce::String(engine.getCurrentSampleRate(), 1) << " Hz"
+                   << " | Block Size: " << juce::String(engine.getCurrentBlockSize()) << " samples\n"
+                   << "OpenGL: " << (isOpenGlEnabled() ? "ON" : "OFF") << "\n"
+                   << "Window Size: " << juce::String(getWidth()) << "x" << juce::String(getHeight()) << "\n"
+                   << "Hi-Hat Mode: "
+                   << (sampler.getHiHatMode() == HiHatMode::continuousCC4 ? "Continuous CC#4" : "Discrete Notes")
+                   << "\n"
+                   << "Loaded Kit: " << processor.getCurrentKitPath() << " (" << juce::String(sampler.numInstruments())
+                   << " instruments)\n"
+                   << "Last Preset: " << processor.getSettings().lastMapPreset << "\n"
+                   << "Instruments & MIDI Note Map:\n";
+
+            for (int i = 0; i < sampler.numInstruments(); ++i)
+            {
+                const int note = map.noteForInstrument(i);
+                report << "  [" << juce::String(i) << "] " << sampler.instrumentName(i) << " -> "
+                       << (note >= 0 ? (juce::MidiMessage::getMidiNoteName(note, true, true, 3) + " (MIDI #"
+                                        + juce::String(note) + ")")
+                                     : juce::String("UNMAPPED"))
+                       << "\n";
+            }
+
+            DebugLog::instance().writeDiagnosticReport(report);
+            const auto logFile = DebugLog::instance().getLogFile();
+            logFile.revealToUser();
+
+            statusText = "Debug log saved: " + logFile.getFullPathName();
+            repaint();
+
+            juce::AlertWindow::showMessageBoxAsync(juce::AlertWindow::InfoIcon,
+                                                   "GlorpDrums Debug Log",
+                                                   "Diagnostic snapshot and live MIDI log saved to:\n\n"
+                                                       + logFile.getFullPathName()
+                                                       + "\n\nAttach this file when reporting issues on GitHub.");
+        });
 
     menu.addSeparator();
     menu.addItem("About GlorpDrums",
@@ -1658,7 +1749,7 @@ void Editor::armLearn(int samplerIndex)
     else
     {
         learningInstrument = samplerIndex;
-        map.beginLearn("note" + std::to_string(samplerIndex));
+        map.beginLearn("note" + std::to_string(samplerIndex), true);
         statusText = "MIDI learn armed - hit your drum pad";
     }
 
@@ -1786,6 +1877,14 @@ void Editor::timerCallback()
     }
 
     wasLearning = isLearning;
+
+    static int debugFlushTick = 0;
+    if (++debugFlushTick >= 15)
+    {
+        debugFlushTick = 0;
+        if (DebugLog::instance().hasPendingEntries())
+            DebugLog::instance().flushToFile();
+    }
 }
 
 //==============================================================================
