@@ -12,6 +12,7 @@
 #include <juce_graphics/juce_graphics.h>
 #include <juce_gui_basics/juce_gui_basics.h>
 
+#include <atomic>
 #include <memory>
 
 #include "GlorpDrumsAssets.h"
@@ -38,11 +39,13 @@ struct Theme
     juce::Colour head;
 
     bool isDark = false;
+    bool cleanStyle = false; ///< Clean sans-serif fonts & straight geometric borders for high readability
 
     static Theme sketch() noexcept
     {
         Theme t;
         t.isDark = false;
+        t.cleanStyle = false;
         t.background = juce::Colour(0xffe2e5e2);
         t.panel = juce::Colour(0xfffcfdfc);
         t.panelEdge = juce::Colour(0xff111215);
@@ -62,6 +65,7 @@ struct Theme
     {
         Theme t;
         t.isDark = true;
+        t.cleanStyle = false;
         t.background = juce::Colour(0xff161719);
         t.panel = juce::Colour(0xff1c1d21);
         t.panelEdge = juce::Colour(0xffffffff);
@@ -77,8 +81,114 @@ struct Theme
         return t;
     }
 
-    static Theme byIndex(int index) noexcept { return index == 1 ? dark() : sketch(); }
+    static Theme studioClean() noexcept
+    {
+        Theme t;
+        t.isDark = false;
+        t.cleanStyle = true;
+        t.background = juce::Colour(0xfff0f2f5);
+        t.panel = juce::Colour(0xffffffff);
+        t.panelEdge = juce::Colour(0xff2d3748);
+        t.ink = juce::Colour(0xff0d1117);
+        t.inkSoft = juce::Colour(0xff4a5568);
+        t.accent = juce::Colour(0xffd96b08);
+        t.warning = juce::Colour(0xffc92a2a);
+        t.trough = juce::Colour(0xffe2e8f0);
+        t.shell = juce::Colour(0xfff8fafc);
+        t.shellShade = juce::Colour(0xffcbd5e1);
+        t.cymbal = juce::Colour(0xfff1f5f9);
+        t.head = juce::Colour(0xffffffff);
+        return t;
+    }
+
+    static Theme highContrast() noexcept
+    {
+        Theme t;
+        t.isDark = true;
+        t.cleanStyle = true;
+        t.background = juce::Colour(0xff0a0c10);
+        t.panel = juce::Colour(0xff161b22);
+        t.panelEdge = juce::Colour(0xffcbd5e1);
+        t.ink = juce::Colour(0xffffffff);
+        t.inkSoft = juce::Colour(0xffcbd5e1);
+        t.accent = juce::Colour(0xffffb020);
+        t.warning = juce::Colour(0xffff5252);
+        t.trough = juce::Colour(0xff0d1117);
+        t.shell = juce::Colour(0xff30363d);
+        t.shellShade = juce::Colour(0xff21262d);
+        t.cymbal = juce::Colour(0xffa69658);
+        t.head = juce::Colour(0xff3b424c);
+        return t;
+    }
+
+    static constexpr int numSkins() noexcept { return 4; }
+
+    static juce::String skinName(int index)
+    {
+        switch (index)
+        {
+            case 1:
+                return "Dark (Night)";
+            case 2:
+                return "Studio Clean (Light)";
+            case 3:
+                return "High Contrast Pro (Dark)";
+            case 0:
+            default:
+                return "Sketch (Light)";
+        }
+    }
+
+    static Theme byIndex(int index) noexcept
+    {
+        switch (index)
+        {
+            case 1:
+                return dark();
+            case 2:
+                return studioClean();
+            case 3:
+                return highContrast();
+            case 0:
+            default:
+                return sketch();
+        }
+    }
 };
+
+//==============================================================================
+/** Global UI presentation controls (font scale & clean high-readability skin mode). */
+inline std::atomic<float> &globalUiTextScale() noexcept
+{
+    static std::atomic<float> scale {1.0f};
+    return scale;
+}
+
+inline std::atomic<bool> &globalCleanStyle() noexcept
+{
+    static std::atomic<bool> clean {false};
+    return clean;
+}
+
+inline void setUiTextScale(float scale) noexcept
+{
+    globalUiTextScale().store(juce::jlimit(0.85f, 1.35f, scale), std::memory_order_relaxed);
+}
+
+inline float getUiTextScale() noexcept
+{
+    return globalUiTextScale().load(std::memory_order_relaxed);
+}
+
+inline void setCleanStyleEnabled(bool enabled) noexcept
+{
+    globalCleanStyle().store(enabled, std::memory_order_relaxed);
+}
+
+inline bool isCleanStyleEnabled() noexcept
+{
+    return globalCleanStyle().load(std::memory_order_relaxed);
+}
 
 //==============================================================================
 /** Loads one of the bundled fonts. */
@@ -100,7 +210,10 @@ inline juce::Typeface::Ptr displayTypeface()
 
 inline juce::Font uiFont(float height)
 {
-    const auto size = juce::jmax(9.0f, height);
+    const auto size = juce::jmax(9.0f, height * getUiTextScale());
+
+    if (isCleanStyleEnabled())
+        return juce::Font(juce::FontOptions(size));
 
     if (auto face = uiTypeface())
     {
@@ -109,12 +222,15 @@ inline juce::Font uiFont(float height)
         return font;
     }
 
-    return juce::Font(size);
+    return juce::Font(juce::FontOptions(size));
 }
 
 inline juce::Font displayFont(float height)
 {
-    const auto size = juce::jmax(11.0f, height);
+    const auto size = juce::jmax(10.5f, height * getUiTextScale());
+
+    if (isCleanStyleEnabled())
+        return juce::Font(juce::FontOptions(size).withStyle("Bold"));
 
     if (auto face = displayTypeface())
     {
@@ -123,7 +239,7 @@ inline juce::Font displayFont(float height)
         return font;
     }
 
-    return juce::Font(size);
+    return juce::Font(juce::FontOptions(size).withStyle("Bold"));
 }
 
 /// The bundled logo. Parsed fresh each call, because it is only ever needed once
@@ -154,6 +270,13 @@ inline juce::Image imageFromMemory(const char *data, int size)
 inline void drawSketchRect(
     juce::Graphics &g, juce::Rectangle<float> r, const juce::Colour &colour, float thickness = 1.6f, unsigned seed = 0)
 {
+    if (isCleanStyleEnabled())
+    {
+        g.setColour(colour);
+        g.drawRoundedRectangle(r, 4.0f, thickness);
+        return;
+    }
+
     auto jitter = [](unsigned s, int index, float amount)
     {
         // Cheap integer hash, stable for a given seed and edge.

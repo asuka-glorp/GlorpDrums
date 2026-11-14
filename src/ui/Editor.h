@@ -76,6 +76,7 @@ class Editor
     MixerView *getMixerView() noexcept { return mixerView.get(); }
     RecordPracticeView *getPracticeView() noexcept { return practiceView.get(); }
     void applyTheme(const Theme &newTheme);
+    void applyTextScale(float newScale);
 
     void setOpenGlEnabled(bool enabled);
     bool isOpenGlEnabled() const noexcept;

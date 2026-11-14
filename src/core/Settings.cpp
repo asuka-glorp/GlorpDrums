@@ -80,6 +80,7 @@ void Settings::writeState(juce::MemoryBlock &destination) const
     root.setAttribute("editorHeight", editorHeight);
     root.setAttribute("editorMaximised", editorMaximised);
     root.setAttribute("theme", themeIndex);
+    root.setAttribute("uiTextScale", static_cast<double>(uiTextScale));
     root.setAttribute("openGlEnabled", openGlEnabled);
     root.setAttribute("obsStreamDeviceName", obsStreamDeviceName);
     root.setAttribute("obsCleanOutBus2Enabled", obsCleanOutBus2Enabled);
@@ -112,7 +113,8 @@ void Settings::readState(const juce::MemoryBlock &source)
     editorWidth = root->getIntAttribute("editorWidth", editorWidth);
     editorHeight = root->getIntAttribute("editorHeight", editorHeight);
     editorMaximised = root->getBoolAttribute("editorMaximised", editorMaximised);
-    themeIndex = root->getIntAttribute("theme", themeIndex);
+    themeIndex = juce::jlimit(0, 3, root->getIntAttribute("theme", themeIndex));
+    uiTextScale = juce::jlimit(0.85f, 1.35f, static_cast<float>(root->getDoubleAttribute("uiTextScale", uiTextScale)));
     openGlEnabled = root->getBoolAttribute("openGlEnabled", openGlEnabled);
     obsStreamDeviceName = root->getStringAttribute("obsStreamDeviceName", obsStreamDeviceName);
     obsCleanOutBus2Enabled = root->getBoolAttribute("obsCleanOutBus2Enabled", obsCleanOutBus2Enabled);

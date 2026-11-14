@@ -2024,6 +2024,70 @@ int main()
         std::cout << "-> Section 22 Issue #1 Fixes (MIDI Learn, Roland V-Drums, DebugLog, OpenGL Default): PASSED!\n";
     }
 
+    // 23. Verify Pass 2: Skin System & UI Text Scalability
+    {
+        std::cout << "Testing Section 23: Skin System (4 Skins) & UI Text Scalability...\n";
+
+        VERIFY_CHECK (glorp::Theme::numSkins() == 4);
+        const auto tSketch = glorp::Theme::byIndex (0);
+        const auto tDark   = glorp::Theme::byIndex (1);
+        const auto tClean  = glorp::Theme::byIndex (2);
+        const auto tHiCon  = glorp::Theme::byIndex (3);
+
+        VERIFY_CHECK (! tSketch.isDark && ! tSketch.cleanStyle);
+        VERIFY_CHECK (tDark.isDark && ! tDark.cleanStyle);
+        VERIFY_CHECK (! tClean.isDark && tClean.cleanStyle);
+        VERIFY_CHECK (tHiCon.isDark && tHiCon.cleanStyle);
+        VERIFY_CHECK (tHiCon.background != tDark.background);
+
+        // Settings serialization round-trip for themeIndex & uiTextScale
+        glorp::Settings srcSettings;
+        srcSettings.themeIndex = 3;
+        srcSettings.uiTextScale = 1.30f;
+        juce::MemoryBlock stateBlock;
+        srcSettings.writeState (stateBlock);
+
+        glorp::Settings dstSettings;
+        dstSettings.readState (stateBlock);
+        VERIFY_CHECK (dstSettings.themeIndex == 3);
+        VERIFY_CHECK (std::abs (dstSettings.uiTextScale - 1.30f) < 0.01f);
+
+        // Live Editor skin + text scaling (save & restore host settings cleanly)
+        const int origThemeIdx = processor.getSettings().themeIndex;
+        const float origTextScale = processor.getSettings().uiTextScale;
+        auto editor = std::make_unique<glorp::Editor> (processor);
+        editor->setSize (1180, 860);
+
+        editor->applyTextScale (1.0f);
+        const float baseH = glorp::uiFont (14.0f).getHeight();
+
+        editor->applyTheme (tHiCon);
+        VERIFY_CHECK (glorp::isCleanStyleEnabled());
+
+        editor->applyTextScale (1.30f);
+        VERIFY_CHECK (std::abs (glorp::getUiTextScale() - 1.30f) < 0.01f);
+        const float scaledH = glorp::uiFont (14.0f).getHeight();
+        VERIFY_CHECK (scaledH > baseH * 1.20f);
+
+        juce::Image hiConImg (juce::Image::ARGB, editor->getWidth(), editor->getHeight(), true);
+        juce::Graphics hg (hiConImg);
+        editor->paintEntireComponent (hg, false);
+
+        editor->applyTheme (tClean);
+        VERIFY_CHECK (glorp::isCleanStyleEnabled());
+        juce::Image cleanImg (juce::Image::ARGB, editor->getWidth(), editor->getHeight(), true);
+        juce::Graphics cg (cleanImg);
+        editor->paintEntireComponent (cg, false);
+
+        // Reset presentation & settings cleanly
+        processor.getSettings().themeIndex = origThemeIdx;
+        editor->applyTheme (glorp::Theme::byIndex (origThemeIdx));
+        editor->applyTextScale (origTextScale);
+        VERIFY_CHECK (! glorp::isCleanStyleEnabled() == ! glorp::Theme::byIndex (origThemeIdx).cleanStyle);
+
+        std::cout << "-> Section 23 Skin System (4 Skins) & UI Text Scalability: PASSED!\n";
+    }
+
     processor.releaseResources();
 
     std::cout << "=== ALL VERIFICATIONS PASSED SUCCESSFULLY ===\n";

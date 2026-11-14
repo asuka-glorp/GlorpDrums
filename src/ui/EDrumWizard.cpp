@@ -37,7 +37,7 @@ void EDrumWizard::WizardButton::paintButton(juce::Graphics &g, bool isHover, boo
     else
         g.setColour(isHover ? orangeCol : inkCol);
 
-    g.drawText(getButtonText(), b, juce::Justification::centred, false);
+    g.drawFittedText(getButtonText(), b.reduced(3.0f, 0.0f).toNearestInt(), juce::Justification::centred, 1, 0.72f);
 }
 
 //==============================================================================

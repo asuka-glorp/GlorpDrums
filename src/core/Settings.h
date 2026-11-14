@@ -51,7 +51,8 @@ class Settings
     int editorWidth = 1180;
     int editorHeight = 860;
     bool editorMaximised = false;
-    int themeIndex = 0; ///< 0 = sketch (light), 1 = dark
+    int themeIndex = 0;       ///< 0 = sketch (light), 1 = dark, 2 = studio clean, 3 = high contrast pro
+    float uiTextScale = 1.0f; ///< UI font scale multiplier (0.85..1.35)
 #if defined(__linux__)
     bool openGlEnabled = false; ///< Hardware GPU acceleration disabled by default on Linux (X11/Xfce resize stability)
 #else
@@ -70,10 +71,10 @@ class Settings
     void pushRecentKit(const juce::String &path);
     static int maxRecentKits() { return 12; }
 
-  private:
     void writeState(juce::MemoryBlock &destination) const;
     void readState(const juce::MemoryBlock &source);
 
+  private:
     bool dirty = false;
 };
 

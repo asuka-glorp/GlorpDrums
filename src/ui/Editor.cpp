@@ -18,7 +18,7 @@ void Editor::MenuButton::paintButton(juce::Graphics &g, bool isHover, bool isDow
 
     g.setFont(displayFont(19.0f));
     g.setColour((active || isHover) ? theme.accent : theme.ink);
-    g.drawText(getName(), b, juce::Justification::centred, false);
+    g.drawFittedText(getName(), b.reduced(2.0f, 0.0f).toNearestInt(), juce::Justification::centred, 1, 0.72f);
 }
 
 void Editor::InstrumentSelectorButton::paintButton(juce::Graphics &g, bool isHover, bool /*isDown*/)
@@ -111,7 +111,7 @@ void Editor::OutputBusButton::paintButton(juce::Graphics &g, bool isHover, bool 
 
     g.setFont(displayFont(12.5f));
     g.setColour(isHover ? theme.accent : theme.ink);
-    g.drawText(text, b, juce::Justification::centred, true);
+    g.drawFittedText(text, b.reduced(3.0f, 0.0f).toNearestInt(), juce::Justification::centred, 1, 0.72f);
 }
 
 Editor::ZoneButton::ZoneButton(const juce::String &name, bool active) : juce::Button(name), isActive(active)
@@ -141,7 +141,7 @@ void Editor::ZoneButton::paintButton(juce::Graphics &g, bool isHover, bool /*isD
         drawSketchRect(g, b, orangeCol, isHover ? 1.8f : 1.4f, 5);
         g.setFont(displayFont(13.5f));
         g.setColour(orangeCol);
-        g.drawText(getName(), b, juce::Justification::centred, true);
+        g.drawFittedText(getName(), b.reduced(3.0f, 0.0f).toNearestInt(), juce::Justification::centred, 1, 0.72f);
     }
     else
     {
@@ -150,7 +150,7 @@ void Editor::ZoneButton::paintButton(juce::Graphics &g, bool isHover, bool /*isD
         drawSketchRect(g, b, borderCol, 1.0f, 3);
         g.setFont(displayFont(13.0f));
         g.setColour(isHover ? theme.accent : theme.inkSoft);
-        g.drawText(getName(), b, juce::Justification::centred, true);
+        g.drawFittedText(getName(), b.reduced(3.0f, 0.0f).toNearestInt(), juce::Justification::centred, 1, 0.72f);
     }
 }
 
@@ -176,12 +176,12 @@ void Editor::LearnButton::paintButton(juce::Graphics &g, bool isHover, bool /*is
     if (isLearning_)
     {
         g.setColour(orangeCol);
-        g.drawText("HIT PAD...", b, juce::Justification::centred, false);
+        g.drawFittedText("HIT PAD...", b.reduced(2.0f, 0.0f).toNearestInt(), juce::Justification::centred, 1, 0.72f);
     }
     else
     {
         g.setColour(isHover ? orangeCol : (theme.isDark ? theme.accent : theme.ink));
-        g.drawText("LEARN", b, juce::Justification::centred, false);
+        g.drawFittedText("LEARN", b.reduced(2.0f, 0.0f).toNearestInt(), juce::Justification::centred, 1, 0.72f);
     }
 }
 
@@ -217,7 +217,7 @@ void Editor::CurveButton::paintButton(juce::Graphics &g, bool isHover, bool /*is
 
     g.setFont(displayFont(13.5f));
     g.setColour(isHover ? orangeCol : theme.ink);
-    g.drawText(label, b, juce::Justification::centred, false);
+    g.drawFittedText(label, b.reduced(3.0f, 0.0f).toNearestInt(), juce::Justification::centred, 1, 0.72f);
 }
 
 Editor::VelocityCurvePreview::VelocityCurvePreview()
@@ -373,7 +373,9 @@ void Editor::VelocityCurvePreview::paint(juce::Graphics &g)
 //==============================================================================
 Editor::Editor(PluginProcessor &p) : processor(p)
 {
+    glorp::setUiTextScale(processor.getSettings().uiTextScale);
     theme = Theme::byIndex(processor.getSettings().themeIndex);
+    glorp::setCleanStyleEnabled(theme.cleanStyle);
 
     addAndMakeVisible(kitView);
     addAndMakeVisible(scope);
@@ -622,6 +624,7 @@ void Editor::rebuildLogoCache()
 void Editor::applyTheme(const Theme &newTheme)
 {
     theme = newTheme;
+    glorp::setCleanStyleEnabled(theme.cleanStyle);
 
     logo = logoDrawable();
     if (logo != nullptr && theme.isDark)
@@ -668,6 +671,28 @@ void Editor::applyTheme(const Theme &newTheme)
     if (practiceView != nullptr)
         practiceView->applyTheme(theme);
 
+    repaint();
+}
+
+void Editor::applyTextScale(float newScale)
+{
+    auto &settings = processor.getSettings();
+    settings.uiTextScale = juce::jlimit(0.85f, 1.35f, newScale);
+    settings.markDirty();
+    settings.saveIfChanged();
+
+    glorp::setUiTextScale(settings.uiTextScale);
+
+    kitView.setTheme(theme);
+    scope.setTheme(theme);
+    if (mixerView != nullptr)
+        mixerView->setTheme(theme);
+    if (practiceView != nullptr)
+        practiceView->applyTheme(theme);
+    if (edrumWizard != nullptr)
+        edrumWizard->repaint();
+
+    resized();
     repaint();
 }
 
@@ -1079,15 +1104,57 @@ juce::PopupMenu Editor::buildSettingsMenu()
         menu.addSeparator();
     }
 
-    menu.addItem(theme.isDark ? "Theme: Sketch" : "Theme: Dark",
-                 [this]
-                 {
-                     auto &settings = processor.getSettings();
-                     settings.themeIndex = settings.themeIndex == 0 ? 1 : 0;
-                     settings.markDirty();
-                     settings.saveIfChanged();
-                     applyTheme(Theme::byIndex(settings.themeIndex));
-                 });
+    {
+        juce::PopupMenu skinMenu;
+        const int curThemeIdx = processor.getSettings().themeIndex;
+        for (int i = 0; i < Theme::numSkins(); ++i)
+        {
+            skinMenu.addItem(Theme::skinName(i),
+                             true,
+                             curThemeIdx == i,
+                             [this, i]
+                             {
+                                 auto &settings = processor.getSettings();
+                                 settings.themeIndex = i;
+                                 settings.markDirty();
+                                 settings.saveIfChanged();
+                                 applyTheme(Theme::byIndex(settings.themeIndex));
+                                 statusText = "Skin: " + Theme::skinName(i);
+                                 repaint();
+                             });
+        }
+        menu.addSubMenu("Skin / Theme", skinMenu);
+    }
+
+    {
+        juce::PopupMenu scaleMenu;
+        struct ScaleOption
+        {
+            const char *label;
+            float factor;
+        };
+        const ScaleOption options[] = {
+            {"90% (Compact)", 0.90f},
+            {"100% (Standard)", 1.00f},
+            {"115% (Large)", 1.15f},
+            {"130% (Extra Large)", 1.30f},
+        };
+        const float curScale = processor.getSettings().uiTextScale;
+        for (const auto &opt : options)
+        {
+            const bool active = std::abs(curScale - opt.factor) < 0.025f;
+            scaleMenu.addItem(opt.label,
+                              true,
+                              active,
+                              [this, opt]
+                              {
+                                  applyTextScale(opt.factor);
+                                  statusText = juce::String("Text scale: ") + opt.label;
+                                  repaint();
+                              });
+        }
+        menu.addSubMenu("Text Size (UI Scale)", scaleMenu);
+    }
 
     const bool glEnabled = isOpenGlEnabled();
     menu.addItem("GPU Hardware Acceleration (OpenGL)",
@@ -1124,6 +1191,8 @@ juce::PopupMenu Editor::buildSettingsMenu()
                    << "Sample Rate: " << juce::String(engine.getCurrentSampleRate(), 1) << " Hz"
                    << " | Block Size: " << juce::String(engine.getCurrentBlockSize()) << " samples\n"
                    << "OpenGL: " << (isOpenGlEnabled() ? "ON" : "OFF") << "\n"
+                   << "Skin: " << Theme::skinName(processor.getSettings().themeIndex)
+                   << " | Text Scale: " << juce::String(juce::roundToInt(glorp::getUiTextScale() * 100.0f)) << "%\n"
                    << "Window Size: " << juce::String(getWidth()) << "x" << juce::String(getHeight()) << "\n"
                    << "Hi-Hat Mode: "
                    << (sampler.getHiHatMode() == HiHatMode::continuousCC4 ? "Continuous CC#4" : "Discrete Notes")
@@ -1895,18 +1964,19 @@ void Editor::resized()
     const int h = b.getHeight();
 
     // 1. Header menu buttons placed in top right section
+    const float hdrScale = juce::jlimit(1.0f, 1.24f, glorp::getUiTextScale());
     const int menuY = 16;
-    const int menuH = 30;
-    const int viewW = 104;
-    const int practiceW = 92;
-    const int fileW = 50;
-    const int presetsW = 80;
-    const int midiW = 50;
-    const int settingsW = 86;
-    const int gap = 10;
+    const int menuH = juce::roundToInt(30.0f * juce::jlimit(1.0f, 1.14f, hdrScale));
+    const int viewW = juce::roundToInt(104.0f * hdrScale);
+    const int practiceW = juce::roundToInt(92.0f * hdrScale);
+    const int fileW = juce::roundToInt(50.0f * hdrScale);
+    const int presetsW = juce::roundToInt(80.0f * hdrScale);
+    const int midiW = juce::roundToInt(50.0f * hdrScale);
+    const int settingsW = juce::roundToInt(86.0f * hdrScale);
+    const int gap = 8;
 
     const int totalMenuW = viewW + gap + practiceW + gap + fileW + gap + presetsW + gap + midiW + gap + settingsW;
-    int curX = w - 24 - totalMenuW;
+    int curX = std::max(256, w - 24 - totalMenuW);
     viewToggleButton.setBounds(curX, menuY, viewW, menuH);
     curX += viewW + gap;
     practiceToggleButton.setBounds(curX, menuY, practiceW, menuH);
@@ -2065,8 +2135,8 @@ void Editor::paint(juce::Graphics &g)
 
     g.setFont(displayFont(24.0f));
     g.setColour(theme.ink);
-    g.drawText("GLORP", juce::Rectangle<float>(92.0f, 8.0f, 180.0f, 24.0f), juce::Justification::centredLeft, false);
-    g.drawText("DRUMS", juce::Rectangle<float>(92.0f, 30.0f, 180.0f, 24.0f), juce::Justification::centredLeft, false);
+    g.drawFittedText("GLORP", juce::Rectangle<int>(92, 8, 160, 24), juce::Justification::centredLeft, 1, 0.72f);
+    g.drawFittedText("DRUMS", juce::Rectangle<int>(92, 30, 160, 24), juce::Justification::centredLeft, 1, 0.72f);
 
     if (currentView == EditorView::kitView)
     {
@@ -2079,14 +2149,22 @@ void Editor::paint(juce::Graphics &g)
         // Title inside card
         g.setFont(displayFont(18.0f));
         g.setColour(theme.ink);
-        g.drawText("INSTRUMENT",
-                   juce::Rectangle<float>(panelRect.getX(), panelRect.getY() + 10.0f, panelRect.getWidth(), 18.0f),
-                   juce::Justification::centred,
-                   false);
-        g.drawText("SETTINGS",
-                   juce::Rectangle<float>(panelRect.getX(), panelRect.getY() + 28.0f, panelRect.getWidth(), 18.0f),
-                   juce::Justification::centred,
-                   false);
+        g.drawFittedText("INSTRUMENT",
+                         juce::Rectangle<int>(juce::roundToInt(panelRect.getX()) + 6,
+                                              juce::roundToInt(panelRect.getY()) + 8,
+                                              juce::roundToInt(panelRect.getWidth()) - 12,
+                                              20),
+                         juce::Justification::centred,
+                         1,
+                         0.72f);
+        g.drawFittedText("SETTINGS",
+                         juce::Rectangle<int>(juce::roundToInt(panelRect.getX()) + 6,
+                                              juce::roundToInt(panelRect.getY()) + 28,
+                                              juce::roundToInt(panelRect.getWidth()) - 12,
+                                              20),
+                         juce::Justification::centred,
+                         1,
+                         0.72f);
 
         // Bottom note label in Left Panel
         if (instLearnButton.isVisible())
