@@ -55,6 +55,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
+          lfs: true
 
       - name: Install dependencies (Linux)
         if: runner.os == 'Linux'
@@ -113,6 +114,11 @@ jobs:
 
           # 1. Copy default demo kit (.glorpkit) into staging
           if [ -f "test/kits/GlorpDemoKit.glorpkit" ]; then
+            KIT_BYTES=$(wc -c < "test/kits/GlorpDemoKit.glorpkit")
+            if [ "${KIT_BYTES}" -lt 1048576 ]; then
+              echo "ERROR: test/kits/GlorpDemoKit.glorpkit is only ${KIT_BYTES} bytes (Git LFS checkout failed?)." >&2
+              exit 1
+            fi
             cp "test/kits/GlorpDemoKit.glorpkit" "${RELEASE_STAGING}/kits/"
           fi
           if [ -d "test/kits/GlorpDemoKit" ]; then
