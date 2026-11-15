@@ -156,7 +156,6 @@ void EDrumWizard::cancelAndRevert()
     processor.getSettings().lastMapPreset = backupPresetName;
     processor.getSettings().markDirty();
     processor.getSettings().saveIfChanged();
-    processor.notifyParametersChanged();
 
     close();
 }
