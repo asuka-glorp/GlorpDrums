@@ -50,6 +50,7 @@ EDrumWizard::EDrumWizard(PluginProcessor &p) : processor(p)
     addAndMakeVisible(nextButton);
     addAndMakeVisible(auditionBtn);
     addAndMakeVisible(cancelButton);
+    addAndMakeVisible(saveAsButton);
     addAndMakeVisible(doneButton);
 
     addAndMakeVisible(rolandBtn);
@@ -96,13 +97,14 @@ EDrumWizard::EDrumWizard(PluginProcessor &p) : processor(p)
     };
 
     cancelButton.onClick = [this] { cancelAndRevert(); };
+    saveAsButton.onClick = [this] { promptSaveAsPreset(); };
     doneButton.onClick = [this] { finishAndClose(); };
 
     rolandBtn.onClick = [this] { applyModulePreset("Roland V-Drums"); };
     yamahaBtn.onClick = [this] { applyModulePreset("Yamaha DTX"); };
     alesisBtn.onClick = [this] { applyModulePreset("Alesis (Strike / Nitro / Surge)"); };
     milleniumBtn.onClick = [this] { applyModulePreset("Millenium / 2box"); };
-    efnoteBtn.onClick = [this] { applyModulePreset("EFNote"); };
+    efnoteBtn.onClick = [this] { applyModulePreset("EFNote (3 / 5 / 7)"); };
     gmBtn.onClick = [this] { applyModulePreset("General MIDI"); };
 }
 
@@ -115,8 +117,11 @@ void EDrumWizard::open()
 {
     theme = Theme::byIndex(processor.getSettings().themeIndex);
 
-    // Backup current note assignments in case user cancels
+    // Backup current note assignments & preset in case user cancels
     backupNotes = processor.getMidiMap().noteAssignments();
+    backupBindings = processor.getMidiMap().bindings();
+    backupPresetName = processor.getSettings().lastMapPreset;
+    hasCustomEdits = false;
 
     buildSteps();
     currentStepIndex = 0;
@@ -142,10 +147,15 @@ void EDrumWizard::cancelAndRevert()
 {
     processor.getMidiMap().cancelLearn();
 
-    // Revert to backup note map
+    // Revert to backup note map & bindings
     processor.getMidiMap().clearAssignments();
     for (const auto &pair : backupNotes)
         processor.getMidiMap().assignNote(pair.first, pair.second);
+    processor.getMidiMap().setBindings(backupBindings);
+
+    processor.getSettings().lastMapPreset = backupPresetName;
+    processor.getSettings().markDirty();
+    processor.getSettings().saveIfChanged();
 
     close();
 }
@@ -153,12 +163,56 @@ void EDrumWizard::cancelAndRevert()
 void EDrumWizard::finishAndClose()
 {
     processor.getMidiMap().cancelLearn();
+
+    if (hasCustomEdits)
+        processor.saveCustomMapPreset("Custom");
+
     close();
+}
+
+void EDrumWizard::promptSaveAsPreset()
+{
+    processor.getMidiMap().cancelLearn();
+    isWaitingForHit = false;
+    autoAdvanceCounter = 0;
+
+    if (hasCustomEdits)
+        processor.saveCustomMapPreset("Custom");
+
+    auto *alert = new juce::AlertWindow(
+        "Save MIDI Map Preset", "Enter a name for this custom MIDI mapping:", juce::AlertWindow::QuestionIcon);
+    alert->addTextEditor("presetName", processor.suggestedPresetSaveName(), "Preset Name");
+    alert->addButton("Save", 1, juce::KeyPress(juce::KeyPress::returnKey));
+    alert->addButton("Cancel", 0, juce::KeyPress(juce::KeyPress::escapeKey));
+
+    juce::Component::SafePointer<EDrumWizard> safeThis(this);
+    alert->enterModalState(true,
+                           juce::ModalCallbackFunction::create(
+                               [safeThis, alert](int result)
+                               {
+                                   if (result == 1 && safeThis != nullptr)
+                                   {
+                                       const auto name = alert->getTextEditorContents("presetName").trim();
+                                       if (name.isNotEmpty())
+                                       {
+                                           const auto savedPath = safeThis->processor.saveCustomMapPreset(name);
+                                           if (savedPath.isNotEmpty())
+                                           {
+                                               safeThis->hasCustomEdits = false;
+                                               safeThis->justLearned = true;
+                                               safeThis->statusFeedback = "Saved preset: " + name;
+                                               safeThis->repaint();
+                                           }
+                                       }
+                                   }
+                                   delete alert;
+                               }));
 }
 
 void EDrumWizard::applyModulePreset(const juce::String &presetName)
 {
     processor.applyMapPreset(presetName);
+    hasCustomEdits = false;
 
     // Refresh current notes for all steps
     for (auto &s : steps)
@@ -300,6 +354,7 @@ void EDrumWizard::timerCallback()
         {
             isWaitingForHit = false;
             justLearned = true;
+            hasCustomEdits = true;
 
             const int instIdx = steps[static_cast<size_t>(currentStepIndex)].instrumentIndex;
             const int note = processor.getMidiMap().noteForInstrument(instIdx);
@@ -324,7 +379,10 @@ void EDrumWizard::timerCallback()
             if (currentStepIndex < static_cast<int>(steps.size()) - 1)
                 goToStep(currentStepIndex + 1);
             else
+            {
                 statusFeedback = "All pieces configured! Click DONE to finish.";
+                repaint();
+            }
         }
     }
 }
@@ -480,13 +538,28 @@ void EDrumWizard::resized()
     // Bottom Navigation Bar
     const int btnY = cardY + cardH - 46;
     const int btnH = 30;
-    const int navBtnW = 92;
+    const int sidePad = 20;
+    const int innerW = cardW - sidePad * 2;
+    const int cancelW = 72;
+    const int prevW = 82;
+    const int skipW = 62;
+    const int nextW = 72;
+    const int saveAsW = 90;
+    const int doneW = 76;
+    const int gap = std::max(4, (innerW - (cancelW + prevW + skipW + nextW + saveAsW + doneW)) / 5);
 
-    cancelButton.setBounds(cardX + 24, btnY, 80, btnH);
-    prevButton.setBounds(cardX + 118, btnY, navBtnW, btnH);
-    skipButton.setBounds(cardX + 218, btnY, 76, btnH);
-    nextButton.setBounds(cardX + 302, btnY, navBtnW, btnH);
-    doneButton.setBounds(cardX + cardW - 24 - 96, btnY, 96, btnH);
+    int bx = cardX + sidePad;
+    cancelButton.setBounds(bx, btnY, cancelW, btnH);
+    bx += cancelW + gap;
+    prevButton.setBounds(bx, btnY, prevW, btnH);
+    bx += prevW + gap;
+    skipButton.setBounds(bx, btnY, skipW, btnH);
+    bx += skipW + gap;
+    nextButton.setBounds(bx, btnY, nextW, btnH);
+
+    const int doneX = cardX + cardW - sidePad - doneW;
+    doneButton.setBounds(doneX, btnY, doneW, btnH);
+    saveAsButton.setBounds(doneX - gap - saveAsW, btnY, saveAsW, btnH);
 }
 
 } // namespace glorp

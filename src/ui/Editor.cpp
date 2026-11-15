@@ -969,9 +969,17 @@ juce::PopupMenu Editor::buildFileMenu()
 juce::PopupMenu Editor::buildPresetsMenu()
 {
     juce::PopupMenu menu;
+    const auto presets = MidiMap::availablePresets();
+    bool addedUserSection = false;
 
-    for (const auto &preset : MidiMap::availablePresets())
+    for (const auto &preset : presets)
     {
+        if (!preset.isBuiltIn && !addedUserSection)
+        {
+            menu.addSeparator();
+            addedUserSection = true;
+        }
+
         const bool isCurrent = (processor.getSettings().lastMapPreset == preset.name);
         menu.addItem(preset.name,
                      true,
@@ -987,20 +995,7 @@ juce::PopupMenu Editor::buildPresetsMenu()
 
     menu.addSeparator();
 
-    menu.addItem("Save Current Map As...",
-                 [this]
-                 {
-                     auto &map = processor.getMidiMap();
-                     const auto dir = MidiMap::userPresetDirectory();
-
-                     std::vector<juce::String> names;
-                     for (int i = 0; i < processor.getSampler().numInstruments(); ++i)
-                         names.push_back(processor.getSampler().instrumentName(i));
-
-                     map.savePresetFile(dir.getChildFile("MyMap.xml"), "My Map", names);
-                     statusText = "Saved to " + dir.getFullPathName();
-                     repaint();
-                 });
+    menu.addItem("Save Current Map As...", [this] { promptSaveMapPreset(); });
 
     menu.addItem("Rescan Presets",
                  [this]
@@ -1010,6 +1005,37 @@ juce::PopupMenu Editor::buildPresetsMenu()
                  });
 
     return menu;
+}
+
+void Editor::promptSaveMapPreset()
+{
+    auto *alert = new juce::AlertWindow(
+        "Save MIDI Map Preset", "Enter a name for this MIDI mapping preset:", juce::AlertWindow::QuestionIcon);
+    alert->addTextEditor("presetName", processor.suggestedPresetSaveName(), "Preset Name");
+    alert->addButton("Save", 1, juce::KeyPress(juce::KeyPress::returnKey));
+    alert->addButton("Cancel", 0, juce::KeyPress(juce::KeyPress::escapeKey));
+
+    juce::Component::SafePointer<Editor> safeThis(this);
+    alert->enterModalState(true,
+                           juce::ModalCallbackFunction::create(
+                               [safeThis, alert](int result)
+                               {
+                                   if (result == 1 && safeThis != nullptr)
+                                   {
+                                       const auto name = alert->getTextEditorContents("presetName").trim();
+                                       if (name.isNotEmpty())
+                                       {
+                                           const auto savedPath = safeThis->processor.saveCustomMapPreset(name);
+                                           if (savedPath.isNotEmpty())
+                                           {
+                                               safeThis->updateInstrumentDisplay();
+                                               safeThis->statusText = "Saved preset '" + name + "'";
+                                               safeThis->repaint();
+                                           }
+                                       }
+                                   }
+                                   delete alert;
+                               }));
 }
 
 juce::PopupMenu Editor::buildMidiMenu()
@@ -1934,13 +1960,16 @@ void Editor::timerCallback()
 
     processor.drainControlQueue();
 
-    static bool wasLearning = false;
     const auto isLearning = processor.getMidiMap().isLearning();
 
     if (wasLearning && !isLearning)
     {
-        learningInstrument = -1;
-        statusText = "MIDI learned";
+        if (learningInstrument >= 0)
+        {
+            learningInstrument = -1;
+            processor.saveCustomMapPreset("Custom");
+            statusText = "MIDI learned (saved to Custom)";
+        }
         updateInstrumentDisplay();
         repaint();
     }

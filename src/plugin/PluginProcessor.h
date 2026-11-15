@@ -118,6 +118,13 @@ class PluginProcessor : public juce::AudioProcessor
     /// Applies a MIDI-map preset to the loaded kit.
     void applyMapPreset(const juce::String &presetName);
 
+    /// Saves the current MIDI map to the user preset folder (defaults to "Custom")
+    /// and selects it as the active preset. Returns the saved file path.
+    juce::String saveCustomMapPreset(const juce::String &presetName = "Custom");
+
+    /// Suggests a default name when prompting the user to save the active mapping.
+    juce::String suggestedPresetSaveName() const;
+
     /// E-drum continuous controls
     float getHiHatCC4() const noexcept { return lastHiHatCC4.load(std::memory_order_relaxed); }
     float getSnarePositionCC16() const noexcept { return lastSnareCC16.load(std::memory_order_relaxed); }

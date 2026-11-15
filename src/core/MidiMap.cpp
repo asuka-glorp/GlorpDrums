@@ -5,6 +5,11 @@
 namespace glorp
 {
 
+namespace
+{
+juce::File gUserPresetDirectoryOverride;
+}
+
 MidiMap::MidiMap() = default;
 
 //==============================================================================
@@ -44,14 +49,32 @@ bool MidiMap::assignNote(int note, int instrumentIndex, bool steal)
 
 void MidiMap::clearInstrument(int instrumentIndex)
 {
-    if (auto it = instrumentToNote.find(instrumentIndex); it != instrumentToNote.end())
+    bool removed = false;
+    for (auto it = noteToInstrument.begin(); it != noteToInstrument.end();)
     {
-        noteToInstrument.erase(it->second);
-        instrumentToNote.erase(it);
-
-        if (onChanged)
-            onChanged();
+        if (it->second == instrumentIndex)
+        {
+            it = noteToInstrument.erase(it);
+            removed = true;
+        }
+        else
+        {
+            ++it;
+        }
     }
+
+    if (instrumentToNote.erase(instrumentIndex) > 0)
+        removed = true;
+
+    if (removed && onChanged)
+        onChanged();
+}
+
+void MidiMap::setBindings(std::vector<MidiBinding> newBindings)
+{
+    bindings_ = std::move(newBindings);
+    if (onChanged)
+        onChanged();
 }
 
 int MidiMap::instrumentForNote(int note) const noexcept
@@ -170,7 +193,12 @@ bool MidiMap::offerMessage(const juce::MidiMessage &message, juce::String *learn
     const auto captured = binding.controlId;
 
     cancelLearn();
-    addBinding(binding);
+
+    // Note-to-instrument triggers ("note<idx>") live in `noteToInstrument`, not
+    // in CC/control automation `bindings_`. Adding them to `bindings_` would make
+    // MidiRouter intercept and swallow subsequent drum hits on that pad.
+    if (captured.rfind("note", 0) != 0)
+        addBinding(binding);
 
     if (learnedControlId != nullptr)
         *learnedControlId = juce::String(captured);
@@ -193,9 +221,33 @@ juce::File MidiMap::bundledPresetDirectory()
 
 juce::File MidiMap::userPresetDirectory()
 {
+    if (gUserPresetDirectoryOverride != juce::File())
+        return gUserPresetDirectoryOverride;
+
     return juce::File::getSpecialLocation(juce::File::userApplicationDataDirectory)
         .getChildFile("GlorpDrums")
         .getChildFile("presets");
+}
+
+void MidiMap::setUserPresetDirectoryOverrideForTest(const juce::File &dir)
+{
+    gUserPresetDirectoryOverride = dir;
+}
+
+juce::File MidiMap::customPresetFile()
+{
+    return userPresetDirectory().getChildFile("Custom.xml");
+}
+
+juce::String MidiMap::sanitizePresetFileName(const juce::String &name)
+{
+    auto clean = name.trim();
+    const juce::String invalid = "/\\:*?\"<>|";
+    for (int i = 0; i < invalid.length(); ++i)
+        clean = clean.replaceCharacter(invalid[i], '_');
+
+    clean = clean.trimCharactersAtStart(".").trimCharactersAtEnd(".");
+    return clean.isEmpty() ? juce::String("Custom") : clean;
 }
 
 std::vector<MapPreset> MidiMap::availablePresets()
@@ -362,8 +414,24 @@ std::vector<MapPreset> MidiMap::availablePresets()
         }
     };
 
+    const size_t builtInCount = presets.size();
     scanDirectory(userPresetDirectory());
     scanDirectory(bundledPresetDirectory());
+
+    // Keep built-ins at the top, put "Custom" first among user presets, then sort alphabetically.
+    if (presets.size() > builtInCount + 1)
+    {
+        std::sort(presets.begin() + static_cast<std::ptrdiff_t>(builtInCount),
+                  presets.end(),
+                  [](const MapPreset &a, const MapPreset &b)
+                  {
+                      const bool aCustom = a.name.equalsIgnoreCase("Custom");
+                      const bool bCustom = b.name.equalsIgnoreCase("Custom");
+                      if (aCustom != bCustom)
+                          return aCustom;
+                      return a.name.compareIgnoreCase(b.name) < 0;
+                  });
+    }
 
     return presets;
 }
@@ -412,7 +480,7 @@ bool MidiMap::loadPresetFile(const juce::File &file, MapPreset &out, juce::Strin
             binding.channel = m->getIntAttribute("channel", 0);
             binding.useNote = m->getBoolAttribute("useNote", false);
 
-            if (binding.isValid())
+            if (binding.isValid() && binding.controlId.rfind("note", 0) != 0)
                 out.bindings.push_back(std::move(binding));
         }
     }
@@ -420,7 +488,7 @@ bool MidiMap::loadPresetFile(const juce::File &file, MapPreset &out, juce::Strin
     return true;
 }
 
-void MidiMap::savePresetFile(const juce::File &file,
+bool MidiMap::savePresetFile(const juce::File &file,
                              const juce::String &name,
                              const std::vector<juce::String> &instrumentNames) const
 {
@@ -446,6 +514,9 @@ void MidiMap::savePresetFile(const juce::File &file,
 
     for (const auto &b : bindings_)
     {
+        if (b.controlId.rfind("note", 0) == 0)
+            continue;
+
         auto *m = learn->createNewChildElement("bind");
         m->setAttribute("control", b.controlId);
         m->setAttribute("cc", b.cc);
@@ -454,7 +525,29 @@ void MidiMap::savePresetFile(const juce::File &file,
     }
 
     file.getParentDirectory().createDirectory();
-    root.writeTo(file);
+    return root.writeTo(file);
+}
+
+bool MidiMap::saveUserPreset(const juce::String &name,
+                             const std::vector<juce::String> &instrumentNames,
+                             juce::File *outFile) const
+{
+    auto trimmed = name.trim();
+    if (trimmed.isEmpty())
+        trimmed = "Custom";
+
+    const bool isCustom = trimmed.equalsIgnoreCase("Custom");
+    const juce::String canonicalName = isCustom ? juce::String("Custom") : trimmed;
+    const juce::File targetFile =
+        isCustom ? customPresetFile()
+                 : userPresetDirectory().getChildFile(sanitizePresetFileName(canonicalName) + ".xml");
+
+    const bool wrote = savePresetFile(targetFile, canonicalName, instrumentNames);
+
+    if (outFile != nullptr)
+        *outFile = targetFile;
+
+    return wrote && targetFile.existsAsFile();
 }
 
 void MidiMap::applyPreset(const MapPreset &preset, const std::vector<juce::String> &kitInstrumentNames)
@@ -821,7 +914,7 @@ void MidiMap::importXml(const juce::XmlElement &xml)
             binding.channel = m->getIntAttribute("channel", 0);
             binding.useNote = m->getBoolAttribute("useNote", false);
 
-            if (binding.isValid())
+            if (binding.isValid() && binding.controlId.rfind("note", 0) != 0)
                 bindings_.push_back(std::move(binding));
         }
     }

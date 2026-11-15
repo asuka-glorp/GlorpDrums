@@ -7,6 +7,7 @@
 #include <juce_gui_basics/juce_gui_basics.h>
 #include <map>
 #include <vector>
+#include "MidiMap.h"
 #include "Theme.h"
 
 namespace glorp
@@ -47,6 +48,7 @@ class EDrumWizard
     void buildSteps();
     void goToStep(int stepIndex);
     void applyModulePreset(const juce::String &presetName);
+    void promptSaveAsPreset();
     void cancelAndRevert();
     void finishAndClose();
 
@@ -57,9 +59,12 @@ class EDrumWizard
     int currentStepIndex = 0;
     bool isWaitingForHit = false;
     bool justLearned = false;
+    bool hasCustomEdits = false;
     int autoAdvanceCounter = 0;
 
     std::map<int, int> backupNotes;
+    std::vector<MidiBinding> backupBindings;
+    juce::String backupPresetName;
     juce::String statusFeedback;
 
     // Buttons
@@ -79,6 +84,7 @@ class EDrumWizard
     WizardButton nextButton {"NEXT", true};
     WizardButton auditionBtn {"AUDITION SOUND"};
     WizardButton cancelButton {"CANCEL"};
+    WizardButton saveAsButton {"SAVE AS..."};
     WizardButton doneButton {"DONE", true};
 
     // Quick-preset buttons

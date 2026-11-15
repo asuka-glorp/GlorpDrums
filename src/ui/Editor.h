@@ -106,6 +106,7 @@ class Editor
 
     void armLearn(int samplerIndex);
     void promptLoadKitFile();
+    void promptSaveMapPreset();
 
     PluginProcessor &processor;
 
@@ -325,6 +326,7 @@ class Editor
     std::vector<LogicalInstrument> logicalInstruments;
     int selectedLogicalIndex = 0;
     int learningInstrument = -1;
+    bool wasLearning = false;
 
     float leftPanelHeight = 440.0f;
 

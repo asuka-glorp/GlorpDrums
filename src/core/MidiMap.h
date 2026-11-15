@@ -66,6 +66,9 @@ class MidiMap
     /// Removes any note assigned to this instrument.
     void clearInstrument(int instrumentIndex);
 
+    /// Replaces the entire CC/control automation binding list.
+    void setBindings(std::vector<MidiBinding> newBindings);
+
     /// Instrument triggered by a note, or -1.
     int instrumentForNote(int note) const noexcept;
 
@@ -108,9 +111,21 @@ class MidiMap
 
     /// `instrumentNames` is indexed by instrument index, so the saved preset
     /// stays readable when the same map is applied to a different kit.
-    void savePresetFile(const juce::File &file,
+    bool savePresetFile(const juce::File &file,
                         const juce::String &name,
                         const std::vector<juce::String> &instrumentNames) const;
+
+    /// Saves a named preset into `userPresetDirectory()` (using `Custom.xml`
+    /// when `name` matches "Custom" case-insensitively).
+    bool saveUserPreset(const juce::String &name,
+                        const std::vector<juce::String> &instrumentNames,
+                        juce::File *outFile = nullptr) const;
+
+    /// Canonical file used for the auto-updated "Custom" preset.
+    static juce::File customPresetFile();
+
+    /// Sanitises a preset name into a safe file stem.
+    static juce::String sanitizePresetFileName(const juce::String &name);
 
     /// Presets shipped with the plugin plus any the user has added.
     static std::vector<MapPreset> availablePresets();
@@ -120,6 +135,9 @@ class MidiMap
 
     /// The user's own preset directory, created if absent.
     static juce::File userPresetDirectory();
+
+    /// Redirects userPresetDirectory() in unit tests so real presets stay untouched.
+    static void setUserPresetDirectoryOverrideForTest(const juce::File &dir);
 
     /// Applies a preset, matching instruments by name so a preset written for one
     /// kit still does something sensible on another.

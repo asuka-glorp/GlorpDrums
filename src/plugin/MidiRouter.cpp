@@ -71,7 +71,10 @@ bool MidiRouter::processMidiMessage(const juce::MidiMessage &message,
             const auto index = learnedControl.substring(4).getIntValue();
 
             if (index >= 0 && index < sampler.numInstruments())
+            {
+                midiMap.clearInstrument(index);
                 midiMap.assignNote(message.getNoteNumber(), index);
+            }
 
             consumedByLearn = false; // let it sound as well as being learned
         }
@@ -87,7 +90,7 @@ bool MidiRouter::processMidiMessage(const juce::MidiMessage &message,
                                       message.isNoteOn(),
                                       message.getChannel() + 1);
 
-        if (control.isNotEmpty())
+        if (control.isNotEmpty() && !control.startsWith("note"))
         {
             // Notifying the host from here would allocate and post a message,
             // which the audio thread must never do. Queue it and let the

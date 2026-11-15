@@ -2088,6 +2088,119 @@ int main()
         std::cout << "-> Section 23 Skin System (4 Skins) & UI Text Scalability: PASSED!\n";
     }
 
+    // 24. Verify E-Drum Setup Wizard / Note Learn Sounding, "Custom" Preset, & Named Preset Saving
+    {
+        std::cout << "Testing Section 24: Note Learn Sounding, Custom Preset & Named Preset Saving...\n";
+
+        const auto tempPresetDir = juce::File::getSpecialLocation (juce::File::tempDirectory)
+                                       .getChildFile ("glorp_verify_presets");
+        tempPresetDir.deleteRecursively();
+        tempPresetDir.createDirectory();
+        glorp::MidiMap::setUserPresetDirectoryOverrideForTest (tempPresetDir);
+
+        const auto customFile = glorp::MidiMap::customPresetFile();
+        const auto namedFile = glorp::MidiMap::userPresetDirectory().getChildFile ("Test 4x4 Pads.xml");
+
+        const auto prevPreset = processor.getSettings().lastMapPreset;
+        const auto prevAssignments = processor.getMidiMap().noteAssignments();
+        const auto prevBindings = processor.getMidiMap().bindings();
+
+        auto restoreUserPresets = [&]()
+        {
+            glorp::MidiMap::setUserPresetDirectoryOverrideForTest ({});
+            tempPresetDir.deleteRecursively();
+
+            processor.getMidiMap().clearAssignments();
+            for (const auto& pair : prevAssignments)
+                processor.getMidiMap().assignNote (pair.first, pair.second);
+            processor.getMidiMap().setBindings (prevBindings);
+            processor.getSettings().lastMapPreset = prevPreset;
+            processor.getSettings().markDirty();
+            processor.getSettings().saveIfChanged();
+        };
+
+        // Arm learning on instrument 0 (as EDrumWizard::goToStep does) and hit note 64 on a pad
+        VERIFY_CHECK (processor.getSampler().numInstruments() > 0);
+        const int oldNoteForInst0 = processor.getMidiMap().noteForInstrument (0);
+        processor.getMidiMap().beginLearn ("note0", true);
+        VERIFY_CHECK (processor.getMidiMap().isLearning());
+
+        juce::MidiBuffer learnBuf;
+        learnBuf.addEvent (juce::MidiMessage::noteOn (10, 64, (juce::uint8) 110), 0);
+        juce::AudioBuffer<float> audioBuf (std::max (32, processor.getTotalNumOutputChannels()), 256);
+        audioBuf.clear();
+        processor.processBlock (audioBuf, learnBuf);
+
+        VERIFY_CHECK (! processor.getMidiMap().isLearning());
+        VERIFY_CHECK (processor.getMidiMap().instrumentForNote (64) == 0);
+        VERIFY_CHECK (processor.getMidiMap().noteForInstrument (0) == 64);
+        if (oldNoteForInst0 >= 0 && oldNoteForInst0 != 64)
+            VERIFY_CHECK (processor.getMidiMap().instrumentForNote (oldNoteForInst0) == -1);
+
+        // Ensure learning "note0" did NOT add a note-swallowing entry into control bindings
+        VERIFY_CHECK (processor.getMidiMap().controlForMessage (64, true, 11).isEmpty());
+        for (const auto& b : processor.getMidiMap().bindings())
+            VERIFY_CHECK (b.controlId.rfind ("note", 0) != 0);
+
+        // Subsequent pad strike on note 64 must produce non-silent audio (never swallowed!)
+        juce::MidiBuffer hitBuf;
+        hitBuf.addEvent (juce::MidiMessage::noteOn (10, 64, (juce::uint8) 115), 0);
+        audioBuf.clear();
+        processor.processBlock (audioBuf, hitBuf);
+        processor.processBlock (audioBuf, hitBuf); // second block ensures active voice output
+        float maxMag = 0.0f;
+        for (int ch = 0; ch < audioBuf.getNumChannels(); ++ch)
+            maxMag = std::max (maxMag, audioBuf.getMagnitude (ch, 0, audioBuf.getNumSamples()));
+        VERIFY_CHECK (maxMag > 0.0001f);
+
+        // Save "Custom" preset (what Wizard DONE does) and verify it shows up cleanly in availablePresets()
+        const auto savedCustomPath = processor.saveCustomMapPreset ("Custom");
+        VERIFY_CHECK (savedCustomPath == customFile.getFullPathName());
+        VERIFY_CHECK (customFile.existsAsFile());
+        VERIFY_CHECK (processor.getSettings().lastMapPreset == "Custom");
+
+        bool foundCustomPreset = false;
+        for (const auto& p : glorp::MidiMap::availablePresets())
+        {
+            if (p.name == "Custom" && ! p.isBuiltIn)
+            {
+                foundCustomPreset = true;
+                break;
+            }
+        }
+        VERIFY_CHECK (foundCustomPreset);
+
+        // Save a named preset from the custom mapping
+        const auto savedNamedPath = processor.saveCustomMapPreset ("Test 4x4 Pads");
+        VERIFY_CHECK (savedNamedPath == namedFile.getFullPathName());
+        VERIFY_CHECK (namedFile.existsAsFile());
+        VERIFY_CHECK (processor.getSettings().lastMapPreset == "Test 4x4 Pads");
+
+        // Switch away to General MIDI, then back to "Custom" and verify note 64 mapping is restored!
+        processor.applyMapPreset ("General MIDI");
+        VERIFY_CHECK (processor.getSettings().lastMapPreset == "General MIDI");
+        VERIFY_CHECK (processor.getMidiMap().noteForInstrument (0) != 64);
+
+        processor.applyMapPreset ("Custom");
+        VERIFY_CHECK (processor.getSettings().lastMapPreset == "Custom");
+        VERIFY_CHECK (processor.getMidiMap().instrumentForNote (64) == 0);
+        VERIFY_CHECK (processor.getMidiMap().noteForInstrument (0) == 64);
+
+        processor.applyMapPreset ("Test 4x4 Pads");
+        VERIFY_CHECK (processor.getMidiMap().instrumentForNote (64) == 0);
+
+        // Open and finish EDrumWizard with a custom learn via unit check
+        {
+            glorp::EDrumWizard wiz (processor);
+            wiz.open();
+            VERIFY_CHECK (processor.getMidiMap().isLearning());
+            wiz.close();
+        }
+
+        restoreUserPresets();
+        std::cout << "-> Section 24 Note Learn Sounding, Custom Preset & Named Preset Saving: PASSED!\n";
+    }
+
     processor.releaseResources();
 
     std::cout << "=== ALL VERIFICATIONS PASSED SUCCESSFULLY ===\n";

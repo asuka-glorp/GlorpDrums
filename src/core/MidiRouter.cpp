@@ -85,7 +85,10 @@ bool MidiRouter::routeNote(const juce::MidiMessage &message, int sampleOffset)
             const auto index = learnedControl.substring(4).getIntValue();
 
             if (index >= 0 && sampler_ && index < sampler_->numInstruments())
+            {
+                midiMap_->clearInstrument(index);
                 midiMap_->assignNote(message.getNoteNumber(), index);
+            }
 
             consumedByLearn = false; // let it sound as well as being learned
         }
@@ -98,7 +101,7 @@ bool MidiRouter::routeNote(const juce::MidiMessage &message, int sampleOffset)
     {
         const auto control = midiMap_->controlForMessage(message.getNoteNumber(), true, message.getChannel() + 1);
 
-        if (control.isNotEmpty())
+        if (control.isNotEmpty() && !control.startsWith("note"))
         {
             // Queue CC value for the message thread to apply to host parameter
             if (controlQueueCallback_)

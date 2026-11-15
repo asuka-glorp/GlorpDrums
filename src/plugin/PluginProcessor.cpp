@@ -295,6 +295,19 @@ void PluginProcessor::loadKit(const juce::String &drumkitPath)
     // Delegate note mapping to MidiRouter (handles kit midimap, GM fallback, and default assignments)
     midiRouter.setupNoteMappingFromKit(currentKit, audioEngine.getSampler());
 
+    // Preserve the user's selected MIDI map preset (e.g. "Custom" or e-drum preset) across restarts / kit switches
+    if (settings.lastMapPreset.isNotEmpty())
+    {
+        for (const auto &preset : MidiMap::availablePresets())
+        {
+            if (preset.name == settings.lastMapPreset)
+            {
+                midiRouter.applyMapPreset(settings.lastMapPreset, audioEngine.getSampler());
+                break;
+            }
+        }
+    }
+
     // Reset per-instrument controls for the new kit.
     audioEngine.getSampler().resetInstrumentParams();
 
@@ -351,6 +364,48 @@ void PluginProcessor::applyMapPreset(const juce::String &presetName)
     settings.markDirty();
     settings.saveIfChanged();
     notifyParametersChanged();
+}
+
+juce::String PluginProcessor::saveCustomMapPreset(const juce::String &presetName)
+{
+    auto trimmed = presetName.trim();
+    if (trimmed.isEmpty())
+        trimmed = "Custom";
+
+    const juce::String canonicalName = trimmed.equalsIgnoreCase("Custom") ? juce::String("Custom") : trimmed;
+
+    std::vector<juce::String> names;
+    const int numInst = audioEngine.getSampler().numInstruments();
+    names.reserve(static_cast<size_t>(numInst));
+    for (int i = 0; i < numInst; ++i)
+        names.push_back(audioEngine.getSampler().instrumentName(i));
+
+    juce::File savedFile;
+    if (!getMidiMap().saveUserPreset(canonicalName, names, &savedFile))
+        return {};
+
+    DebugLog::instance().logInfo("MIDI", "Saved map preset '" + canonicalName + "' -> " + savedFile.getFullPathName());
+
+    settings.lastMapPreset = canonicalName;
+    settings.markDirty();
+    settings.saveIfChanged();
+    notifyParametersChanged();
+    return savedFile.getFullPathName();
+}
+
+juce::String PluginProcessor::suggestedPresetSaveName() const
+{
+    const auto &last = settings.lastMapPreset;
+    if (last.isEmpty() || last.equalsIgnoreCase("Custom"))
+        return "My Pad Map";
+
+    for (const auto &p : MidiMap::availablePresets())
+    {
+        if (p.name == last && p.isBuiltIn)
+            return "My Pad Map";
+    }
+
+    return last;
 }
 
 void PluginProcessor::notifyParametersChanged()
@@ -452,15 +507,18 @@ void PluginProcessor::setStateInformation(const void *data, int sizeInBytes)
         }
     }
 
-    if (auto *map = xml->getChildByName("MidiMap"))
-        getMidiMap().importXml(*map);
-
     if (kitPath.isNotEmpty() && kitPath != currentKitPath)
     {
         loadKit(kitPath);
+        if (auto *map = xml->getChildByName("MidiMap"))
+            getMidiMap().importXml(*map);
+        listeners.call(&Listener::kitChanged);
+        listeners.call(&Listener::parametersChanged);
     }
     else
     {
+        if (auto *map = xml->getChildByName("MidiMap"))
+            getMidiMap().importXml(*map);
         listeners.call(&Listener::kitChanged);
         listeners.call(&Listener::parametersChanged);
     }
