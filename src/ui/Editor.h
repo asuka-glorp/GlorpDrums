@@ -6,7 +6,9 @@
 
 #include "DrumKitView.h"
 #include "EDrumWizard.h"
+#include "GlorpLookAndFeel.h"
 #include "Knob.h"
+#include "MinimalInstrumentGrid.h"
 #include "MixerView.h"
 #include "PluginProcessor.h"
 #include "RecordPracticeView.h"
@@ -72,9 +74,11 @@ class Editor
     void selectZone(int logicalIndex, int zoneIndex, bool triggerPreview = false);
     int getActiveSamplerIndex() const;
     DrumKitView &getKitView() noexcept { return kitView; }
+    MinimalInstrumentGrid *getMinimalGrid() noexcept { return minimalGrid.get(); }
     Scope &getScope() noexcept { return scope; }
     MixerView *getMixerView() noexcept { return mixerView.get(); }
     RecordPracticeView *getPracticeView() noexcept { return practiceView.get(); }
+    GlorpLookAndFeel *getGlorpLookAndFeel() const noexcept { return lookAndFeel.get(); }
     void applyTheme(const Theme &newTheme);
     void applyTextScale(float newScale);
 
@@ -87,6 +91,7 @@ class Editor
     void parametersChanged() override;
 
     void updateOpenGlAttachment();
+    void syncTopLevelWindowTheme();
     void rebuildLogoCache();
 
     void buildHeaderMenu();
@@ -96,6 +101,8 @@ class Editor
 
     void bindInstrumentKnobs();
     void updateInstrumentDisplay();
+    void syncMinimalGridItems();
+    void refreshHeaderButtonLabels();
 
     juce::String noteLabelFor(int instrument) const;
 
@@ -282,15 +289,36 @@ class Editor
         Theme theme = Theme::sketch();
     };
 
+    class MinimalThemeToggleButton : public juce::Button
+    {
+      public:
+        MinimalThemeToggleButton() : juce::Button("ThemeToggle")
+        {
+            setMouseCursor(juce::MouseCursor::PointingHandCursor);
+        }
+        void setTheme(const Theme &t)
+        {
+            theme = t;
+            repaint();
+        }
+        void paintButton(juce::Graphics &g, bool isHover, bool isDown) override;
+
+      private:
+        Theme theme = Theme::sketch();
+    };
+
+    MenuButton homeTabButton {"HOME"};
     MenuButton viewToggleButton {"MIXER VIEW"};
     MenuButton practiceToggleButton {"PRACTICE"};
     MenuButton fileButton {"FILE"};
     MenuButton presetsButton {"PRESETS"};
     MenuButton midiButton {"MIDI"};
     MenuButton settingsButton {"SETTINGS"};
+    MinimalThemeToggleButton minimalThemeToggleButton;
 
     KitSelectorButton kitSelectorButton;
     DrumKitView kitView;
+    std::unique_ptr<MinimalInstrumentGrid> minimalGrid;
     Scope scope;
 
     std::unique_ptr<MixerView> mixerView;
@@ -329,11 +357,18 @@ class Editor
     bool wasLearning = false;
 
     float leftPanelHeight = 440.0f;
+    juce::Rectangle<float> minimalControlsCardRect;
+    juce::Rectangle<float> minimalZoneGroupRect;
+    juce::Rectangle<float> minimalMasterCardRect;
+    float minimalMasterLevelL = 0.0f;
+    float minimalMasterLevelR = 0.0f;
 
     juce::String statusText;
     juce::String kitErrorText;
 
     Theme theme = Theme::sketch();
+    std::unique_ptr<GlorpLookAndFeel> lookAndFeel;
+    juce::Component::SafePointer<juce::DocumentWindow> attachedStandaloneWindow;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Editor)
 };

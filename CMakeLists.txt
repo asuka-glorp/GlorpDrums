@@ -116,6 +116,8 @@ juce_add_binary_data(GlorpDrumsAssets
         resources/logo.svg
         resources/fonts/PatrickHand-Regular.ttf
         resources/fonts/LilitaOne-Regular.ttf
+        resources/fonts/RedHatText-Medium.otf
+        resources/fonts/RedHatDisplay-Bold.otf
         assets/kick.png
         assets/snare.png
         assets/hihat.png
@@ -191,6 +193,7 @@ target_sources(GlorpDrums PRIVATE
     src/ui/DrumKitView.cpp
     src/ui/CalloutBox.cpp
     src/ui/Knob.cpp
+    src/ui/MinimalInstrumentGrid.cpp
     src/ui/Scope.cpp
     src/ui/EDrumWizard.cpp
     src/ui/MixerView.cpp

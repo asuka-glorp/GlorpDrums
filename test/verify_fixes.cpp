@@ -56,9 +56,11 @@ int main()
     // 2a. Phase 5: Graphical Optimizations & OpenGL Rendering Pipeline
     std::cout << "Testing Phase 5 Graphical Optimizations & Caching..." << std::endl;
     {
+        const int origThemeIdx = processor.getSettings().themeIndex;
         auto editor = std::make_unique<glorp::Editor> (processor);
         VERIFY_CHECK (editor != nullptr);
         VERIFY_CHECK (editor->isOpaque());
+        editor->applyTheme (glorp::Theme::sketch());
 
         auto& kv = editor->getKitView();
         auto& sc = editor->getScope();
@@ -88,9 +90,10 @@ int main()
         const bool initialGl = editor->isOpenGlEnabled();
         editor->setOpenGlEnabled (! initialGl);
         VERIFY_CHECK (editor->isOpenGlEnabled() == ! initialGl);
-        editor->setOpenGlEnabled (true);
-        VERIFY_CHECK (editor->isOpenGlEnabled() == true);
+        editor->setOpenGlEnabled (initialGl);
+        VERIFY_CHECK (editor->isOpenGlEnabled() == initialGl);
 
+        editor->applyTheme (glorp::Theme::byIndex (origThemeIdx));
         std::cout << "-> Phase 5 Pre-Scaled Kit Cache, Static Composite, Scope Cache & Dirty Rects: PASSED!\n";
     }
 
@@ -1406,6 +1409,7 @@ int main()
 
         // 19.1 Verify piece coordinate mapping and dragging
         glorp::GlorpKitEditorComponent editor (false);
+        editor.setTutorialVisible (false, 0);
         editor.setSize (1280, 800);
         auto& proj = editor.getProject();
         proj.createNewBlankKit();
@@ -2026,9 +2030,9 @@ int main()
 
     // 23. Verify Pass 2: Skin System & UI Text Scalability
     {
-        std::cout << "Testing Section 23: Skin System (4 Skins) & UI Text Scalability...\n";
+        std::cout << "Testing Section 23: Skin System & UI Text Scalability...\n";
 
-        VERIFY_CHECK (glorp::Theme::numSkins() == 4);
+        VERIFY_CHECK (glorp::Theme::numSkins() >= 4);
         const auto tSketch = glorp::Theme::byIndex (0);
         const auto tDark   = glorp::Theme::byIndex (1);
         const auto tClean  = glorp::Theme::byIndex (2);
@@ -2199,6 +2203,196 @@ int main()
 
         restoreUserPresets();
         std::cout << "-> Section 24 Note Learn Sounding, Custom Preset & Named Preset Saving: PASSED!\n";
+    }
+
+    // 25. Verify Minimal (Dark & Light) Skins, Flat Controls, Hidden Kit/Timeline, & MinimalInstrumentGrid
+    {
+        std::cout << "Testing Section 25: Minimal Dark & Minimal Light Skins + Instrument Pad Grid...\n";
+
+        VERIFY_CHECK (glorp::Theme::numSkins() == 6);
+        const auto tMinDark = glorp::Theme::byIndex (4);
+        const auto tMinLight = glorp::Theme::byIndex (5);
+        VERIFY_CHECK (tMinDark.minimalStyle && tMinDark.cleanStyle && tMinDark.isDark);
+        VERIFY_CHECK (tMinLight.minimalStyle && tMinLight.cleanStyle && ! tMinLight.isDark);
+
+        // Settings persistence for themeIndex 4 and 5
+        for (int idx : { 4, 5 })
+        {
+            glorp::Settings srcS;
+            srcS.themeIndex = idx;
+            juce::MemoryBlock mb;
+            srcS.writeState (mb);
+
+            glorp::Settings dstS;
+            dstS.readState (mb);
+            VERIFY_CHECK (dstS.themeIndex == idx);
+        }
+
+        const int origThemeIdx = processor.getSettings().themeIndex;
+        auto editor = std::make_unique<glorp::Editor> (processor);
+        editor->setSize (1180, 860);
+
+        auto renderPng = [&](const char* filename)
+        {
+            juce::Image img (juce::Image::ARGB, editor->getWidth(), editor->getHeight(), true);
+            juce::Graphics g (img);
+            editor->paintEntireComponent (g, false);
+            juce::File out ("/home/servandoc/.gemini/antigravity/brain/cf30153d-b421-4187-8ed5-1bdf793c8e28/"
+                            + juce::String (filename));
+            out.deleteFile();
+            if (auto fos = std::unique_ptr<juce::FileOutputStream> (out.createOutputStream()))
+            {
+                juce::PNGImageFormat png;
+                png.writeImageToStream (img, *fos);
+            }
+        };
+
+        // Switch to Minimal Dark
+        editor->applyTheme (tMinDark);
+        VERIFY_CHECK (glorp::isMinimalStyleEnabled());
+        VERIFY_CHECK (glorp::isCleanStyleEnabled());
+        VERIFY_CHECK (! editor->getKitView().isVisible());
+        VERIFY_CHECK (! editor->getScope().isVisible());
+        VERIFY_CHECK (editor->getMinimalGrid() != nullptr);
+        VERIFY_CHECK (editor->getMinimalGrid()->isVisible());
+        VERIFY_CHECK (editor->getMinimalGrid()->getItemCount()
+                      == static_cast<int> (editor->getLogicalInstruments().size()));
+
+        editor->getMinimalGrid()->triggerItemHit (0, 0.9f);
+        editor->getMinimalGrid()->tickAnimations();
+        renderPng ("live_minimal_dark_home.png");
+
+        // Verify LookAndFeel updates for PopupMenus, TitleBar & Options button
+        VERIFY_CHECK (editor->getGlorpLookAndFeel() != nullptr);
+        VERIFY_CHECK (editor->getGlorpLookAndFeel()->findColour (juce::PopupMenu::backgroundColourId) == tMinDark.panel);
+        VERIFY_CHECK (editor->getGlorpLookAndFeel()->findColour (juce::PopupMenu::highlightedBackgroundColourId) == tMinDark.accent);
+
+        {
+            juce::Image chromeImg (juce::Image::ARGB, 760, 280, true);
+            juce::Graphics cg (chromeImg);
+            cg.fillAll (tMinDark.background);
+
+            juce::DocumentWindow mockWin ("GlorpDrums", tMinDark.background, juce::DocumentWindow::minimiseButton | juce::DocumentWindow::closeButton);
+            mockWin.setLookAndFeel (editor->getGlorpLookAndFeel());
+            mockWin.setSize (760, 36);
+            juce::TextButton optBtn ("Options");
+            optBtn.setLookAndFeel (editor->getGlorpLookAndFeel());
+            optBtn.setBounds (8, 4, 62, 20);
+            mockWin.addAndMakeVisible (optBtn);
+            mockWin.paintEntireComponent (cg, false);
+            optBtn.setLookAndFeel (nullptr);
+            mockWin.setLookAndFeel (nullptr);
+
+            // Render a themed PopupMenu panel below top-right
+            auto &lf = *editor->getGlorpLookAndFeel();
+            const juce::Rectangle<int> menuRect (440, 40, 300, 224);
+            cg.saveState();
+            cg.reduceClipRegion (menuRect);
+            cg.setOrigin (menuRect.getX(), menuRect.getY());
+            lf.drawPopupMenuBackground (cg, menuRect.getWidth(), menuRect.getHeight());
+            lf.drawPopupMenuItem (cg, { 0, 4, 300, 30 }, false, true, false, false, false, "Audio / MIDI Device Options...", "", nullptr, nullptr);
+            lf.drawPopupMenuItem (cg, { 0, 34, 300, 10 }, true, false, false, false, false, "", "", nullptr, nullptr);
+            lf.drawPopupMenuItem (cg, { 0, 44, 300, 30 }, false, true, true, false, true, "Skin / Theme", "", nullptr, nullptr);
+            lf.drawPopupMenuItem (cg, { 0, 74, 300, 30 }, false, true, false, false, true, "Text Size (UI Scale)", "", nullptr, nullptr);
+            lf.drawPopupMenuItem (cg, { 0, 104, 300, 30 }, false, true, false, true, false, "GPU Hardware Acceleration (OpenGL)", "", nullptr, nullptr);
+            lf.drawPopupMenuItem (cg, { 0, 134, 300, 10 }, true, false, false, false, false, "", "", nullptr, nullptr);
+            lf.drawPopupMenuItem (cg, { 0, 144, 300, 30 }, false, true, false, false, false, "Reset All Instrument Controls", "", nullptr, nullptr);
+            lf.drawPopupMenuItem (cg, { 0, 174, 300, 30 }, false, true, false, false, false, "About GlorpDrums", "", nullptr, nullptr);
+            cg.restoreState();
+
+            const auto chromeFile = juce::File ("/home/servandoc/.gemini/antigravity/brain/cf30153d-b421-4187-8ed5-1bdf793c8e28/live_minimal_dark_titlebar_and_menu.png");
+            chromeFile.deleteFile();
+            if (auto fos = chromeFile.createOutputStream())
+            {
+                juce::PNGImageFormat png;
+                png.writeImageToStream (chromeImg, *fos);
+            }
+        }
+
+        // Switch through Mixer & Practice in Minimal Dark
+        editor->setViewMode (glorp::Editor::EditorView::mixerView);
+        VERIFY_CHECK (! editor->getKitView().isVisible());
+        VERIFY_CHECK (! editor->getScope().isVisible());
+        VERIFY_CHECK (! editor->getMinimalGrid()->isVisible());
+        renderPng ("live_minimal_dark_mixer.png");
+
+        editor->setViewMode (glorp::Editor::EditorView::practiceView);
+        VERIFY_CHECK (! editor->getKitView().isVisible());
+        VERIFY_CHECK (! editor->getScope().isVisible());
+        VERIFY_CHECK (! editor->getMinimalGrid()->isVisible());
+        renderPng ("live_minimal_dark_practice.png");
+
+        // Switch to Minimal Light on Home view
+        editor->setViewMode (glorp::Editor::EditorView::kitView);
+        editor->applyTheme (tMinLight);
+        VERIFY_CHECK (glorp::isMinimalStyleEnabled());
+        VERIFY_CHECK (! editor->getKitView().isVisible());
+        VERIFY_CHECK (! editor->getScope().isVisible());
+        VERIFY_CHECK (editor->getMinimalGrid()->isVisible());
+        renderPng ("live_minimal_light_home.png");
+
+        // Restore Sketch skin and verify classic KitView & Scope come back
+        editor->applyTheme (glorp::Theme::sketch());
+        VERIFY_CHECK (! glorp::isMinimalStyleEnabled());
+        VERIFY_CHECK (editor->getKitView().isVisible());
+        VERIFY_CHECK (editor->getScope().isVisible());
+        VERIFY_CHECK (! editor->getMinimalGrid()->isVisible());
+
+        editor->applyTheme (glorp::Theme::byIndex (origThemeIdx));
+        std::cout << "-> Section 25 Minimal Dark & Minimal Light Skins + Instrument Pad Grid: PASSED!\n";
+    }
+
+    // 26. Master Volume Knob (masterLevel parameter) controls audio level for multi-mic kits
+    {
+        std::cout << "Testing Section 26: Master Volume Knob (masterLevel) Audio Output Scaling...\n";
+
+        auto* masterParam = processor.findParameter ("masterLevel");
+        VERIFY_CHECK (masterParam != nullptr);
+        const float origMaster = masterParam->getValue();
+
+        processor.prepareToPlay (44100.0, 512);
+        auto& pSampler = processor.getSampler();
+        pSampler.setMultiOutMode (false); // route full mix to Out 1/2
+        const int testNote = processor.getMidiMap().noteForInstrument (0);
+        VERIFY_CHECK (testNote >= 0);
+
+        auto measurePeakAtMaster = [&](float normMaster) -> float
+        {
+            masterParam->setValueNotifyingHost (normMaster);
+            pSampler.allNotesOff();
+
+            juce::AudioBuffer<float> buf (processor.getTotalNumOutputChannels(), 512);
+            buf.clear();
+            juce::MidiBuffer midi;
+            midi.addEvent (juce::MidiMessage::noteOn (1, testNote, 1.0f), 0);
+            processor.processBlock (buf, midi);
+
+            // Render a second block to capture reverb tail / sustain as well
+            float peak = buf.getMagnitude (0, 0, 512);
+            peak = std::max (peak, buf.getMagnitude (1, 0, 512));
+            buf.clear();
+            juce::MidiBuffer emptyMidi;
+            processor.processBlock (buf, emptyMidi);
+            peak = std::max (peak, buf.getMagnitude (0, 0, 512));
+            peak = std::max (peak, buf.getMagnitude (1, 0, 512));
+            return peak;
+        };
+
+        const float peakFull = measurePeakAtMaster (1.0f);
+        const float peakHalf = measurePeakAtMaster (0.25f);
+        const float peakZero = measurePeakAtMaster (0.0f);
+
+        std::cout << "  Master=1.0 peak: " << peakFull
+                  << ", Master=0.25 peak: " << peakHalf
+                  << ", Master=0.0 peak: " << peakZero << "\n";
+
+        VERIFY_CHECK (peakFull > 0.01f);
+        VERIFY_CHECK (peakHalf > 0.001f && peakHalf < peakFull * 0.6f);
+        VERIFY_CHECK (peakZero < 1.0e-5f);
+
+        pSampler.setMultiOutMode (true);
+        masterParam->setValueNotifyingHost (origMaster);
+        std::cout << "-> Section 26 Master Volume Knob (masterLevel) Audio Output Scaling: PASSED!\n";
     }
 
     processor.releaseResources();

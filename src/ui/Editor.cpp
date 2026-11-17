@@ -9,6 +9,27 @@ void Editor::MenuButton::paintButton(juce::Graphics &g, bool isHover, bool isDow
 {
     auto b = getLocalBounds().toFloat().reduced(2.0f);
 
+    if (theme.minimalStyle)
+    {
+        if (active)
+        {
+            g.setColour(theme.accent);
+            g.fillRoundedRectangle(b, 5.0f);
+        }
+        else if (isHover || isDown)
+        {
+            g.setColour(isDown ? theme.panelEdge : theme.panel);
+            g.fillRoundedRectangle(b, 5.0f);
+            g.setColour(theme.panelEdge);
+            g.drawRoundedRectangle(b.reduced(0.5f), 5.0f, 1.0f);
+        }
+
+        g.setFont(displayFont(12.5f));
+        g.setColour(active ? juce::Colours::white : (isHover ? theme.ink : theme.inkSoft));
+        g.drawFittedText(getButtonText(), b.reduced(4.0f, 0.0f).toNearestInt(), juce::Justification::centred, 1, 0.72f);
+        return;
+    }
+
     if (active || isHover || isDown)
     {
         g.setColour(theme.accent.withAlpha(active ? 0.22f : (isDown ? 0.24f : 0.12f)));
@@ -21,9 +42,55 @@ void Editor::MenuButton::paintButton(juce::Graphics &g, bool isHover, bool isDow
     g.drawFittedText(getName(), b.reduced(2.0f, 0.0f).toNearestInt(), juce::Justification::centred, 1, 0.72f);
 }
 
+void Editor::MinimalThemeToggleButton::paintButton(juce::Graphics &g, bool isHover, bool isDown)
+{
+    const auto b = getLocalBounds().toFloat().reduced(2.0f);
+    g.setColour(isDown ? theme.panelEdge : (isHover ? theme.panel : theme.trough));
+    g.fillRoundedRectangle(b, 5.0f);
+    g.setColour(isHover ? theme.accent : theme.panelEdge);
+    g.drawRoundedRectangle(b.reduced(0.5f), 5.0f, 1.0f);
+
+    const auto c = b.getCentre();
+    const float r = std::min(b.getWidth(), b.getHeight()) * 0.27f;
+    g.setColour(theme.ink);
+    g.drawEllipse(c.x - r, c.y - r, r * 2.0f, r * 2.0f, 1.4f);
+
+    juce::Path half;
+    half.addPieSegment(c.x - r, c.y - r, r * 2.0f, r * 2.0f, 0.0f, juce::MathConstants<float>::pi, 0.0f);
+    g.fillPath(half);
+}
+
 void Editor::InstrumentSelectorButton::paintButton(juce::Graphics &g, bool isHover, bool /*isDown*/)
 {
     auto b = getLocalBounds().toFloat().reduced(1.0f);
+
+    if (theme.minimalStyle)
+    {
+        g.setColour(theme.trough);
+        g.fillRoundedRectangle(b, 5.0f);
+        g.setColour(isHover ? theme.accent : theme.panelEdge);
+        g.drawRoundedRectangle(b.reduced(0.5f), 5.0f, 1.0f);
+
+        const float dotRadius = 3.5f;
+        g.setColour(theme.accent);
+        g.fillEllipse(b.getX() + 10.0f - dotRadius, b.getCentreY() - dotRadius, dotRadius * 2.0f, dotRadius * 2.0f);
+
+        juce::Path chevron;
+        const float cx = b.getRight() - 12.0f;
+        const float cy = b.getCentreY();
+        chevron.startNewSubPath(cx - 3.5f, cy - 2.0f);
+        chevron.lineTo(cx, cy + 2.0f);
+        chevron.lineTo(cx + 3.5f, cy - 2.0f);
+        g.setColour(theme.inkSoft);
+        g.strokePath(chevron, juce::PathStrokeType(1.5f));
+
+        auto textArea = b.withTrimmedLeft(20.0f).withTrimmedRight(18.0f);
+        g.setFont(displayFont(13.5f));
+        g.setColour(theme.ink);
+        g.drawFittedText(
+            currentName.toUpperCase(), textArea.toNearestInt(), juce::Justification::centredLeft, 1, 0.72f);
+        return;
+    }
 
     // Inner background
     g.setColour(theme.panel);
@@ -62,6 +129,33 @@ void Editor::KitSelectorButton::paintButton(juce::Graphics &g, bool isHover, boo
 {
     auto b = getLocalBounds().toFloat().reduced(1.0f);
 
+    if (theme.minimalStyle)
+    {
+        drawMinimalCard(g, b, theme, 5.0f, isHover ? theme.accent : theme.panelEdge, 1.0f);
+
+        g.setFont(uiFont(10.5f).boldened());
+        g.setColour(theme.inkSoft);
+        g.drawText("ACTIVE KIT",
+                   juce::Rectangle<float>(b.getX() + 12.0f, b.getY(), 72.0f, b.getHeight()),
+                   juce::Justification::centredLeft,
+                   false);
+
+        juce::Path chevron;
+        const float cx = b.getRight() - 14.0f;
+        const float cy = b.getCentreY();
+        chevron.startNewSubPath(cx - 4.0f, cy - 2.0f);
+        chevron.lineTo(cx, cy + 2.5f);
+        chevron.lineTo(cx + 4.0f, cy - 2.0f);
+        g.setColour(isHover ? theme.accent : theme.inkSoft);
+        g.strokePath(chevron, juce::PathStrokeType(1.5f));
+
+        auto textArea = b.withTrimmedLeft(88.0f).withTrimmedRight(28.0f);
+        g.setFont(displayFont(13.5f));
+        g.setColour(theme.ink);
+        g.drawText(currentName.toUpperCase(), textArea, juce::Justification::centred, true);
+        return;
+    }
+
     // Inner background
     g.setColour(theme.panel);
     g.fillRoundedRectangle(b, 4.0f);
@@ -99,18 +193,20 @@ void Editor::OutputBusButton::paintButton(juce::Graphics &g, bool isHover, bool 
 {
     auto b = getLocalBounds().toFloat().reduced(1.0f);
 
-    g.setColour(theme.panel);
-    g.fillRoundedRectangle(b, 3.0f);
+    g.setColour(theme.minimalStyle ? theme.trough : theme.panel);
+    g.fillRoundedRectangle(b, theme.minimalStyle ? 4.0f : 3.0f);
 
     const auto borderCol =
-        isHover ? theme.accent : (theme.isDark ? theme.panelEdge.withAlpha(0.6f) : juce::Colour(0x66111215));
+        isHover ? theme.accent
+                : (theme.minimalStyle ? theme.panelEdge
+                                      : (theme.isDark ? theme.panelEdge.withAlpha(0.6f) : juce::Colour(0x66111215)));
     drawSketchRect(g, b, borderCol, 1.0f, 4);
 
     const juce::String text = "OUT: " + juce::String(currentBus * 2 + 1) + "-" + juce::String(currentBus * 2 + 2)
                               + (currentBus == 0 ? " (MAIN)  ▼" : "  ▼");
 
-    g.setFont(displayFont(12.5f));
-    g.setColour(isHover ? theme.accent : theme.ink);
+    g.setFont(theme.minimalStyle ? uiFont(10.5f).boldened() : displayFont(12.5f));
+    g.setColour(isHover ? theme.accent : (theme.minimalStyle ? theme.inkSoft : theme.ink));
     g.drawFittedText(text, b.reduced(3.0f, 0.0f).toNearestInt(), juce::Justification::centred, 1, 0.72f);
 }
 
@@ -131,6 +227,20 @@ void Editor::ZoneButton::setActive(bool active)
 void Editor::ZoneButton::paintButton(juce::Graphics &g, bool isHover, bool /*isDown*/)
 {
     auto b = getLocalBounds().toFloat().reduced(1.0f);
+
+    if (theme.minimalStyle)
+    {
+        g.setColour(isActive ? theme.accent : (isHover ? theme.panelEdge.withAlpha(0.45f) : theme.trough));
+        g.fillRoundedRectangle(b, 4.0f);
+        g.setColour(isActive ? theme.accent : (isHover ? theme.accent.withAlpha(0.7f) : theme.panelEdge));
+        g.drawRoundedRectangle(b.reduced(0.5f), 4.0f, 1.0f);
+
+        g.setFont(displayFont(11.0f));
+        g.setColour(isActive ? juce::Colours::white : (isHover ? theme.ink : theme.inkSoft));
+        g.drawFittedText(
+            getName().toUpperCase(), b.reduced(4.0f, 0.0f).toNearestInt(), juce::Justification::centred, 1, 0.70f);
+        return;
+    }
 
     g.setColour(theme.panel);
     g.fillRoundedRectangle(b, 3.0f);
@@ -166,6 +276,25 @@ void Editor::LearnButton::setLearning(bool learning)
 void Editor::LearnButton::paintButton(juce::Graphics &g, bool isHover, bool /*isDown*/)
 {
     auto b = getLocalBounds().toFloat().reduced(1.0f);
+
+    if (theme.minimalStyle)
+    {
+        const auto activeCol = isLearning_ ? theme.accentWarm : (isHover ? theme.accent : theme.trough);
+        g.setColour(isLearning_ ? activeCol : (isHover ? theme.accent.withAlpha(0.18f) : theme.trough));
+        g.fillRoundedRectangle(b, 4.0f);
+        g.setColour(isLearning_ ? theme.accentWarm : (isHover ? theme.accent : theme.panelEdge));
+        g.drawRoundedRectangle(b.reduced(0.5f), 4.0f, 1.0f);
+
+        g.setFont(displayFont(11.5f));
+        g.setColour(isLearning_ ? juce::Colours::white : (isHover ? theme.accent : theme.ink));
+        g.drawFittedText(isLearning_ ? "HIT PAD..." : "LEARN",
+                         b.reduced(3.0f, 0.0f).toNearestInt(),
+                         juce::Justification::centred,
+                         1,
+                         0.72f);
+        return;
+    }
+
     g.setColour(theme.panel);
     g.fillRoundedRectangle(b, 3.0f);
 
@@ -188,14 +317,17 @@ void Editor::LearnButton::paintButton(juce::Graphics &g, bool isHover, bool /*is
 void Editor::CurveButton::paintButton(juce::Graphics &g, bool isHover, bool /*isDown*/)
 {
     auto b = getLocalBounds().toFloat().reduced(1.0f);
-    g.setColour(theme.panel);
-    g.fillRoundedRectangle(b, 3.0f);
+    g.setColour(theme.minimalStyle ? theme.trough : theme.panel);
+    g.fillRoundedRectangle(b, theme.minimalStyle ? 4.0f : 3.0f);
 
     const auto orangeCol = theme.accent;
     drawSketchRect(g,
                    b,
-                   isHover ? orangeCol : (theme.isDark ? theme.panelEdge.withAlpha(0.6f) : juce::Colour(0xff7a7d7a)),
-                   isHover ? 1.6f : 1.2f,
+                   isHover ? orangeCol
+                           : (theme.minimalStyle
+                                  ? theme.panelEdge
+                                  : (theme.isDark ? theme.panelEdge.withAlpha(0.6f) : juce::Colour(0xff7a7d7a))),
+                   isHover ? 1.5f : 1.0f,
                    6);
 
     juce::String label = "CURVE: LIN";
@@ -215,7 +347,7 @@ void Editor::CurveButton::paintButton(juce::Graphics &g, bool isHover, bool /*is
             break;
     }
 
-    g.setFont(displayFont(13.5f));
+    g.setFont(theme.minimalStyle ? uiFont(10.5f).boldened() : displayFont(13.5f));
     g.setColour(isHover ? orangeCol : theme.ink);
     g.drawFittedText(label, b.reduced(3.0f, 0.0f).toNearestInt(), juce::Justification::centred, 1, 0.72f);
 }
@@ -328,23 +460,51 @@ void Editor::VelocityCurvePreview::paint(juce::Graphics &g)
             curvePath.lineTo(px, py);
     }
 
-    // Bold comic ink outline under the curve
-    g.setColour(theme.isDark ? juce::Colours::black : ink);
-    g.strokePath(curvePath, juce::PathStrokeType(3.8f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+    // Bold comic ink outline under the curve (or clean minimal curve fill)
+    if (theme.minimalStyle)
+    {
+        juce::Path fillPath(curvePath);
+        fillPath.lineTo(plotArea.getRight(), plotArea.getBottom());
+        fillPath.lineTo(plotArea.getX(), plotArea.getBottom());
+        fillPath.closeSubPath();
+        g.setColour(theme.accent.withAlpha(0.18f));
+        g.fillPath(fillPath);
 
-    // Vibrant comic curve stroke
-    g.setColour(theme.accent);
-    g.strokePath(curvePath, juce::PathStrokeType(2.2f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+        g.setColour(theme.accent);
+        g.strokePath(curvePath,
+                     juce::PathStrokeType(2.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+    }
+    else
+    {
+        g.setColour(theme.isDark ? juce::Colours::black : ink);
+        g.strokePath(curvePath,
+                     juce::PathStrokeType(3.8f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
 
-    // Anchor points: hand-drawn comic dots with ink outlines
+        // Vibrant comic curve stroke
+        g.setColour(theme.accent);
+        g.strokePath(curvePath,
+                     juce::PathStrokeType(2.2f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+    }
+
+    // Anchor points
     auto drawDot = [&](float xNorm, float yNorm, juce::Colour col)
     {
         const float dotX = plotArea.getX() + xNorm * plotArea.getWidth();
         const float dotY = plotArea.getBottom() - yNorm * plotArea.getHeight();
-        g.setColour(theme.isDark ? theme.panelEdge : ink);
-        g.fillEllipse(dotX - 3.5f, dotY - 3.5f, 7.0f, 7.0f);
-        g.setColour(col);
-        g.fillEllipse(dotX - 2.0f, dotY - 2.0f, 4.0f, 4.0f);
+        if (theme.minimalStyle)
+        {
+            g.setColour(col);
+            g.fillEllipse(dotX - 2.8f, dotY - 2.8f, 5.6f, 5.6f);
+            g.setColour(juce::Colours::white.withAlpha(0.85f));
+            g.drawEllipse(dotX - 2.8f, dotY - 2.8f, 5.6f, 5.6f, 0.8f);
+        }
+        else
+        {
+            g.setColour(theme.isDark ? theme.panelEdge : ink);
+            g.fillEllipse(dotX - 3.5f, dotY - 3.5f, 7.0f, 7.0f);
+            g.setColour(col);
+            g.fillEllipse(dotX - 2.0f, dotY - 2.0f, 4.0f, 4.0f);
+        }
     };
 
     float midY = 0.5f;
@@ -376,9 +536,34 @@ Editor::Editor(PluginProcessor &p) : processor(p)
     glorp::setUiTextScale(processor.getSettings().uiTextScale);
     theme = Theme::byIndex(processor.getSettings().themeIndex);
     glorp::setCleanStyleEnabled(theme.cleanStyle);
+    glorp::setMinimalStyleEnabled(theme.minimalStyle);
+
+    lookAndFeel = std::make_unique<GlorpLookAndFeel>();
+    lookAndFeel->setTheme(theme);
+    setLookAndFeel(lookAndFeel.get());
 
     addAndMakeVisible(kitView);
     addAndMakeVisible(scope);
+
+    minimalGrid = std::make_unique<MinimalInstrumentGrid>();
+    addChildComponent(*minimalGrid);
+    minimalGrid->onCellClicked = [this](int logicalIdx, float velocity)
+    {
+        selectLogicalInstrument(logicalIdx);
+        const int targetZone = (logicalIdx >= 0 && logicalIdx < static_cast<int>(logicalInstruments.size()))
+                                   ? logicalInstruments[static_cast<size_t>(logicalIdx)].selectedZoneIndex
+                                   : 0;
+        selectZone(logicalIdx, targetZone, false);
+
+        const int samplerIdx = getActiveSamplerIndex();
+        if (samplerIdx >= 0)
+        {
+            const auto note = processor.getMidiMap().noteForInstrument(samplerIdx);
+            const int midiNote = (note >= 0) ? note : 36;
+            processor.getSampler().noteOn(
+                samplerIdx, midiNote, velocity, processor.getSampler().currentSamplePosition());
+        }
+    };
 
     mixerView = std::make_unique<MixerView>(processor);
     addChildComponent(*mixerView);
@@ -548,11 +733,51 @@ Editor::~Editor()
         openGlContext.detach();
     stopTimer();
     processor.removeListener(this);
+
+    if (attachedStandaloneWindow != nullptr && &attachedStandaloneWindow->getLookAndFeel() == lookAndFeel.get())
+        attachedStandaloneWindow->setLookAndFeel(nullptr);
+    attachedStandaloneWindow = nullptr;
+
+    if (processor.wrapperType == juce::AudioProcessor::wrapperType_Standalone
+        && &juce::LookAndFeel::getDefaultLookAndFeel() == lookAndFeel.get())
+    {
+        juce::LookAndFeel::setDefaultLookAndFeel(nullptr);
+    }
+
+    setLookAndFeel(nullptr);
+}
+
+void Editor::syncTopLevelWindowTheme()
+{
+    if (lookAndFeel == nullptr)
+        return;
+
+    if (processor.wrapperType == juce::AudioProcessor::wrapperType_Standalone)
+        juce::LookAndFeel::setDefaultLookAndFeel(lookAndFeel.get());
+
+    if (processor.isStandaloneApp())
+    {
+        if (auto *dw = dynamic_cast<juce::DocumentWindow *>(getTopLevelComponent()))
+        {
+            dw->setBackgroundColour(theme.background);
+            if (&dw->getLookAndFeel() != lookAndFeel.get())
+            {
+                dw->setLookAndFeel(lookAndFeel.get());
+                attachedStandaloneWindow = dw;
+            }
+            else
+            {
+                dw->sendLookAndFeelChange();
+            }
+            dw->repaint();
+        }
+    }
 }
 
 void Editor::parentHierarchyChanged()
 {
     updateOpenGlAttachment();
+    syncTopLevelWindowTheme();
 
     if (auto *top = getTopLevelComponent())
     {
@@ -625,6 +850,10 @@ void Editor::applyTheme(const Theme &newTheme)
 {
     theme = newTheme;
     glorp::setCleanStyleEnabled(theme.cleanStyle);
+    glorp::setMinimalStyleEnabled(theme.minimalStyle);
+
+    if (lookAndFeel != nullptr)
+        lookAndFeel->setTheme(theme);
 
     logo = logoDrawable();
     if (logo != nullptr && theme.isDark)
@@ -644,25 +873,46 @@ void Editor::applyTheme(const Theme &newTheme)
         if (zb != nullptr)
             zb->setTheme(theme);
 
+    homeTabButton.setTheme(theme);
     viewToggleButton.setTheme(theme);
     practiceToggleButton.setTheme(theme);
     fileButton.setTheme(theme);
     presetsButton.setTheme(theme);
     midiButton.setTheme(theme);
     settingsButton.setTheme(theme);
+    minimalThemeToggleButton.setTheme(theme);
 
     if (instVolumeKnob != nullptr)
+    {
         instVolumeKnob->setTheme(theme);
+        instVolumeKnob->setAccentColour(theme.accent);
+    }
     if (instPanKnob != nullptr)
+    {
         instPanKnob->setTheme(theme);
+        instPanKnob->setAccentColour(theme.cymbal);
+        instPanKnob->setBipolar(true);
+    }
     if (instPitchKnob != nullptr)
+    {
         instPitchKnob->setTheme(theme);
+        instPitchKnob->setAccentColour(theme.accentAlt);
+        instPitchKnob->setBipolar(true);
+    }
     if (instDynamicsKnob != nullptr)
+    {
         instDynamicsKnob->setTheme(theme);
+        instDynamicsKnob->setAccentColour(theme.accentWarm);
+    }
     if (masterVolumeKnob != nullptr)
+    {
         masterVolumeKnob->setTheme(theme);
+        masterVolumeKnob->setAccentColour(theme.accent);
+    }
 
     kitView.setTheme(theme);
+    if (minimalGrid != nullptr)
+        minimalGrid->setTheme(theme);
     scope.setTheme(theme);
 
     if (mixerView != nullptr)
@@ -671,7 +921,11 @@ void Editor::applyTheme(const Theme &newTheme)
     if (practiceView != nullptr)
         practiceView->applyTheme(theme);
 
-    repaint();
+    sendLookAndFeelChange();
+    syncTopLevelWindowTheme();
+
+    // Re-apply visibility constraints (e.g. hiding kitView & scope in Minimal mode)
+    setViewMode(currentView);
 }
 
 void Editor::applyTextScale(float newScale)
@@ -692,8 +946,41 @@ void Editor::applyTextScale(float newScale)
     if (edrumWizard != nullptr)
         edrumWizard->repaint();
 
+    if (lookAndFeel != nullptr)
+    {
+        lookAndFeel->setTheme(theme);
+        sendLookAndFeelChange();
+    }
+
     resized();
     repaint();
+}
+
+void Editor::refreshHeaderButtonLabels()
+{
+    const bool isKit = (currentView == EditorView::kitView);
+    const bool isMixer = (currentView == EditorView::mixerView);
+    const bool isPractice = (currentView == EditorView::practiceView);
+
+    homeTabButton.setVisible(theme.minimalStyle);
+    minimalThemeToggleButton.setVisible(theme.minimalStyle);
+
+    if (theme.minimalStyle)
+    {
+        homeTabButton.setButtonText("HOME");
+        homeTabButton.setActive(isKit);
+        viewToggleButton.setButtonText("MIXER");
+        viewToggleButton.setActive(isMixer);
+        practiceToggleButton.setButtonText("PRACTICE");
+        practiceToggleButton.setActive(isPractice);
+    }
+    else
+    {
+        viewToggleButton.setButtonText(isKit ? "MIXER VIEW" : "KIT VIEW");
+        viewToggleButton.setActive(isMixer);
+        practiceToggleButton.setButtonText("PRACTICE");
+        practiceToggleButton.setActive(isPractice);
+    }
 }
 
 void Editor::setViewMode(EditorView mode)
@@ -702,15 +989,16 @@ void Editor::setViewMode(EditorView mode)
     const bool isKit = (currentView == EditorView::kitView);
     const bool isMixer = (currentView == EditorView::mixerView);
     const bool isPractice = (currentView == EditorView::practiceView);
+    const bool isMinimal = theme.minimalStyle;
 
     if (edrumWizard != nullptr)
         edrumWizard->close();
 
-    viewToggleButton.setButtonText(isKit ? "MIXER VIEW" : "KIT VIEW");
-    viewToggleButton.setActive(isMixer);
-    practiceToggleButton.setActive(isPractice);
+    refreshHeaderButtonLabels();
 
-    kitView.setVisible(isKit);
+    kitView.setVisible(isKit && !isMinimal);
+    if (minimalGrid != nullptr)
+        minimalGrid->setVisible(isKit && isMinimal);
     kitSelectorButton.setVisible(isKit);
     instSelectorButton.setVisible(isKit);
     outBusButton.setVisible(isKit);
@@ -729,7 +1017,7 @@ void Editor::setViewMode(EditorView mode)
     instCurveButton.setVisible(isKit);
     instCurvePreview.setVisible(isKit);
     instLearnButton.setVisible(isKit);
-    scope.setVisible(isKit || isPractice);
+    scope.setVisible(!isMinimal && (isKit || isPractice));
     if (masterVolumeKnob != nullptr)
         masterVolumeKnob->setVisible(isKit);
 
@@ -806,27 +1094,42 @@ void Editor::filesDropped(const juce::StringArray &files, int /*x*/, int /*y*/)
 //==============================================================================
 void Editor::buildHeaderMenu()
 {
+    addChildComponent(homeTabButton);
     addAndMakeVisible(viewToggleButton);
     addAndMakeVisible(practiceToggleButton);
     addAndMakeVisible(fileButton);
     addAndMakeVisible(presetsButton);
     addAndMakeVisible(midiButton);
     addAndMakeVisible(settingsButton);
+    addChildComponent(minimalThemeToggleButton);
+
+    homeTabButton.onClick = [this] { setViewMode(EditorView::kitView); };
 
     viewToggleButton.onClick = [this]
     {
-        if (currentView == EditorView::mixerView)
-            setViewMode(EditorView::kitView);
-        else
+        if (theme.minimalStyle)
             setViewMode(EditorView::mixerView);
+        else
+            setViewMode(currentView == EditorView::mixerView ? EditorView::kitView : EditorView::mixerView);
     };
 
     practiceToggleButton.onClick = [this]
     {
-        if (currentView == EditorView::practiceView)
-            setViewMode(EditorView::kitView);
-        else
+        if (theme.minimalStyle)
             setViewMode(EditorView::practiceView);
+        else
+            setViewMode(currentView == EditorView::practiceView ? EditorView::kitView : EditorView::practiceView);
+    };
+
+    minimalThemeToggleButton.onClick = [this]
+    {
+        auto &settings = processor.getSettings();
+        settings.themeIndex = (settings.themeIndex == 4) ? 5 : 4;
+        settings.markDirty();
+        settings.saveIfChanged();
+        applyTheme(Theme::byIndex(settings.themeIndex));
+        statusText = "Skin: " + Theme::skinName(settings.themeIndex);
+        repaint();
     };
 
     auto showMenu = [this](juce::PopupMenu &m, juce::Component *target)
@@ -1010,7 +1313,8 @@ juce::PopupMenu Editor::buildPresetsMenu()
 void Editor::promptSaveMapPreset()
 {
     auto *alert = new juce::AlertWindow(
-        "Save MIDI Map Preset", "Enter a name for this MIDI mapping preset:", juce::AlertWindow::QuestionIcon);
+        "Save MIDI Map Preset", "Enter a name for this MIDI mapping preset:", juce::AlertWindow::QuestionIcon, this);
+    alert->setLookAndFeel(&getLookAndFeel());
     alert->addTextEditor("presetName", processor.suggestedPresetSaveName(), "Preset Name");
     alert->addButton("Save", 1, juce::KeyPress(juce::KeyPress::returnKey));
     alert->addButton("Cancel", 0, juce::KeyPress(juce::KeyPress::escapeKey));
@@ -1125,7 +1429,9 @@ juce::PopupMenu Editor::buildSettingsMenu()
                              juce::AlertWindow::showMessageBoxAsync(
                                  juce::AlertWindow::InfoIcon,
                                  "Audio / MIDI Settings",
-                                 "Use the Standalone window's top-left Options button to configure Audio & MIDI.");
+                                 "Use the Standalone window's top-left Options button to configure Audio & MIDI.",
+                                 "OK",
+                                 this);
                      });
         menu.addSeparator();
     }
@@ -1249,7 +1555,9 @@ juce::PopupMenu Editor::buildSettingsMenu()
                                                    "GlorpDrums Debug Log",
                                                    "Diagnostic snapshot and live MIDI log saved to:\n\n"
                                                        + logFile.getFullPathName()
-                                                       + "\n\nAttach this file when reporting issues on GitHub.");
+                                                       + "\n\nAttach this file when reporting issues on GitHub.",
+                                                   "OK",
+                                                   this);
         });
 
     menu.addSeparator();
@@ -1260,7 +1568,9 @@ juce::PopupMenu Editor::buildSettingsMenu()
                          juce::AlertWindow::InfoIcon,
                          "GlorpDrums",
                          "GlorpDrums VSTi / LV2 Drum Plugin\n\nPlays DrumGizmo kits with natural WSOLA tuning,\n"
-                         "interactive MIDI learn, and individual output buses.");
+                         "interactive MIDI learn, and individual output buses.",
+                         "OK",
+                         this);
                  });
 
     return menu;
@@ -1676,6 +1986,47 @@ void Editor::buildLogicalInstruments()
 
     selectedLogicalIndex = juce::jlimit(0, static_cast<int>(logicalInstruments.size()) - 1, selectedLogicalIndex);
     rebuildZoneButtons();
+    syncMinimalGridItems();
+}
+
+void Editor::syncMinimalGridItems()
+{
+    if (minimalGrid == nullptr)
+        return;
+
+    std::vector<MinimalInstrumentGrid::Item> gridItems;
+    gridItems.reserve(logicalInstruments.size());
+
+    for (size_t i = 0; i < logicalInstruments.size(); ++i)
+    {
+        const auto &inst = logicalInstruments[i];
+        MinimalInstrumentGrid::Item item;
+        item.name = inst.name;
+        item.zoneCount = static_cast<int>(inst.zones.size());
+        item.outputBus = inst.outputBus;
+
+        int samplerIdx = -1;
+        if (!inst.zones.empty())
+        {
+            const int zi = juce::jlimit(0, static_cast<int>(inst.zones.size()) - 1, inst.selectedZoneIndex);
+            item.activeZoneName = inst.zones[static_cast<size_t>(zi)].zoneName;
+            samplerIdx = inst.zones[static_cast<size_t>(zi)].samplerIndex;
+        }
+
+        if (samplerIdx >= 0)
+        {
+            const int note = processor.getMidiMap().noteForInstrument(samplerIdx);
+            if (note >= 0)
+                item.midiNoteText = juce::MidiMessage::getMidiNoteName(note, true, true, 3) + " " + juce::String(note);
+            else
+                item.midiNoteText = "--";
+        }
+
+        gridItems.push_back(std::move(item));
+    }
+
+    minimalGrid->setItems(std::move(gridItems));
+    minimalGrid->setSelectedIndex(selectedLogicalIndex);
 }
 
 void Editor::rebuildZoneButtons()
@@ -1699,7 +2050,10 @@ void Editor::rebuildZoneButtons()
         btn->onClick = [this, zoneIdx] { selectZone(selectedLogicalIndex, zoneIdx, true); };
 
         btn->setTheme(theme);
-        addAndMakeVisible(*btn);
+        if (currentView == EditorView::kitView)
+            addAndMakeVisible(*btn);
+        else
+            addChildComponent(*btn);
         zoneButtons.push_back(std::move(btn));
     }
 
@@ -1758,14 +2112,24 @@ void Editor::selectZone(int logicalIndex, int zoneIndex, bool triggerPreview)
         const auto note = processor.getMidiMap().noteForInstrument(samplerIdx);
         const int midiNote = (note >= 0) ? note : 36;
         processor.getSampler().noteOn(samplerIdx, midiNote, 1.0f, processor.getSampler().currentSamplePosition());
-        scope.hitReceived(inst.name, inst.piece, midiNote, 1.0f);
-
-        if (!kitView.triggerHitForSamplerIndex(samplerIdx, 1.0f))
+        if (!theme.minimalStyle)
         {
-            if (inst.piece != KitPiece::count)
-                kitView.triggerHitForPiece(inst.piece, 1.0f);
+            scope.hitReceived(inst.name, inst.piece, midiNote, 1.0f);
+
+            if (!kitView.triggerHitForSamplerIndex(samplerIdx, 1.0f))
+            {
+                if (inst.piece != KitPiece::count)
+                    kitView.triggerHitForPiece(inst.piece, 1.0f);
+            }
+        }
+        else if (minimalGrid != nullptr)
+        {
+            minimalGrid->triggerItemHit(selectedLogicalIndex, 1.0f);
         }
     }
+
+    if (minimalGrid != nullptr)
+        minimalGrid->setSelectedIndex(selectedLogicalIndex);
 
     repaint();
 }
@@ -1827,6 +2191,7 @@ void Editor::updateInstrumentDisplay()
 
     const bool isLearningThis = (learningInstrument >= 0 && learningInstrument == samplerIdx);
     instLearnButton.setLearning(isLearningThis);
+    syncMinimalGridItems();
 }
 
 void Editor::armLearn(int samplerIndex)
@@ -1939,23 +2304,66 @@ void Editor::timerCallback()
 
     while (sampler.popHit(event))
     {
-        if (!kitView.triggerHitForSamplerIndex(event.instrumentIndex, event.velocity))
+        if (theme.minimalStyle)
         {
-            const auto instName = processor.getSampler().instrumentName(event.instrumentIndex);
-            kitView.triggerHit(instName, event.velocity);
+            if (minimalGrid != nullptr)
+            {
+                for (size_t l = 0; l < logicalInstruments.size(); ++l)
+                {
+                    bool matched = false;
+                    for (const auto &z : logicalInstruments[l].zones)
+                    {
+                        if (z.samplerIndex == event.instrumentIndex)
+                        {
+                            minimalGrid->triggerItemHit(static_cast<int>(l), event.velocity);
+                            matched = true;
+                            break;
+                        }
+                    }
+                    if (matched)
+                        break;
+                }
+            }
         }
+        else
+        {
+            if (!kitView.triggerHitForSamplerIndex(event.instrumentIndex, event.velocity))
+            {
+                const auto instName = processor.getSampler().instrumentName(event.instrumentIndex);
+                kitView.triggerHit(instName, event.velocity);
+            }
 
-        const auto instName = processor.getSampler().instrumentName(event.instrumentIndex);
-        const auto piece = DrumKitView::pieceForName(instName);
-        scope.hitReceived(instName, piece, event.note, event.velocity);
+            const auto instName = processor.getSampler().instrumentName(event.instrumentIndex);
+            const auto piece = DrumKitView::pieceForName(instName);
+            scope.hitReceived(instName, piece, event.note, event.velocity);
+        }
     }
 
-    const float cc4 = processor.getHiHatCC4();
-    static float lastReportedCC4 = -1.0f;
-    if (std::abs(cc4 - lastReportedCC4) > 0.005f)
+    if (theme.minimalStyle)
     {
-        lastReportedCC4 = cc4;
-        scope.controllerReceived(4, static_cast<int>(cc4 * 127.0f));
+        if (minimalGrid != nullptr)
+            minimalGrid->tickAnimations();
+
+        const float pkL = std::clamp(sampler.getMasterPeakL(), 0.0f, 1.0f);
+        const float pkR = std::clamp(sampler.getMasterPeakR(), 0.0f, 1.0f);
+        const float nextL = (pkL > minimalMasterLevelL) ? pkL : minimalMasterLevelL * 0.85f;
+        const float nextR = (pkR > minimalMasterLevelR) ? pkR : minimalMasterLevelR * 0.85f;
+        const bool meterChanged =
+            (std::abs(nextL - minimalMasterLevelL) > 0.004f || std::abs(nextR - minimalMasterLevelR) > 0.004f);
+        minimalMasterLevelL = (nextL < 0.004f) ? 0.0f : nextL;
+        minimalMasterLevelR = (nextR < 0.004f) ? 0.0f : nextR;
+        if (meterChanged && currentView == EditorView::kitView && !minimalMasterCardRect.isEmpty())
+            repaint(minimalMasterCardRect.toNearestInt().expanded(2));
+    }
+    else
+    {
+        const float cc4 = processor.getHiHatCC4();
+        static float lastReportedCC4 = -1.0f;
+        if (std::abs(cc4 - lastReportedCC4) > 0.005f)
+        {
+            lastReportedCC4 = cc4;
+            scope.controllerReceived(4, static_cast<int>(cc4 * 127.0f));
+        }
     }
 
     processor.drainControlQueue();
@@ -1992,6 +2400,147 @@ void Editor::resized()
     const int w = b.getWidth();
     const int h = b.getHeight();
 
+    if (theme.minimalStyle)
+    {
+        const float hdrScale = juce::jlimit(1.0f, 1.24f, glorp::getUiTextScale());
+        const int menuY = 12;
+        const int menuH = juce::roundToInt(30.0f * juce::jlimit(1.0f, 1.14f, hdrScale));
+        const int tabW = juce::roundToInt(74.0f * hdrScale);
+        const int fileW = juce::roundToInt(50.0f * hdrScale);
+        const int presetsW = juce::roundToInt(74.0f * hdrScale);
+        const int midiW = juce::roundToInt(48.0f * hdrScale);
+        const int settingsW = juce::roundToInt(78.0f * hdrScale);
+        const int themeW = menuH;
+        const int gap = 6;
+
+        // Right group: Utility menus + Dark/Light toggle
+        int rightX = w - 20 - themeW;
+        minimalThemeToggleButton.setBounds(rightX, menuY, themeW, menuH);
+        rightX -= gap + settingsW;
+        settingsButton.setBounds(rightX, menuY, settingsW, menuH);
+        rightX -= gap + midiW;
+        midiButton.setBounds(rightX, menuY, midiW, menuH);
+        rightX -= gap + presetsW;
+        presetsButton.setBounds(rightX, menuY, presetsW, menuH);
+        rightX -= gap + fileW;
+        fileButton.setBounds(rightX, menuY, fileW, menuH);
+
+        // Center-left segmented view tabs: HOME | MIXER | PRACTICE
+        const int tabsTotalW = tabW * 3 + 8;
+        const int tabStartX = std::max(222, std::min(rightX - 18 - tabsTotalW, (w - tabsTotalW) / 2 - 30));
+        homeTabButton.setBounds(tabStartX, menuY, tabW, menuH);
+        viewToggleButton.setBounds(tabStartX + tabW + 4, menuY, tabW, menuH);
+        practiceToggleButton.setBounds(tabStartX + (tabW + 4) * 2, menuY, tabW + 8, menuH);
+
+        // Left Column: Controls Card + Master Card
+        const int panelX = 20;
+        const int panelY = 66;
+        const int panelW = 248;
+        const int innerPad = 12;
+        const int innerW = panelW - innerPad * 2;
+
+        instSelectorButton.setBounds(panelX + innerPad, panelY + 26, innerW, 28);
+        outBusButton.setBounds(panelX + innerPad, panelY + 58, innerW, 22);
+
+        const int zoneBoxY = panelY + 88;
+        const int zoneInnerPad = 8;
+        const int zoneHeaderH = 18;
+        const int zoneButtonsY = zoneBoxY + zoneHeaderH + 4;
+        const int nZones = static_cast<int>(zoneButtons.size());
+        const int zCols = (nZones > 6) ? 3 : ((nZones <= 1) ? 1 : 2);
+        const int zGap = 4;
+        const int zBtnW = (innerW - zoneInnerPad * 2 - zGap * (zCols - 1)) / zCols;
+        const int zBtnH = (nZones > 6) ? 20 : 22;
+
+        int currentZoneBottom = zoneButtonsY + zBtnH;
+        if (!zoneButtons.empty())
+        {
+            currentZoneBottom = zoneButtonsY;
+            for (size_t i = 0; i < zoneButtons.size(); ++i)
+            {
+                const int row = static_cast<int>(i) / zCols;
+                const int col = static_cast<int>(i) % zCols;
+                const int bx = panelX + innerPad + zoneInnerPad + col * (zBtnW + zGap);
+                const int by = zoneButtonsY + row * (zBtnH + zGap);
+                zoneButtons[i]->setBounds(bx, by, zBtnW, zBtnH);
+                currentZoneBottom = std::max(currentZoneBottom, by + zBtnH);
+            }
+        }
+
+        // Zone setting knobs directly below zone selector inside grouped zone box
+        const int kW = 74;
+        const int kH = 74;
+        const int kCol1 = panelX + innerPad + zoneInnerPad + 10;
+        const int kCol2 = panelX + panelW - innerPad - zoneInnerPad - 10 - kW;
+        const int kRow1 = currentZoneBottom + 8;
+        const int kRow2 = kRow1 + kH + 6;
+
+        instVolumeKnob->setBounds(kCol1, kRow1, kW, kH);
+        instPanKnob->setBounds(kCol2, kRow1, kW, kH);
+        instPitchKnob->setBounds(kCol1, kRow2, kW, kH);
+        instDynamicsKnob->setBounds(kCol2, kRow2, kW, kH);
+
+        const int curveY = kRow2 + kH + 8;
+        instCurveButton.setBounds(panelX + innerPad + zoneInnerPad, curveY, innerW - zoneInnerPad * 2, 22);
+
+        const int previewY = curveY + 26;
+        const int previewH = 54;
+        instCurvePreview.setBounds(panelX + innerPad + zoneInnerPad, previewY, innerW - zoneInnerPad * 2, previewH);
+
+        const int noteRowY = previewY + previewH + 8;
+        const int learnW = 70;
+        const int learnH = 24;
+        instLearnButton.setBounds(panelX + innerPad + innerW - zoneInnerPad - learnW, noteRowY, learnW, learnH);
+
+        const int zoneBoxBottom = noteRowY + learnH + 10;
+        minimalZoneGroupRect = {static_cast<float>(panelX + innerPad),
+                                static_cast<float>(zoneBoxY),
+                                static_cast<float>(innerW),
+                                static_cast<float>(zoneBoxBottom - zoneBoxY)};
+
+        const int controlsBottom = zoneBoxBottom + 10;
+        minimalControlsCardRect = {static_cast<float>(panelX),
+                                   static_cast<float>(panelY),
+                                   static_cast<float>(panelW),
+                                   static_cast<float>(controlsBottom - panelY)};
+        leftPanelHeight = minimalControlsCardRect.getHeight();
+
+        // Master card below Zone/Controls card
+        const int masterTop = controlsBottom + 10;
+        const int masterH = std::max(92, std::min(126, h - 14 - masterTop));
+        minimalMasterCardRect = {static_cast<float>(panelX),
+                                 static_cast<float>(masterTop),
+                                 static_cast<float>(panelW),
+                                 static_cast<float>(masterH)};
+
+        if (masterVolumeKnob != nullptr)
+        {
+            const int mkSize = std::min(78, masterH - 12);
+            masterVolumeKnob->setBounds(panelX + 12, masterTop + (masterH - mkSize) / 2 + 4, mkSize, mkSize - 4);
+        }
+
+        // Right Workspace: Active Kit dropdown + Instrument Grid
+        const int gridX = panelX + panelW + 14;
+        const int gridW = std::max(120, w - gridX - 20);
+        kitSelectorButton.setBounds(gridX, panelY, gridW, 32);
+
+        const int gridY = panelY + 40;
+        const int gridH = std::max(100, h - 14 - gridY);
+        if (minimalGrid != nullptr)
+            minimalGrid->setBounds(gridX, gridY, gridW, gridH);
+
+        if (mixerView != nullptr)
+            mixerView->setBounds(16, 62, w - 32, h - 76);
+
+        if (practiceView != nullptr)
+            practiceView->setBounds(16, 62, w - 32, h - 76);
+
+        if (edrumWizard != nullptr)
+            edrumWizard->setBounds(getLocalBounds());
+        return;
+    }
+
+    // Classic Sketch / Dark / Clean / High Contrast layout
     // 1. Header menu buttons placed in top right section
     const float hdrScale = juce::jlimit(1.0f, 1.24f, glorp::getUiTextScale());
     const int menuY = 16;
@@ -2145,6 +2694,134 @@ void Editor::paint(juce::Graphics &g)
 {
     const auto b = getLocalBounds().toFloat();
 
+    if (theme.minimalStyle)
+    {
+        // Outer chassis background + hairline border
+        g.fillAll(theme.background);
+        g.setColour(theme.panelEdge);
+        g.drawRoundedRectangle(b.reduced(1.0f), 6.0f, 1.0f);
+
+        // Top chassis bar
+        const auto headerRect = juce::Rectangle<float>(0.0f, 0.0f, b.getWidth(), 54.0f);
+        g.setColour(theme.panel);
+        g.fillRect(headerRect);
+        g.setColour(theme.panelEdge);
+        g.drawLine(0.0f, 54.0f, b.getWidth(), 54.0f, 1.0f);
+
+        // Subtle technical micro-dots in top-left & top-right corners (Rift motif)
+        g.setColour(theme.inkSoft.withAlpha(0.35f));
+        g.fillEllipse(8.0f, 8.0f, 3.0f, 3.0f);
+        g.fillEllipse(b.getWidth() - 11.0f, 8.0f, 3.0f, 3.0f);
+
+        // Top-Left: Authentic GlorpDrums SVG Logo + Wordmark
+        const auto logoTarget = juce::Rectangle<float>(16.0f, 5.0f, 54.0f, 44.0f);
+        if (cachedLogoImage.isValid())
+        {
+            g.drawImage(cachedLogoImage, logoTarget);
+        }
+        else if (logo != nullptr)
+        {
+            logo->drawWithin(g, logoTarget, juce::RectanglePlacement::xLeft | juce::RectanglePlacement::yMid, 1.0f);
+        }
+
+        g.setFont(displayFont(16.0f));
+        g.setColour(theme.ink);
+        g.drawFittedText(
+            "GLORP DRUMS", juce::Rectangle<int>(76, 12, 140, 18), juce::Justification::centredLeft, 1, 0.78f);
+        g.setFont(uiFont(9.5f).boldened());
+        g.setColour(theme.inkSoft);
+        g.drawFittedText(
+            "MINIMAL STUDIO", juce::Rectangle<int>(76, 30, 140, 14), juce::Justification::centredLeft, 1, 0.82f);
+
+        if (currentView == EditorView::kitView)
+        {
+            // Left Instrument & Zone Controls Card
+            drawMinimalCard(g, minimalControlsCardRect, theme, 7.0f);
+
+            g.setFont(uiFont(10.5f).boldened());
+            g.setColour(theme.inkSoft);
+            g.drawText("INSTRUMENT",
+                       juce::Rectangle<float>(minimalControlsCardRect.getX() + 12.0f,
+                                              minimalControlsCardRect.getY() + 7.0f,
+                                              minimalControlsCardRect.getWidth() - 24.0f,
+                                              16.0f),
+                       juce::Justification::centredLeft,
+                       false);
+
+            // Grouped Zone Selector + Zone Setting Knobs Sub-Box
+            g.setColour(theme.trough.withAlpha(theme.isDark ? 0.45f : 0.48f));
+            g.fillRoundedRectangle(minimalZoneGroupRect, 5.0f);
+            g.setColour(theme.panelEdge.withAlpha(0.7f));
+            g.drawRoundedRectangle(minimalZoneGroupRect.reduced(0.5f), 5.0f, 1.0f);
+
+            g.setFont(uiFont(10.0f).boldened());
+            g.setColour(theme.inkSoft);
+            g.drawText("ZONE & PARAMETERS",
+                       juce::Rectangle<float>(minimalZoneGroupRect.getX() + 8.0f,
+                                              minimalZoneGroupRect.getY() + 4.0f,
+                                              minimalZoneGroupRect.getWidth() - 16.0f,
+                                              16.0f),
+                       juce::Justification::centredLeft,
+                       false);
+
+            // NOTE label inside grouped zone section
+            if (instLearnButton.isVisible())
+            {
+                const float noteX = minimalZoneGroupRect.getX() + 8.0f;
+                const float noteY = static_cast<float>(instLearnButton.getY());
+                const float noteH = static_cast<float>(instLearnButton.getHeight());
+                const float noteW = static_cast<float>(instLearnButton.getX()) - noteX - 6.0f;
+
+                g.setColour(theme.trough);
+                g.fillRoundedRectangle(noteX, noteY + 1.0f, noteW, noteH - 2.0f, 4.0f);
+
+                const int samplerIdx = getActiveSamplerIndex();
+                const juce::String noteStr =
+                    (learningInstrument == samplerIdx && samplerIdx >= 0) ? "ARMED" : noteLabelFor(samplerIdx);
+                g.setFont(uiFont(10.5f).boldened());
+                g.setColour(theme.inkSoft);
+                g.drawText("NOTE",
+                           juce::Rectangle<float>(noteX + 6.0f, noteY, 38.0f, noteH),
+                           juce::Justification::centredLeft,
+                           false);
+                g.setFont(displayFont(12.5f));
+                g.setColour((learningInstrument == samplerIdx && samplerIdx >= 0) ? theme.accentWarm : theme.accent);
+                g.drawText(noteStr,
+                           juce::Rectangle<float>(noteX + 44.0f, noteY, std::max(10.0f, noteW - 50.0f), noteH),
+                           juce::Justification::centredRight,
+                           false);
+            }
+
+            // Master Output Card + Stereo Slanted Meters
+            drawMinimalCard(g, minimalMasterCardRect, theme, 7.0f);
+            const float meterX = (masterVolumeKnob != nullptr)
+                                     ? static_cast<float>(masterVolumeKnob->getRight()) + 10.0f
+                                     : minimalMasterCardRect.getX() + 92.0f;
+            const float meterW = std::max(40.0f, minimalMasterCardRect.getRight() - 12.0f - meterX);
+            const float meterTop = minimalMasterCardRect.getY() + 10.0f;
+
+            g.setFont(uiFont(10.0f).boldened());
+            g.setColour(theme.inkSoft);
+            g.drawText("MASTER OUT",
+                       juce::Rectangle<float>(meterX, meterTop, meterW, 14.0f),
+                       juce::Justification::centredLeft,
+                       false);
+
+            const float barY1 = meterTop + 20.0f;
+            const float barH = 16.0f;
+            drawSlantedMeter(
+                g, juce::Rectangle<float>(meterX, barY1, meterW, barH), theme, minimalMasterLevelL, theme.accent, 14);
+            drawSlantedMeter(g,
+                             juce::Rectangle<float>(meterX, barY1 + barH + 6.0f, meterW, barH),
+                             theme,
+                             minimalMasterLevelR,
+                             theme.accentAlt,
+                             14);
+        }
+        return;
+    }
+
+    // Classic Sketch / Dark / Clean / High Contrast rendering
     // 1. Paper background
     g.fillAll(theme.background);
 

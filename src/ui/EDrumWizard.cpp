@@ -180,7 +180,8 @@ void EDrumWizard::promptSaveAsPreset()
         processor.saveCustomMapPreset("Custom");
 
     auto *alert = new juce::AlertWindow(
-        "Save MIDI Map Preset", "Enter a name for this custom MIDI mapping:", juce::AlertWindow::QuestionIcon);
+        "Save MIDI Map Preset", "Enter a name for this custom MIDI mapping:", juce::AlertWindow::QuestionIcon, this);
+    alert->setLookAndFeel(&getLookAndFeel());
     alert->addTextEditor("presetName", processor.suggestedPresetSaveName(), "Preset Name");
     alert->addButton("Save", 1, juce::KeyPress(juce::KeyPress::returnKey));
     alert->addButton("Cancel", 0, juce::KeyPress(juce::KeyPress::escapeKey));

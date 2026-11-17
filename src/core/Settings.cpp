@@ -113,7 +113,7 @@ void Settings::readState(const juce::MemoryBlock &source)
     editorWidth = root->getIntAttribute("editorWidth", editorWidth);
     editorHeight = root->getIntAttribute("editorHeight", editorHeight);
     editorMaximised = root->getBoolAttribute("editorMaximised", editorMaximised);
-    themeIndex = juce::jlimit(0, 3, root->getIntAttribute("theme", themeIndex));
+    themeIndex = juce::jlimit(0, 5, root->getIntAttribute("theme", themeIndex));
     uiTextScale = juce::jlimit(0.85f, 1.35f, static_cast<float>(root->getDoubleAttribute("uiTextScale", uiTextScale)));
     openGlEnabled = root->getBoolAttribute("openGlEnabled", openGlEnabled);
     obsStreamDeviceName = root->getStringAttribute("obsStreamDeviceName", obsStreamDeviceName);

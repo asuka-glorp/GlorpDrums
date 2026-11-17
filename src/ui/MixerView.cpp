@@ -92,8 +92,8 @@ void MixerView::HandButton::paintButton(juce::Graphics &g, bool isHover, bool is
     const auto r = getLocalBounds().toFloat().reduced(1.0f);
     const auto ink = theme.ink;
 
-    // Comic offset drop shadow (light mode only)
-    if (!theme.isDark)
+    // Comic offset drop shadow (light non-minimal mode only)
+    if (!theme.isDark && !theme.minimalStyle)
     {
         g.setColour(ink.withAlpha(0.35f));
         g.fillRoundedRectangle(r.translated(2.0f, 2.0f), 4.0f);
@@ -295,8 +295,8 @@ void MixerView::ChannelStripComponent::paint(juce::Graphics &g)
     const auto params = processor.getSampler().getMicStripParams(channelIndex_);
     const auto ink = theme.ink;
 
-    // Comic offset drop shadow (light mode only)
-    if (!theme.isDark)
+    // Comic offset drop shadow (light non-minimal mode only)
+    if (!theme.isDark && !theme.minimalStyle)
     {
         g.setColour(ink.withAlpha(0.32f));
         g.fillRoundedRectangle(r.translated(3.0f, 3.0f), 6.0f);
@@ -2262,7 +2262,7 @@ void MixerView::promptLoadPreset()
     if (files.isEmpty())
     {
         m.addItem(1, "(No saved .glorpmix presets yet)", false);
-        m.showMenuAsync(juce::PopupMenu::Options());
+        m.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(this));
         return;
     }
 
@@ -2270,7 +2270,7 @@ void MixerView::promptLoadPreset()
     for (const auto &f : files)
         m.addItem(id++, f.getFileNameWithoutExtension());
 
-    m.showMenuAsync(juce::PopupMenu::Options(),
+    m.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(this),
                     [this, files](int result)
                     {
                         if (result > 0 && result <= files.size())

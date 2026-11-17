@@ -1664,8 +1664,11 @@ void Sampler::render(float *const *output, int numOutputChannels, int numSamples
         // 4. Master processing: Reverb return, Master Pan/Level, Soft Limiter
         if (output[0] != nullptr && output[1] != nullptr)
         {
+            MasterStripParams effectiveMasterParams = masterStripParams;
+            effectiveMasterParams.level *= globals.masterLevel;
+            effectiveMasterParams.pan = std::clamp(masterStripParams.pan + globals.masterPan, -1.0f, 1.0f);
             masterFX.process(
-                output[0], output[1], numSamples, reverbAccumL.data(), reverbAccumR.data(), masterStripParams);
+                output[0], output[1], numSamples, reverbAccumL.data(), reverbAccumR.data(), effectiveMasterParams);
 
             // Master metering
             float mPeakL = 0.0f, mPeakR = 0.0f;
@@ -1683,6 +1686,17 @@ void Sampler::render(float *const *output, int numOutputChannels, int numSamples
             masterPeakR.store(std::max(mPeakR, prevMR * 0.88f), std::memory_order_relaxed);
             masterRmsL.store(std::sqrt(mRmsSumL / static_cast<float>(numSamples)), std::memory_order_relaxed);
             masterRmsR.store(std::sqrt(mRmsSumR / static_cast<float>(numSamples)), std::memory_order_relaxed);
+        }
+
+        if (multiOutMode.load() && totalBuses > 1 && globals.masterLevel != 1.0f)
+        {
+            for (int b = 1; b < totalBuses; ++b)
+            {
+                if (output[b * 2] != nullptr)
+                    juce::FloatVectorOperations::multiply(output[b * 2], globals.masterLevel, numSamples);
+                if (output[b * 2 + 1] != nullptr)
+                    juce::FloatVectorOperations::multiply(output[b * 2 + 1], globals.masterLevel, numSamples);
+            }
         }
     }
     else

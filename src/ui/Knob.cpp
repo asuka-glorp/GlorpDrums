@@ -100,6 +100,105 @@ void Knob::paint(juce::Graphics &g)
     const auto centre = knobArea.getCentre();
     const auto radius = juce::jmin(knobArea.getWidth(), knobArea.getHeight()) * 0.44f;
 
+    if (theme.minimalStyle)
+    {
+        if (radius > 4.0f)
+        {
+            constexpr float startAngle =
+                2.356f; // -135 deg in JUCE radians (2*pi - 2.356 .. +2.356? wait keep exact 2.35..5.98)
+            constexpr float arcStart = -2.35f;
+            constexpr float arcSweep = 4.70f;
+            const auto value = getDisplayValue();
+            const auto activeCol = learnArmed ? theme.accentWarm : (hasCustomAccent ? customAccent : theme.accent);
+
+            // Outer radial dot ticks (subtle Minimal Audio telemetry ring)
+            constexpr int numDots = 15;
+            const float dotR = radius * 1.24f;
+            for (int i = 0; i < numDots; ++i)
+            {
+                const float frac = static_cast<float>(i) / static_cast<float>(numDots - 1);
+                const float a = arcStart + arcSweep * frac;
+                const auto pt = polarPoint(centre, a, dotR);
+                const bool passed = bipolar ? ((value >= 0.5f) ? (frac >= 0.5f && frac <= value + 0.01f)
+                                                               : (frac <= 0.5f && frac >= value - 0.01f))
+                                            : (frac <= value + 0.01f);
+                g.setColour(passed ? activeCol.withAlpha(0.85f) : theme.inkSoft.withAlpha(0.32f));
+                g.fillEllipse(pt.x - 1.1f, pt.y - 1.1f, 2.2f, 2.2f);
+            }
+
+            // Recessed track arc
+            const float trackRadius = radius * 1.08f;
+            {
+                juce::Path bgArc;
+                bgArc.addCentredArc(
+                    centre.x, centre.y, trackRadius, trackRadius, 0.0f, arcStart, arcStart + arcSweep, true);
+                g.setColour(theme.trough);
+                g.strokePath(bgArc,
+                             juce::PathStrokeType(2.8f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+            }
+
+            // Active value arc
+            const float curAngle = arcStart + arcSweep * value;
+            const float midAngle = arcStart + arcSweep * 0.5f;
+            const float fromA = bipolar ? std::min(midAngle, curAngle) : arcStart;
+            const float toA = bipolar ? std::max(midAngle, curAngle) : curAngle;
+            if (std::abs(toA - fromA) > 0.02f)
+            {
+                juce::Path valArc;
+                valArc.addCentredArc(centre.x, centre.y, trackRadius, trackRadius, 0.0f, fromA, toA, true);
+                g.setColour(activeCol);
+                g.strokePath(valArc,
+                             juce::PathStrokeType(2.8f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+            }
+
+            // Machined metallic rotary cap
+            const float capR = radius * 0.84f;
+            const auto capBounds = juce::Rectangle<float>(capR * 2.0f, capR * 2.0f).withCentre(centre);
+
+            if (!theme.isDark)
+            {
+                g.setColour(juce::Colour(0x1e111622));
+                g.fillEllipse(capBounds.translated(0.0f, 1.8f));
+            }
+
+            juce::ColourGradient capGrad(theme.isDark ? juce::Colour(0xff383e4d) : juce::Colour(0xffffffff),
+                                         centre.x,
+                                         capBounds.getY(),
+                                         theme.isDark ? juce::Colour(0xff20242e) : juce::Colour(0xffd7dde8),
+                                         centre.x,
+                                         capBounds.getBottom(),
+                                         false);
+            g.setGradientFill(capGrad);
+            g.fillEllipse(capBounds);
+
+            g.setColour(learnArmed ? theme.accentWarm
+                                   : (theme.isDark ? juce::Colour(0xff4a5164) : juce::Colour(0xffb8c0cf)));
+            g.drawEllipse(capBounds, 1.2f);
+
+            // Inner ring highlight
+            g.setColour(theme.isDark ? juce::Colours::white.withAlpha(0.07f) : juce::Colours::white.withAlpha(0.8f));
+            g.drawEllipse(capBounds.reduced(1.4f), 0.9f);
+
+            // Crisp radial pointer notch
+            juce::Path pointer;
+            pointer.startNewSubPath(polarPoint(centre, curAngle, capR * 0.34f));
+            pointer.lineTo(polarPoint(centre, curAngle, capR * 0.86f));
+            g.setColour(theme.isDark ? juce::Colour(0xfff4f6fb) : juce::Colour(0xff1e2430));
+            g.strokePath(pointer,
+                         juce::PathStrokeType(2.2f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+            juce::ignoreUnused(startAngle);
+        }
+
+        auto font = uiFont(labelHeight * 0.85f).boldened();
+        if (font.getHeight() > 7.5f)
+        {
+            g.setFont(font);
+            g.setColour(theme.inkSoft);
+            g.drawText(labelText.toUpperCase(), labelArea, juce::Justification::centred, false);
+        }
+        return;
+    }
+
     if (radius > 4.0f)
     {
         // Tick ring: short spokes around the outside, like the mockup.

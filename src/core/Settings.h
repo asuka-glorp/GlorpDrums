@@ -51,7 +51,8 @@ class Settings
     int editorWidth = 1180;
     int editorHeight = 860;
     bool editorMaximised = false;
-    int themeIndex = 0;       ///< 0 = sketch (light), 1 = dark, 2 = studio clean, 3 = high contrast pro
+    int themeIndex =
+        0; ///< 0 = sketch, 1 = dark, 2 = studio clean, 3 = high contrast, 4 = minimal dark, 5 = minimal light
     float uiTextScale = 1.0f; ///< UI font scale multiplier (0.85..1.35)
 #if defined(__linux__)
     bool openGlEnabled = false; ///< Hardware GPU acceleration disabled by default on Linux (X11/Xfce resize stability)

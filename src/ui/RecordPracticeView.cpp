@@ -962,11 +962,13 @@ void RecordPracticeView::updateButtonStyles()
         btn.setBaseColour(col);
     };
 
-    const auto mintGreen = juce::Colour(0xffa8e6cf);
-    const auto skyBlue = juce::Colour(0xff7ec8f8);
-    const auto tanCol = juce::Colour(0xfff7d9b5);
-    const auto coralRed = juce::Colour(0xffe2786f);
-    const auto warmOrange = juce::Colour(0xffea8c16);
+    const auto mintGreen =
+        currentTheme.minimalStyle ? currentTheme.accentAlt.withAlpha(0.75f) : juce::Colour(0xffa8e6cf);
+    const auto skyBlue = currentTheme.minimalStyle ? currentTheme.cymbal.withAlpha(0.75f) : juce::Colour(0xff7ec8f8);
+    const auto tanCol = currentTheme.minimalStyle ? currentTheme.accent.withAlpha(0.72f) : juce::Colour(0xfff7d9b5);
+    const auto coralRed = currentTheme.minimalStyle ? currentTheme.warning.withAlpha(0.82f) : juce::Colour(0xffe2786f);
+    const auto warmOrange =
+        currentTheme.minimalStyle ? currentTheme.accentWarm.withAlpha(0.85f) : juce::Colour(0xffea8c16);
 
     styleBtn(loadTrackButton, currentTheme.panel);
     styleBtn(prevSongButton, currentTheme.panel);
@@ -1021,28 +1023,31 @@ void RecordPracticeView::updateButtonStyles()
     styleBtn(songDbAddSelectedButton, mintGreen);
     styleBtn(songDbCloseButton, currentTheme.panel);
 
-    songDbSearchEditor.setColour(juce::TextEditor::backgroundColourId, juce::Colours::white);
-    songDbSearchEditor.setColour(juce::TextEditor::textColourId, juce::Colour(0xff1a1a1a));
+    const auto editorBg = currentTheme.minimalStyle ? currentTheme.trough : juce::Colours::white;
+    const auto editorFg = currentTheme.minimalStyle ? currentTheme.ink : juce::Colour(0xff1a1a1a);
+
+    songDbSearchEditor.setColour(juce::TextEditor::backgroundColourId, editorBg);
+    songDbSearchEditor.setColour(juce::TextEditor::textColourId, editorFg);
     songDbSearchEditor.setColour(juce::TextEditor::outlineColourId, currentTheme.panelEdge);
     songDbSearchEditor.setColour(juce::TextEditor::focusedOutlineColourId, warmOrange);
     songDbSearchEditor.setFont(uiFont(15.0f));
 
-    beatsEditor.setColour(juce::TextEditor::backgroundColourId, juce::Colours::white);
-    beatsEditor.setColour(juce::TextEditor::textColourId, juce::Colour(0xff1a1a1a));
+    beatsEditor.setColour(juce::TextEditor::backgroundColourId, editorBg);
+    beatsEditor.setColour(juce::TextEditor::textColourId, editorFg);
     beatsEditor.setColour(juce::TextEditor::outlineColourId, currentTheme.panelEdge);
     beatsEditor.setColour(juce::TextEditor::focusedOutlineColourId, skyBlue);
     beatsEditor.setFont(displayFont(15.0f).boldened());
-    beatsEditor.applyColourToAllText(juce::Colour(0xff1a1a1a));
+    beatsEditor.applyColourToAllText(editorFg);
     beatsEditor.applyFontToAllText(displayFont(15.0f).boldened());
 
-    bpmEditor.setColour(juce::TextEditor::backgroundColourId, juce::Colours::white);
-    bpmEditor.setColour(juce::TextEditor::textColourId, juce::Colour(0xff1a1a1a));
+    bpmEditor.setColour(juce::TextEditor::backgroundColourId, editorBg);
+    bpmEditor.setColour(juce::TextEditor::textColourId, editorFg);
     bpmEditor.setColour(juce::TextEditor::highlightedTextColourId, currentTheme.panel);
     bpmEditor.setColour(juce::TextEditor::highlightColourId, currentTheme.accent);
     bpmEditor.setColour(juce::TextEditor::outlineColourId, currentTheme.panelEdge);
     bpmEditor.setColour(juce::TextEditor::focusedOutlineColourId, currentTheme.accent);
     bpmEditor.setFont(displayFont(14.0f).boldened());
-    bpmEditor.applyColourToAllText(juce::Colour(0xff1a1a1a));
+    bpmEditor.applyColourToAllText(editorFg);
     bpmEditor.applyFontToAllText(displayFont(14.0f).boldened());
 }
 
@@ -1051,8 +1056,9 @@ void RecordPracticeView::updateCountInButtons()
     const auto mode = processor.getMetronome().getCountInMode();
     const bool isCountInOn = (mode != Metronome::CountInMode::off);
 
-    const auto mintGreen = juce::Colour(0xffa8e6cf);
-    const auto skyBlue = juce::Colour(0xff7ec8f8);
+    const auto mintGreen =
+        currentTheme.minimalStyle ? currentTheme.accentAlt.withAlpha(0.75f) : juce::Colour(0xffa8e6cf);
+    const auto skyBlue = currentTheme.minimalStyle ? currentTheme.cymbal.withAlpha(0.75f) : juce::Colour(0xff7ec8f8);
 
     countInToggleButton.setTheme(currentTheme);
     countInToggleButton.setLabel(isCountInOn ? "Count In: ON" : "Count In: OFF");
@@ -1080,9 +1086,11 @@ void RecordPracticeView::updateCountInButtons()
 
 void RecordPracticeView::updateObsStreamButtons()
 {
-    const auto mintGreen = juce::Colour(0xffa8e6cf);
-    const auto skyBlue = juce::Colour(0xff7ec8f8);
-    const auto warmOrange = juce::Colour(0xffea8c16);
+    const auto mintGreen =
+        currentTheme.minimalStyle ? currentTheme.accentAlt.withAlpha(0.75f) : juce::Colour(0xffa8e6cf);
+    const auto skyBlue = currentTheme.minimalStyle ? currentTheme.cymbal.withAlpha(0.75f) : juce::Colour(0xff7ec8f8);
+    const auto warmOrange =
+        currentTheme.minimalStyle ? currentTheme.accentWarm.withAlpha(0.85f) : juce::Colour(0xffea8c16);
 
     obsCleanOutButton.setTheme(currentTheme);
     listenCleanMixButton.setTheme(currentTheme);
@@ -1927,7 +1935,8 @@ void RecordPracticeView::drawWaveformDeck(juce::Graphics &g, juce::Rectangle<int
     drawSketchRect(g, area.toFloat(), currentTheme.panelEdge, 2.0f, 10);
 
     const auto blueCol = juce::Colour(0xff3498db);
-    const auto warmOrange = juce::Colour(0xffea8c16);
+    const auto warmOrange =
+        currentTheme.minimalStyle ? currentTheme.accentWarm.withAlpha(0.85f) : juce::Colour(0xffea8c16);
 
     // Update Play button label based on setlist
     const auto &activeSetlist = processor.getSongDatabase().getActiveSetlist();

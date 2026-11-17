@@ -4,10 +4,14 @@
 
 ![GlorpDrums Dark Theme Interface](docs/dark_kit_view.png)
 
-*GlorpDrums includes 4 built-in skins — **Sketch (Light)**, **Dark (Night)**, **Studio Clean (Light)**, and **High Contrast Pro (Dark)** — plus adjustable **UI Text Scaling (90%–130%)** under `SETTINGS` for small or high-DPI monitors.*
+*GlorpDrums includes 6 built-in skins — **Sketch (Light)**, **Dark (Night)**, **Studio Clean (Light)**, **High Contrast Pro (Dark)**, **Minimal (Dark)**, and **Minimal (Light)** — with bundled **Red Hat Display / Red Hat Text** typography for clean/minimal modes and adjustable **UI Text Scaling (90%–130%)** under `SETTINGS` for small or high-DPI monitors.*
 
 <details>
-<summary><b>View Light (Sketch) Theme Interface</b></summary>
+<summary><b>View Minimal (Dark / Light) &amp; Sketch (Light) Theme Interfaces</b></summary>
+
+![GlorpDrums Minimal Dark Pad Grid](docs/minimal_dark_home.png)
+
+![GlorpDrums Minimal Light Pad Grid](docs/minimal_light_home.png)
 
 ![GlorpDrums Light Sketch Interface](docs/screenshot.png)
 
@@ -176,8 +180,11 @@ Access the integrated practice, setlist, and recording suite directly via the **
 * **"Listen Clean" Headphone Level Check**:
   * Click **Listen Clean** (turns into an amber `Listening Clean` button) in the Recording Console at any time to temporarily mute the metronome click in your headphones (`Out 1/2`). This lets you quickly balance relative levels between your drum kit and the backing track before hitting record, while visual beat lights and count-in timing remain active.
 
-### 🎨 Skins, Text Scaling & Diagnostic Tools (`SETTINGS`)
-* **4 Visual Skins (`SETTINGS → Skin / Theme`)**: Switch between **Sketch (Light)**, **Dark (Night)**, **Studio Clean (Light)**, and **High Contrast Pro (Dark)**—with the Studio Clean and High Contrast Pro skins replacing wobbly ink outlines and comic fonts with crisp straight borders and system sans-serif typography.
+### 🎨 Skins, Minimal Pad Mode, Text Scaling & Diagnostic Tools (`SETTINGS`)
+* **6 Visual Skins (`SETTINGS → Skin / Theme`)**:
+  * **Sketch (Light)** & **Dark (Night)**: Signature hand-drawn comic drum kit illustrations, ink borders, and comic display typography.
+  * **Studio Clean (Light)** & **High Contrast Pro (Dark)**: High-contrast crisp straight borders paired with bundled **Red Hat Display / Red Hat Text** sans-serif typography across every view.
+  * **Minimal (Dark)** & **Minimal (Light)**: Flat hardware-studio skins (with a quick `◐` Dark/Light header toggle) that hide the drum graphics and note timeline across **HOME**, **MIXER**, and **PRACTICE**, replacing the clickable stage canvas on **HOME** with a scrollable **logical kit piece pad grid** (animated velocity bars, active zone indicators, MIDI note badges), grouping zone selectors directly with the parameter knobs, and matching dropdown menus and Standalone window chrome to the active theme.
 * **UI Text Scalability (`SETTINGS → Text Size (UI Scale)`)**: Adjust button and label sizes between **90% (Compact)**, **100% (Standard)**, **115% (Large)**, and **130% (Extra Large)**, persisted automatically across sessions.
 * **Standalone Audio/MIDI Access (`SETTINGS → Audio / MIDI Device Options...`)**: Open audio buffer, sample-rate, and MIDI input device selection directly from the `SETTINGS` menu when running the Standalone app.
 * **Built-In Debug Log (`SETTINGS → Save / Open Debug Log...`)**: Captures live lock-free MIDI events (`NoteOn`, `LEARN` captures, throttled hi-hat `CC#4`), audio device sample rate/block size, loaded kit info, and your active MIDI note map into `~/.config/GlorpDrums/glorpdrums_debug.log` (Linux) / `%APPDATA%\GlorpDrums\glorpdrums_debug.log` (Windows).

@@ -3,8 +3,32 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light dark">
+  <script>
+    (function() {
+      try {
+        var valid = { 'sketch': 1, 'dark': 1, 'studio-clean': 1, 'high-contrast': 1, 'minimal-dark': 1, 'minimal-light': 1 };
+        var darkSkins = { 'dark': 1, 'high-contrast': 1, 'minimal-dark': 1 };
+        var skin = localStorage.getItem('glorp-skin');
+        if (!skin || !valid[skin]) {
+          var legacy = localStorage.getItem('glorp-theme');
+          if (legacy === 'dark') skin = 'dark';
+          else if (legacy === 'light') skin = 'sketch';
+          else skin = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'minimal-dark' : 'sketch';
+        }
+        document.documentElement.dataset.skin = skin;
+        if (darkSkins[skin]) {
+          document.documentElement.classList.add('dark');
+          document.querySelector('meta[name="color-scheme"]').content = 'dark';
+        } else {
+          document.documentElement.classList.remove('dark');
+          document.querySelector('meta[name="color-scheme"]').content = 'light';
+        }
+      } catch(e) {}
+    })();
+  </script>
   <title>GlorpDrums — Open-Source Acoustic Drum Sampler</title>
-  <meta name="description" content="A sample-based acoustic drum plugin and standalone workstation built with JUCE and C++20 for Linux. Zero-copy mmap playback, multi-zone articulations, continuous e-drum tracking, 16-bus multi-out bleed matrix, and rehearsal suite.">
+  <meta name="description" content="A sample-based acoustic drum plugin and standalone workstation built with JUCE and C++20 for Linux and Windows. Zero-copy mmap playback, multi-zone articulations, continuous e-drum tracking, 16-bus multi-out bleed matrix, 6 skins, and rehearsal suite.">
   <link rel="icon" type="image/svg+xml" href="logo.svg">
   <link rel="alternate icon" type="image/png" href="logo.png">
 
@@ -17,100 +41,265 @@
   <!-- Tailwind CSS -->
   <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
 
-  <!-- Google Fonts: Lilita One (Headings), Patrick Hand (Comic Subtitles), Space Mono (Code/Specs), Inter (Body) -->
+  <!-- Google Fonts: Lilita One, Patrick Hand, Space Mono, Inter + Red Hat Display & Red Hat Text -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Patrick+Hand&family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Lilita+One&family=Patrick+Hand&family=Red+Hat+Display:wght@700;800&family=Red+Hat+Text:wght@400;500;600;700&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
 
   <style>
     /* =======================================================================
-       THEME VARIABLES: Authentic Glorp Sketch & Dark Themes
-       Matched directly to src/ui/Theme.h
+       THEME VARIABLES: Matched directly to src/ui/Theme.h (all 6 skins)
        ======================================================================= */
     :root {
-      --bg: #e2e5e2;              /* Warm comic sketch paper background */
-      --paper: #fcfdfc;           /* Clean card panel paper */
-      --ink: #101114;             /* Solid dark ink */
-      --ink-soft: #4b4e54;        /* Charcoal secondary ink */
-      --ink-muted: #6c7078;       /* Muted annotation ink */
-      --border: #101114;          /* Dark comic ink outline */
-      --shadow: #101114;          /* Solid black comic offset shadow */
-      --accent: #ea8c16;          /* Signature warm amber orange */
-      --accent-hover: #ff9b26;    /* Bright active orange */
-      --code-bg: #ede8dc;         /* Recessed trough parchment */
+      color-scheme: light dark;
+      --bg: #e2e5e2;
+      --paper: #fcfdfc;
+      --ink: #101114;
+      --ink-soft: #4b4e54;
+      --ink-muted: #6c7078;
+      --border: #101114;
+      --shadow: #101114;
+      --accent: #ea8c16;
+      --accent-hover: #ff9b26;
+      --accent-contrast: #101114;
+      --accent-alt: #26b893;
+      --code-bg: #ede8dc;
       --card-bg: #fcfdfc;
       --card-hover: #ffffff;
       --header-bg: rgba(252, 253, 252, 0.94);
       --badge-bg: #ffffff;
+      --card-border-w: 3px;
+      --btn-border-w: 2.5px;
+      --card-radius: 16px;
+      --card-shadow: 5px 5px 0px var(--shadow);
+      --btn-shadow: 4px 4px 0px var(--shadow);
+      --btn-hover-shadow: 6px 6px 0px var(--shadow);
+      --btn-hover-shift: translate(-2px, -2px);
+      --font-display: 'Lilita One', Impact, sans-serif;
+      --font-body: 'Inter', system-ui, -apple-system, sans-serif;
+      --halftone-opacity: 0.055;
+      --scrollbar-track: var(--bg);
+      --scrollbar-thumb: var(--border);
+      accent-color: var(--accent);
+      scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
     }
 
-    .dark {
-      --bg: #141517;              /* Deep dark studio slate */
-      --paper: #1c1d21;           /* Dark panel */
-      --ink: #f4f5f6;             /* Crisp white ink */
-      --ink-soft: #b8bcc4;        /* Soft silver ink */
-      --ink-muted: #828792;       /* Dim charcoal annotation */
-      --border: #ffffff;          /* Pure white ink sketchy border */
-      --shadow: #000000;          /* Deep pitch-black drop shadow */
-      --accent: #ea8c16;          /* Vibrant orange highlight */
+    :root:has(> head > meta[name="color-scheme"][content="dark"]) {
+      color-scheme: dark;
+    }
+    :root:has(> head > meta[name="color-scheme"][content="light"]) {
+      color-scheme: light;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-skin]) {
+        --bg: #1e222b;
+        --paper: #282c37;
+        --ink: #f1f3f8;
+        --ink-soft: #b2b8c7;
+        --ink-muted: #8c93a4;
+        --border: #3b4152;
+        --shadow: rgba(0, 0, 0, 0.45);
+        --accent: #6b5bff;
+        --accent-hover: #7f71ff;
+        --accent-contrast: #ffffff;
+        --code-bg: #171a21;
+        --card-bg: #282c37;
+        --card-hover: #2f3441;
+        --header-bg: rgba(40, 44, 55, 0.94);
+        --badge-bg: #171a21;
+      }
+    }
+
+    /* Skin 1: Dark (Night) */
+    html[data-skin="dark"],
+    html.dark:not([data-skin]) {
+      --bg: #141517;
+      --paper: #1c1d21;
+      --ink: #f4f5f6;
+      --ink-soft: #b8bcc4;
+      --ink-muted: #828792;
+      --border: #ffffff;
+      --shadow: #000000;
+      --accent: #ea8c16;
       --accent-hover: #ff9b26;
-      --code-bg: #121316;         /* Dark recessed well */
+      --accent-contrast: #101114;
+      --code-bg: #121316;
       --card-bg: #1c1d21;
       --card-hover: #252830;
       --header-bg: rgba(28, 29, 33, 0.94);
       --badge-bg: #22252c;
     }
 
+    /* Skin 2: Studio Clean (Light) */
+    html[data-skin="studio-clean"] {
+      --bg: #f1f3f5;
+      --paper: #ffffff;
+      --ink: #11161d;
+      --ink-soft: #434d5b;
+      --ink-muted: #647082;
+      --border: #b8c0cc;
+      --shadow: rgba(17, 22, 29, 0.08);
+      --accent: #c96b08;
+      --accent-hover: #dd770a;
+      --accent-contrast: #ffffff;
+      --code-bg: #e7ebf0;
+      --card-bg: #ffffff;
+      --card-hover: #f8fafc;
+      --header-bg: rgba(255, 255, 255, 0.94);
+      --badge-bg: #f1f3f5;
+      --card-border-w: 1.5px;
+      --btn-border-w: 1.5px;
+      --card-radius: 10px;
+      --card-shadow: 0 4px 16px rgba(17, 22, 29, 0.06);
+      --btn-shadow: 0 1px 4px rgba(17, 22, 29, 0.08);
+      --btn-hover-shadow: 0 4px 12px rgba(201, 107, 8, 0.22);
+      --btn-hover-shift: translateY(-1px);
+      --font-display: 'Red Hat Display', sans-serif;
+      --font-body: 'Red Hat Text', system-ui, sans-serif;
+      --halftone-opacity: 0;
+    }
+
+    /* Skin 3: High Contrast Pro (Dark) */
+    html[data-skin="high-contrast"] {
+      --bg: #0b0c10;
+      --paper: #16181f;
+      --ink: #ffffff;
+      --ink-soft: #d5d9e2;
+      --ink-muted: #9aa2b2;
+      --border: #555c6e;
+      --shadow: rgba(0, 0, 0, 0.6);
+      --accent: #ff9f1c;
+      --accent-hover: #ffb347;
+      --accent-contrast: #101114;
+      --code-bg: #0f1116;
+      --card-bg: #16181f;
+      --card-hover: #1e212b;
+      --header-bg: rgba(22, 24, 31, 0.96);
+      --badge-bg: #1d2029;
+      --card-border-w: 1.5px;
+      --btn-border-w: 1.5px;
+      --card-radius: 8px;
+      --card-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+      --btn-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+      --btn-hover-shadow: 0 4px 14px rgba(255, 159, 28, 0.25);
+      --btn-hover-shift: translateY(-1px);
+      --font-display: 'Red Hat Display', sans-serif;
+      --font-body: 'Red Hat Text', system-ui, sans-serif;
+      --halftone-opacity: 0;
+    }
+
+    /* Skin 4: Minimal (Dark) */
+    html[data-skin="minimal-dark"] {
+      --bg: #1e222b;
+      --paper: #282c37;
+      --ink: #f1f3f8;
+      --ink-soft: #b6bdcd;
+      --ink-muted: #8c93a4;
+      --border: #3b4152;
+      --shadow: rgba(0, 0, 0, 0.42);
+      --accent: #6b5bff;
+      --accent-hover: #7f71ff;
+      --accent-contrast: #ffffff;
+      --accent-alt: #2ed3b7;
+      --code-bg: #171a21;
+      --card-bg: #282c37;
+      --card-hover: #303543;
+      --header-bg: rgba(40, 44, 55, 0.94);
+      --badge-bg: #171a21;
+      --card-border-w: 1px;
+      --btn-border-w: 1px;
+      --card-radius: 10px;
+      --card-shadow: 0 10px 28px rgba(0, 0, 0, 0.32);
+      --btn-shadow: none;
+      --btn-hover-shadow: 0 4px 16px rgba(107, 91, 255, 0.35);
+      --btn-hover-shift: translateY(-1px);
+      --font-display: 'Red Hat Display', sans-serif;
+      --font-body: 'Red Hat Text', system-ui, sans-serif;
+      --halftone-opacity: 0;
+    }
+
+    /* Skin 5: Minimal (Light) */
+    html[data-skin="minimal-light"] {
+      --bg: #dce1ea;
+      --paper: #f4f6fa;
+      --ink: #1c2029;
+      --ink-soft: #4e5668;
+      --ink-muted: #646d80;
+      --border: #c2c9d6;
+      --shadow: rgba(28, 32, 41, 0.10);
+      --accent: #6b5bff;
+      --accent-hover: #5846f6;
+      --accent-contrast: #ffffff;
+      --accent-alt: #19b59d;
+      --code-bg: #e3e7f0;
+      --card-bg: #f4f6fa;
+      --card-hover: #ffffff;
+      --header-bg: rgba(244, 246, 250, 0.95);
+      --badge-bg: #e3e7f0;
+      --card-border-w: 1px;
+      --btn-border-w: 1px;
+      --card-radius: 10px;
+      --card-shadow: 0 8px 24px rgba(28, 32, 41, 0.08);
+      --btn-shadow: none;
+      --btn-hover-shadow: 0 4px 14px rgba(107, 91, 255, 0.28);
+      --btn-hover-shift: translateY(-1px);
+      --font-display: 'Red Hat Display', sans-serif;
+      --font-body: 'Red Hat Text', system-ui, sans-serif;
+      --halftone-opacity: 0;
+    }
+
     body {
       background-color: var(--bg);
       color: var(--ink);
-      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      font-family: var(--font-body);
       transition: background-color 0.15s ease, color 0.15s ease;
     }
 
-    .font-display { font-family: 'Lilita One', Impact, sans-serif; }
+    .font-display { font-family: var(--font-display); }
     .font-hand { font-family: 'Patrick Hand', 'Comic Sans MS', cursive, sans-serif; }
     .font-code { font-family: 'Space Mono', monospace; }
 
-    /* Halftone dot pattern overlay */
+    /* Halftone dot pattern overlay (Sketch/Dark only) */
     .halftone-bg {
       background-image: radial-gradient(currentColor 1.2px, transparent 1.2px);
       background-size: 20px 20px;
-      opacity: 0.055;
+      opacity: var(--halftone-opacity);
+      transition: opacity 0.2s ease;
     }
 
-    /* Comic sketch borders & tactile offset shadows */
+    /* Dynamic border/surface styles across all 6 skins */
     .comic-card {
       background: var(--paper);
-      border: 3px solid var(--border);
-      box-shadow: 5px 5px 0px var(--shadow);
-      transition: all 0.15s ease-in-out;
+      border: var(--card-border-w) solid var(--border);
+      box-shadow: var(--card-shadow);
+      transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
     }
 
     .comic-btn {
       background: var(--accent);
-      color: #101114;
-      border: 2.5px solid var(--border);
-      box-shadow: 4px 4px 0px var(--shadow);
+      color: var(--accent-contrast);
+      border: var(--btn-border-w) solid var(--border);
+      box-shadow: var(--btn-shadow);
       font-weight: 700;
       transition: all 0.12s ease-in-out;
       cursor: pointer;
     }
     .comic-btn:hover {
       background: var(--accent-hover);
-      transform: translate(-2px, -2px);
-      box-shadow: 6px 6px 0px var(--shadow);
+      transform: var(--btn-hover-shift);
+      box-shadow: var(--btn-hover-shadow);
     }
     .comic-btn:active {
-      transform: translate(2px, 2px);
-      box-shadow: 2px 2px 0px var(--shadow);
+      transform: translate(1px, 1px);
+      box-shadow: none;
     }
 
     .comic-btn-secondary {
       background: var(--paper);
       color: var(--ink);
-      border: 2.5px solid var(--border);
-      box-shadow: 4px 4px 0px var(--shadow);
+      border: var(--btn-border-w) solid var(--border);
+      box-shadow: var(--btn-shadow);
       font-weight: 700;
       transition: all 0.12s ease-in-out;
       cursor: pointer;
@@ -119,21 +308,82 @@
       background: var(--card-hover);
       color: var(--accent);
       border-color: var(--accent);
-      transform: translate(-2px, -2px);
-      box-shadow: 6px 6px 0px var(--shadow);
+      transform: var(--btn-hover-shift);
+      box-shadow: var(--btn-hover-shadow);
     }
     .comic-btn-secondary:active {
-      transform: translate(2px, 2px);
-      box-shadow: 2px 2px 0px var(--shadow);
+      transform: translate(1px, 1px);
+      box-shadow: none;
     }
 
     .comic-frame {
-      border: 3px solid var(--border);
-      box-shadow: 5px 5px 0px var(--shadow);
+      border: var(--card-border-w) solid var(--border);
+      box-shadow: var(--card-shadow);
       transition: all 0.15s ease-in-out;
     }
 
-    /* Logo color inversion for dark mode: black vector path turns pure white */
+    .glorp-badge {
+      background: var(--accent);
+      color: var(--accent-contrast);
+      border: 2px solid var(--border);
+    }
+
+    /* Stylized accessible theme radio group */
+    .skin-radio-pill {
+      display: flex;
+      align-items: center;
+      gap: 0.55rem;
+      padding: 0.5rem 0.65rem;
+      border-radius: 8px;
+      border: var(--btn-border-w) solid var(--border);
+      background: var(--code-bg);
+      color: var(--ink);
+      cursor: pointer;
+      transition: border-color 0.12s ease, background-color 0.12s ease, box-shadow 0.12s ease, transform 0.1s ease;
+      user-select: none;
+    }
+    .skin-radio-pill:hover {
+      border-color: var(--accent);
+      background: var(--card-hover);
+    }
+    .skin-radio-pill:has(input:checked) {
+      border-color: var(--accent);
+      background: var(--paper);
+      box-shadow: 0 0 0 1px var(--accent);
+    }
+    .skin-radio-pill:has(input:focus-visible) {
+      outline: 3px solid var(--accent);
+      outline-offset: 2px;
+    }
+    .skin-radio-input {
+      accent-color: var(--accent);
+      width: 1rem;
+      height: 1rem;
+      margin: 0;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    @supports not (accent-color: red) {
+      .skin-radio-input {
+        appearance: none;
+        -webkit-appearance: none;
+        border: 2px solid var(--border);
+        border-radius: 9999px;
+        background: var(--paper);
+      }
+      .skin-radio-input:checked {
+        border-color: var(--accent);
+        background: radial-gradient(circle, var(--accent) 45%, transparent 50%);
+      }
+    }
+
+    /* Keep high-contrast focus indicator for keyboard navigation */
+    :where(a:any-link, button):focus-visible {
+      outline: 3px solid var(--accent);
+      outline-offset: 2px;
+    }
+
+    /* Logo color inversion for dark mode: black vector path turns crisp white */
     .dark .logo-filter {
       filter: invert(1) brightness(1.2);
     }
@@ -144,8 +394,8 @@
       padding-bottom: 56.25%; /* 16:9 */
       height: 0;
       overflow: hidden;
-      border: 3px solid var(--border);
-      box-shadow: 5px 5px 0px var(--shadow);
+      border: var(--card-border-w) solid var(--border);
+      box-shadow: var(--card-shadow);
       background: #000;
     }
     .video-wrapper iframe {
@@ -157,34 +407,21 @@
       border: 0;
     }
 
-    /* Custom scrollbars */
-    ::-webkit-scrollbar {
-      width: 10px;
-      height: 10px;
-    }
-    ::-webkit-scrollbar-track {
-      background: var(--bg);
-    }
-    ::-webkit-scrollbar-thumb {
-      background: var(--border);
-      border-radius: 4px;
+    /* Custom scrollbars (WebKit legacy fallback only when standard scrollbar-color unsupported) */
+    @supports not (scrollbar-color: auto) {
+      ::-webkit-scrollbar {
+        width: 10px;
+        height: 10px;
+      }
+      ::-webkit-scrollbar-track {
+        background: var(--bg);
+      }
+      ::-webkit-scrollbar-thumb {
+        background: var(--border);
+        border-radius: 4px;
+      }
     }
   </style>
-
-  <!-- Anti-FOUC Theme Initialization -->
-  <script>
-    (function() {
-      try {
-        const saved = localStorage.getItem('glorp-theme');
-        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        if (saved === 'dark' || (!saved && prefersDark)) {
-          document.documentElement.classList.add('dark');
-        } else {
-          document.documentElement.classList.remove('dark');
-        }
-      } catch(e) {}
-    })();
-  </script>
 </head>
 <body id="pageBody" class="min-h-screen relative flex flex-col">
 
@@ -194,16 +431,16 @@
   <!-- ========================================================================= -->
   <!-- STICKY NAVBAR                                                             -->
   <!-- ========================================================================= -->
-  <header class="sticky top-0 z-40 bg-[var(--header-bg)] backdrop-blur-md border-b-[3px] border-[var(--border)] transition-colors">
+  <header class="sticky top-0 z-40 bg-[var(--header-bg)] backdrop-blur-md border-b-[var(--card-border-w)] border-[var(--border)] transition-colors">
     <div class="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
       <!-- Logo + Brand Name -->
       <a href="#" class="flex items-center gap-3 group">
         <img src="logo.svg" alt="GlorpDrums Logo" class="w-10 h-10 object-contain logo-filter transition-transform group-hover:scale-105">
-        <span class="font-display text-2xl tracking-wide uppercase">GlorpDrums</span>
+        <span class="font-display text-2xl tracking-wide">GlorpDrums</span>
       </a>
 
       <!-- Navigation Links -->
-      <nav class="hidden md:flex items-center gap-6 font-mono text-xs font-bold uppercase">
+      <nav aria-label="Primary" class="hidden md:flex items-center gap-6 font-mono text-xs font-bold uppercase">
         <a href="#features" class="hover:text-[var(--accent)] transition-colors">Features</a>
         <a href="#demos" class="hover:text-[var(--accent)] transition-colors">Video Demos</a>
         <a href="#kits" class="hover:text-[var(--accent)] transition-colors">Drum Kits</a>
@@ -216,9 +453,9 @@
       <!-- Right CTAs & Theme Toggle -->
       <div class="flex items-center gap-3">
         <!-- Theme Toggle Button -->
-        <button onclick="toggleTheme()" class="comic-btn-secondary px-3 py-1.5 rounded-lg text-xs font-mono flex items-center gap-1.5" title="Toggle Theme (Light Sketch / Dark)">
-          <span id="themeBtnIcon">🌙</span>
-          <span id="themeBtnText" class="hidden sm:inline">Theme</span>
+        <button type="button" onclick="toggleTheme()" class="comic-btn-secondary px-3 py-1.5 rounded-lg text-xs font-mono flex items-center gap-1.5" aria-label="Switch between Light and Dark theme">
+          <span id="themeBtnIcon" aria-hidden="true">🌙</span>
+          <span id="themeBtnText" class="hidden sm:inline">Dark</span>
         </button>
 
         <!-- Download Latest Release Button -->
@@ -246,17 +483,17 @@
         <div class="flex items-center gap-3">
           <img src="logo.svg" alt="GlorpDrums Logo" class="w-16 h-16 sm:w-20 sm:h-20 object-contain logo-filter">
           <div>
-            <div class="inline-block px-2.5 py-0.5 rounded bg-[var(--accent)] text-black font-mono text-xs font-bold border-2 border-[var(--border)] mb-1">
+            <div class="inline-block px-2.5 py-0.5 rounded glorp-badge font-mono text-xs font-bold mb-1">
               OPEN-SOURCE ACOUSTIC DRUM ENGINE
             </div>
-            <h1 class="font-display text-4xl sm:text-6xl tracking-wide uppercase leading-none">
+            <h1 class="font-display text-4xl sm:text-6xl tracking-wide leading-none">
               GlorpDrums
             </h1>
           </div>
         </div>
 
         <p class="text-base sm:text-lg text-[var(--ink-soft)] leading-relaxed">
-          A sample-based acoustic drum plugin and standalone workstation built with JUCE and modern C++20 for Linux and Windows musicians (macOS port on the roadmap). Designed with zero-copy sample playback, multi-zone articulations, continuous e-drum calibration, acoustic crosstalk bleed, and an integrated rehearsal suite.
+          A sample-based acoustic drum plugin and standalone workstation built with JUCE and modern C++20 for Linux and Windows musicians (macOS port on the roadmap). Features zero-copy sample playback, multi-zone articulations, continuous e-drum calibration, 6 visual skins (including Minimal Studio Pad Grid modes), Red Hat typography, and an integrated rehearsal suite.
         </p>
 
         <!-- Feature Badges -->
@@ -264,7 +501,7 @@
           <span class="comic-card px-3 py-1 rounded-md text-[var(--ink)]">Linux &amp; Windows 10/11</span>
           <span class="comic-card px-3 py-1 rounded-md text-[var(--ink)]">VST3 / LV2 / Standalone</span>
           <span class="comic-card px-3 py-1 rounded-md text-[var(--ink)]">16 Stereo DAW Buses</span>
-          <span class="comic-card px-3 py-1 rounded-md text-[var(--ink)]">Zero-Copy Memory Mapped (.glorpkit)</span>
+          <span class="comic-card px-3 py-1 rounded-md text-[var(--ink)]">6 Built-In Skins &amp; Pad Grid</span>
           <span class="comic-card px-3 py-1 rounded-md text-[var(--ink)]">GlorpKit Studio Included</span>
         </div>
 
@@ -288,27 +525,78 @@
 
       <!-- Right: Main Showcase Image Frame -->
       <div class="lg:col-span-5 space-y-2">
-        <div class="comic-frame rounded-2xl overflow-hidden bg-black relative group cursor-pointer" onclick="openLightbox(document.getElementById('heroImage').src, 'GlorpDrums Interface View')">
-          <img id="heroImage" src="dark_kit_view.png" alt="GlorpDrums Kit View" class="w-full h-auto object-cover group-hover:scale-102 transition-transform">
+        <div class="comic-frame rounded-2xl overflow-hidden bg-black relative group cursor-pointer" onclick="openLightbox(document.getElementById('heroImage').src, document.getElementById('heroPreviewCaption').textContent)">
+          <img id="heroImage" src="dark_kit_view.png" alt="GlorpDrums Interface Preview" class="w-full h-auto object-cover group-hover:scale-102 transition-transform">
         </div>
 
         <!-- View Switcher Tabs -->
-        <div class="flex items-center justify-between text-xs font-mono text-[var(--ink-muted)] px-1">
-          <span>Interface Preview:</span>
-          <div class="flex items-center gap-2 font-bold">
-            <button onclick="setHeroImage('dark_kit_view.png')" class="underline hover:text-[var(--accent)] cursor-pointer">Dark View</button>
+        <div class="flex flex-wrap items-center justify-between gap-2 text-xs font-mono text-[var(--ink-muted)] px-1">
+          <span id="heroPreviewCaption">Dark (Night) Kit View</span>
+          <div class="flex flex-wrap items-center gap-2 font-bold">
+            <button type="button" onclick="setHeroImage('minimal_dark_home.png', 'Minimal (Dark) Pad Grid')" class="underline hover:text-[var(--accent)] cursor-pointer">Minimal Dark</button>
             <span>•</span>
-            <button onclick="setHeroImage('screenshot.png')" class="underline hover:text-[var(--accent)] cursor-pointer">Sketch View</button>
+            <button type="button" onclick="setHeroImage('minimal_light_home.png', 'Minimal (Light) Pad Grid')" class="underline hover:text-[var(--accent)] cursor-pointer">Minimal Light</button>
+            <span>•</span>
+            <button type="button" onclick="setHeroImage('dark_kit_view.png', 'Dark (Night) Kit View')" class="underline hover:text-[var(--accent)] cursor-pointer">Dark</button>
+            <span>•</span>
+            <button type="button" onclick="setHeroImage('screenshot.png', 'Sketch (Light) Kit View')" class="underline hover:text-[var(--accent)] cursor-pointer">Sketch</button>
           </div>
         </div>
       </div>
     </div>
+
+    <!-- Live App Skin Selector (Stylized Accessible Radio Group) -->
+    <fieldset class="comic-card rounded-2xl p-4 space-y-3" aria-describedby="skinHelpText">
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <legend class="font-display text-base sm:text-lg uppercase tracking-wide flex items-center gap-2">
+          <span aria-hidden="true">🎨</span> Check our themes/skins!
+        </legend>
+        <span id="skinHelpText" class="text-xs font-mono text-[var(--ink-muted)]">Select any GlorpDrums skin to restyle this site, fonts, borders &amp; app preview</span>
+      </div>
+      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 text-xs font-mono font-semibold">
+        <label for="skin-sketch" class="skin-radio-pill">
+          <input type="radio" id="skin-sketch" name="glorp-site-skin" value="sketch" class="skin-radio-input" onchange="applySkin('sketch', true)">
+          <span class="w-3.5 h-3.5 rounded-full border border-black shrink-0" style="background: linear-gradient(135deg, #e2e5e2 50%, #ea8c16 50%);" aria-hidden="true"></span>
+          <span>Sketch</span>
+        </label>
+
+        <label for="skin-dark" class="skin-radio-pill">
+          <input type="radio" id="skin-dark" name="glorp-site-skin" value="dark" class="skin-radio-input" onchange="applySkin('dark', true)">
+          <span class="w-3.5 h-3.5 rounded-full border border-white/60 shrink-0" style="background: linear-gradient(135deg, #141517 50%, #ea8c16 50%);" aria-hidden="true"></span>
+          <span>Dark</span>
+        </label>
+
+        <label for="skin-studio-clean" class="skin-radio-pill">
+          <input type="radio" id="skin-studio-clean" name="glorp-site-skin" value="studio-clean" class="skin-radio-input" onchange="applySkin('studio-clean', true)">
+          <span class="w-3.5 h-3.5 rounded-full border border-[#647082] shrink-0" style="background: linear-gradient(135deg, #f1f3f5 50%, #c96b08 50%);" aria-hidden="true"></span>
+          <span>Studio Clean</span>
+        </label>
+
+        <label for="skin-high-contrast" class="skin-radio-pill">
+          <input type="radio" id="skin-high-contrast" name="glorp-site-skin" value="high-contrast" class="skin-radio-input" onchange="applySkin('high-contrast', true)">
+          <span class="w-3.5 h-3.5 rounded-full border border-white/70 shrink-0" style="background: linear-gradient(135deg, #0b0c10 50%, #ff9f1c 50%);" aria-hidden="true"></span>
+          <span>High Contrast</span>
+        </label>
+
+        <label for="skin-minimal-dark" class="skin-radio-pill">
+          <input type="radio" id="skin-minimal-dark" name="glorp-site-skin" value="minimal-dark" class="skin-radio-input" onchange="applySkin('minimal-dark', true)">
+          <span class="w-3.5 h-3.5 rounded-full border border-[#3b4152] shrink-0" style="background: linear-gradient(135deg, #1e222b 50%, #6b5bff 50%);" aria-hidden="true"></span>
+          <span>Minimal Dark</span>
+        </label>
+
+        <label for="skin-minimal-light" class="skin-radio-pill">
+          <input type="radio" id="skin-minimal-light" name="glorp-site-skin" value="minimal-light" class="skin-radio-input" onchange="applySkin('minimal-light', true)">
+          <span class="w-3.5 h-3.5 rounded-full border border-[#9ea8ba] shrink-0" style="background: linear-gradient(135deg, #dce1ea 50%, #6b5bff 50%);" aria-hidden="true"></span>
+          <span>Minimal Light</span>
+        </label>
+      </div>
+    </fieldset>
   </section>
 
   <!-- ========================================================================= -->
   <!-- SECTION: EMBEDDED YOUTUBE VIDEO DEMOS                                     -->
   <!-- ========================================================================= -->
-  <section id="demos" class="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 py-12 border-t-[3px] border-[var(--border)] space-y-6">
+  <section id="demos" class="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 py-12 border-t-[var(--card-border-w)] border-[var(--border)] space-y-6">
     <div class="flex flex-wrap items-center justify-between gap-4">
       <div>
         <h2 class="font-display text-3xl sm:text-4xl uppercase tracking-wide">Video Demonstrations</h2>
@@ -335,10 +623,10 @@
         <iframe id="videoIframe" src="https://www.youtube.com/embed/gszPxE3Zv8Y" title="GlorpDrums Video Demo" frameborder="0" referrerpolicy="strict-origin-when-cross-origin" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
         <!-- Coming Soon Placeholder (shown for Demo 3) -->
         <div id="videoPlaceholder" class="absolute inset-0 hidden flex flex-col items-center justify-center text-center p-6 bg-[#16171a] border-4 border-dashed border-[var(--border)]">
-          <div class="w-16 h-16 rounded-2xl bg-[var(--accent)] text-black flex items-center justify-center text-3xl font-black mb-3 shadow-[4px_4px_0_0_#000]">
+          <div class="w-16 h-16 rounded-2xl glorp-badge flex items-center justify-center text-3xl font-black mb-3 shadow-[4px_4px_0_0_#000]">
             🎬
           </div>
-          <span class="inline-block px-3 py-1 rounded bg-[var(--accent)] text-black font-mono text-xs font-bold border-2 border-[var(--border)] mb-2 uppercase">
+          <span class="inline-block px-3 py-1 rounded glorp-badge font-mono text-xs font-bold mb-2 uppercase">
             Coming Soon
           </span>
           <h3 class="font-display text-2xl sm:text-3xl uppercase tracking-wider text-white">GlorpKit Studio Video In Production</h3>
@@ -365,7 +653,7 @@
   <!-- ========================================================================= -->
   <!-- SECTION: CORE FEATURE MODULES                                             -->
   <!-- ========================================================================= -->
-  <section id="features" class="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 py-12 border-t-[3px] border-[var(--border)] space-y-10">
+  <section id="features" class="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 py-12 border-t-[var(--card-border-w)] border-[var(--border)] space-y-10">
     <div class="space-y-2">
       <h2 class="font-display text-3xl sm:text-4xl uppercase tracking-wide">Core Features &amp; Capabilities</h2>
       <p class="text-sm text-[var(--ink-soft)]">A breakdown of the sound engine, mixer console, practice deck, and authoring tools.</p>
@@ -375,7 +663,7 @@
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
       <div class="comic-card rounded-2xl p-6 sm:p-8 space-y-4 flex flex-col justify-between">
         <div class="space-y-3">
-          <div class="inline-block px-2.5 py-1 rounded bg-[var(--accent)] text-black font-mono text-xs font-bold border-2 border-[var(--border)]">
+          <div class="inline-block px-2.5 py-1 rounded glorp-badge font-mono text-xs font-bold">
             ARCHIVE ENGINE
           </div>
           <h3 class="font-display text-2xl uppercase">Native GlorpKit Format (.glorpkit)</h3>
@@ -392,7 +680,7 @@
 
       <div class="comic-card rounded-2xl p-6 sm:p-8 space-y-4 flex flex-col justify-between">
         <div class="space-y-3">
-          <div class="inline-block px-2.5 py-1 rounded bg-[var(--accent)] text-black font-mono text-xs font-bold border-2 border-[var(--border)]">
+          <div class="inline-block px-2.5 py-1 rounded glorp-badge font-mono text-xs font-bold">
             EXPRESSION &amp; CALIBRATION
           </div>
           <h3 class="font-display text-2xl uppercase">Multi-Zone &amp; E-Drum Calibration</h3>
@@ -412,7 +700,7 @@
     <div class="comic-card rounded-2xl p-6 sm:p-8 space-y-6">
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
         <div class="lg:col-span-5 space-y-4">
-          <div class="inline-block px-2.5 py-1 rounded bg-[var(--accent)] text-black font-mono text-xs font-bold border-2 border-[var(--border)]">
+          <div class="inline-block px-2.5 py-1 rounded glorp-badge font-mono text-xs font-bold">
             MIXING CONSOLE
           </div>
           <h3 class="font-display text-3xl uppercase">16-Bus Multi-Out &amp; Bleed Matrix</h3>
@@ -454,7 +742,7 @@
         </div>
 
         <div class="lg:col-span-5 space-y-4">
-          <div class="inline-block px-2.5 py-1 rounded bg-[var(--accent)] text-black font-mono text-xs font-bold border-2 border-[var(--border)]">
+          <div class="inline-block px-2.5 py-1 rounded glorp-badge font-mono text-xs font-bold">
             PRACTICE &amp; REHEARSAL
           </div>
           <h3 class="font-display text-3xl uppercase">Setlists &amp; Tempo Detection</h3>
@@ -478,7 +766,7 @@
   <!-- ========================================================================= -->
   <!-- SECTION: GLORPKIT STUDIO (STANDALONE KIT CREATOR)                         -->
   <!-- ========================================================================= -->
-  <section id="studio" class="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 py-12 border-t-[3px] border-[var(--border)] space-y-8">
+  <section id="studio" class="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 py-12 border-t-[var(--card-border-w)] border-[var(--border)] space-y-8">
     <div class="flex flex-wrap items-center justify-between gap-4">
       <div>
         <h2 class="font-display text-3xl sm:text-4xl uppercase tracking-wide">GlorpKit Studio</h2>
@@ -521,10 +809,10 @@
   <!-- ========================================================================= -->
   <!-- SECTION: DRUM KITS LIBRARY (.glorpkit)                                    -->
   <!-- ========================================================================= -->
-  <section id="kits" class="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 py-12 border-t-[3px] border-[var(--border)] space-y-8">
+  <section id="kits" class="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 py-12 border-t-[var(--card-border-w)] border-[var(--border)] space-y-8">
     <div class="flex flex-wrap items-end justify-between gap-4">
       <div class="space-y-2">
-        <div class="inline-block px-2.5 py-1 rounded bg-[var(--accent)] text-black font-mono text-xs font-bold border-2 border-[var(--border)] uppercase">
+        <div class="inline-block px-2.5 py-1 rounded glorp-badge font-mono text-xs font-bold uppercase">
           Sample Library
         </div>
         <h2 class="font-display text-3xl sm:text-4xl uppercase tracking-wide">Drum Kits (.glorpkit)</h2>
@@ -544,7 +832,7 @@
       <div class="comic-card rounded-2xl p-6 sm:p-8 space-y-6 flex flex-col justify-between border-2">
         <div class="space-y-4">
           <div class="flex items-center justify-between">
-            <span class="inline-block px-2.5 py-1 rounded bg-[var(--accent)] text-black font-mono text-xs font-bold border-2 border-[var(--border)] uppercase">
+            <span class="inline-block px-2.5 py-1 rounded glorp-badge font-mono text-xs font-bold uppercase">
               Flagship Kit
             </span>
             <span class="font-mono text-xs font-bold text-[var(--accent)]">~1.6 GB ZIP64</span>
@@ -584,7 +872,7 @@
       <div class="comic-card rounded-2xl p-6 sm:p-8 space-y-6 flex flex-col justify-between border-2">
         <div class="space-y-4">
           <div class="flex items-center justify-between">
-            <span class="inline-block px-2.5 py-1 rounded bg-[var(--accent)] text-black font-mono text-xs font-bold border-2 border-[var(--border)] uppercase">
+            <span class="inline-block px-2.5 py-1 rounded glorp-badge font-mono text-xs font-bold uppercase">
               Maple Studio Kit
             </span>
             <span class="font-mono text-xs font-bold text-[var(--accent)]">~1.5 GB ZIP64</span>
@@ -636,16 +924,36 @@
   <!-- ========================================================================= -->
   <!-- SECTION: SCREENSHOT GALLERY                                               -->
   <!-- ========================================================================= -->
-  <section id="screenshots" class="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 py-12 border-t-[3px] border-[var(--border)] space-y-6">
+  <section id="screenshots" class="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 py-12 border-t-[var(--card-border-w)] border-[var(--border)] space-y-6">
     <div class="flex items-center justify-between">
       <div>
         <h2 class="font-display text-3xl sm:text-4xl uppercase tracking-wide">Screenshot Gallery</h2>
         <p class="text-sm text-[var(--ink-soft)]">Click any screenshot to view full-resolution image.</p>
       </div>
-      <span class="text-xs font-mono text-[var(--ink-muted)]">4 Skins • Scalable UI Text</span>
+      <span class="text-xs font-mono text-[var(--ink-muted)]">6 Skins • Red Hat Sans • Scalable UI</span>
     </div>
 
     <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+      <div class="comic-frame rounded-xl overflow-hidden bg-black cursor-pointer group" onclick="openLightbox('minimal_dark_home.png', 'Minimal (Dark) — Pad Grid')">
+        <img src="minimal_dark_home.png" alt="Minimal Dark pad grid home view" class="w-full h-36 object-cover group-hover:scale-105 transition-transform">
+        <span class="block p-2 bg-[var(--paper)] text-xs font-mono border-t-2 border-[var(--border)] truncate">Minimal (Dark) Pad Grid</span>
+      </div>
+
+      <div class="comic-frame rounded-xl overflow-hidden bg-black cursor-pointer group" onclick="openLightbox('minimal_light_home.png', 'Minimal (Light) — Pad Grid')">
+        <img src="minimal_light_home.png" alt="Minimal Light pad grid home view" class="w-full h-36 object-cover group-hover:scale-105 transition-transform">
+        <span class="block p-2 bg-[var(--paper)] text-xs font-mono border-t-2 border-[var(--border)] truncate">Minimal (Light) Pad Grid</span>
+      </div>
+
+      <div class="comic-frame rounded-xl overflow-hidden bg-black cursor-pointer group" onclick="openLightbox('minimal_dark_mixer.png', 'Minimal (Dark) — Mixer Console')">
+        <img src="minimal_dark_mixer.png" alt="Minimal Dark mixer console view" class="w-full h-36 object-cover group-hover:scale-105 transition-transform">
+        <span class="block p-2 bg-[var(--paper)] text-xs font-mono border-t-2 border-[var(--border)] truncate">Minimal (Dark) Mixer</span>
+      </div>
+
+      <div class="comic-frame rounded-xl overflow-hidden bg-black cursor-pointer group" onclick="openLightbox('minimal_dark_practice.png', 'Minimal (Dark) — Practice Suite')">
+        <img src="minimal_dark_practice.png" alt="Minimal Dark practice and setlist view" class="w-full h-36 object-cover group-hover:scale-105 transition-transform">
+        <span class="block p-2 bg-[var(--paper)] text-xs font-mono border-t-2 border-[var(--border)] truncate">Minimal (Dark) Practice</span>
+      </div>
+
       <div class="comic-frame rounded-xl overflow-hidden bg-black cursor-pointer group" onclick="openLightbox('dark_kit_view.png', 'Dark Theme Kit View')">
         <img src="dark_kit_view.png" alt="Dark Kit View" class="w-full h-36 object-cover group-hover:scale-105 transition-transform">
         <span class="block p-2 bg-[var(--paper)] text-xs font-mono border-t-2 border-[var(--border)] truncate">Dark Theme Kit View</span>
@@ -691,10 +999,10 @@
   <!-- ========================================================================= -->
   <!-- SECTION: PREBUILT RELEASES (WINDOWS & LINUX)                              -->
   <!-- ========================================================================= -->
-  <section id="downloads" class="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 py-12 border-t-[3px] border-[var(--border)] space-y-8">
+  <section id="downloads" class="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 py-12 border-t-[var(--card-border-w)] border-[var(--border)] space-y-8">
     <div class="flex flex-wrap items-end justify-between gap-4">
       <div class="space-y-2">
-        <div class="inline-block px-2.5 py-1 rounded bg-[var(--accent)] text-black font-mono text-xs font-bold border-2 border-[var(--border)] uppercase">
+        <div class="inline-block px-2.5 py-1 rounded glorp-badge font-mono text-xs font-bold uppercase">
           Binary Releases
         </div>
         <h2 class="font-display text-3xl sm:text-4xl uppercase tracking-wide">Download Prebuilt Packages</h2>
@@ -751,7 +1059,7 @@
             <li>• <strong>Ubuntu / Debian:</strong> <code class="text-[var(--accent)]">GlorpDrums-ubuntu-x86-64.deb</code> (Ubuntu 24.04+ / Debian 13+)</li>
             <li>• <strong>Fedora:</strong> <code class="text-[var(--accent)]">GlorpDrums-fedora-x86_64.rpm</code></li>
             <li>• <strong>Portable Archive:</strong> <code class="text-[var(--accent)]">GlorpDrums-ubuntu-24.04.tar.gz</code> (VST3, LV2, Standalone, GlorpKit Studio &amp; Starter Kit)</li>
-            <li>• <strong>Readability &amp; Logs:</strong> 4 Skins, 90%–130% UI text scaling &amp; built-in <code class="text-[var(--accent)]">glorpdrums_debug.log</code> export</li>
+            <li>• <strong>Readability &amp; Logs:</strong> 6 Skins (incl. Minimal Pad Grid), 90%–130% UI text scaling &amp; built-in <code class="text-[var(--accent)]">glorpdrums_debug.log</code> export</li>
           </ul>
         </div>
         <a href="https://github.com/asuka-glorp/GlorpDrums/releases/latest" target="_blank" rel="noopener noreferrer" class="comic-btn w-full py-3 rounded-xl font-mono text-sm uppercase flex items-center justify-center gap-2">
@@ -765,7 +1073,7 @@
   <!-- ========================================================================= -->
   <!-- SECTION: BUILDING & INSTALLATION                                          -->
   <!-- ========================================================================= -->
-  <section id="installation" class="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 py-12 border-t-[3px] border-[var(--border)] space-y-6">
+  <section id="installation" class="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 py-12 border-t-[var(--card-border-w)] border-[var(--border)] space-y-6">
     <div class="flex flex-wrap items-center justify-between gap-4">
       <div class="space-y-1">
         <h2 class="font-display text-3xl sm:text-4xl uppercase tracking-wide">Building from Source</h2>
@@ -850,7 +1158,7 @@
   <!-- ========================================================================= -->
   <!-- FOOTER                                                                    -->
   <!-- ========================================================================= -->
-  <footer class="mt-auto border-t-[3px] border-[var(--border)] bg-[var(--paper)] py-8 transition-colors">
+  <footer class="mt-auto border-t-[var(--card-border-w)] border-[var(--border)] bg-[var(--paper)] py-8 transition-colors">
     <div class="max-w-6xl mx-auto px-4 sm:px-6 flex flex-wrap items-center justify-between gap-4 font-mono text-xs text-[var(--ink-muted)]">
       <div class="flex items-center gap-3">
         <img src="logo.svg" alt="GlorpDrums Logo" class="w-8 h-8 object-contain logo-filter">
@@ -876,7 +1184,7 @@
     <div class="comic-card max-w-5xl w-full rounded-2xl overflow-hidden p-4 space-y-3" onclick="event.stopPropagation()">
       <div class="flex items-center justify-between border-b-2 border-[var(--border)] pb-2">
         <h4 id="lightboxTitle" class="font-display text-xl text-[var(--accent)] uppercase">Screenshot View</h4>
-        <button onclick="closeLightbox()" class="w-8 h-8 rounded-lg bg-[var(--accent)] border-2 border-[var(--border)] font-display text-sm hover:brightness-110 cursor-pointer" title="Close Lightbox">
+        <button type="button" onclick="closeLightbox()" class="w-8 h-8 rounded-lg glorp-badge font-display text-sm hover:brightness-110 cursor-pointer" aria-label="Close Lightbox">
           ✕
         </button>
       </div>
@@ -963,9 +1271,11 @@
     }
 
     // Hero image preview switcher
-    function setHeroImage(src) {
+    function setHeroImage(src, caption) {
       const img = document.getElementById('heroImage');
+      const capEl = document.getElementById('heroPreviewCaption');
       if (img) img.src = src;
+      if (capEl && caption) capEl.textContent = caption;
     }
 
     // Lightbox modal controller
@@ -988,43 +1298,77 @@
       if (e.key === 'Escape') closeLightbox();
     });
 
-    // Theme Switcher Controller: Light (Sketch) & Dark Modes
-    function applyTheme(isDark) {
+    // 6-Skin Theme Controller: Mirrors Sketch, Dark, Studio Clean, High Contrast, Minimal Dark & Minimal Light
+    const SITE_SKINS = {
+      'sketch':        { dark: false, togglePair: 'dark',          hero: 'screenshot.png',         caption: 'Sketch (Light) Kit View' },
+      'dark':          { dark: true,  togglePair: 'sketch',        hero: 'dark_kit_view.png',      caption: 'Dark (Night) Kit View' },
+      'studio-clean':  { dark: false, togglePair: 'high-contrast', hero: 'screenshot.png',         caption: 'Studio Clean (Red Hat Sans & Straight Borders)' },
+      'high-contrast': { dark: true,  togglePair: 'studio-clean',  hero: 'dark_kit_view.png',      caption: 'High Contrast Pro (Red Hat Sans & Crisp Obsidian)' },
+      'minimal-dark':  { dark: true,  togglePair: 'minimal-light', hero: 'minimal_dark_home.png',  caption: 'Minimal (Dark) Studio & Logical Pad Grid' },
+      'minimal-light': { dark: false, togglePair: 'minimal-dark',  hero: 'minimal_light_home.png', caption: 'Minimal (Light) Studio & Logical Pad Grid' }
+    };
+
+    function applySkin(skinId, persist) {
+      const cfg = SITE_SKINS[skinId] || SITE_SKINS['sketch'];
+      const resolvedId = SITE_SKINS[skinId] ? skinId : 'sketch';
       const root = document.documentElement;
+      const metaColorScheme = document.querySelector('meta[name="color-scheme"]');
       const btnText = document.getElementById('themeBtnText');
       const btnIcon = document.getElementById('themeBtnIcon');
 
-      if (isDark) {
+      root.dataset.skin = resolvedId;
+      if (cfg.dark) {
         root.classList.add('dark');
+        if (metaColorScheme) metaColorScheme.content = 'dark';
         if (btnText) btnText.textContent = "Light";
         if (btnIcon) btnIcon.textContent = "☀️";
       } else {
         root.classList.remove('dark');
+        if (metaColorScheme) metaColorScheme.content = 'light';
         if (btnText) btnText.textContent = "Dark";
         if (btnIcon) btnIcon.textContent = "🌙";
+      }
+
+      const radio = document.querySelector(`input[name="glorp-site-skin"][value="${resolvedId}"]`);
+      if (radio) radio.checked = true;
+
+      setHeroImage(cfg.hero, cfg.caption);
+
+      if (persist) {
+        try {
+          localStorage.setItem('glorp-skin', resolvedId);
+          localStorage.setItem('glorp-theme', cfg.dark ? 'dark' : 'light');
+        } catch(e) {}
       }
     }
 
     function toggleTheme() {
-      const isDark = !document.documentElement.classList.contains('dark');
-      applyTheme(isDark);
-      try {
-        localStorage.setItem('glorp-theme', isDark ? 'dark' : 'light');
-      } catch(e) {}
+      const current = document.documentElement.dataset.skin || 'sketch';
+      const next = (SITE_SKINS[current] && SITE_SKINS[current].togglePair) || 'dark';
+      applySkin(next, true);
     }
 
-    // Initialize button labels on DOM ready
+    // Initialize skin radios and hero preview on DOM ready
     document.addEventListener('DOMContentLoaded', function() {
-      const isCurrentlyDark = document.documentElement.classList.contains('dark');
-      applyTheme(isCurrentlyDark);
+      const current = document.documentElement.dataset.skin || 'sketch';
+      applySkin(current, false);
     });
 
-    // Listen for OS theme changes if user hasn't explicitly set preference
+    // Cross-tab persistence sync
+    window.addEventListener('storage', function(e) {
+      if (e.key === 'glorp-skin' && e.newValue && SITE_SKINS[e.newValue]) {
+        applySkin(e.newValue, false);
+      }
+    });
+
+    // Listen for OS theme changes if user hasn't pinned a skin
     if (window.matchMedia) {
       window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
-        if (!localStorage.getItem('glorp-theme')) {
-          applyTheme(e.matches);
-        }
+        try {
+          if (!localStorage.getItem('glorp-skin')) {
+            applySkin(e.matches ? 'minimal-dark' : 'sketch', false);
+          }
+        } catch(err) {}
       });
     }
 

@@ -54,6 +54,17 @@ class Knob
         theme = t;
         repaint();
     }
+    void setAccentColour(juce::Colour c)
+    {
+        customAccent = c;
+        hasCustomAccent = true;
+        repaint();
+    }
+    void setBipolar(bool b)
+    {
+        bipolar = b;
+        repaint();
+    }
 
     void paint(juce::Graphics &) override;
     void mouseDown(const juce::MouseEvent &) override;
@@ -69,6 +80,9 @@ class Knob
 
     juce::String labelText;
     Theme theme = Theme::sketch();
+    juce::Colour customAccent {0xff6b5bff};
+    bool hasCustomAccent = false;
+    bool bipolar = false;
     bool learnArmed = false;
     bool isDragging = false;
 
