@@ -51,6 +51,38 @@ Download official and community-curated drum kits (including ReaperDrummer flags
 
 Place downloaded `.glorpkit` files or extracted kit folders into `~/.glorpdrums/kits/` or `~/.config/GlorpDrums/kits/`, or scan your custom download directory via **FILE $\to$ Scan Custom Folder...**
 
+---
+
+## 🎨 Visual Themes & Skins
+
+Switch anytime under **`SETTINGS → Skin / Theme`** (or toggle Minimal Light/Dark directly from the top-right **`◐`** header button). All Clean and Minimal themes use bundled **Red Hat Display** and **Red Hat Text** typography alongside persistent **90%–130% UI Text Scaling**.
+
+| Minimal (Dark) — Pad Grid | Minimal (Light) — Pad Grid |
+| :---: | :---: |
+| ![Minimal Dark Pad Grid](docs/minimal_dark_home.png) | ![Minimal Light Pad Grid](docs/minimal_light_home.png) |
+| *Hides drum graphics & note ribbon; logical-piece pad grid, grouped zone knobs & themed menus* | *Light hardware chassis with grouped zone selector, stereo slanted meters & official logo* |
+
+| Sketch (Light) | Dark (Night) |
+| :---: | :---: |
+| ![Sketch Light Theme](docs/screenshot.png) | ![Dark Night Theme](docs/dark_kit_view.png) |
+| *Signature hand-drawn ink paper aesthetic & comic display typography* | *Deep studio slate with white ink kit artwork & warm amber highlights* |
+
+| Studio Clean (Light) | High Contrast Pro (Dark) |
+| :---: | :---: |
+| ![Studio Clean Light Theme](docs/studio_clean_home.png) | ![High Contrast Pro Dark Theme](docs/high_contrast_home.png) |
+| *Crisp straight borders with Red Hat Display / Text typography* | *High-visibility obsidian contrast with amber/white accents* |
+
+<details>
+<summary><b>More Minimal Skin Views (Mixer Console &amp; Practice Suite)</b></summary>
+
+| Minimal (Dark) — Mixer Console | Minimal (Dark) — Practice Suite |
+| :---: | :---: |
+| ![Minimal Dark Mixer Console](docs/minimal_dark_mixer.png) | ![Minimal Dark Practice Suite](docs/minimal_dark_practice.png) |
+
+</details>
+
+---
+
 ## Key Features
 
 ### 🥁 Native GlorpKit Format (`.glorpkit`)

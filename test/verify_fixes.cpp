@@ -2068,6 +2068,25 @@ int main()
         editor->applyTheme (tHiCon);
         VERIFY_CHECK (glorp::isCleanStyleEnabled());
 
+        auto saveSkinSnap = [&](const char* fname, const juce::Image& img)
+        {
+            juce::File out ("/home/servandoc/.gemini/antigravity/brain/cf30153d-b421-4187-8ed5-1bdf793c8e28/"
+                            + juce::String (fname));
+            out.deleteFile();
+            if (auto fos = std::unique_ptr<juce::FileOutputStream> (out.createOutputStream()))
+            {
+                juce::PNGImageFormat png;
+                png.writeImageToStream (img, *fos);
+            }
+        };
+
+        {
+            juce::Image hiStdImg (juce::Image::ARGB, editor->getWidth(), editor->getHeight(), true);
+            juce::Graphics hsg (hiStdImg);
+            editor->paintEntireComponent (hsg, false);
+            saveSkinSnap ("live_high_contrast_home.png", hiStdImg);
+        }
+
         editor->applyTextScale (1.30f);
         VERIFY_CHECK (std::abs (glorp::getUiTextScale() - 1.30f) < 0.01f);
         const float scaledH = glorp::uiFont (14.0f).getHeight();
@@ -2082,6 +2101,14 @@ int main()
         juce::Image cleanImg (juce::Image::ARGB, editor->getWidth(), editor->getHeight(), true);
         juce::Graphics cg (cleanImg);
         editor->paintEntireComponent (cg, false);
+
+        editor->applyTextScale (1.0f);
+        {
+            juce::Image cleanStdImg (juce::Image::ARGB, editor->getWidth(), editor->getHeight(), true);
+            juce::Graphics csg (cleanStdImg);
+            editor->paintEntireComponent (csg, false);
+            saveSkinSnap ("live_studio_clean_home.png", cleanStdImg);
+        }
 
         // Reset presentation & settings cleanly
         processor.getSettings().themeIndex = origThemeIdx;

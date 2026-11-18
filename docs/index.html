@@ -954,6 +954,16 @@
         <span class="block p-2 bg-[var(--paper)] text-xs font-mono border-t-2 border-[var(--border)] truncate">Minimal (Dark) Practice</span>
       </div>
 
+      <div class="comic-frame rounded-xl overflow-hidden bg-black cursor-pointer group" onclick="openLightbox('studio_clean_home.png', 'Studio Clean (Light) Theme')">
+        <img src="studio_clean_home.png" alt="Studio Clean light skin kit view" class="w-full h-36 object-cover group-hover:scale-105 transition-transform">
+        <span class="block p-2 bg-[var(--paper)] text-xs font-mono border-t-2 border-[var(--border)] truncate">Studio Clean (Light)</span>
+      </div>
+
+      <div class="comic-frame rounded-xl overflow-hidden bg-black cursor-pointer group" onclick="openLightbox('high_contrast_home.png', 'High Contrast Pro (Dark) Theme')">
+        <img src="high_contrast_home.png" alt="High Contrast Pro dark skin kit view" class="w-full h-36 object-cover group-hover:scale-105 transition-transform">
+        <span class="block p-2 bg-[var(--paper)] text-xs font-mono border-t-2 border-[var(--border)] truncate">High Contrast Pro</span>
+      </div>
+
       <div class="comic-frame rounded-xl overflow-hidden bg-black cursor-pointer group" onclick="openLightbox('dark_kit_view.png', 'Dark Theme Kit View')">
         <img src="dark_kit_view.png" alt="Dark Kit View" class="w-full h-36 object-cover group-hover:scale-105 transition-transform">
         <span class="block p-2 bg-[var(--paper)] text-xs font-mono border-t-2 border-[var(--border)] truncate">Dark Theme Kit View</span>
@@ -1302,8 +1312,8 @@
     const SITE_SKINS = {
       'sketch':        { dark: false, togglePair: 'dark',          hero: 'screenshot.png',         caption: 'Sketch (Light) Kit View' },
       'dark':          { dark: true,  togglePair: 'sketch',        hero: 'dark_kit_view.png',      caption: 'Dark (Night) Kit View' },
-      'studio-clean':  { dark: false, togglePair: 'high-contrast', hero: 'screenshot.png',         caption: 'Studio Clean (Red Hat Sans & Straight Borders)' },
-      'high-contrast': { dark: true,  togglePair: 'studio-clean',  hero: 'dark_kit_view.png',      caption: 'High Contrast Pro (Red Hat Sans & Crisp Obsidian)' },
+      'studio-clean':  { dark: false, togglePair: 'high-contrast', hero: 'studio_clean_home.png',  caption: 'Studio Clean (Red Hat Sans & Straight Borders)' },
+      'high-contrast': { dark: true,  togglePair: 'studio-clean',  hero: 'high_contrast_home.png', caption: 'High Contrast Pro (Red Hat Sans & Crisp Obsidian)' },
       'minimal-dark':  { dark: true,  togglePair: 'minimal-light', hero: 'minimal_dark_home.png',  caption: 'Minimal (Dark) Studio & Logical Pad Grid' },
       'minimal-light': { dark: false, togglePair: 'minimal-dark',  hero: 'minimal_light_home.png', caption: 'Minimal (Light) Studio & Logical Pad Grid' }
     };
